@@ -1,0 +1,93 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "Benjamin Woods",
+            "author_email": "ben@bjqw.me",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 2 - Pre-Alpha",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Natural Language :: English",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Database"
+            ],
+            "description": "derek\n=====\n\n*(Python implementation)*\n\n|License| |Python code coverage|\n\nTools for converting data into schema.\n\n(Still very much pre-alpha!)\n\n1. `Installation <installation_>`_\n2. `What is Derek? <what_>`_\n\n   1. `Document data structures <document_>`_\n   2. `Extract schemas from APIs <extract_>`_\n   3. `Really lightweight <really_>`_\n   4. `Extensible <extensible_>`_\n   5. `KISS <kiss_>`_\n\n3. `Specification <https://github.com/benjaminwoods/derek/blob/v0.0.1/docs/spec.md>`_\n4. `API <https://github.com/benjaminwoods/derek/blob/v0.0.1/docs/api.md>`_\n\n.. _installation:\n\nInstallation\n------------\n\nUsing ``pip``\n~~~~~~~~~~~~~~~~~\n\n.. code:: bash\n\n   pip install derek\n\nBuild from source\n~~~~~~~~~~~~~~~~~\n\n.. code:: bash\n\n   git clone https://github.com/benjaminwoods/derek.git\n   pip install python/requirements/build.txt\n   python -m build python\n   pip install python/dist/derek_\n\n.. _what:\n\nWhat is Derek?\n--------------\n\n.. _document:\n\nDerek documents data structures.\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nLoad some data into a tree of nodes:\n\n.. code:: python\n\n   # Import the main class\n   from derek import Derek\n\n   # Suppose that you have some JSON-compatible data\n   obj = [\n     {\n       'some': [1.0, 3, \"4.5\"],\n       'data': [3.4, 4.5]\n     },\n     {\n       'some': [2, \"4.0\", 1.5],\n       'data': [1.4]\n     }\n   ]\n\n   # Feed this data into Derek.tree\n   root_node = Derek.tree(obj, name='MyDataStructure')\n\nYou can use ``.example()`` to see a simple example item of data:\n\n.. code:: python\n\n   >>> root_node.example()\n   [{'some': [1.0], 'data': [3.4]}]\n\nYou can produce an OAS2/OAS3 JSON schema from this data, too:\n\n.. code:: python\n\n   j = root_node.parse(format='oas3')\n   import json\n   print(json.dumps(j, indent=2))\n\n.. code:: json\n\n   {\n     \"MyDataStructure\": {\n       \"type\": \"array\",\n       \"items\": {\n         \"type\": \"object\",\n         \"additionalProperties\": {\n           \"oneOf\": [\n             {\n               \"type\": \"array\",\n               \"items\": {\n                 \"oneOf\": [\n                   {\n                     \"type\": \"string\"\n                   },\n                   {\n                     \"type\": \"integer\"\n                   },\n                   {\n                     \"type\": \"number\"\n                   }\n                 ]\n               }\n             },\n             {\n               \"type\": \"array\",\n               \"items\": {\n                 \"type\": \"number\"\n               }\n             }\n           ]\n         }\n       },\n       \"example\": [\n         {\n           \"some\": [\n             1.0\n           ],\n           \"data\": [\n             3.4\n           ]\n         }\n       ]\n     }\n   }\n\nInstall and use the `yaml <https://github.com/yaml/pyyaml>`_ package to\nconvert this structure to an OAS3-compliant data schema.\n\n.. code:: json\n\n   import yaml\n   print(yaml.dump(j))\n\n.. code:: yaml\n\n   MyDataStructure:\n     example:\n     - data:\n       - 3.4\n       some:\n       - 1.0\n     items:\n       additionalProperties:\n         oneOf:\n         - items:\n             type: number\n           type: array\n         - items:\n             oneOf:\n             - type: number\n             - type: integer\n             - type: string\n           type: array\n       type: object\n     type: array\n\n.. _extract:\n\nDerek extracts schemas from APIs.\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nQuickly extract schemas from APIs, by feeding the returned JSON into\nDerek.\n\n.. code:: python\n\n   from derek import Derek\n\n   from pycoingecko import CoinGeckoAPI\n   cg = CoinGeckoAPI()\n\n   # Get all coins from CoinGecko\n   root_node = Derek.tree(cg.get_coins_list(), name='GetCoins')\n\nParse to get your schema:\n\n.. code:: python\n\n   j = root_node.parse(format='oas3')\n   import json\n   print(json.dumps(j, indent=2))\n\n.. code:: json\n\n   {\n     \"GetCoins\": {\n       \"type\": \"array\",\n       \"items\": {\n         \"type\": \"object\",\n         \"additionalProperties\": {\n           \"type\": \"string\"\n         }\n       },\n       \"example\": [\n         {\n           \"id\": \"01coin\",\n           \"symbol\": \"zoc\",\n           \"name\": \"01coin\"\n         }\n       ]\n     }\n   }\n\n.. _really:\n\nDerek is really lightweight.\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n**No required dependencies. Always.**\n\n.. _extensible:\n\nDerek is extensible.\n~~~~~~~~~~~~~~~~~~~~\n\nUse libraries like `pywhat <https://github.com/bee-san/pyWhat>`_ and\n`yaml <https://github.com/yaml/pyyaml>`_ to quickly extend ``Derek``:\n\n.. code:: python\n\n   import json, yaml\n\n   from derek import Derek, Parser\n\n   from pywhat import Identifier\n\n   class PywhatDerek(Derek):\n       @property\n       def parser(self):\n           return PywhatParser()\n\n       def parse_to_yaml(self, *args, **kwargs):\n           return yaml.dump(\n               self.parse(*args, **kwargs)\n           )\n\n   class PywhatParser(Parser):\n       @classmethod\n       def oas2(cls, node):\n           # Call the superclass parser for the current node:\n           #   _sup = cls.__mro__[PywhatParser.__mro__.index(int):]\n           #   j = _sup.oas2(cls, node)\n           # All calls to the oas2 method in the superclass therefore re-route\n           # back to this class method, automatically handling all recursive calls\n           # here.\n           j = super(PywhatParser, cls).oas2(node)\n\n           # The rest of this function simply patches in results from a call\n           # to the pywhat API.\n           identifier = Identifier()\n\n           if all(map(lambda t: not isinstance(node.value, t), [list, dict])):\n               result = identifier.identify(str(node.value))\n\n               if result['Regexes'] is not None:\n                   matches = [entry for entry in result['Regexes']['text']]\n\n                   # Select the match as the longest string\n                   map_func = lambda d: (d['Matched'], d['Regex Pattern']['Name'])\n                   max_func = lambda tup: len(tup[0])\n                   _, match = max(\n                       map(map_func, matches),\n                       key=max_func\n                   )\n\n                   j = {\n                       **j,\n                       'description': match\n                   }\n\n           return j\n\nAllowing for functionality like:\n\n.. code:: python\n\n   root_node = PywhatDerek.tree({\n       'data': ['17VZNX1SN5NtKa8UQFxwQbFeFc3iqRYhem']\n   }, name='Addresses')\n   root_node.get_oas3_yaml()\n\nreturning:\n\n.. code:: yaml\n\n   Addresses:\n     additionalProperties:\n       items:\n         description: \"Bitcoin (\\u20BF) Wallet Address\"\n         type: string\n       type: array\n     example:\n       data:\n       - 17VZNX1SN5NtKa8UQFxwQbFeFc3iqRYhem\n     type: object\n\n.. _kiss:\n\nDerek is straightforward.\n-------------------------\n\nDerek is designed for ease of use. If you\u2019re trying to use Derek\nfunctionality in a workflow and it feels like it should be easier to get\nyour desired result, please make an issue.\n\n.. |License| image:: https://github.com/benjaminwoods/derek/raw/v0.0.1/.badges/license.svg?sanitize=true\n.. |Python code coverage| image:: https://github.com/benjaminwoods/derek/raw/v0.0.1/.badges/coverage/python.svg?sanitize=true\n\n\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/benjaminwoods/derek",
+            "keywords": "data,schema,convert,analyze",
+            "license": "MIT License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "derek-py",
+            "package_url": "https://pypi.org/project/derek-py/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/derek-py/",
+            "project_urls": {
+                "Homepage": "https://github.com/benjaminwoods/derek"
+            },
+            "release_url": "https://pypi.org/project/derek-py/0.0.1/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Convert data structure to schema.",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 12381953,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0433a5bc3c43b7121db121ce365a9d81",
+                    "sha256": "8ef5c32bca24b3b48e2afee1cdf55adca33c64c8cfa3272016627ed06695f9f1"
+                },
+                "downloads": -1,
+                "filename": "derek_py-0.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "0433a5bc3c43b7121db121ce365a9d81",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 7418,
+                "upload_time": "2021-12-22T14:41:11",
+                "upload_time_iso_8601": "2021-12-22T14:41:11.458234Z",
+                "url": "https://files.pythonhosted.org/packages/07/27/e05f01a965e0a6bf813801cdf845ac6ebf6866bdae5371512dee5422b860/derek_py-0.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c5e94342052a914a8b73e43bb933a8ad",
+                    "sha256": "ba889eb218f27e44c5825eadb507a597cca1ff79fa2bf0d456c0fa1684ce5f64"
+                },
+                "downloads": -1,
+                "filename": "derek-py-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c5e94342052a914a8b73e43bb933a8ad",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 9794,
+                "upload_time": "2021-12-22T14:41:13",
+                "upload_time_iso_8601": "2021-12-22T14:41:13.462916Z",
+                "url": "https://files.pythonhosted.org/packages/14/f1/ffe6caf753ce4f223b930bb5da456d3cf32dd7db787dfed23b83116e6437/derek-py-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

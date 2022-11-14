@@ -1,0 +1,68 @@
+{
+    "1.0.0": {
+        "info": {
+            "author": "Pavel Butuzov",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# TestGear TMS adapters for Python\n![TestGear](https://raw.githubusercontent.com/testgear-tms/adapters-python/main/images/banner.png)\n\n# Pytest\n\n## Getting Started\n\n### Installation\n```\npip install testgear-adapter-pytest\n```\n\n## Usage\n\n### API client\n\nTo use adapter you need to install `testgear-api-client`:\n```\npip install testgear-api-client\n```\n\n### Configuration\n\nCreate `connection_config.ini` file in the root directory of the project:\n```\n[testgear]\nurl = https://{DOMAIN} - location of the TestGear instance\nprivatetoken = it has the form {T2lKd2pLZGI4WHRhaVZUejNl}\n    1. go to the https://{DOMAIN}/user-profile profile\n    2. copy the API secret key\nprojectID = it has the form {5236eb3f-7c05-46f9-a609-dc0278896464}\n    1. create a project\n    2. open DevTools -> network\n    3. go to the project https://{DOMAIN}/projects/20/tests\n    4. GET-request project, Preview tab, copy id field\nconfigurationID = it has the form {15dbb164-c1aa-4cbf-830c-8c01ae14f4fb}\n    1. create a project\n    2. open DevTools -> network\n    3. go to the project https://{DOMAIN}/projects/20/tests\n    4. GET-request configurations, Preview tab, copy id field\ntestrun_name = {NAME} - optional parameter for specifying the name of test-run in TestGear\n```\n\n### Tags\n\nDecorators can be used to specify information about autotest.\n\nDescription of decorators (\\* - required):\n- `testgear.workItemID` - linking an autotest to a test case\n- \\*`testgear.displayName` - name of the autotest in the TestGear system (can be replaced with documentation strings)\n- \\*`testgear.externalID` - ID of the autotest within the project in the TestGear System\n- `testgear.title` - title in the autotest card\n- `testgear.description` - description in the autotest card\n- `testgear.labels` - tags in the work item\n- `testgear.link` - links in the autotest card\n- `testgear.step` - the designation of the step called in the body of the test or other step\n\nAll decorators support the use of parameterization attributes\n\nDescription of methods:\n- `testgear.addLink` - links in the autotest result\n- `testgear.step` - usage in the \"with\" construct to designation a step in the body of the test\n- `testgear.attachments` - uploading files in the autotest result\n- `testgear.message` - information about autotest in the autotest result\n\n### Examples\n\n#### Decorators\n```py\nimport pytest\nimport testgear\n\n# Test with a minimal set of decorators\n@testgear.externalID('Simple_autotest2')\ndef test_2():\n    \"\"\"Simple autotest 2\"\"\"\n    assert oneStep()\n    assert twoStep()\n\n@testgear.step\ndef oneStep():\n    assert oneOneStep()\n    assert oneTwoStep()\n    return True\n\n@testgear.step\ndef twoStep():\n    return True\n\n@testgear.step('step 1.1', 'description')\ndef oneOneStep():\n    return True\n\n@testgear.step('step 2')\ndef oneTwoStep():\n    return True\n\n@testgear.externalID('Simple_test_skip')\n@testgear.displayName('Simple test skip')\n@pytest.mark.skipif(True, reason='Because i can')\ndef test_skip():\n    assert True\n```\n\n#### Parameterized test\n```py\n# Parameterized test with a full set of decorators\n@testgear.workItemID(627)\n@testgear.displayName('Simple autotest 1 - {name}')\n@testgear.externalID('Simple_autotest1_{name}')\n@testgear.title('Authorization')\n@testgear.description('E2E_autotest')\n@testgear.labels('{labels}')\n@testgear.link(url='https://roviti2348.atlassian.net/browse/JCP-15593')\n@testgear.link(url='{url}', type='{link_type}', title='{link_title}')\n@pytest.mark.parametrize('name, labels, url, link_type, link_title', [\n    ('param 1', ['E2E', 'test'], 'https://dumps.example.com/module/JCP-15593', testgear.LinkType.DEFECT, 'JCP-15593'),\n    ('param 2', (), 'https://github.com/testgear-tms/listener-csharp', testgear.LinkType.RELATED, 'Listener'),\n    ('param 3', ('E2E', 'test'), 'https://best-tms.testgear.software/projects', testgear.LinkType.REQUIREMENT, ''),\n    ('param 4', {'E2E', 'test'}, 'https://testgear.software/', testgear.LinkType.BLOCKED_BY, 'TestGear'),\n    ('param 5', 'test', 'https://github.com/testgear-tms', testgear.LinkType.REPOSITORY, 'GitHub')\n])\ndef test_1(self, name, labels, url, link_type, link_title):\n    testgear.addLink(\n        title='component_dump.dmp',\n        type=testgear.LinkType.RELATED,\n        url='https://dumps.example.com/module/some_module_dump'\n    )\n    testgear.addLink(\n        title='component_dump.dmp',\n        type=testgear.LinkType.BLOCKED_BY,\n        url='https://dumps.example.com/module/some_module_dump'\n    )\n    testgear.addLink(\n        title='component_dump.dmp',\n        type=testgear.LinkType.DEFECT,\n        url='https://dumps.example.com/module/some_module_dump'\n    )\n    testgear.addLink(\n        title='component_dump.dmp',\n        type=testgear.LinkType.ISSUE,\n        url='https://dumps.example.com/module/some_module_dump'\n    )\n    testgear.addLink(\n        title='component_dump.dmp',\n        type=testgear.LinkType.REQUIREMENT,\n        url='https://dumps.example.com/module/some_module_dump'\n    )\n    testgear.addLink(\n        title='component_dump.dmp',\n        type=testgear.LinkType.REPOSITORY,\n        url='https://dumps.example.com/module/some_module_dump'\n    )\n    with testgear.step('Log in the system', 'system authentication'):\n        with testgear.step('Enter the login', 'login was entered'):\n            with testgear.step('Enter the password', 'password was entered'):\n                assert True\n        with testgear.step('Create a project', 'the project was created'):\n            with testgear.step('Enter the project', 'the contents of the project are displayed'):\n                assert True\n            with testgear.step('Create a test case', 'test case was created'):\n                assert True\n    with testgear.step('Attachments'):\n        testgear.attachments(\n            join(dirname(__file__), 'docs/text_file.txt'),\n            join(dirname(__file__), 'pictures/picture.jpg'),\n            join(dirname(__file__), 'docs/document.docx')\n        )\n        testgear.attachments(\n            join(dirname(__file__), 'docs/document.doc'),\n            join(dirname(__file__), 'docs/logs.log')\n        )\n        assert True\n```\n\n# Contributing\n\nYou can help to develop the project. Any contributions are **greatly appreciated**.\n\n* If you have suggestions for adding or removing projects, feel free to [open an issue](https://github.com/testgear-tms/adapters-python/issues/new) to discuss it, or directly create a pull request after you edit the *README.md* file with necessary changes.\n* Please make sure you check your spelling and grammar.\n* Create individual PR for each suggestion.\n* Please also read through the [Code Of Conduct](https://github.com/testgear-tms/adapters-python/blob/master/CODE_OF_CONDUCT.md) before posting your first idea as well.\n\n# License\n\nDistributed under the Apache-2.0 License. See [LICENSE](https://github.com/testgear-tms/adapters-python/blob/master/LICENSE.md) for more information.",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://pypi.org/project/testgear-adapter-pytest/",
+            "keywords": "",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "testgear-adapter-pytest",
+            "package_url": "https://pypi.org/project/testgear-adapter-pytest/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/testgear-adapter-pytest/",
+            "project_urls": {
+                "Homepage": "https://pypi.org/project/testgear-adapter-pytest/"
+            },
+            "release_url": "https://pypi.org/project/testgear-adapter-pytest/1.0.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Pytest adapter for TestGear",
+            "version": "1.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 12613224,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5257c2f538de9c9dd551c7e728879707",
+                    "sha256": "1bbb3adb0f7beda2cead9a4bcd738f09c2bc61ceb9c74e0d1d2d979ffcb0d2ee"
+                },
+                "downloads": -1,
+                "filename": "testgear-adapter-pytest-1.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5257c2f538de9c9dd551c7e728879707",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 14077,
+                "upload_time": "2022-01-19T00:06:28",
+                "upload_time_iso_8601": "2022-01-19T00:06:28.334379Z",
+                "url": "https://files.pythonhosted.org/packages/f4/a7/55e912e8c6fb5ed151e1411ac6edd0d3f344620042282e7a10e92b8aba94/testgear-adapter-pytest-1.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

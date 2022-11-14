@@ -1,0 +1,95 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "Rosa Filgueira and Daniel Garijo",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Programming Language :: Python"
+            ],
+            "description": "# inspect4py [![DOI](https://zenodo.org/badge/349160905.svg)](https://zenodo.org/badge/latestdoi/349160905)\n\n<img src=\"docs/images/logo.png\" alt=\"logo\" width=\"200\"/> \n\nLibrary to allow users inspect a software project folder (i.e., a directory and its subdirectories) and extract all the most relevant information, such as class, method and parameter documentation, classes (and their methods), functions, etc.\n\n## Features:\n\nGiven a folder with code, `inspect4py` will:\n\n- Extract all imported modules and how each module is imported as (i.e., whether they are internal or external).\n- Extract all functions in the code, including their documentation, parameters, accepted values, and call list.\n- Extract all classes in the code, with all their methods and respective documentation\n- Extract the control flow of each file.\n- Extract the hierarchy of directories and files.\n- Extract the requirements used in the software project.\n- Classify which files are tests\n- Classify the main type of software project (script, package, library or service). Only one type is returned as main type (e.g., if a library has the option to be deployed as a service, `inspect4py` will return `Library` as its main type)\n- Return a ranking of the different ways in which a a software component can be run, ordered by relevance.\n\n\nAll metadata is extracted as a JSON file.\n\n\nInspect4py currently works **only for Python 3 projects**.\n\n## Background:\n\n`inspect4py` uses [ASTs](https://en.wikipedia.org/wiki/Abstract_syntax_tree), more specifically\nthe [ast](https://docs.python.org/3/library/ast.html) module in Python, generating\na tree of objects (per file) whose classes all inherit from [ast.AST](https://docs.python.org/3/library/ast.html#ast.AST).\n\n`inspect4py` parses each of the input file(s) as an AST tree, extracting the relevant information and storing it as a JSON file.  Furthermore, it also captures the control flow of each input file(s), by using another two libraries:\n\n- [cdmcfparser](https://pypi.org/project/cdmcfparser/): The module provided functions can takes a file with a python code or a character buffer, parse it and provide back a hierarchical representation of the code in terms of fragments. Each fragment describes a portion of the input: a start point (line, column and absolute position) plus an end point (line, column and absolute position).\n\n- [staticfg](inspect4py/staticfg): StatiCFG is a package that can be used to produce control flow graphs (CFGs) for Python 3 programs. The CFGs it generates can be easily visualised with graphviz and used for static analysis. We have a flag in the code (FLAG_PNG) to indicate if we want to generate this type of control flow graphs or not. **Note**: The original code of this package can be found [here](https://github.com/coetaur0/staticfg), which has been fixed it in our [repository](inspect4py/staticfg)  \n\nWe also use [docstring_parser](https://pypi.org/project/docstring-parser/), which has support for  ReST, Google, and Numpydoc-style docstrings. Some (basic) tests done using this library can be found at [here](./test_docstring_parser/).\n\nFinally, we reuse [Pigar](https://github.com/damnever/pigar) for generating automatically the requirements of a given repository. This is an optional funcionality. In order to activate the argument (`-r`) has to be indicated when running inspect4py.  \n\n## Install\n\n### Python version\nWe have tested `inspect4py` in Python 3.7+. **Our recommended version is Python 3.7**.\n\n**Support in Python 3.9**: We have detected that `cdmcfparser` has issues in Python 3.9+. Therefore **the `-cf` command is not guaranteed in Python 3.9**. All other commands have been tested successfully in Python 3.9+.\n\n### Installation from code\n\nFirst, make sure you have graphviz installed:\n\n```\nsudo apt-get install graphviz\n```\n\nThen, prepare a virtual Python3 enviroment, `cd` into the `inspect4py` folder and install the package as follows:\n\n`pip install -e .`\n\nYou are done!\n\n### Package dependencies: \n``` \ncdmcfparser\ndocstring_parser==0.7\nastor\ngraphviz\nclick\npigar\nsetuptools==54.2.0\njson2html\nconfigparser\n```\n\nIf you want to run the evaluations, do not forget to add `pandas` to the previous set.\n\n### Installation through Docker\n\nYou need to have [Docker](https://docs.docker.com/get-started/) installed.\n\nNext, clone the `inspect4py` repository:\n\n```\ngit clone https://github.com/SoftwareUnderstanding/inspect4py/\n```\n\nGenerate a Docker image for `inspect4py`:\n\n```\ndocker build --tag inspect4py:1.0 .\n```\n\nRun the `inspect4py` image:\n\n```\ndocker run -it --rm inspect4py:1.0 /bin/bash\n```\n\nNow you can run `inspect4py`:\n```\nroot@e04792563e6a:/# inspect4py --help\n```\n\nFor more information about `inspect4py` execution options, please see the section below (Execution).\n\nNote that when running `inspect4py` with Docker, you will need to need to provide a path to the target repository to analyze. You can do this by:\n\n1. Cloning the target repository. For example:\n\n```\ndocker run -it --rm inspect4py:1.0 /bin/bash\n# Docker image starts\nroot@e04792563e6a:/# git clone https://github.com/repo/id\nroot@e04792563e6a:/# inspect4py -i id \n```\n2. Creating a [volume](https://docs.docker.com/storage/volumes/). For example, for mounting the $PWD folder: \n\n```\ndocker run -it -v -v $PWD:/out --rm inspect4py:1.0 /bin/bash\n# Docker image starts\nroot@e04792563e6a:/# inspect4py -i /out/path/to/repo\n```\n\n<!--\nOther useful commands when using Docker:\n```\ndocker cp [OPTIONS] CONTAINER:SRC_PATH DEST_PATH|-\ndocker image rm -f inspect4py:1.0\n```\n-->\n\n## Execution\n\nThe tool can be executed to inspect a file, or all the files of a given directory (and its subdirectories).\nFor example, it can be used to inspect all the python files of a given GitHub repository (that has been previously cloned locally).\n\nThe tool by default stores the results in the `OutputDir` directory, but users can specify their own directory name by using `-o` or `--output` flags.\n\nAnd the tools allows users to specify if control flow figures will be generated or not. By default they wont be generated. To indicate the generation of control flow figures, users should use `-f` or `--fig`.  \n\n<!--\n```\ninspect4py --input_path <FILE.py | DIRECTORY> [--fig , --output_dir \"OutputDir\", --ignore_dir_pattern \"__\", ignore_file_pattern \"__\" --requirements --html_output]\n```\n-->\n\nFor clarity, we have added a `help` command to explain each input parameter:\n\n```\ninspect4py --help\n\nUsage: inspect4py [OPTIONS]\n\nOptions:\n  --version                       Show the version and exit.\n  -i, --input_path TEXT           input path of the file or directory to\n                                  inspect.  [required]\n  -f, --fig                       activate the control_flow figure generator.\n  -o, --output_dir TEXT           output directory path to store results. If\n                                  the directory does not exist, the tool will\n                                  create it.\n  -ignore_dir, --ignore_dir_pattern TEXT\n                                  ignore directories starting with a certain\n                                  pattern. This parameter can be provided\n                                  multiple times to ignore multiple directory\n                                  patterns.\n  -ignore_file, --ignore_file_pattern TEXT\n                                  ignore files starting with a certain\n                                  pattern. This parameter can be provided\n                                  multiple times to ignore multiple file\n                                  patterns.\n  -r, --requirements              find the requirements of the repository.\n  -html, --html_output            generates an html file of the DirJson in the\n                                  output directory.\n  -cl, --call_list                generates the call list in a separate html\n                                  file.\n  -cf, --control_flow             generates the call graph for each file in a\n                                  different directory.\n  -dt, --directory_tree           captures the file directory tree from the\n                                  root path of the target repository.\n  -si, --software_invocation      generates which are the software\n                                  invocation commands to run and test the\n                                  target repository.\n  --help                          Show this message and exit.\n```\n\n## Documentation\n\nFor additional documentation and examples, please have a look at our [online documentation](https://inspect4py.readthedocs.io/en/latest/)\n\n## Acknowledgements\n\nWe would like to thank Laura Camacho, designer of the logo\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/SoftwareUnderstanding/inspect4py",
+            "keywords": "",
+            "license": "BSD-3-Clause",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "inspect4py",
+            "package_url": "https://pypi.org/project/inspect4py/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/inspect4py/",
+            "project_urls": {
+                "Homepage": "https://github.com/SoftwareUnderstanding/inspect4py"
+            },
+            "release_url": "https://pypi.org/project/inspect4py/0.0.1/",
+            "requires_dist": [
+                "cdmcfparser",
+                "docstring-parser (==0.7)",
+                "astor",
+                "graphviz",
+                "click",
+                "pigar",
+                "setuptools (==54.2.0)",
+                "json2html",
+                "configparser"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "Static code analysis package for Python repositories",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 12744441,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "34ee83ff919121e96ed04839528be1ad",
+                    "sha256": "bfab597359160b2006071f59c4e4321183f449b11a24a1cc7376be2a2f8be293"
+                },
+                "downloads": -1,
+                "filename": "inspect4py-0.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "34ee83ff919121e96ed04839528be1ad",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 54259,
+                "upload_time": "2022-01-27T18:24:56",
+                "upload_time_iso_8601": "2022-01-27T18:24:56.772413Z",
+                "url": "https://files.pythonhosted.org/packages/4a/c6/063ca0474aae533c32b87ef0b041db5b3d5fb40e3621fe6c521410adef32/inspect4py-0.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d73fed9a5045ddda55aa82dae437cd9b",
+                    "sha256": "f603b2d136d63287b582a3650a53b41ccadafa0070c095a3c4daed14983d13e2"
+                },
+                "downloads": -1,
+                "filename": "inspect4py-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d73fed9a5045ddda55aa82dae437cd9b",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 44828,
+                "upload_time": "2022-01-27T18:24:58",
+                "upload_time_iso_8601": "2022-01-27T18:24:58.508923Z",
+                "url": "https://files.pythonhosted.org/packages/ae/20/0a8a9279539cfcc80ac72d315006d0c0cc62b6dd4100fbc96d5c34da15c4/inspect4py-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

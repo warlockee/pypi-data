@@ -1,0 +1,101 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "Guido van Rossum, Pablo Galindo, Lysandros Nikolaou",
+            "author_email": "pablogsal@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Compilers"
+            ],
+            "description": "<p align=\"center\">\n<img src=\"https://github.com/we-like-parsers/pegen/raw/main/media/logo.svg\" width=\"70%\">\n</p>\n\n-----------------------------------\n\n[![Downloads](https://pepy.tech/badge/pegen/month)](https://pepy.tech/project/pegen)\n[![PyPI version](https://badge.fury.io/py/pegen.svg)](https://badge.fury.io/py/pegen)\n![CI](https://github.com/we-like-parsers/pegen/actions/workflows/test.yml/badge.svg)\n\nPegen is the parser generator used in CPython to produce the parser used by the interpreter. It allows to\nproduce PEG parsers from a description of a formal Grammar. \n\n## Syntax\n\nThe grammar consists of a sequence of rules of the form:\n\n```\n    rule_name: expression\n```\n\nOptionally, a type can be included right after the rule name, which\nspecifies the return type of the Python function corresponding to\nthe rule:\n\n```\n    rule_name[return_type]: expression\n```\n\nIf the return type is omitted, then ``Any`` is returned.\n\n## Grammar Expressions\n\n### `# comment`\n\nPython-style comments.\n\n### `e1 e2`\n\nMatch e1, then match e2.\n\n```\n    rule_name: first_rule second_rule\n```\n\n### `e1 | e2`\n\nMatch e1 or e2.\n\nThe first alternative can also appear on the line after the rule name\nfor formatting purposes. In that case, a \\| must be used before the\nfirst alternative, like so:\n\n```\n    rule_name[return_type]:\n        | first_alt\n        | second_alt\n```\n\n### `( e )`\n\nMatch e.\n\n```\n    rule_name: (e)\n```\n\nA slightly more complex and useful example includes using the grouping\noperator together with the repeat operators:\n\n```\n    rule_name: (e1 e2)*\n```\n\n### `[ e ] or e?`\n\nOptionally match e.\n\n\n```\n    rule_name: [e]\n```\n\nA more useful example includes defining that a trailing comma is\noptional:\n\n```\n    rule_name: e (',' e)* [',']\n```\n\n### `e*`\n\nMatch zero or more occurrences of e.\n\n```\n    rule_name: (e1 e2)*\n```\n\n### `e+`\n\nMatch one or more occurrences of e.\n\n```\n    rule_name: (e1 e2)+\n```\n\n### `s.e+`\n\nMatch one or more occurrences of e, separated by s. The generated parse\ntree does not include the separator. This is otherwise identical to\n``(e (s e)*)``.\n\n```\n    rule_name: ','.e+\n```\n\n### `&e`\n\nSucceed if e can be parsed, without consuming any input.\n\n### `!e`\n\nFail if e can be parsed, without consuming any input.\n\nAn example taken from the Python grammar specifies that a primary\nconsists of an atom, which is not followed by a ``.`` or a ``(`` or a\n``[``:\n\n```\n    primary: atom !'.' !'(' !'['\n```\n\n### `~`\n\nCommit to the current alternative, even if it fails to parse.\n\n```\n    rule_name: '(' ~ some_rule ')' | some_alt\n```\n\nIn this example, if a left parenthesis is parsed, then the other\nalternative won\u2019t be considered, even if some_rule or \u2018)\u2019 fail to be\nparsed.\n\n## Left recursion\n\nPEG parsers normally do not support left recursion but Pegen implements a\ntechnique that allows left recursion using the memoization cache. This allows\nus to write not only simple left-recursive rules but also more complicated\nrules that involve indirect left-recursion like\n\n```\n  rule1: rule2 | 'a'\n  rule2: rule3 | 'b'\n  rule3: rule1 | 'c'\n```\n\nand \"hidden left-recursion\" like::\n\n```\n  rule: 'optional'? rule '@' some_other_rule\n```\n\n## Variables in the Grammar\n\nA sub-expression can be named by preceding it with an identifier and an\n``=`` sign. The name can then be used in the action (see below), like this: ::\n\n```\n    rule_name[return_type]: '(' a=some_other_rule ')' { a }\n```\n\n## Grammar actions\n\nTo avoid the intermediate steps that obscure the relationship between the\ngrammar and the AST generation the PEG parser allows directly generating AST\nnodes for a rule via grammar actions. Grammar actions are language-specific\nexpressions that are evaluated when a grammar rule is successfully parsed. These\nexpressions can be written in Python. As an example of a grammar with Python actions,\nthe piece of the parser generator that parses grammar files is bootstrapped from a\nmeta-grammar file with Python actions that generate the grammar tree as a result\nof the parsing. \n\nIn the specific case of the PEG grammar for Python, having actions allows\ndirectly describing how the AST is composed in the grammar itself, making it\nmore clear and maintainable. This AST generation process is supported by the use\nof some helper functions that factor out common AST object manipulations and\nsome other required operations that are not directly related to the grammar.\n\nTo indicate these actions each alternative can be followed by the action code\ninside curly-braces, which specifies the return value of the alternative\n\n```\n    rule_name[return_type]:\n        | first_alt1 first_alt2 { first_alt1 }\n        | second_alt1 second_alt2 { second_alt1 }\n```\n\nIf the action is ommited, a default action is generated: \n\n* If there's a single name in the rule in the rule, it gets returned.\n\n* If there is more than one name in the rule, a collection with all parsed\n  expressions gets returned.\n\nThis default behaviour is primarily made for very simple situations and for\ndebugging pourposes.\n\nAs an illustrative example this simple grammar file allows directly\ngenerating a full parser that can parse simple arithmetic expressions and that\nreturns a valid Python AST:\n\n\n```\n    start[ast.Module]: a=expr_stmt* ENDMARKER { ast.Module(body=a or [] }\n    expr_stmt: a=expr NEWLINE { ast.Expr(value=a, EXTRA) }\n\n    expr:\n        | l=expr '+' r=term { ast.BinOp(left=l, op=ast.Add(), right=r, EXTRA) }\n        | l=expr '-' r=term { ast.BinOp(left=l, op=ast.Sub(), right=r, EXTRA) }\n        | term\n\n    term:\n        | l=term '*' r=factor { ast.BinOp(left=l, op=ast.Mult(), right=r, EXTRA) }\n        | l=term '/' r=factor { ast.BinOp(left=l, op=ast.Div(), right=r, EXTRA) }\n        | factor\n\n    factor:\n        | '(' e=expr ')' { e }\n        | atom\n\n    atom:\n        | NAME\n        | NUMBER\n```\n\n## Differences with CPython's Pegen\n\n**NOTE:** The official PEG generator for Python 3.9 and later is now\nincluded in the CPython repo under\n[Tools/peg_generator/](https://github.com/python/cpython/tree/master/Tools/peg_generator).\n\nSee also [PEP 617](https://www.python.org/dev/peps/pep-0617/).\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/we-like-parsers/pegen",
+            "keywords": "parser,CPython,PEG,pegen",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pegen",
+            "package_url": "https://pypi.org/project/pegen/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/pegen/",
+            "project_urls": {
+                "Bug Reports": "https://github.com/we-like-parsers/pegen/issues",
+                "Homepage": "https://github.com/we-like-parsers/pegen",
+                "Source": "https://github.com/we-like-parsers/pegen"
+            },
+            "release_url": "https://pypi.org/project/pegen/0.1.0/",
+            "requires_dist": [
+                "psutil",
+                "flask",
+                "flask-wtf",
+                "black ; extra == 'lint'",
+                "flake8 ; extra == 'lint'",
+                "mypy ; extra == 'lint'",
+                "pytest ; extra == 'test'",
+                "pytest-cov ; extra == 'test'"
+            ],
+            "requires_python": ">=3.8, <4",
+            "summary": "CPython's PEG parser generator",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 11379970,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1fbc2e1a8dae9984a3d9b48f8853cfcc",
+                    "sha256": "0d39ac6294b0825bcfb27cf1eb12dedb9830c9105aebf6437724a2ddcabfd865"
+                },
+                "downloads": -1,
+                "filename": "pegen-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "1fbc2e1a8dae9984a3d9b48f8853cfcc",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8, <4",
+                "size": 29971,
+                "upload_time": "2021-09-06T22:13:09",
+                "upload_time_iso_8601": "2021-09-06T22:13:09.130983Z",
+                "url": "https://files.pythonhosted.org/packages/d0/a3/5633524a9cb33df527746786bfd0e82407f99d3aa32d70bfcdf3c183c17d/pegen-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ffce694dc72ef0ffb559b5f1f217c09b",
+                    "sha256": "885b80fe1d426f9870c532651d72715ca03e40530aab125850a32347be969714"
+                },
+                "downloads": -1,
+                "filename": "pegen-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ffce694dc72ef0ffb559b5f1f217c09b",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8, <4",
+                "size": 28640,
+                "upload_time": "2021-09-06T22:13:10",
+                "upload_time_iso_8601": "2021-09-06T22:13:10.684306Z",
+                "url": "https://files.pythonhosted.org/packages/77/9b/2d9895a8b04f298df6ad6e6a682b9aca566036ca58a5da11330e6681b7f9/pegen-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

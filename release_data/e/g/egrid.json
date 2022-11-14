@@ -1,0 +1,87 @@
+{
+    "0.0.3": {
+        "info": {
+            "author": "pyprg",
+            "author_email": "pyprg@outlook.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# egrid\n\nModel of an electric distribution network for experimental power flow \ncalculation and state estimation. Model shall provide the data in a structure\nsupporting e.g. admittance matrix creation and result processing. Model is a \nnamedtuple. Most of the fields provide pandas.DataFrames. Electric values are \nstored per unit.\nThe main function is get_model(*args). The arguments are of type \n\n    - Branch (line, series capacitor, transformer winding, transformer)\n    - Slacknode\n    - Injection (consumer, shunt capacitor, PQ/PV-generator, battery)\n    - Output (indicates that measured flow (I or PQ) or a part thereof flows through the referenced terminal (device or node+device))\n    - PQValue (measured active and reactive power)\n    - IValue (measured electric current)\n    - Vvalue (measured voltage or setpoint)\n    - Branchtaps\n    - Defk (definition of a scaling factor, for estimation)\n    - Link (associates a scaling factor to a load)\n    \nincluding tuples, lists and iterables thereof (for a power-flow-calculation\njust Branch ... Branchtaps are necessary).\nAdditionally, __get_model__ can consume network descriptions as multiline \nstrings if package 'graphparser' is installed.\n    \nBranch models are PI-equivalent circuits. Active and reactive power of\ninjections have a dedicated voltage exponent.\n\nFields\n------\nnodes: pandas.DataFrame (id of node)\n\n    * .idx, int index of node\n    \nslacks: pandas.DataFrame\n\n    * .id_of_node, str, id of connection node\n    * .V, complex, given voltage at this slack\n    * .index_of_node, int, index of connection node\n    \ninjections: pandas.DataFrame\n\n    * .id, str, unique identifier of injection\n    * .id_of_node, str, unique identifier of connected node\n    * .P10, float, active power at voltage magnitude 1.0 pu\n    * .Q10, float, reactive power at voltage magnitude 1.0 pu\n    * .Exp_v_p, float, voltage dependency exponent of active power\n    * .Exp_v_q, float, voltage dependency exponent of reactive power\n    * .scalingp, None | str\n    * .scalingq, None | str\n    * .kp_min, float, minimum of active power scaling factor\n    * .kp_max, float, maximum of active power scaling factor\n    * .kq_min, float, minimum of reactive power scaling factor\n    * .kq_max, float, maximum of reactive power scaling factor\n    * .index_of_node, int, index of connected node\n    \nbranchterminals: pandas.DataFrame\n\n    * .index_of_branch, int, index of branch\n    * .id_of_branch, str, unique idendifier of branch\n    * .id_of_node, str, unique identifier of connected node\n    * .id_of_other_node, str, unique identifier of node connected \n        at other side of the branch\n    * .index_of_node, int, index of connected node\n    * .index_of_other_node, int, index of node connected at other side \n        of the branch\n    * .y_mn, complex, longitudinal branch admittance\n    * .y_mm_half, complex, half of transversal branch admittance\n    * .y_tot, complex, y_mn + y_mm_half\n    * .g_tot, float, conductance, g_mn + g_mm_half\n    * .b_tot, float, susceptande, b_mn + b_mm_half\n    * .g_mn, float, longitudinal conductance\n    * .b_mn, float, longitudinal susceptance\n    * .g_mm_half, float, transversal conductance of branch devided by 2\n    * .b_mm_half, float, transversal susceptance of branch devided by 2\n    * .side, str, 'A' | 'B', side of branch, first or second\n    \nbranchoutputs: pandas.DataFrame\n\n    * .id_of_batch, str, unique identifier of measurement batch\n    * .id_of_node, str, id of node connected to branch terminal\n    * .id_of_branch, str, unique identifier of branch\n    * .index_of_node, int, index of node connected to branch terminal\n    * .index_of_branch, int, index of branch\n    \ninjectionoutputs: pandas.DataFrame\n\n    * .id_of_batch, str, unique identifier of measurement batch \n    * .id_of_injection, str, unique identifier of injection\n    * .index_of_injection, str, index of injection\n    \npqvalues: pandas.DataFrame\n\n    * .id_of_batch, unique identifier of measurement batch\n    * .P, float, active power\n    * .Q, float, reactive power\n    * .direction, float, -1: from device into node, 1: from node into device\n    \nivalues: pandas.DataFrame\n\n    * .id_of_batch, unique identifier of measurement batch\n    * .I, float, electric current\n    \nvvalues: pandas.DataFrame\n\n    * .id_of_node, unique identifier of node voltage is given for\n    * .V, float, magnitude of voltage\n    * .index_of_node, index of node voltage is given for\n    \nbranchtaps: pandas.DataFrame\n\n    * .id, str, IDs of taps\n    * .id_of_node, str, ID of associated node\n    * .id_of_branch, str, ID of associated branch\n    * .Vstep, float, magnitude of voltage difference per step, pu\n    * .positionmin, int, smallest tap position\n    * .positionneutral, int, tap with ratio 1:1\n    * .positionmax, int, position of greates tap\n    * .position, int, actual position\n    \nshape_of_Y: tuple (int, int)\n\n    shape of admittance matrix for power flow calculation\n    \nslack_indexer: pandas.Series, bool\n\n    True if index is index of slack node, false otherwise\n\nExample (pseudo graphic) - 3 nodes, 2 lines, 1 consumer:\n```\nnode: 0               1               2\n\t\t \n      |      line     |     line      |\n      +-----=====-----+-----=====-----+\n      |               |               |\n                                     \\|/ consumer\n```\n\nPython code for example \n(Branchtap is for demo only, it is used with transformers, \nhowever, transformers/transformerwindings are modeled using class Branch too.):\n```\nexample = ([\n    Slacknode(id_of_node='n_0', V=1.+0.j),\n    PQValue(\n        id_of_batch='pq_line_0', \n        P=30., \n        Q=8.),\n    Output(\n        id_of_batch='pq_line_0', \n        id_of_node='n_0',  \n        id_of_device='line_0'),\n    IValue(\n        id_of_batch='i_line_0',\n        I=40.0),\n    Output(\n        id_of_batch='i_line_0', \n        id_of_node='n_0',  \n        id_of_device='line_0'),\n    Branch(\n        id='line_0',\n        id_of_node_A='n_0', \n        id_of_node_B='n_1',\n        y_mn=1e3-1e3j,\n        y_mm_half=1e-6+1e-6j),\n    Branchtaps(\n        id='taps_0',\n        id_of_node='n_0', \n        id_of_branch='line_0', \n        Vstep=.2/33, \n        positionmin=-16, \n        positionneutral=0, \n        positionmax=16,\n        position=0),\n    Branch(\n        id='line_1',\n        id_of_node_A='n_1', \n        id_of_node_B='n_2',\n        y_mn=1e3-1e3j,\n        y_mm_half=1e-6+1e-6j),\n    Output(\n        id_of_batch='pq_consumer_0', \n        id_of_device='consumer_0'),\n    Output(\n        id_of_batch='i_consumer_0', \n        id_of_device='consumer_0'),\n    Injection(\n        id='consumer_0', \n        id_of_node='n_2', \n        P10=30.0, \n        Q10=10.0, \n        Exp_v_p=2.0, \n        Exp_v_q=2.0),\n    Defk(step=(0, 1, 2), id=('kp', 'kq')),\n    Link(step=(0, 1, 2), objid='consumer_0', part='pq', id=('kp', 'kq'))])\n```\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/pyprg/egrid",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "egrid",
+            "package_url": "https://pypi.org/project/egrid/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/egrid/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/pyprg/egrid/issues",
+                "Homepage": "https://github.com/pyprg/egrid"
+            },
+            "release_url": "https://pypi.org/project/egrid/0.0.3/",
+            "requires_dist": null,
+            "requires_python": ">=3.6",
+            "summary": "Model of an electric distribution network for calculation",
+            "version": "0.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 12760054,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c11f7d2d5da5225a9537b8453b16857e",
+                    "sha256": "d3e6aac9f4c675abe2f6fdfed2772ebfc13bbad36ddc1fc4054ea51bbde7143e"
+                },
+                "downloads": -1,
+                "filename": "egrid-0.0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c11f7d2d5da5225a9537b8453b16857e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 26441,
+                "upload_time": "2022-02-02T00:03:17",
+                "upload_time_iso_8601": "2022-02-02T00:03:17.596986Z",
+                "url": "https://files.pythonhosted.org/packages/3b/c1/b2753a432ef9118ec0104b21a7a317d7077a3bbe45ddf1093e88467c64ba/egrid-0.0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b50906ea1e7de65a4d529d7c7d9a8375",
+                    "sha256": "1611740fb7624818be6fd99fc0b9cc9092e4ee91c339319e2eb17ffe0b3f465e"
+                },
+                "downloads": -1,
+                "filename": "egrid-0.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "b50906ea1e7de65a4d529d7c7d9a8375",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 25245,
+                "upload_time": "2022-02-02T00:03:18",
+                "upload_time_iso_8601": "2022-02-02T00:03:18.716886Z",
+                "url": "https://files.pythonhosted.org/packages/23/ad/367a67581ac112594b6811df7c5cd285e54bbfd93b930697b0a437602a6d/egrid-0.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
