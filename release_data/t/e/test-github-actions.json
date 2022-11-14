@@ -1,0 +1,86 @@
+{
+    "0.0.6": {
+        "info": {
+            "author": "M Sleigh",
+            "author_email": "author@example.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# test-github-actions\n\nLearn/test GitHub Actions for running CI/CD.\n\n## Setting up GitHub Actions\n\nTo start, add a directory in your repo at `.github/workflows`. GitHub will\nautomatically detect this when it's pushed.\n\nThis directory is populated with YAML (`*.yml`) file that define different\nautomated workflows.\n\n## Workflow YAML file syntax\n\nA basic workflow definition file example:\n\n```yaml\nname: Build and Test\n\non:\n  pull_request:\n    branch:\n      - master\n  push:\n    branch:\n      - master\n\njobs:\n  ci:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v2\n      - name: Set up Python\n        uses: actions/setup-python@v2\n        with:\n          python-version: '3.x'\n      - name: Install dependencies\n        run:\n          python -m pip install --upgrade pip\n          pip install black hypothesis pytest\n      - name: Run tests\n        run:\n          python -m pytest\n      - name: Check syntax\n        run:\n          black --check .\n```\n\nThe `on` block defines what actions will trigger this workflow. In this\nexample the workflow will be triggered by either a push or a pull request to\nthe `master` branch.\n\nThe `jobs` block defines the workflow. Here we have one job called `ci`, which\nis defined to run on the latest version of Ubuntu, and which consists of four\nsteps (which are run sequentially). Each step is given a (human-readable) `name`,\nand a sequence of commands to run in the `run` block. The first two steps set\nup the Python environment in which to run the tests, and then the latter two\nsteps use [PyTest](https://pytest.org) to run the provided unit tests, and\n[Black](https://black.readthedocs.io/en/stable) to check the Python\nformatting, respectively.\n\nThe `uses` lines bring in preset GitHub Actions; first to check out the\nrepository, which is defined at a level so that it is applied across all steps;\nand, specifically in the 'Set up Python' step, a pre-defined Action is used to\nmake Python available.\n\n## CI Matrix\n\nSetting up a matrix allows you to run a job in parallel in multiple different\nenvironments, e.g. operating systems, dependency versions, etc.\n\nFor example, rather than specifying a single OS via:\n\n```yaml\nci:\n  runs-on: ubuntu-latest\n```\n\nas above, the 'matrix' Strategy can be defined like so:\n\n```yaml\nci:\n  strategy:\n    matrix:\n      os: [ubuntu-latest, macos-latest]\n  runs-on: ${{ matrix.os }}\n```\n\nso that the `ci` job is run on all of the specified operating systems.\n\nThe \"matrix\" of environments can have multiple dimensions; e.g. here we test\nover a list of Python versions as well as over the list of operating systems:\n\n```yaml\nci:\n  strategy:\n    matrix:\n      os: [ubuntu-latest, macos-latest]\n      python-version: [3.6, 3.7, 3.8]\n  runs-on: ${{ matrix.os }}\n  steps:\n    - uses: actions/checkout@v2\n    - name: Set up Python\n      uses: actions/setup-python@v2\n      with:\n        python-version: ${{ matrix.python-version }}\n```\n\n## GitHub Secrets\n\nGitHub allows you to create 'Secrets' (as long as your are an admin of the\nrepository), to supply workflows with confidential info like usernames and\npasswords.\n\nGitHub's docs say:\n\n> Secrets are environment variables that are encrypted and only exposed to\n> selected actions. Anyone with collaborator access to this repository can use\n> these secrets in a workflow.\n>\n> Secrets are not passed to workflows that are triggered by a pull request from\n> a fork.\n\nConsider the following workflow, to publish a Python package to\n[PyPI](https://pypi.org) (taken directly from the GitHub examples):\n\n```yaml\n# This workflows will upload a Python Package using Twine when a release is\n# created\n\nname: Upload Python Package\n\non:\n  release:\n    types: [created]\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n    - uses: actions/checkout@v2\n    - name: Set up Python\n      uses: actions/setup-python@v2\n      with:\n        python-version: '3.x'\n    - name: Install dependencies\n      run: |\n        python -m pip install --upgrade pip\n        pip install setuptools wheel twine\n    - name: Build and publish\n      env:\n        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}\n        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}\n      run: |\n        python setup.py sdist bdist_wheel\n        twine upload dist/*\n```\n\nHere it is clear in the 'Build and publish' step that the PyPI username and\npassword required for [Twine](https://twine.readthedocs.io/en/latest) to\nupload the package to PyPI are contained in the `secrets` data structure that\nGitHub makes available to the workflow.\n\nOn the menu bar of the repository, click 'Settings' and then click 'Secrets' in\nthe left pane.\n\n## Caveats\n\n- An individual job can be up to 6h long\n- A workflow can be up to 72h long\n- A matrix can contain up to 256 'columns'\n\n## Creating Actions to share\n\nA pre-made GitHub Action is just a Git repo. An example of the pre-defined\nGitHub Actions is the `setup-python` action used in the above and found here:\n<https://github.com/actions/setup-python>.\n\nYou can create your own generic GitHub actions and publish them for others to\nuse; all you need to do is define an `action.yml` file in the root of the\nrepository.\n\n```yaml\nname: \"Generic Action to install <dependency>\"\ndescription: \"A generic action to be shared on GitHub for other workflows to use\"\nbranding:\n  icon: ...\n  color: \"gray-dark\"\ninputs:\n  <dependency>-version:\n    description: \"The version of <dependency> to install\"\n    required: true\n    default: \"1.0\"\nruns:\n  using: ...\n  steps:\n    - run: |\n        pip install <dependency>==${{ inputs.<dependency>-version }}\n      shell: bash\n```\n\nTo publish the Action, create a Release in the repository.\n\nOther people can use this by adding:\n\n```yaml\n- uses: <GITHUB_USER>/<REPO_NAME>@master\n```\n\n## Links\n\n- GitHub Actions: <https://github.com/features/actions>\n\n- GitHub Actions docs (with yml definitions):\n  https://docs.github.com/en/actions \n    - e.g. on how to create an action:\n      <https://docs.github.com/en/actions/creating-actions>\n\n- GitHub Actions Marketplace: <https://github.com/marketplace?type=actions> to\n  browse existing solutions\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/msleigh/test-github-actions",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "test-github-actions",
+            "package_url": "https://pypi.org/project/test-github-actions/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/test-github-actions/",
+            "project_urls": {
+                "Homepage": "https://github.com/msleigh/test-github-actions"
+            },
+            "release_url": "https://pypi.org/project/test-github-actions/0.0.6/",
+            "requires_dist": null,
+            "requires_python": ">=3.6",
+            "summary": "Learn/test GitHub Actions for running CI/CD",
+            "version": "0.0.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 8198945,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "05a7234d9afcd959248c23f4d7717a73",
+                    "sha256": "44f94301c2755d8ab3502948f526a2baba2d989717555131c718e1d6ed92546f"
+                },
+                "downloads": -1,
+                "filename": "test_github_actions-0.0.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "05a7234d9afcd959248c23f4d7717a73",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 7762,
+                "upload_time": "2020-09-16T10:39:05",
+                "upload_time_iso_8601": "2020-09-16T10:39:05.680229Z",
+                "url": "https://files.pythonhosted.org/packages/c1/f3/4c97d3524c14ffd8237a7ea4bf55d5ed969a3f5951e9fee953ebfe2dfe6b/test_github_actions-0.0.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "dbed6c910bdb2c71bf7c8cf1a8687499",
+                    "sha256": "bb0cf378f714c675f8f7db4bc22d083e10026cbac4cb3d262eabf7ef3b4fa892"
+                },
+                "downloads": -1,
+                "filename": "test-github-actions-0.0.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "dbed6c910bdb2c71bf7c8cf1a8687499",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 4218,
+                "upload_time": "2020-09-16T10:39:06",
+                "upload_time_iso_8601": "2020-09-16T10:39:06.777315Z",
+                "url": "https://files.pythonhosted.org/packages/b0/61/8cb02047c2c449c936f52bd59e7e85f13f537b512ea1198f7aa36b7cf024/test-github-actions-0.0.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

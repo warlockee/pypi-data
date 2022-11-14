@@ -1,0 +1,92 @@
+{
+    "0.0.10": {
+        "info": {
+            "author": "Joshua Hruzik",
+            "author_email": "joshua.hruzik@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Database",
+                "Topic :: Office/Business"
+            ],
+            "description": "# PandasForce\nThis is an integration of SalesForce and Pandas for Python. It is using SalesForce's Bulk API for loading data from Pandas DataFrames into SalesForce and loading data from SalesForce into Pandas dataframes. There is a high level API consisting of the push() and pull() functions as well as a more low level implementation.\n\nUsing the Bulk API is encouraged if you want to work with multiple rows of data. The Bulk API was optimized to handle even large amounts of data. If you are currently using SalesForce's REST API for transferring large amounts of data, you should see significant increases in performance.\n\n## Installation\nYou can install PandasForce by using pip\n```pip install pandasforce```\n\nHowever, if you decide to import the source code, make sure that the following dependencies are installed:\n* requests\n* pandas\n\n## Usage\n\nThe following imports are taken as given:\n```\nimport pandas as pd\nimport pandasforce as pf\n```\n\n#### High Level API\nIn order to interact with your orgs data cloud, you need to create an active session by logging in. Assume that your user account is \"john.doe@test.com\" and your password is \"Test12345\" and that your security token is equal to \"Hello123\". Use the login(username, password, token) function to create an active session:\n```\nsession = pf.login(username = \"john.doe@test.com\", password = \"Test12345\", token = \"Hello123\")\n```\n\nNow you can either use the push() function to change data inside SalesForce or pull() to get data from SalesForce. Let's assume that you create a pandas DataFrame holding information on leads and you want to insert those leads into SalesForce:\n\n```\ncompanies = [\"Test Inc\", \"Doe AG\", \"Mustermann KG\"]\nlnames = [\"Musterfrau\", \"Doe\",\"Mustermann\"]\nfnames = [\"Eva\", \"John\", \"Max\"]\nleads = pd.DataFrame({\"Company\": companies,\n\t\t      \"LastName\": lnames,\n\t\t      \"FirstName\": fnames})\nleads_insert = pf.push(operation = \"insert\", sfobject = \"lead\", data = leads,\n\t\t       session = session)\n```\n\nThis will insert the data into SalesForce. The push() function takes the following parameters:\n\n    operation: str\n        Either one of 'insert', 'update', or 'delete'.\n\n    sfobject: str\n        The name of the SalesForce object you want to operate on.\n\n    data: pandas.DataFrame or FilePath\n        The data you want to push into SalsForce. This can either\n        be a Pandas DataFrame or the path to a csv file. Note\n        that if you give a csv file path, the data will be\n        loaded into a Pandas DataFrame for you.\n\n    session: Session\n        An active instance of the Session class. Use the login()\n        function to create one. This object holds your credentials.\n\n    batch_size: int\n        Your input will be split into batches of this size. This\n        is done to speed up upload time.\n\n    sep: str\n        If you give a csv file path for the data argument, this\n        is the field separator used in your csv file.\n\n    encoding: str\n        If you give a csv file path for the data argument, this\n        is the file's encoding.\n\n    verbose: Boolean\n        If set to True, you will receive further information\n        about your workload. Very useful for debugging.\n\nThe result will be a Pandas DataFrame holding the results and IDs of the data that you have pushed into SalesForce.\n\nIf you decide to query data residing in your SalesForce data cloud, you can use the pull() function. These are the parameters of the function:\n\n    query: str\n        An SOQL query you would like to run on the SalesForce\n        DataCloud.\n\n    sfobject: str\n        The name of the SalesForce object you want to query.\n\n    session: Session\n        An active instance of the Session class. Use the login()\n        function to create one. This object holds your credentials.\n\n    chunk_size: int\n        Your output will be split into batches of this size. This\n        is done to speed up download time. The final result will\n        be a single Pandas DataFrame holding the data from all\n        chunks.\n\n    verbose: Boolean\n        If set to True, you will receive further information\n        about your workload. Very useful for debugging. Note that\n        you will receive a final status report. If everything worked,\n        all batches will be 'Finished' but one. One batch will show\n        the status 'Not Processed'. This is your query trigger and \n        it is completely expected.\n\nThe result will be a Pandas DataFrame holding the results of your SOQL query. Note that your query must be valid SOQL. SOQL only supports a subset of normal SQL commands. Assume that we want to extract the company name, the first name, and the last name of all our leads. Also, we are going to use the session previously defined:\n```\nleads = pf.pull(query = \"SELECT Company,FirstName,LastName FROM Lead\", sfobject = \"lead\", session = session)\n```\nleads will be a regular Pandas DataFrame holding all of our leads.\n\n#### Low Level API\nIf you wish to have more control over your operations, you can opt to use a more low-level API. Note that the push() and pull() functions are simple wrappers.\n\nCreating a session is the same as for the high level api. Create a session by logging in:\n```\nsession = pf.login(username = \"john.doe@test.com\", password = \"Test12345\", token = \"Hello123\")\n```\n\nThe next step will be to create a job. This job will be our point of interaction with SalesForce's Bulk API. The create_job() functions takes the following parameters:\n\n    operation: str\n        One of either 'insert', 'update', 'delete', or 'query'.\n\n    sfobject: str\n        The name of the SalesForce object you want to operate on.\n\n    session: Session\n        An active instance of the Session class. Use the login()\n        function to create one. This object holds your credentials.\n\n    chunk_size: int\n        If your operation is 'query', the results will be split\n        into multiple batches of size equal to 'chunk_size'.\n        This will increase performance for large chunks of data\n        since it will be downloaded in separate chunks. Will be\n        ignored, if operation is not 'query'.\n\nLet's say you would like to insert some leads into SalesForce. First, we need to create a job after logging in:\n\n```\njob = pf.create_job(operation = \"insert\", sfobject = \"lead\", session = session)\n```\n\nNext, we need to insert some data as batches to our job. This can be done by using the add_batch() method which takes either a Pandas DataFrame or the path to a csv file.\n\n```\ndf = pd.DataFrame({\"Company\": [\"A\", \"B\", \"C\"],\n\t\t   \"FirstName\": [\"John\", \"Jack\", \"Sarah\"],\n\t\t   \"LastName\": [\"Doe\", \"Smith\", \"Miller\"]}) \njob.add_batch(df)\n```\n\nNote that it is encouraged to split your data into multiple batches. This will speed up processing. Also, your batch must not be larger than 10000 observations.\n\nWhen all batches are added to your job, you must close the job by using the close() method.\n```\njob.close()\n```\n\nYou can look up the progress of your job by running the get_status() method. This will return a list of dictionaries. Every dictionary represents a single batch and contains information on the current status as well as how many items have been processed yet. If you are quering data, note that there will always be one batch with status \"Not Processed\" and 0 processed items. This is the initial batch that creates all other batches.\n```\njob.get_status()\n```\n\nWhen all batches are processed sucessfully, you can obtain the results by calling the get_results() method. The result will be a Pandas DataFrame holding the IDs for insert, update, and delete operations. If your job is a query, it will hold the result of your SOQL query.\n```\njob.get_results()\n```\n\n## References\nThis modules was built by using SalesForce's official [Bulk API Documentation](https://developer.salesforce.com/docs/atlas.en-us.api_asynch.meta/api_asynch/).\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/Jhruzik/pandasforce",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pandasforce",
+            "package_url": "https://pypi.org/project/pandasforce/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/pandasforce/",
+            "project_urls": {
+                "Homepage": "https://github.com/Jhruzik/pandasforce"
+            },
+            "release_url": "https://pypi.org/project/pandasforce/0.0.10/",
+            "requires_dist": [
+                "requests",
+                "pandas"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "Integration of SalesForce and Pandas",
+            "version": "0.0.10",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 7426468,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1caf32a91ba4243ec36bf94724868cec",
+                    "sha256": "1406aaf8c6c38640e8c0aa1adb77676604d5b2513dd8fc5daf93fb334fa497a7"
+                },
+                "downloads": -1,
+                "filename": "pandasforce-0.0.10-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "1caf32a91ba4243ec36bf94724868cec",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 9663,
+                "upload_time": "2020-06-08T20:12:46",
+                "upload_time_iso_8601": "2020-06-08T20:12:46.624180Z",
+                "url": "https://files.pythonhosted.org/packages/72/39/cf3d90be7815842a014ff67002fd27e9bbb5660d48535875c036885a4bd5/pandasforce-0.0.10-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4e5fba56567e53c42e1d70df32ab6880",
+                    "sha256": "64faf344e93d6356fc5836f15aafea44e33ecef8499c344c2b8bb36cc68341be"
+                },
+                "downloads": -1,
+                "filename": "pandasforce-0.0.10.tar.gz",
+                "has_sig": false,
+                "md5_digest": "4e5fba56567e53c42e1d70df32ab6880",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 10259,
+                "upload_time": "2020-06-08T20:12:49",
+                "upload_time_iso_8601": "2020-06-08T20:12:49.158729Z",
+                "url": "https://files.pythonhosted.org/packages/d7/f2/6c5f65c4a1e984247d9c42faa83bebee99f6ff34c2449ca45b2b54d626ad/pandasforce-0.0.10.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

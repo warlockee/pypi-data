@@ -1,0 +1,94 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "Panagiotis Zestanakis",
+            "author_email": "panosz@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Scientific/Engineering",
+                "Topic :: Scientific/Engineering :: Information Analysis"
+            ],
+            "description": "# alpha_shapes\nA Python package for reconstructing the shape of a 2D point cloud on the plane.\n\n## Table of Contents\n* **[Introduction](#introduction)**\n* **[Usage](#usage)**\n* **[Features](#features)**\n  * **[Optimization](#optimization)**\n  * **[Normalization](#normalization)**\n* **[Inspiration](#inspiration)**\n\n## Introduction\nGiven a finite set of points (or point cloud) in the Euclidean plane, [alpha shapes](https://en.wikipedia.org/wiki/Alpha_shape) are members of a family of closed polygons on the 2D plane associated with the shape of this point cloud. Each alpha shape is associated with a single non negative parameter **\u03b1**. \n\nIntuitively an alpha shape can be conceptualized as follows. Imagine carving out the plane using a cookie scoop of radius 1/**\u03b1**, without removing any of the points in the point cloud. The shape that remains **is** the shape of the point cloud. If we replace the arc-like edges, due to the circular rim of the scoop, with straight segments, we are left with the alpha shape of parameter **\u03b1**.\n\n## Usage\nImports:\n```python\nimport matplotlib.pyplot as plt\nfrom descartes import PolygonPatch\nfrom alpha_shapes.alpha_shapes import Alpha_Shaper\n```\nDefine a set of points:\n```python\npoints = [(0.,     0.),    (0.,    1.),    (1.,     1.1),\n          (1.,     0.),    (0.25,  0.15),  (0.65,   0.45),\n          (0.75,   0.75),  (0.5,   0.5),   (0.5,    0.25),\n          (0.5,    0.75),  (0.25,  0.5),   (0.75,   0.25),\n          (0.,     2.),    (0.,    2.1),   (1.,     2.1),\n          (0.5,    2.5),   (-0.5,  1.5),   (-0.25,  1.5),\n          (-0.25,  1.25),  (0,     1.25),  (1.5,    1.5),\n          (1.25,   1.5),   (1.25,  1.25),  (1,      1.25),\n          (0.5,    2.25),  (1.,    2.),    (0.25,   2.15),\n          (0.65,   2.45),  (0.75,  2.75),  (0.5,    2.25),\n          (0.5,    2.75),  (0.25,  2.5),   (0.75,   2.25)]\n```\nCreate the alpha shaper:\n```python\nshaper = Alpha_Shaper(points)\n```\nFor the alpha shape to be calculated, the user must choose a value for the `alpha` parameter.\nHere, let us set `alpha` to 3.0:\n```python\nalpha = 3.0\nalpha_shape = shaper.get_shape(alpha=alpha)\n```\nVisualize the result:\n```python\nfig, (ax0, ax1) = plt.subplots(1, 2)\nax0.scatter(*zip(*points))\nax0.set_title('data')\nax1.scatter(*zip(*points))\nax1.add_patch(PolygonPatch(alpha_shape, alpha=0.2, color='r'))\nax1.set_title(f\"$\\\\alpha={alpha:.2}$\")\n\nfor ax in (ax0, ax1):\n    ax.set_aspect('equal')\nplt.show()\n```\n![image](./figures/Figure_1.png) \n\nThe resulting shape is only a rough outline of the figure formed by the point set. \nHowever, increasing the value of `alpha` to 4.5 yields much better results.\n```python\nalpha = 4.5\nalpha_shape = shaper.get_shape(alpha=alpha)\n```\n![image](./figures/Figure_2.png) \n\n##  Features\n###  Optimization\nA satisfactory calculation of the alpha shape requires a successful guess of the alpha parameter. While trial and error might work well in some cases, users can let the `Alpha_Shaper` choose a value for them. That is what the `optimize` method is about.\n```python\n>>> alpha_opt, alpha_shape = shaper.optimize()\n>>> alpha_opt\n5.331459512629295\n```\n![image](./figures/simple_optimized.png) \n\nThe optimize method runs efficiently for relatively large point clouds. Here we calculate the optimal alpha shape of an ensemble of 1000 random points uniformly distributed on the unit square.  \n\n```python\n>>> from time import time\n>>> points = np.random.random((1000, 2))\n>>> alpha_shaper = Alpha_Shaper(points)\n>>> ts = time()\n>>> alpha_opt, alpha_shape = alpha_shaper.optimize()\n>>> te = time()\n>>> print(f'optimization took: {te-ts:.2} sec')\noptimization took: 0.41 sec\n```\n![image](./figures/large_rand.png) \n\n###  Normalization\nBefore calculating the alpha shape, Alpha_Shaper normalizes by default the input points so that they are distributed on the unit square. When there is a scale separation along the x and y direction, deactivating this feature may yield surprising results.\n```python\nimport numpy as np\n# Scale the points along the x-dimension\nx_scale = 1e-3\npoints = np.array(points)\npoints[:, 0] *= x_scale\n\n#  Create the alpha shape without accounting for the x and y scale separation\nunnormalized_shaper = Alpha_Shaper(points, normalize=False)\n_, alpha_shape_unscaled = unnormalized_shaper.optimize()\n\n\n# If the characteristic scale along each axis varies significantly,\n# it may make sense to turn on the `normalize` option.\nshaper = Alpha_Shaper(points, normalize=True)\n_, alpha_shape_scaled = shaper.optimize()\n\n# Scale the points along the x-dimension\nx_scale = 1e-3\npoints = np.array(points)\npoints[:, 0] *= x_scale\n\n#  Create the alpha shape without accounting for the x and y scale separation\nunnormalized_shaper = Alpha_Shaper(points, normalize=False)\n_, alpha_shape_unscaled = unnormalized_shaper.optimize()\n\n\n# If the characteristic scale along each axis varies significantly,\n# it may make sense to turn on the `normalize` option.\nshaper = Alpha_Shaper(points, normalize=True)\n_, alpha_shape_scaled = shaper.optimize()\n\n```\n![image](./figures/normalization_effect.png) \n##  Inspiration\n\nThis library is inspired by the [alphashape](https://github.com/bellockk/alphashape) library.\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/panosz/alpha_shapes",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "alpha-shapes",
+            "package_url": "https://pypi.org/project/alpha-shapes/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/alpha-shapes/",
+            "project_urls": {
+                "Homepage": "https://github.com/panosz/alpha_shapes"
+            },
+            "release_url": "https://pypi.org/project/alpha-shapes/0.0.1/",
+            "requires_dist": [
+                "numpy",
+                "shapely",
+                "matplotlib"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "reconstruct the shape of a 2D point cloud.",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 8435872,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "caaed05b73a2baa800416665d3433faf",
+                    "sha256": "da941cfd3b0b0d8d49971228602a0d59676957f945ee1043d5527a0ba04dfbe4"
+                },
+                "downloads": -1,
+                "filename": "alpha_shapes-0.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "caaed05b73a2baa800416665d3433faf",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 6071,
+                "upload_time": "2020-10-17T17:22:41",
+                "upload_time_iso_8601": "2020-10-17T17:22:41.475359Z",
+                "url": "https://files.pythonhosted.org/packages/2c/70/be1770ec56071239cfd9d6a30cc0699c6034fc629b4c72decd768daf3f9e/alpha_shapes-0.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f6ef71bd7d9986925171158439c80eb6",
+                    "sha256": "33c6de1fc78adaeb51e9fbcd1b1f3ae49488869cc1e4bfaaf0d6c60b670275f2"
+                },
+                "downloads": -1,
+                "filename": "alpha_shapes-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "f6ef71bd7d9986925171158439c80eb6",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 5156,
+                "upload_time": "2020-10-17T17:22:45",
+                "upload_time_iso_8601": "2020-10-17T17:22:45.226795Z",
+                "url": "https://files.pythonhosted.org/packages/e0/09/760ac74ca85d9ae84e1dc7f76e903f8e321dd7dd06ecbf2be168a074ad06/alpha_shapes-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

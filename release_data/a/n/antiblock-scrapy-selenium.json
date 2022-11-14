@@ -1,0 +1,89 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "Elves M. Rodrigues",
+            "author_email": "elvesmateusrodrigues@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: Unix",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# antiblock_scrapy_selenium\n\nEste m\u00f3dulo \u00e9 uma extens\u00e3o para o projeto de [scrapy-selenium](https://github.com/clemfromspace/scrapy-selenium). \n\nO principal uso do **scrapy-selenium** \u00e9 para o caso de sites que precisam processar javascript para renderizar seu conte\u00fado. Por outro lado, mecanismos antibloqueios b\u00e1sicos de coletas n\u00e3o se encontram no projeto original.\n\nScrapy-selenium foi extendido usando como base [antiblock-selenium](https://github.com/elvesrodrigues/antiblock-selenium), que permite rotacionar IPs via Tor, definir delays entre requisi\u00e7\u00f5es (aleat\u00f3rio ou fixo), rotacionar user-agents, al\u00e9m de persistir/carregar cookies.\n\n**Obs.: N\u00e3o h\u00e1 compatibilidade com selenium remoto neste projeto.** \n\n## Funcionalidades\n\nJun\u00e7\u00e3o de **scrapy-selenium** com **antiblock-selenium**, ou seja:\n\n- Permitir carregar sites que necessitam javascript ao Scrapy, entre outras funcionalidades do **scrapy-selenium**\n- Evitar bloqueios em coletas, por meio de:\n    - Rota\u00e7\u00e3o de IPs via Tor\n    - Rota\u00e7\u00e3o de user-agents\n    - Delays aleat\u00f3rios ou fixos entre requisi\u00e7\u00f5es\n    - Persistir/carregar cookies\n\n## Instala\u00e7\u00e3o\n\nManeira mais f\u00e1cil:\n\n```bash\npip install antiblock-scrapy-selenium\n```\n## Configura\u00e7\u00e3o\n\nSiga os passos de configura\u00e7\u00e3o do Tor em [antiblock-selenium](https://github.com/elvesrodrigues/antiblock-selenium#configurando-tor).\n\nOs navegadores suportados s\u00e3o:\n- Chrome\n- Firefox\n\n\n## Uso\n\n### B\u00e1sico\n\n- Ativa\u00e7\u00e3o do Middleware: \n    ```bash\n    DOWNLOADER_MIDDLEWARES = {\n        'antiblock_scrapy_selenium.SeleniumMiddleware': 800\n    }\n    ```\n- Adicione o navegador a ser usado, o local da execut\u00e1vel do driver e os argumentos a serem passados:\n    ```python\n    #settings.py\n    from shutil import which\n\n    SELENIUM_DRIVER_NAME = 'firefox' #ou chrome\n    SELENIUM_DRIVER_EXECUTABLE_PATH = which('geckodriver')\n    SELENIUM_DRIVER_ARGUMENTS=['-headless']  # '--headless' se estiver usando chrome\n    ```\n- Opcionalmente, defina o local da execut\u00e1vel do navegador:\n    ```python\n    SELENIUM_BROWSER_EXECUTABLE_PATH = which('firefox')\n    ```\n- Use `antiblock_scrapy_selenium.SeleniumRequest` ao inv\u00e9s de `Request` do Scrapy, como abaixo:\n    ```python \n    from antiblock_scrapy_selenium import SeleniumRequest\n\n    yield SeleniumRequest(url=url, callback=self.parse_result)\n    ```\n    - Exemplo com um Spider:\n        ```python\n        import scrapy\n\n        from antiblock_scrapy_selenium import SeleniumRequest\n\n        class FooSpider(scrapy.Spider):\n            name = 'foo'\n\n            def start_requests(self):\n                url = 'https://alguma-url'\n\n                yield SeleniumRequest(url=url, callback=self.parse)\n\n            def parse(self, response):\n                pass\n        ```\n- Utilize as demais funcionalidades do `scrapy-selenium` normalmente, dispon\u00edveis [aqui](https://github.com/clemfromspace/scrapy-selenium#additional-arguments).\n\n> **O par\u00e2metro SELENIUM_COMMAND_EXECUTOR do scrapy-selenium n\u00e3o \u00e9 suportada.**\n\n### Uso de mecanismos antibloqueios\n\nAp\u00f3s seguir os passos de uso b\u00e1sico, configure de acordo com os mecanismos de camuflagem abaixo.\n\n#### Rota\u00e7\u00e3o de IPs via Tor\nPar\u00e2metros:\n\n- `SELENIUM_DRIVER_CHANGE_IP_AFTER`: Define com quantas requisi\u00e7\u00f5es o IP ser\u00e1 alterado `(Default 42)`\n- `SELENIUM_DRIVER_ALLOW_REUSE_IP_AFTER`: Define quando um IP poder\u00e1 ser reusado `(Default 10)`\n\nExemplo:\n\n```python\nSELENIUM_DRIVER_CHANGE_IP_AFTER = 42\nSELENIUM_DRIVER_ALLOW_REUSE_IP_AFTER = 5\n```\n\n#### Rota\u00e7\u00e3o de user-agents\n\n> Suporte a rota\u00e7\u00e3o de user-agent apenas para Firefox.\n\nPar\u00e2metros:\n\n- `SELENIUM_DRIVER_USER_AGENTS`: Lista de user-agents a ser rotacionada.\n- `SELENIUM_DRIVER_CHANGE_USER_AGENT_AFTER`: Quando o user-agent dever\u00e1 se alterado `(Default 0 - user-agent n\u00e3o muda)`\n\nExemplo:\n\n```python\n# settings.py\n\nSELENIUM_DRIVER_USER_AGENTS = ['user-agent-1', 'user-agent-2', ... , 'user-agent-n']\nSELENIUM_DRIVER_CHANGE_USER_AGENT_AFTER = 721 #Requisi\u00e7\u00f5es com mesmo user-agent Ex.: 10, 20, 30... \n```\n\n#### Atrasos entre requisi\u00e7\u00f5es\n\nPermite atrasos aleat\u00f3rios ou fixos entre requisi\u00e7\u00f5es.\n\nPar\u00e2metros:\n\n- `SELENIUM_DRIVER_TIME_BETWEEN_CALLS`: Tempo em segundos entre requisi\u00e7\u00f5es. Aceita n\u00fameros com at\u00e9 2 duas casas decimais `(Default 0.25)`\n- `SELENIUM_DRIVER_RANDOM_DELAY`: Se o atraso entre requisi\u00e7\u00f5es ser\u00e1 fixo (definindo esse par\u00e2metro como `False`) ou aleat\u00f3rio, escolhido entre `0.5 * SELENIUM_DRIVER_TIME_BETWEEN_CALLS` e `1.5 * SELENIUM_DRIVER_TIME_BETWEEN_CALLS` `(Default True)`\n\n```python\n# settings.py\n\nSELENIUM_DRIVER_TIME_BETWEEN_CALLS = 2.5\nSELENIUM_DRIVER_RANDOM_DELAY = False # Tempo m\u00ednimo fixo entre requisi\u00e7\u00f5es\n```\n\n#### Ger\u00eancia de Cookies\n\nPar\u00e2metros:\n- `SELENIUM_DRIVER_PERSIST_COOKIES_WHEN_CLOSE`: Se quando o driver \u00e9 fechado os cookies deles ser\u00e3o salvos `(Default False)`\n- `SELENIUM_DRIVER_RELOAD_COOKIES_WHEN_START`: Se ao iniciar, cookies salvos na \u00faltima sess\u00e3o ser\u00e3o recarregados `(Default False)`\n    - Se `True`, \u00e9 necess\u00e1rio especificar o dom\u00ednio dos cookies em `SELENIUM_DRIVER_COOKIE_DOMAIN` \n- `SELENIUM_DRIVER_LOCATION_OF_COOKIES`: Local onde os cookies ser\u00e3o salvos. `(Default 'cookies.pkl')` \n- `SELENIUM_DRIVER_LOAD_COOKIES`: Lista de cookies a serem carregados (Default [] - Lista vazia)\n    - Se a lista n\u00e3o vazia for passada, \u00e9 necess\u00e1rio especificar o dom\u00ednio dos cookies em `SELENIUM_DRIVER_COOKIE_DOMAIN` \n- `SELENIUM_DRIVER_COOKIE_DOMAIN`: Dom\u00ednio onde os cookies s\u00e3o v\u00e1lidos.  \n\nExemplo - Persistindo cookies:\n\n```python\n# settings.py\n\nSELENIUM_DRIVER_PERSIST_COOKIES_WHEN_CLOSE = True\nSELENIUM_DRIVER_RELOAD_COOKIES_WHEN_START = True\nSELENIUM_DRIVER_COOKIE_DOMAIN = 'https://www.site-sendo-coletado.com/'\n\nSELENIUM_DRIVER_LOCATION_OF_COOKIES = 'cookies-1.pkl'\n```\nExemplo - Carregando cookies:\n\n```python\n\ncookie1 = {'country': 'BR', 'currency': 'dolar'}\ncookie2 = {'lang': 'pt-br'}\n\nSELENIUM_DRIVER_LOAD_COOKIES = [cookie1, cookie2]\nSELENIUM_DRIVER_COOKIE_DOMAIN = 'https://www.site-sendo-coletado.com/' \n```\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/elvesrodrigues/antiblock-scrapy-selenium",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "antiblock-scrapy-selenium",
+            "package_url": "https://pypi.org/project/antiblock-scrapy-selenium/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/antiblock-scrapy-selenium/",
+            "project_urls": {
+                "Homepage": "https://github.com/elvesrodrigues/antiblock-scrapy-selenium"
+            },
+            "release_url": "https://pypi.org/project/antiblock-scrapy-selenium/0.0.1/",
+            "requires_dist": [
+                "selenium",
+                "antiblock-selenium"
+            ],
+            "requires_python": ">=3.0",
+            "summary": "Mecanismos antibloqueios para Scrapy-Selenium",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 7490569,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f9e70407d76a1719ac43aaaf77383fe8",
+                    "sha256": "8be2f89aa4e000ae748aae10421c4f53550b89eeaa23fd1371480337a8ce2ee0"
+                },
+                "downloads": -1,
+                "filename": "antiblock_scrapy_selenium-0.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f9e70407d76a1719ac43aaaf77383fe8",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.0",
+                "size": 7688,
+                "upload_time": "2020-06-16T18:42:52",
+                "upload_time_iso_8601": "2020-06-16T18:42:52.006337Z",
+                "url": "https://files.pythonhosted.org/packages/b0/b6/3ee3a28761712a1ba9a8d9a09a5e6c81da726a9e4a801da28fe8b116b663/antiblock_scrapy_selenium-0.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c077bf2b2e64328580e27cb3a4cbcce2",
+                    "sha256": "21ac0c8720482c3514bc5b93626545b23d3dd982521a7316d1345aa06747ace1"
+                },
+                "downloads": -1,
+                "filename": "antiblock-scrapy-selenium-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c077bf2b2e64328580e27cb3a4cbcce2",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.0",
+                "size": 6214,
+                "upload_time": "2020-06-16T18:42:54",
+                "upload_time_iso_8601": "2020-06-16T18:42:54.802779Z",
+                "url": "https://files.pythonhosted.org/packages/2c/40/ed4db3063b9709dd15d57f95da8210eb180da8142d17b80bff9571b839d5/antiblock-scrapy-selenium-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
