@@ -1,0 +1,91 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": null,
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "designate-infoblox",
+            "package_url": "https://pypi.org/project/designate-infoblox/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/designate-infoblox/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/designate-infoblox/0.0.1/",
+            "requires_dist": null,
+            "requires_python": null,
+            "summary": "",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 1547243,
+        "urls": [],
+        "vulnerabilities": []
+    },
+    "0.0.1.dev13": {
+        "info": {
+            "author": "OpenStack",
+            "author_email": "openstack-dev@lists.openstack.org",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Environment :: OpenStack",
+                "Intended Audience :: Information Technology",
+                "Intended Audience :: System Administrators",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 2",
+                "Programming Language :: Python :: 2.6",
+                "Programming Language :: Python :: 2.7",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.3",
+                "Programming Language :: Python :: 3.4"
+            ],
+            "description": "===============================\ndesignate-infoblox\n===============================\n\nProvides an integration between Designate and Infoblox grids.\n\n* Free software: Apache license\n* Documentation: http://docs.openstack.org/developer/designate-infoblox\n* Source: http://git.openstack.org/cgit/stackforge/designate-infoblox\n* Bugs: http://bugs.launchpad.net/designate-infoblox\n\nFeatures\n--------\n\nThe Infoblox Designate backend allows an Infoblox grid to be used for\nserving zones controlled by OpenStack Designate.\n\nThe Infoblox backend may be setup to map a specific Designate pool to\na single DNS view, or it may be setup to map individual tenants to\nper-tenant DNS views.\n\nConfiguration\n-------------\n\n*Setting Up Infoblox for Designate*\n\n* Create a user for use by Designate.\n* Set up one or more name server groups to be used to serve Designate zones.\n\n  * Set the Designate mDNS servers as external primaries\n  * Add a grid member as a grid secondary; select the \"Lead Secondary\" option\n    for this member\n  * Add additional grid secondaries as desired\n\n*Setting Up Designate for Infoblox*\n\n* Install the Infoblox Designate backend driver.\n* Designate may be configured to talk to any number of grid API service points\n  (GM or Cloud appliance).\n\n  * Setup a pool for each combination of DNS view and nameserver group you wish\n    to manage.\n  * Setup a pool target for each API service point that Designate should talk\n    to.\n\n    * A single Designate pool should point to only one API service point in any\n      single grid. That is, do not point a pool at more than one API service\n      point in the same grid.\n    * It is OK to point a pool at multiple grids, just not to multiple service\n      points on the same grid.\n    * You may specify the DNS view and nameserver group on a per-target basis.\n\n\n* The [infoblox:backend] stanza in the designate configuration file can be used\n  to set default values for the grid connectivity and other information.\n* These values can be overridden on a per-target basis with the \"options\" \n  element of the target configuration.\n* Set the mDNS port to 53 in the ``[service:mdns]`` stanza.\n* Designate always puts any servers associated with the pool as NS records for\n  the domain. So, if you wish for any Infoblox nameservers to be listed in NS\n  records, they must be added via Designate.\n\n*Example Designate Configuration*\n\n::\n\n [pool:794ccc2c-d751-44fe-b57f-8894c9f5c842]\n #Specify the API service points for each grid\n targets = f26e0b32-736f-4f0a-831b-039a415c481e\n # Specify the lead secondary servers configured in the NS groups\n # for each target.\n nameservers = ffedb95e-edc1-11e4-9ae6-000c29db281b\n\n [pool_target:f26e0b32-736f-4f0a-831b-039a415c481e]\n type = infoblox\n # wapi_url, username, password can all be overridden from the defaults\n # allowing targets to point to different grids\n options = dns_view: default, ns_group: Designate\n\n [pool_nameserver:ffedb95e-edc1-11e4-9ae6-000c29db281b]\n host=172.16.98.200\n port=53\n\n\n [backend:infoblox]\n # The values below will be used for all targets unless overridden\n # in the target configuration. http_* options may only be set here,\n # not at the target level.\n http_pool_maxsize = 100\n http_pool_connections = 100\n wapi_url = https://172.16.98.200/wapi/v2.1/\n sslverify = False\n password = infoblox\n username = admin\n multi_tenant = False\n\nMulti-tenant Configuration\n--------------------------\n\nWhen configured with ``multi_tenant = True`` in the designate.conf file, the\nDNS view will be chosen as follows:\n\n* A search will be made for a network view with the EA \"TenantID\", with the\n  value of the OpenStack tenant_id.\n* If found, then then DNS view used will be <dns_view>.<network_view>, where\n  <dns_view> is the value specified in designate.conf, and <network_view> is\n  the name of the view found in the search.\n* If no such network view is found, then a network view will be created with the\n  name <network_view>.<tenant_id>, where <network_view> is the value specified\n  in designate.conf. This network view will be tagged with the TenantID EA.\n* If the DNS view does not exist (in either case above), then it will be\n  created.\n\nDevstack\n--------\n\n* Setup link to backend-infoblox in the designate_plugins directory. Assuming\n  you install in /opt/stack, then:\n\n::\n\n $ cd /opt/stack/designate/contrib/devstack/lib/designate_plugins/\n $ ln -s /opt/stack/designate-infoblox/devstack/lib/backend-infoblox\n\n* Add (minimally) the following to your local.conf:\n\n::\n\n DESIGNATE_BACKEND_DRIVER=infoblox\n enable_plugin designate-infoblox https://github.com/johnbelamaric/designate-infoblox.git\n enable_service designate-infoblox\n\n\nTODO\n----\n\n* Evaluate feasibility of using multi-master.\n* Provide a synchronization mechanism.",
+            "description_content_type": null,
+            "docs_url": null,
+            "download_url": "UNKNOWN",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "http://www.openstack.org/",
+            "keywords": null,
+            "license": "UNKNOWN",
+            "maintainer": null,
+            "maintainer_email": null,
+            "name": "designate-infoblox",
+            "package_url": "https://pypi.org/project/designate-infoblox/",
+            "platform": "UNKNOWN",
+            "project_url": "https://pypi.org/project/designate-infoblox/",
+            "project_urls": {
+                "Download": "UNKNOWN",
+                "Homepage": "http://www.openstack.org/"
+            },
+            "release_url": "https://pypi.org/project/designate-infoblox/0.0.1.dev13/",
+            "requires_dist": null,
+            "requires_python": null,
+            "summary": "An OpenStack Designate backend for Infoblox grids.",
+            "version": "0.0.1.dev13",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 1547243,
+        "urls": [],
+        "vulnerabilities": []
+    }
+}
