@@ -1,0 +1,102 @@
+{
+    "0.3.7": {
+        "info": {
+            "author": "Murray Callander",
+            "author_email": "info@eigen.co",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "ABOUT\n============\nThe python-eigen-ingenuity library is used to query data from the Eigen Ingenuity system for use in the python environment, and to upload data to the \n\nREQUIREMENTS\n============\n\nInstalling python-eigen-ingenuity requires python 3\n\nINSTALL\n=======\n\nInstall python 3, then in the terminal run:\n\n```\npip install python-eigen-ingenuity\n```\nNo third party libraries are required\n\nGETTING STARTED\n====\nBegin by importing the module with\n\n```\nimport eigeningenuity as eigen\n```\n\nTo use this module, you must first set an Ingenuity instance to query, and a datasource within the instance.\n\nFor example, with Ingenuity instance \"https://demo.eigen.co/\" and datasource \"Demo-influxdb\".\n\n\n```\nfrom eigeningenuity import EigenServer, get_historian\n\nserver = eigen.EigenServer(\"https://demo.eigen.co/\")\ndemo = get_historian(\"Demo-influxdb\",server)\n```\n\nAlternatively, it is possible to set the Ingenuity instance as the environmental variable \"EIGENSERVER\",\n```\nos.environ[\"EIGENSERVER\"] = \"https://demo.eigen.co/\"\ndemo = get_historian(\"Demo-influxdb\")\n```\n\nIf the datasource of interest is the default datasource for the ingenuity instance, it can be omitted:\n\n```\nos.environ[\"EIGENSERVER\"] = \"https://demo.eigen.co/\"\ndemo = get_historian()\n```\n\nDATA FORMAT\n===\n\nOnce the server and datasource have been configured, the historian data can be queried through functions we define in\nthe EXAMPLE FUNCTIONS section.\nThese functions can be used to query a single tag, or multiple tags at once. A tag in ingenuity with the form \"datasource/tagname\", \nwe query with.\n\n```\ndatasource = eigen.get_historian(\"datasource\")\ntagdata = datasource.getCurrentDataPoints(\"tagname\")\n```\n\nMost functions return one or more datapoint objects, each of which contains a Value, Timestamp, and status as below\n\n``````\n<class 'eigeningenuity.historian.DataPoint'>\n35 @ 2022-05-30 11:02:13 UTC - OK\n``````\n\nThis can be parsed with the following:\n\n``````\nvalue = datapoint.value (35)\ntimestamp = datapoint.timestamp (1653904933.0)\nutcTime = datapoint.datetime (2022-05-30 11:02:13)\nstatus = datapoint.status (OK)\n``````\nHere the timestamp field is the timestamp in epoch seconds (seconds since January 1st 1970), and the utcTime field is a\npython datetime object\n\nif multiple tags are queried, the datapoints will be returned in a python dictionary with the tag names as keys.\n____\n\nFUNCTIONS\n==\nData Queries\n===\n\n#### The following functions are designed to help the user pull and process data from historians into a python environment\n\nlist_historians\n----\n\nReturns a list of all historians on the instance\n```\nfrom eigeningenuity import list_historians\nlist_historians(eigenserver)\n```\nWhere:\n- (Optional) eigenserver is the ingenuity instance of interest (If omitted will look for environmental variable EIGENSERVER)\n\nget_default_historian_name\n---\nReturns the name of the default historian of the instance, if one exists\n```\nfrom eigeningenuity import get_default_historian_name\nget_default_historian_name(eigenserver)\n```\nWhere:\n- (Optional) eigenserver is the ingenuity instance of interest (If omitted will look for environmental variable EIGENSERVER)\n\n\ngetCurrentDataPoints\n----\nReturns the most recent raw datapoint for each tag\n```\ndemo.getCurrentDataPoints(tags)\n```\nWhere:\n- tags is a list of IDs of tags to query\n\ncountPoints\n----\n\nReturns the number of datapoints in the given time frame as an integer\n```\ndemo.countPoints(tag, start, end)\n```\nWhere:\n- tags is a list of IDs of tags to query\n- start is the datetime object (or epoch timestamp in ms) of the beginning of the query window\n- end is the datetime object (or epoch timestamp in ms) of the end of the query window\n\ngetInterpolatedRange\n----\n\nReturns a given number of interpolated points of a tag over a given timeframe\n```\ndemo.getInterpolatedRange(tag, start, end, points)\n```\nWhere:\n- tags is a list of IDs of the tags to query\n- start is the datetime object (or epoch timestamp in ms) of the beginning of the query window\n- end is the datetime object (or epoch timestamp in ms) of the end of the query window\n- points is the total number of points to be returned\n\ngetInterpolatedpoints\n----\n\nReturns a datapoint of each given tag at each given timestamp\n```\ndemo.getInterpolatedPoints(tags, timestamps)\n```\nWhere:\n- tags is a list of IDs of the tags to query\n- timestamps is a list of timestamps at which to query data\n\ngetRawDataPoints\n----\n\nReturns the first n Raw datapoints from a time window\n```\ndemo.getRawDataPoints(tags, start, end, count)\n```\nWhere:\n- tags is a list of IDs of the tags to query\n- start is the datetime object (or epoch timestamp in ms) of the beginning of the query window\n- end is the datetime object (or epoch timestamp in ms) of the end of the query window\n- (Optional) count is the maximum number of raw datapoints to return. (default is 1000)\n\n\ngetAggregates\n----\n\nReturns a specified set of aggregate values for tags over given period of time\n```\ndemo.getAggregates(tags, start, end, count, aggfields)\n```\nWhere:\n- tags is a list of IDs of the tags to query\n- start is the datetime object (or epoch timestamp in ms) of the beginning of the query window\n- end is the datetime object (or epoch timestamp in ms) of the end of the query window\n- (Optional) count is the number of divisions to split the time window into (i.e. if time window is one day, and count is 2,\nwe return separate sets of aggregate data for first and second half of day). omit for count=1\n- (Optional) aggfields is a list of aggregate functions to calculate, a subset of \n[\"min\",\"max\",\"avg\",\"var\",\"stddev\",\"numgood\",\"numbad\"].  Leave blank to return all aggregates.\n\ngetAggregateIntervals\n----\n\nA variation of getAggregates which supports splitting the time window into fixed length intervals\n```\ndemo.getAggregateInterval(tags, start, end, interval, aggfields)\n```\nWhere:\n- tags is a list of IDs of the tags to query\n- start is the datetime object (or epoch timestamp in ms) of the beginning of the query window\n- end is the datetime object (or epoch timestamp in ms) of the end of the query window\n- (Optional) interval is the length of the sub-intervals over which aggregates are calculated, it accepts values such as [\"1s\",\"1m\",\"1h\",\"1d\",\"1M\",\"1y\"]\nbeing 1 second, 1 minute, 1 hour etc. Omit value for whole window.\n- (Optional) aggfields is a list of aggregate functions to calculate, a subset of \n[\"min\",\"max\",\"avg\",\"var\",\"stddev\",\"numgood\",\"numbad\"]. Leave blank to return all aggregates.\n\nlistDataTags\n----\n\nReturns all tags in datasource, or all tags in datasource that match search query\n```\ndemo.listDataTags(match)\n```\nWhere:\n- (optional) match is the regex wildcard to match tags to (i.e. DEMO* will match all tags beginning with DEMO, \\*DEMO* will match\nall tags containing DEMO, and *DEMO will match all tags ending with DEMO) (Leave blank to return all tags in historian)\n\ngetMetaData\n----\n\nReturns name, units and description of each tag\n```\ndemo.getMetaData(tags)\n```\nWhere:\n- tags is a list of IDs of tags to query\n\nData Upload\n===\n\n#### The following functions are intended for users to update/create historian tags using data processed/loaded in python.\n\n\ncreateDataTag\n----\n\nCreates a datatag with a specified ID, Unit type/label, and Description\n```\ndemo.createDataTag(Name, Units, Description)\n```\nWhere:\n- Name is the unique ID/Identifier of the tag\n- Units is the unit specifier of the data in the tag e.g. \"m/s\",\"Days\" etc. (This will be shown on axis in ingenuity trends)\n- Description is text/metadata describing the content/purpose of the tag (This will show up in search bar for ingenuity trends)\n\nwriteDataPoints\n----\n\nWrites sets of datapoints to the historian\n```\nfrom eigeningenuity.historian import DataPoint\n\ndataPoints = []\npoint = DataPoint(value, timestamp, \"OK\")\ndataPoint = {tagName: point}\n\ndataPointList.append(dataPoint)\n\ndemo.writeDataPoints(dataPointList)\n```\nWhere:\n- value if the value of the datapoint at the timestamp\n- timestamp is the datetime object (or epoch timestamp in ms) of the point\n- \"OK\" is the status we give to a point that contains non-null data\n____\n\n\nLICENSE\n-------\nApache License 2.0\n\n Copyright 2022 Eigen Ltd.\n\n   Licensed under the Apache License, Version 2.0 (the \"License\");\n   you may not use this file except in compliance with the License.\n   You may obtain a copy of the License at\n\n       http://www.apache.org/licenses/LICENSE-2.0\n\n   Unless required by applicable law or agreed to in writing, software\n   distributed under the License is distributed on an \"AS IS\" BASIS,\n   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n   See the License for the specific language governing permissions and\n   limitations under the License.\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://www.eigen.co/",
+            "keywords": "",
+            "license": "Apache License 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "python-eigen-ingenuity",
+            "package_url": "https://pypi.org/project/python-eigen-ingenuity/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/python-eigen-ingenuity/",
+            "project_urls": {
+                "Homepage": "https://www.eigen.co/"
+            },
+            "release_url": "https://pypi.org/project/python-eigen-ingenuity/0.3.7/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "A python library used to query data from the Eigen Ingenuity system",
+            "version": "0.3.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14001923,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4d9d56acf568935eadddbf54cf7e00b7",
+                    "sha256": "b8084e4a2256b4e28625ee6d311afd2116dbb1450bc9510eb64aee2da5c5d5ab"
+                },
+                "downloads": -1,
+                "filename": "python_eigen_ingenuity-0.3.7post1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "4d9d56acf568935eadddbf54cf7e00b7",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 15722,
+                "upload_time": "2022-06-01T15:12:16",
+                "upload_time_iso_8601": "2022-06-01T15:12:16.699883Z",
+                "url": "https://files.pythonhosted.org/packages/43/23/43e5ce62b4b36d0b9ba5c98327b0f39ad395965a23632be9a74d5a599570/python_eigen_ingenuity-0.3.7post1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "89e4f2bfe41d1160d9c5cdb374eb739c",
+                    "sha256": "dfffcfc3e5fb26bb112ec73aaa0ce63016c83f130b474c9b4a2d2fc4d7cc5064"
+                },
+                "downloads": -1,
+                "filename": "python_eigen_ingenuity-0.3.7-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "89e4f2bfe41d1160d9c5cdb374eb739c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 15176,
+                "upload_time": "2022-05-31T13:36:34",
+                "upload_time_iso_8601": "2022-05-31T13:36:34.724391Z",
+                "url": "https://files.pythonhosted.org/packages/4f/1a/76d10250081719dd43002d6086bb8e7f6be14c3b8495f712d75776acc954/python_eigen_ingenuity-0.3.7-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e3f60da3150fe8f466eb0b2895f22b97",
+                    "sha256": "bdef371a64b4d122a1053e90f3b4eb6f92132c73007b63a89d16c1b3b5248453"
+                },
+                "downloads": -1,
+                "filename": "python-eigen-ingenuity-0.3.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e3f60da3150fe8f466eb0b2895f22b97",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 15865,
+                "upload_time": "2022-05-31T13:36:36",
+                "upload_time_iso_8601": "2022-05-31T13:36:36.233844Z",
+                "url": "https://files.pythonhosted.org/packages/70/ad/8ee9579d1cb9224180e44f57b94538e2a11d27625f6c6c212506f1c1adc8/python-eigen-ingenuity-0.3.7.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

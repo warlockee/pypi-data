@@ -1,0 +1,99 @@
+{
+    "1.0.0": {
+        "info": {
+            "author": "Boyi Shangguan",
+            "author_email": "sgby@whu.edu.cn",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Topic :: Scientific/Engineering :: GIS"
+            ],
+            "description": "# pytdml\n\n[pytdml](https://github.com/TrainingDML/pytdml) is a pure python parser and encoder for training datasets based on OGC\nTraining Data Markup Language for AI standard.\n\n---\n\n## Installation\n\nThe package can be installed via pip.\n\n### Requirements\n\n* Python 3 and above\n\n### Dependencies\n\nDependencies are listed in [requirements.txt](https://github.com/TrainingDML/pytdml/blob/main/requirements.txt). Dependencies are automatically installed during\npytdml's installation.\n\n### Installing the Package\n\n```bash\npip install pytdml\n```\n\n---\n\n## Usage\n\n### Encoding\n\n#### From the command line\n\nThe training dataset can be encoded to TrainingDML-AI JSON format by YAML configuration file with command line.\n\n```bash\npytdml/yaml_to_tdml.py --config=<YAML configuration file path> --output=<Output TrainingDML-AI JSON file path>\n```\n\nYAML configuration file schema is described in [encoding YAML configuration file schema](https://github.com/TrainingDML/pytdml/blob/main/encoding_config_schema.yaml).\n\n#### Using the API from python\n\nThe training dataset can also be encoded to TrainingDML-AI JSON format with Python API.\n\n```python\nfrom pytdml.io import write_to_json\nfrom pytdml.type import EOTrainingDataset, EOTrainingData, EOTask, EODataSource, SceneLabel\n\n# generate EO training dataset\ndataset = EOTrainingDataset(\n    id='...',\n    name='...',\n    description='...',\n    data=[\n        EOTrainingData(\n            id='...',\n            labels=[\n                SceneLabel(\n                    label_class='...',\n                    data_url='...',\n                    date_time='...'),\n                ...\n            ]),\n        ...\n    ],\n    version=\"...\",\n    amount_of_training_data=...,\n    created_time=\"...\",\n    updated_time=\"...\",\n    providers=[\"...\"],\n    keywords=[\"...\", \"...\"],\n    tasks=[EOTask(task_type=\"...\",\n                  description=\"...\")],\n    data_sources=[EODataSource(\n        id=\"...\",\n        data_type=\"...\",\n        resolution=\"...\"\n    )],\n    classes=[\"...\", \"...\", \"...\"],\n    number_of_classes=...,\n    bands=[\"...\", \"...\", \"...\"],\n    image_size=\"...\"\n)\n# write to json\nwrite_to_json(dataset, \"dataset.json\")\n```\n\n### Parsing\n\nThe training dataset described with TrainingDML-AI JSON file can be parsed with python API and transformed to\nPyTorch/TensorFlow dataset.\n\n#### Read TrainingDataset object from JSON file\n\n```python\nimport pytdml\n\ntraining_dataset = pytdml.io.read_from_json(\"dataset.json\")  # read from TDML json file\nprint(\"Load training dataset: \" + training_dataset.name)\nprint(\"Number of training samples: \" + str(training_dataset.amount_of_training_data))\nprint(\"Number of classes: \" + str(training_dataset.number_of_classes))\n```\n\n#### Transform to PyTorch dataset\n\n* Scene classification dataset\n\n```python\nimport pytdml\nfrom torchvision import transforms\n\n# Load the training dataset\ntraining_dataset = pytdml.io.read_from_json(\"dataset.json\")  # read from TDML json file\n\n# Transform the training dataset\nclass_map = pytdml.ml.creat_class_map(training_dataset)  # create class map\ntrain_dataset = pytdml.ml.TorchEOImageSceneTD(  # create Torch train dataset\n    training_dataset.data,\n    class_map,\n    transform=transforms.Compose(  # transform for the training set\n        [transforms.RandomResizedCrop(size=156, scale=(0.8, 1.0)),  # random resize\n         transforms.RandomRotation(degrees=15),  # random rotate\n         transforms.RandomHorizontalFlip(),  # random flip\n         transforms.CenterCrop(size=124),  # center crop\n         transforms.ToTensor(),  # transform to tensor\n         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # normalize\n         ]\n    ))\n```\n\n* Object detection dataset\n\n```python\nimport pytdml\n\n# Load the training dataset\ntraining_dataset = pytdml.io.read_from_json(\"dataset.json\")  # read from TDML json file\n\n# Transform the training dataset\nclass_map = pytdml.ml.creat_class_map(training_dataset)  # create class map\ntrain_dataset = pytdml.ml.TorchEOImageObjectTD(  # create Torch train dataset\n    training_dataset.data,\n    class_map,\n    transform=pytdml.ml.BaseTransform([128, 128])\n)\n```\n\n* Semantic segmentation dataset\n\n```python\nimport pytdml\nfrom torchvision import transforms\n\n# Load the training dataset\ntraining_dataset = pytdml.io.read_from_json(\"dataset.json\")  # read from TDML json file\n\n# Transform the training dataset\nclass_map = pytdml.ml.creat_class_map(training_dataset)  # create class map\ntrain_dataset = pytdml.ml.TorchEOImageSegmentationTD(  # create Torch train dataset\n    training_dataset.data,\n    class_map,\n    transform=transforms.Compose([\n        transforms.ToTensor(),\n        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])\n    ])\n)\n```\n\n#### Transform to TensorFlow dataset\n\n* Scene classification dataset\n\n```python\nimport pytdml\n\n# Load the training dataset\ntraining_dataset = pytdml.io.read_from_json(\"dataset.json\")  # read from TDML json file\n\n# Transform the training dataset\nclass_map = pytdml.ml.creat_class_map(training_dataset)  # create class map\ntrain_dataset = pytdml.ml.TensorflowEOImageSceneTD(  # create TensorFlow train dataset\n    training_dataset.data,\n    class_map\n)\ntf_train_dataset = train_dataset.create_dataset()\n```\n\n* Object detection dataset\n\n```python\nimport pytdml\n\n# Load the training dataset\ntraining_dataset = pytdml.io.read_from_json(\"dataset.json\")  # read from TDML json file\n\n# Transform the training dataset\nclass_map = pytdml.ml.creat_class_map(training_dataset)  # create class map\ntrain_dataset = pytdml.ml.TensorflowEOImageObjectTD(  # create TensorFlow train dataset\n    training_dataset.data,\n    class_map\n)\ntf_train_dataset = train_dataset.create_dataset()\n```\n\n* Semantic segmentation dataset\n\n```python\nimport pytdml\n\n# Load the training dataset\ntraining_dataset = pytdml.io.read_from_json(\"dataset.json\")  # read from TDML json file\n\n# Transform the training dataset\nclass_map = pytdml.ml.creat_class_map(training_dataset)  # create class map\ntrain_dataset = pytdml.ml.TensorflowEOImageSegmentationTD(  # create TensorFlow train dataset\n    training_dataset.data,\n    class_map\n)\ntf_train_dataset = train_dataset.create_dataset()\n```\n\n### Image Cropping\n\nThe images of training dataset in TrainingDML-AI JSON format can be cropped with command line for preprocessing.\n\n```bash\npytdml/tdml_image_crop.py  --input=<Input original TrainingDML-AU file path> --output_json=<Output result TrainingDML-AI JSON file path>\n                          --output_images=<Output dir of result cropped images> --size=<Crop size of images>\n```\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/TrainingDML/pytdml",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pytdml",
+            "package_url": "https://pypi.org/project/pytdml/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pytdml/",
+            "project_urls": {
+                "Homepage": "https://github.com/TrainingDML/pytdml"
+            },
+            "release_url": "https://pypi.org/project/pytdml/1.0.0/",
+            "requires_dist": [
+                "dataclasses (~=0.6)",
+                "geojson (~=2.5.0)",
+                "setuptools (==60.10.0)",
+                "torch (~=1.11.0)",
+                "Pillow (~=9.1.0)",
+                "PyYAML (~=6.0)",
+                "numpy (~=1.21.5)",
+                "pandas (~=1.3.5)",
+                "opencv-python (~=4.5.5.64)",
+                "tensorflow (~=2.8.0)"
+            ],
+            "requires_python": "",
+            "summary": "Parsing and encoding training datasets based on OGC Training Data Markup Language for AI (TrainingDML-AI) standard",
+            "version": "1.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 13707773,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "75e8d66026845833ff17b68e57eb723e",
+                    "sha256": "d8ee797eefc81725b61fcca5e96af6ba39a96390e7699b56527558bf304ec0f0"
+                },
+                "downloads": -1,
+                "filename": "pytdml-1.0.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "75e8d66026845833ff17b68e57eb723e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 29081,
+                "upload_time": "2022-05-04T08:54:46",
+                "upload_time_iso_8601": "2022-05-04T08:54:46.444564Z",
+                "url": "https://files.pythonhosted.org/packages/76/89/3eb9df02bccd0dba407d19979e785d9769aeb60f6fd1f42dcf8a8480c17a/pytdml-1.0.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "be1bbf07531ed91b417cad64fe6f8039",
+                    "sha256": "c6fb139f4328723387c054bddc47032dd1ab5807dd4191274e23203b3c31decd"
+                },
+                "downloads": -1,
+                "filename": "pytdml-1.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "be1bbf07531ed91b417cad64fe6f8039",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 16535,
+                "upload_time": "2022-05-04T08:54:48",
+                "upload_time_iso_8601": "2022-05-04T08:54:48.803993Z",
+                "url": "https://files.pythonhosted.org/packages/38/a4/e31710f9e4d9c6a9f5570fe5ffcae0fe197dbf3059b1688805610e1a6f66/pytdml-1.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

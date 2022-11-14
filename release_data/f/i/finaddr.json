@@ -1,0 +1,125 @@
+{
+    "0.1.5": {
+        "info": {
+            "author": "Pasi Talvitie",
+            "author_email": "pasi@antispam.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/phasi/finaddr",
+            "keywords": "finnish,addresses,buildings,coordinates",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "finaddr",
+            "package_url": "https://pypi.org/project/finaddr/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/finaddr/",
+            "project_urls": {
+                "Homepage": "https://github.com/phasi/finaddr"
+            },
+            "release_url": "https://pypi.org/project/finaddr/0.1.5/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Library for querying finnish building addresses with coordinates",
+            "version": "0.1.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14365825,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "93b2eb593111a86f755bc13ffe5b549c",
+                    "sha256": "ab17ed9b1690a00d3639a56787059f49fdf8db677aef2b806cdd0f6b82ac23b2"
+                },
+                "downloads": -1,
+                "filename": "finaddr-0.1.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "93b2eb593111a86f755bc13ffe5b549c",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 5315,
+                "upload_time": "2022-05-21T08:42:12",
+                "upload_time_iso_8601": "2022-05-21T08:42:12.539417Z",
+                "url": "https://files.pythonhosted.org/packages/81/1e/8f381746e719f7ce7676ad9fa5fc761d26acab505013af4d18d1e5332096/finaddr-0.1.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.1.4": {
+        "info": {
+            "author": "Pasi Talvitie",
+            "author_email": "pasi@antispam.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# Finaddr\n\nFinaddr is a library to query finnish addresses, buildings and postcodes from a separate offline database.\n\nDownload the static files package from avoindata: https://www.avoindata.fi/data/fi/dataset/postcodes\n\nYou'll need \"json_table_schema.json\" (schema) and \"data/Finland_addresses_2022-05-12.csv\" (data).\n\nYou have to include the static files in your project and refer to them from within your code. You may pass the path to the files as environment variable,\nor even tell your client to download the files over HTTP(S) when loading the Client. (This is probably the easiest way if you want to maintain the files on your server)\n\n\n## Install\n\n```bash\npip install finaddr\n```\n\n## Test/Use with local data\n\n```python\nimport typing\nfrom finaddr.finaddr import (\n    Config,\n    StreetNameAlphabeticalParser,\n    Client,\n)\n\nconfig = Config(\n    data_path=\"path/to/raw_data.csv\",\n    indexed_data_folder_path=\"/path/to/indexed_data_folder\",\n    json_table_schema_path=\"/path/to/schema.json\",\n)\n# Currently only StreetNameAlphabeticalParser can be used or you can write your own parser\n# use should_index_data when setting things up. This will call the parser's\n# index_data() method. This is a long running operation so be mindful when and where to do it.\n# If data is already indexed by the selected parser then set should_index_data=False\nclient = Client(config=config, parser=StreetNameAlphabeticalParser, should_index_data=True)\n\nresults: typing.List[typing.Dict[str,str]] = client.search(street=\"Viulukuja\", house_number=\"1\")\n\nfor r in results:\n    print(r)\n\n```\n\n## Use in Azure Functions with data downloaded from server\n\nThis approach works with azure functions. A function app should normally save data elsewhere but this example makes it download the data and schema\ninto the library folder itself.\n\n\n\nYou should use this/similar code in a TimerTrigger (that downloads any possible updates to your schema and indexes the data)\n\nTimer - function.json\n```json\n{\n  \"scriptFile\": \"__init__.py\",\n  \"bindings\": [\n    {\n      \"name\": \"mytimer\",\n      \"type\": \"timerTrigger\",\n      \"direction\": \"in\",\n      \"schedule\": \"0 0 1 * * Sun\",\n      \"runOnStartup\": true\n    }\n  ]\n}\n```\nTimer - Trigger\n```python\n\nimport datetime\nimport logging\nimport azure.functions as func\nfrom finaddr.finaddr import Client, StreetNameAlphabeticalParser\n\ndef main(mytimer: func.TimerRequest) -> None:\n    utc_timestamp = (\n        datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat()\n    )\n\n    logging.info(\"Trying to download and index address data (%s)\", utc_timestamp)\n\n    client = Client.with_data_from_uri(\n        data_uri=\"https://yourdomain.com/Finland_addresses_2022-05-12.csv\",\n        json_table_schema_uri=\"https://yourdomain.com/json_table_schema.json\",\n        parser=StreetNameAlphabeticalParser,\n        should_index_data=True, # make sure above parser will index data\n    )\n\n    utc_timestamp = (\n        datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat()\n    )\n\n    logging.info(\"Data downloaded and indexed at %s\", utc_timestamp)\n\n```\n\nHTTP Trigger - function.json\n```json\n{\n  \"scriptFile\": \"__init__.py\",\n  \"bindings\": [\n    {\n      \"authLevel\": \"anonymous\",\n      \"type\": \"httpTrigger\",\n      \"direction\": \"in\",\n      \"name\": \"req\",\n      \"methods\": [\n        \"get\"\n      ],\n      \"route\": \"v1/find\"\n    },\n    {\n      \"type\": \"http\",\n      \"direction\": \"out\",\n      \"name\": \"$return\"\n    }\n  ]\n}\n```\n\nHTTP Trigger - function:\n\n```python\nimport logging\n\nimport azure.functions as func\nfrom finaddr.finaddr import (\n    Client,\n    StreetNameAlphabeticalParser,\n    MissingSearchParam,\n)\nimport os\nimport json\n\nclient = Client.with_defaults(parser=StreetNameAlphabeticalParser)\n\n\ndef main(req: func.HttpRequest) -> func.HttpResponse:\n\n    logging.info(\"Python HTTP trigger function processed a request.\")\n\n    try:\n        results = client.search(**req.params)\n\n        return func.HttpResponse(\n            json.dumps(results),\n            status_code=200,\n        )\n    except MissingSearchParam as e:\n        return func.HttpResponse(\n            json.dumps({\"error\": str(e)}),\n            status_code=400,\n        )\n\n\n```\n\nCopyright 2022 Pasi Talvitie\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/phasi/finaddr",
+            "keywords": "finnish,addresses,buildings,coordinates",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "finaddr",
+            "package_url": "https://pypi.org/project/finaddr/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/finaddr/",
+            "project_urls": {
+                "Homepage": "https://github.com/phasi/finaddr"
+            },
+            "release_url": "https://pypi.org/project/finaddr/1.1.4/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Library for querying finnish building addresses with coordinates",
+            "version": "1.1.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14365825,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c840a68746fbfbc0bf1cabbd400e8559",
+                    "sha256": "30884e763b7b5dcc18403eda8a7da7c2ff59cbd0520468834d9bca00b471e10f"
+                },
+                "downloads": -1,
+                "filename": "finaddr-1.1.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c840a68746fbfbc0bf1cabbd400e8559",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 10383,
+                "upload_time": "2022-07-07T15:34:10",
+                "upload_time_iso_8601": "2022-07-07T15:34:10.696583Z",
+                "url": "https://files.pythonhosted.org/packages/16/06/36f1bc5ee2c39a8ff67808e039603ecb6fd301b1f3f82649d2991efeb1bb/finaddr-1.1.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

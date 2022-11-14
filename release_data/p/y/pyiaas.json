@@ -1,0 +1,97 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "JasonLoveDL",
+            "author_email": "2421049459@qq.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "License :: OSI Approved :: GNU Affero General Public License v3",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "pyIAAS: Software for Multivariate Time-series Forecasting Model Development with an Intelligent Automated NAS optimization framework\n\n# What is pyIAAS?\npyIAAS is an open-source Python package that exploits one of the latest neural architecture search (NAS) frameworks, intelligent automated achitecture search (IAAS) (Yang et al. 2022), for the multivariate time-series forecasting (MTF) model development. The aim of the pyIAAS is to facilitate the future researchers in building a high-quality MTF model efficiently and effectively when considering the optimality of the network structures. pyIAAS contains four network modules as searching candidates, namley, convolutional neural networks (CNN), recurrent neural networks (RNN), long-short term memory (LSTM) neural networks and fully connected neural networks (FCN). During the searching process, reinforcement learning (RL) based meta-controllers are designed to sequentially make decisions to update the network structures. Please refer to [Yang et al. (2022)](https://arxiv.org/abs/2203.13563) for more detailed information about the IAAS framework.\n\n# Installation\n### Without GPU acceleration\nIn an environment 3.8+, pyIAAS can be installed via\n```shell\npip install pyIAAS\n```\n### With GPU acceleration \nFirst, install the GPU version of PyTorch\n```shell\npip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu113 \n```\nFor more information of  PyTorch, please check [this](https://pytorch.org/get-started/locally/)\n\nThen, install the pyIAAS package\n```shell\npip install pyIAAS\n```\n# Usage of pyIAAS\n\n## Command line\nCommand line tool supplies two functions: search and predict\n\nTo search networks given a dataset (use the example in example/1. basic)\n```shell\n# Start the searching process of pyIAAS\npyIAAS search -c NASConfig.json -f VT_summer.csv -t RT_Demand\n```\nNote that the output directory should be empty!\n\nAfter the searching process, the neural architectures are stored in the directory ```examples/1. basic/out_dir```\n\nTo predict with the best searched model\n\n```shell\n# Perform a prediction task given a dataset ```VT_summer_predict.csv```\npyIAAS predict -c NASConfig.json -f VT_summer_predict.csv -t RT_Demand -d out_dir -o prediction.csv\n```\n\n## Python API\nTo search the neural architectures, then perform a prediction task with the best searched model\n\n```python\nimport pyIAAS\n\n# set the basic information of the searching process\nconfig_file = 'NASConfig.json'\ninput_file = 'VT_summer.csv'\ntarget_name = 'RT_Demand'\ntest_ratio = 0.2  # the proportion of the test dataset in the whole dataset. It can be adjusted by users themself for specific tasks\n\n# start the searching process\npyIAAS.run_search(config_file, input_file, target_name, test_ratio)\n\n# set the basic information of a prediction task\nconfig_file = 'NASConfig.json'\ninput_file = 'VT_summer.csv'\ntarget_name = 'RT_Demand'\noutput_dir = 'out_dir'\nprediction_file = 'VT_summer_predict.csv'\n\n# perform the predicting task in VT_summer_predict.csv\npyIAAS.run_predict(config_file, input_file, target_name, output_dir, prediction_file)\n```\n\n\n## Output file explanations\n- model.db: detailed records of all searched models\n- each searched model contains:\n  - prediction results of the test dataset\n  - transformation table\n  - model parameters of type ```.pth```\n  - training loss curve \n  \n## Customized module list\nThe modules used in the searching process is given in the configuration\nfile. The default configuration is \n```json\n{\n  \"MaxLayers\": 50,\n  \"timeLength\": 168,\n  \"predictLength\": 24,\n  \"IterationEachTime\": 50,\n  \"MonitorIterations\": 40,\n  \"NetPoolSize\": 5,\n  \"BATCH_SIZE\": 256,\n  \"EPISODE\": 200,\n  \"GPU\": true,\n  \"OUT_DIR\": \"out_dir\",\n  \"Modules\" : {\n  \"dense\": {\n    \"out_range\": [4, 8, 12, 16, 24, 32, 48, 64, 80, 108, 144],\n    \"editable\": true\n  },\n  \"rnn\":{\n    \"out_range\": [4, 8, 12, 16, 24, 32, 48, 64, 80, 108, 144],\n    \"editable\": true\n  },\n  \"lstm\":{\n    \"out_range\": [4, 8, 12, 16, 24, 32, 48, 64, 80, 108, 144],\n    \"editable\": true\n  },\n  \"conv\": {\n    \"out_range\": [4, 8, 12, 16, 24, 32, 48, 64, 80, 108, 144],\n    \"editable\": true\n  }\n  }\n}\n```\n\nThe meaning of each term:\n- MaxLayers : number of the maximum layers of the searched neural architecture\n- timeLength : length of the input time-series data\n- predictLength : prediction time length, e.g., two-hour ahead\n- IterationEachTime : number of the training epochs at each searching episode\n- MonitorIterations : epoch interval to print out the training information, e.g., training loss \n- NetPoolSize : size of the net pool\n- BATCH_SIZE : batch size used in the training process\n- EPISODE : searching times of the reinforcement learning actors\n- GPU : use GPU or not; if true, the environment should use the GPU version of PyTorch\n- OUT_DIR : output directory\n- Modules : module information \n  - out_range : list of the output unit number \n  - editable : whether this module can be widened or not\n\n## Extending new module\nTo create a new module, users should create a subclass of ```pyIAAS.model.module.NasModule```, and implement \nthese reserved abstract functions\n\n```python\nfrom pyIAAS.model.module import NasModule\n# this is a sample subclassing of NasModule  to\n# illustrate how to customize a new module in the pyIAAS package\nclass NewModule(NasModule):\n    @property\n    def is_max_level(self):\n        # return: True if this module reaches the max width level, False otherwise\n        raise NotImplementedError()\n\n    @property\n    def next_level(self):\n        # return: width of next level\n        raise NotImplementedError()\n\n    def init_param(self, input_shape):\n        # initialize the parameters of this module\n        self.on_param_end(input_shape)\n        raise NotImplementedError()\n\n    def identity_module(self, cfg, name, input_shape: tuple):\n        # generate an identity mapping module\n        raise NotImplementedError()\n\n    def get_module_instance(self):\n        # generate a model instance once and use it for the rest procedures\n        raise NotImplementedError()\n\n    @property\n    def token(self):\n        # return: string type token of this module\n        raise NotImplementedError()\n\n    def perform_wider_transformation_current(self):\n        # generate a new wider module by the wider function-preserving transformation\n        # this function is called by layer i and returns the realized random mapping to the IAAS framework for the next layer's wider transformation.\n        raise NotImplementedError()\n\n    def perform_wider_transformation_next(self, mapping_g: list, scale_g: list):\n        # generate a new wider module by the wider function-preserving transformation\n        # this function is called by the layer i + 1\n        raise NotImplementedError()\n```\n\nAdd the module information to the configuration file as follows\n```json\n{\n  \"MaxLayers\": 50,\n  \"timeLength\": 168,\n  \"predictLength\": 24,\n  \"IterationEachTime\": 50,\n  \"MonitorIterations\": 40,\n  \"NetPoolSize\": 5,\n  \"BATCH_SIZE\": 256,\n  \"EPISODE\": 200,\n  \"GPU\": true,\n  \"OUT_DIR\": \"out_dir\",\n  \"Modules\" : {\n  \"dense\": {\n    \"out_range\": [4, 8, 12, 16, 24, 32, 48, 64, 80, 108, 144],\n    \"editable\": true\n    },\n  \"new_module\": {\n    \"out_range\": [4, 8, 12, 16, 24, 32, 48, 64, 80, 108, 144],\n    \"editable\": true\n    }\n  }\n}\n```\nRegister this new module in the running code\n\n```python\nfrom pyIAAS import *\nfrom new_module import NewModule\ncfg = Config('NASConfig.json')\n# register a new module to the global configuration\ncfg.register_module('new_module', NewModule)\n```\n\n# Additional information\nFor more details of this algorithm, see [Yang et al. (2022)](https://arxiv.org/abs/2203.13563)\n\nFor more details of pyIAAS, see [doc](https://jasonlovedl.github.io/pyIAAS/pyIAAS.html)\n\nRepository is [here](https://github.com/JasonloveDL/pyIAAS)\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/JasonloveDL/pyIAAS",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pyIAAS",
+            "package_url": "https://pypi.org/project/pyIAAS/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pyIAAS/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/JasonloveDL/pyIAAS/issues",
+                "Homepage": "https://github.com/JasonloveDL/pyIAAS"
+            },
+            "release_url": "https://pypi.org/project/pyIAAS/0.0.1/",
+            "requires_dist": [
+                "numpy",
+                "pandas",
+                "torch",
+                "torchaudio",
+                "torchvision",
+                "gym",
+                "matplotlib",
+                "click"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "Code of IAAS Framework",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 13687464,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f66378637095be19d020178222b9956b",
+                    "sha256": "6ef918154bd3cd7d16bb8132199f1fe7255ec3dfead95eef33b1c6c25334451a"
+                },
+                "downloads": -1,
+                "filename": "pyIAAS-0.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f66378637095be19d020178222b9956b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 37830,
+                "upload_time": "2022-05-02T12:19:10",
+                "upload_time_iso_8601": "2022-05-02T12:19:10.976102Z",
+                "url": "https://files.pythonhosted.org/packages/e8/42/a5795504b97b4dfb6802c26d1ef50c6e197acc0ea6b73292c4c35f03920d/pyIAAS-0.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "451bceacefcd5d064b7231e333b5dc34",
+                    "sha256": "eca0f446253cb835798aeb89fae776c094582f2eb2f666739f6baa182309f5bd"
+                },
+                "downloads": -1,
+                "filename": "pyIAAS-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "451bceacefcd5d064b7231e333b5dc34",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 36549,
+                "upload_time": "2022-05-02T12:19:13",
+                "upload_time_iso_8601": "2022-05-02T12:19:13.169058Z",
+                "url": "https://files.pythonhosted.org/packages/d0/5e/1a32f502104b4d58a900022b69eefde8ba10b0b964080f8688fd764680e7/pyIAAS-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

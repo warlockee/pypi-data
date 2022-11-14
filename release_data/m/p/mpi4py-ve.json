@@ -1,0 +1,117 @@
+{
+    "0.1.0b1": {
+        "info": {
+            "author": "NEC",
+            "author_email": "dev-nlcpy@sxarr.jp.nec.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: C",
+                "Programming Language :: Cython",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Topic :: Scientific/Engineering",
+                "Topic :: Software Development"
+            ],
+            "description": "#########\nmpi4py-ve \n#########\n\n*mpi4py-ve* is an extension to *mpi4py*, which provides Python bindings for the Message Passing Interface (MPI).\nThis package also supports to communicate array objects of `NLCPy <https://www.hpc.nec/documents/nlcpy/en/>`_ (nlcpy.ndarray) between MPI processes on x86 servers of SX-Aurora TSUBASA systems.\nCombining NLCPy with *mpi4py-ve* enables Python scripts to utilize multi-VE computing power.\nThe current version of *mpi4py-ve* is based on *mpi4py* version 3.0.3.\nFor details of API references, please refer to `mpi4py manual <https://mpi4py.readthedocs.io/en/stable/>`_.\n\n************\nRequirements\n************\n\nBefore the installation, the following components are required to be installed on your x86 Node of SX-Aurora TSUBASA.\n\n- `NEC SDK <https://www.hpc.nec/documents/guide/pdfs/InstallationGuide_E.pdf>`_\n\t- required NEC C/C++ compiler version: >= 3.2.1\n\t- required NLC version: >= 2.3.0\n\n- `VEOS <https://www.hpc.nec/documents/veos/en/aveo/index.html>`_\n\t- required version: >= 2.11.1\n\n- `NEC MPI <https://www.hpc.nec/documents/mpi/g2am01e-NEC_MPI_User_Guide_en/frame.html>`_\n\t- required NEC MPI version: >=  2.20.0\n\n- `Python <https://www.python.org/>`_\n        - required version: 3.6, 3.7, or 3.8\n\n- `NLCPy <https://www.hpc.nec/documents/nlcpy/en/>`_\n        - required version: v2.1.1\n\n- `NumPy <https://www.numpy.org/>`_\n        - required version: v1.17, v1.18, v1.19, or v1.20\n\n******************\nInstall from wheel\n******************\n\nYou can install *mpi4py-ve* by executing either of the following commands.\n\n- Install from PyPI\n\n    ::\n\n    $ pip install mpi4py-ve\n\n- Install from your local computer\n\n    1. Download `the wheel package <https://github.com/SX-Aurora/mpi4py-ve/releases>`_ from GitHub.\n\n    2. Put the wheel package to your any directory.\n\n    3. Install the local wheel package via pip command.\n\n        ::\n\n        $ pip install <path_to_wheel>\n\nThe shared objects for Vector Engine, which are included in the wheel package, are compiled and tested by using following software:\n    +-------------------+---------------+ \n    | NEC C/C++ Compiler| Version 3.2.1 |\n    +-------------------+---------------+\n    | NEC MPI           | v2.20.0       |\n    +-------------------+---------------+\n    | NumPy             | v1.19.2       |\n    +-------------------+---------------+\n    | NLCPy             | v2.1.1        |\n    +-------------------+---------------+\n\n***********************************\nInstall from source (with building)\n***********************************\n\nBefore building this package, you need to execute the environment setup script *necmpivars.sh* or *necmpivars.csh* once advance.\n\n* When using *sh* or its variant:\n\n    ::\n\n    $ source /opt/nec/ve/mpi/X.X.X/bin/necmpivars.sh\n\n* When using *csh* or its variant:\n\n    ::\n\n    $ source /opt/nec/ve/mpi/X.X.X/bin/necmpivars.csh\n\nHere, X.X.X denotes the version number of NEC MPI.\n\nAfter that, execute the following commands:\n\n    ::\n\n    $ git clone https://github.com/SX-Aurora/mpi4py-ve.git\n    $ cd mpi4py-ve\n    $ python setup.py build --mpi=necmpi\n    $ python setup.py install \n\n*******\nExample\n*******\n\n**Transfer Array**\n\nTransfers an NLCPy's ndarray from MPI rank 0 to 1 by using comm.Send() and comm.Recv():\n\n.. code-block:: python\n\n    from mpi4pyve import MPI\n    import nlcpy as vp\n\n    comm = MPI.COMM_WORLD\n    size = comm.Get_size()\n    rank = comm.Get_rank()\n\n    if rank == 0:\n        x = vp.array([1,2,3], dtype=int)\n        comm.Send(x, dest=1)\n\n    elif rank == 1:\n        y = vp.empty(3, dtype=int)\n        comm.Recv(y, source=0)\n\n\n**Sum of Numbers**\n\nSums the numbers locally, and reduces all the local sums to the root rank (rank=0):\n\n.. code-block:: python\n\n    from mpi4pyve import MPI\n    import nlcpy as vp\n\n    comm = MPI.COMM_WORLD\n    size = comm.Get_size()\n    rank = comm.Get_rank()\n\n    N = 1000000000\n    begin = N * rank // size\n    end = N * (rank + 1) // size\n\n    sendbuf = vp.arange(begin, end).sum()\n    recvbuf = comm.reduce(sendbuf, MPI.SUM, root=0)\n\nThe following table shows the performance results[msec] on VE Type 20B:\n\n+------+------+------+------+------+------+------+------+ \n| np=1 | np=2 | np=3 | np=4 | np=5 | np=6 | np=7 | np=8 |\n+------+------+------+------+------+------+------+------+\n| 35.8 | 19.0 | 12.6 | 10.1 |  8.1 |  7.0 |  6.0 |  5.5 |\n+------+------+------+------+------+------+------+------+\n\n*********\nExecution\n*********\n\nWhen executing Python script using *mpi4py-ve*, use *mpirun* command of NEC MPI on an x86 server of SX-Aurora TSUBASA.\nBefore running the Python script, you need to execute the environment the following setup scripts once advance.\n\n* When using *sh* or its variant:\n\n    ::\n\n    $ source /opt/nec/ve/mpi/X.X.X/bin/necmpivars.sh gnu 4.8.5\n    $ source /opt/nec/ve/nlc/Y.Y.Y/bin/nlcvars.sh\n\n* When using *csh* or its variant:\n\n    ::\n\n    $ source /opt/nec/ve/mpi/X.X.X/bin/necmpivars.csh gnu 4.8.5\n    $ source /opt/nec/ve/nlc/Y.Y.Y/bin/nlcvars.csh\n\nHere, X.X.X and Y.Y.Y denote the version number of NEC MPI and NLC, respectively.\n\nWhen using the *mpirun* command:\n\n    ::\n\n    $ mpirun -veo -np N $(which python) sample.py\n\n| Here, N is the number of MPI processes that are created on an x86 server.\n| NEC MPI 2.21.0 or later supports the environment variable `NMPI_USE_COMMAND_SEARCH_PATH`.\n| If `NMPI_USE_COMMAND_SEARCH_PATH` is set to `ON` and the Python command path is added to the environment variable PATH, you do not have to specify with the full path.\n\n    ::\n\n    $ export NMPI_USE_COMMAND_SEARCH_PATH=ON\n    $ mpirun -veo -np N python sample.py\n\n| For details of mpirun command, refer to `NEC MPI User's Guide <https://www.hpc.nec/documents/mpi/g2am01e-NEC_MPI_User_Guide_en/frame.html>`_.\n\n***************\nOther Documents\n***************\n\nBelow links would be useful to understand *mpi4py-ve* in more detail:\n\n* `mpi4py-ve tutorial <https://github.com/SX-Aurora/mpi4py-ve/blob/v0.1.0b1/docs/index.rst>`_\n\n***********\nRestriction\n***********\n* The value specified by np must not exceed the number of VE cards.\n* The current version of *mpi4py-ve* does not support some functions that are listed in the section \"List of Unsupported Functions\" of `mpi4py-ve tutorial <https://github.com/SX-Aurora/mpi4py-ve/blob/v0.1.0b1/docs/index.rst>`_.\n\n*******\nLicense\n*******\n\n| The 2-clause BSD license (see *LICENSE* file).\n| *mpi4py-ve* is derived from mpi4py (see *LICENSE_DETAIL/LICENSE_DETAIL* file).\n\n\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "https://github.com/SX-Aurora/mpi4py-ve/releases/",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/SX-Aurora/mpi4py-ve/",
+            "keywords": "scientific computing,parallel computing,message passing interface,MPI",
+            "license": "BSD",
+            "maintainer": "NEC",
+            "maintainer_email": "dev-nlcpy@sxarr.jp.nec.com",
+            "name": "mpi4py-ve",
+            "package_url": "https://pypi.org/project/mpi4py-ve/",
+            "platform": "Linux",
+            "project_url": "https://pypi.org/project/mpi4py-ve/",
+            "project_urls": {
+                "Download": "https://github.com/SX-Aurora/mpi4py-ve/releases/",
+                "Homepage": "https://github.com/SX-Aurora/mpi4py-ve/"
+            },
+            "release_url": "https://pypi.org/project/mpi4py-ve/0.1.0b1/",
+            "requires_dist": [
+                "nlcpy (>=2.1.1)"
+            ],
+            "requires_python": "",
+            "summary": "Python bindings for MPI",
+            "version": "0.1.0b1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 13353292,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d62f4c30f556a15a9f7233f9b979dd2a",
+                    "sha256": "8042912c721688b65c57b129e44173d7596ef5296afb2ec5c3ef81a8cae38ad0"
+                },
+                "downloads": -1,
+                "filename": "mpi4py_ve-0.1.0b1-cp36-cp36m-manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d62f4c30f556a15a9f7233f9b979dd2a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 3062895,
+                "upload_time": "2022-03-31T00:17:50",
+                "upload_time_iso_8601": "2022-03-31T00:17:50.174861Z",
+                "url": "https://files.pythonhosted.org/packages/77/91/eb7104e74479794289a24c2ab21f366ca892d5a0455c055099cad7174c61/mpi4py_ve-0.1.0b1-cp36-cp36m-manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6900b5df20c2c9913ba1876cff439866",
+                    "sha256": "40b32cb885ac1e31225c1d32100e74c525ec3939719d4a109092058bc2b28c33"
+                },
+                "downloads": -1,
+                "filename": "mpi4py_ve-0.1.0b1-cp37-cp37m-manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "6900b5df20c2c9913ba1876cff439866",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 3087840,
+                "upload_time": "2022-03-31T00:18:42",
+                "upload_time_iso_8601": "2022-03-31T00:18:42.615206Z",
+                "url": "https://files.pythonhosted.org/packages/7b/b4/d2457da192962847199e23fd52327f55689dff8e4788f97aba18c1686688/mpi4py_ve-0.1.0b1-cp37-cp37m-manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e44329deb4e90b0b3cfe6ac283ac4e0b",
+                    "sha256": "8f97b94d5d5beb879d568e79a662d42009c98474240e21b314adc34cdf5f0c8e"
+                },
+                "downloads": -1,
+                "filename": "mpi4py_ve-0.1.0b1-cp38-cp38-manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "e44329deb4e90b0b3cfe6ac283ac4e0b",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 3282023,
+                "upload_time": "2022-03-31T00:24:34",
+                "upload_time_iso_8601": "2022-03-31T00:24:34.557861Z",
+                "url": "https://files.pythonhosted.org/packages/a2/05/12fea13056b61dfba7283506ee12e2f53a97c2f281622b676a237836d26d/mpi4py_ve-0.1.0b1-cp38-cp38-manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

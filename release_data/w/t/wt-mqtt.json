@@ -1,0 +1,87 @@
+{
+    "2.0.0": {
+        "info": {
+            "author": "xiaoboplus",
+            "author_email": "xiaoboplus@waveletplus.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# WaveletThings MQTT client Python SDK\n\nWaveletThings is an open-source IoT platform for data collection, processing, visualization, and device management.\n\nSDK supports:\n* \u672a\u52a0\u5bc6\u548c\u52a0\u5bc6\uff08TLS v1.2\uff09\u8fde\u63a5\n* QoS 0 \u548c 1\n* \u81ea\u52a8\u91cd\u8fde\n* \u6240\u6709\u8bbe\u5907\u7684MQTT\u63a5\u53e3\n* \u6240\u6709\u7f51\u5173\u7684MQTT\u63a5\u53e3\n\n\u5f53\u524d\u7684SDK\u57fa\u4e8e`paho-mqtt`\u5e93\n\n## \u5b89\u88c5\n\n\u4f7f\u7528pip\u5b89\u88c5\uff1a\n```shell\npip3 install wt_mqtt\n```\n\n## \u5feb\u901f\u5f00\u59cb\n\n\u521d\u59cb\u5316\u5ba2\u6237\u7aef\u5e76\u53d1\u5e03\u9065\u6d4b\u6570\u636e\n```python\nfrom wt_mqtt.wt_device_mqtt import WTDeviceMqttClient, WTPublishInfo\n\n\ntelemetry = {\"temperature\": 41.9, \"enabled\": False, \"currentFirmwareVersion\": \"v1.2.2\"}\nclient = WTDeviceMqttClient(host=\"things.xiaobodata.com\", \"A1_TEST_TOKEN\")\n# Connect to WaveletThings\nclient.connect()\n# Sending telemetry without checking the delivery status\nclient.send_telemetry(telemetry)\n# Sending telemetry and checking the delivery status (QoS = 1 by default)\nresult = client.send_telemetry(telemetry)\n# get is a blocking call that awaits delivery status\nsuccess = result.get() == WTPublishInfo.WT_ERR_SUCCESS\n# Disconnect from WaveletThings\nclient.disconnect()\n```\n\n### Connection using TLS\n\n\u8981\u901a\u8fc7SSL\u4e0a\u7684MQTT\u8fde\u63a5\u5230WaveletThings\uff0c\u9996\u5148\uff0c\u60a8\u5e94\u8be5\u751f\u6210\u4e00\u4e2a\u8bc1\u4e66\uff0c\u5e76\u4f7f\u7528\u5982\u4e0b\u4ee3\u7801\uff1a\n\n```python\nfrom wt_mqtt.wt_device_mqtt import WTDeviceMqttClient\n\nclient = WTDeviceMqttClient(host=\"things.xiaobodata.com\", port=8883)\nclient.connect(tls=True,\n               ca_certs=\"mqttserver.pub.pem\",\n               cert_file=\"mqttclient.nopass.pem\")\nclient.disconnect()\n\n```\n\n## \u4f7f\u7528\u8bbe\u5907API\n\nWTDeviceMQTClient\u63d0\u4f9b\u5bf9Things\u5e73\u53f0\u7684\u8bbe\u5907MQTT API\u7684\u8bbf\u95ee\u3002\n\u5b83\u5141\u8bb8\u53d1\u5e03\u9065\u6d4b\u548c\u5c5e\u6027\u66f4\u65b0\u3001\u8ba2\u9605\u5c5e\u6027\u66f4\u6539\u3001\u53d1\u9001\u548c\u63a5\u6536RPC\u547d\u4ee4\u7b49\u3002\n\n### \u8ba2\u9605\u5171\u4eab\u5c5e\u6027\u66f4\u65b0\n\u5982\u679c\u9700\u8981\u63a5\u6536\u5171\u4eab\u5c5e\u6027\u66f4\u65b0\uff0c\u53ef\u4ee5\u4f7f\u7528\u4ee5\u4e0b\u4ee3\u7801\uff1a\n```python\nfrom time import sleep\nfrom wt_mqtt.wt_device_mqtt import WTDeviceMqttClient\n\n\ndef callback(client, content, *args):\n    print(content)\n\n\nclient = WTDeviceMqttClient(\"things.xiaobodata.com\", \"A1_TEST_TOKEN\")\nclient.connect()\nclient.subscribe_to_attribute(\"uploadFrequency\", callback)\nclient.subscribe_to_all_attributes(callback)\nwhile True:\n    sleep(1)\n```\n\n### \u53d1\u5e03\u9065\u6d4b\u6570\u636e\n\n\u4e3a\u4e86\u5411Things\u53d1\u9001\u6570\u636e\uff0c\u53ef\u4ee5\u4f7f\u7528\u5982\u4e0b\u4ee3\u7801\uff1a\n\n```python\nfrom time import time\nfrom wt_mqtt.wt_device_mqtt import WTDeviceMqttClient, WTPublishInfo\n\ntelemetry_with_ts = {\"ts\": int(round(time() * 1000)), \"values\": {\"temperature\": 42.1, \"humidity\": 70}}\nclient = WTDeviceMqttClient(\"things.xiaobodata.com\", \"A1_TEST_TOKEN\")\n# we set maximum amount of messages sent to send them at the same time. it may stress memory but increases performance\nclient.max_inflight_messages_set(100)\nclient.connect()\nresults = []\nresult = True\nfor i in range(0, 100):\n    results.append(client.send_telemetry(telemetry_with_ts))\nfor tmp_result in results:\n    result &= tmp_result.get() == WTPublishInfo.WT_ERR_SUCCESS\nprint(\"Result\", str(result))\nclient.disconnect()\n```\n\n### \u8bf7\u6c42\u5c5e\u6027\n\n\u4e3a\u4e86\u4eceThings\u8bf7\u6c42\u5c5e\u6027\u503c\uff0c\u53ef\u4ee5\u4f7f\u7528\u4ee5\u4e0b\u793a\u4f8b\uff0c\u8fd9\u4e2a\u793a\u4f8b\u83b7\u53d6\u4e86\"configuration\", \"targetFirmwareVersion\"\u7684\u503c\uff1a\n```python\nfrom time import sleep\nfrom wt_mqtt.wt_device_mqtt import WTDeviceMqttClient\n\n\ndef on_attributes_change(client, result, *args):\n    print(result)\n\n\nclient = WTDeviceMqttClient(\"things.xiaobodata.com\", \"A1_TEST_TOKEN\")\nclient.connect()\nclient.request_attributes([\"configuration\", \"targetFirmwareVersion\"], callback=on_attributes_change)\n\nwhile True:\n    sleep(1)\n```\n\n### \u54cd\u5e94\u670d\u52a1\u7aef\u7684RPC\u56de\u8c03\n\u5982\u679c\u60a8\u60f3\u53d1\u9001\u67d0\u4e2aRPC\u8bf7\u6c42\u7684\u54cd\u5e94\uff0c\u53ef\u4ee5\u4f7f\u7528\u4e0b\u9762\u4ee3\u7801\u4e2d\u7684\u903b\u8f91\u3002\n\u4e0b\u9762\u7684\u793a\u4f8b\u8fde\u63a5\u5230Things\u672c\u5730\u5b9e\u4f8b\u5e76\u7b49\u5f85RPC\u8bf7\u6c42\u3002\n\u5f53\u63a5\u6536\u5230RPC\u8bf7\u6c42\u65f6\uff0c\u5ba2\u6237\u673a\u5c06\u5411Things\u53d1\u9001\u54cd\u5e94\uff0c\u5176\u4e2d\u5305\u542b\u6765\u81ea\u5177\u6709\u5ba2\u6237\u673a\u7684\u673a\u5668\u7684\u6570\u636e\u3002\n\n```python\nimport json\nfrom time import sleep\n\nfrom psutil import cpu_percent, virtual_memory\nfrom wt_mqtt.wt_device_mqtt import WTDeviceMqttClient\n\n\n# dependently of request method we send different data back\ndef on_server_side_rpc_request(client, request_id, request_body):\n    print(request_id, request_body)\n    if request_body[\"method\"] == \"getCPULoad\":\n        client.send_rpc_reply(request_id, json.dumps({\"CPU percent\": cpu_percent()}))\n    elif request_body[\"method\"] == \"getMemoryUsage\":\n        client.send_rpc_reply(request_id, json.dumps({\"Memory\": virtual_memory().percent}))\n\n\nclient = WTDeviceMqttClient(\"things.xiaobodata.com\", \"A1_TEST_TOKEN\")\nclient.set_server_side_rpc_request_handler(on_server_side_rpc_request)\nclient.connect()\n\nwhile True:\n    sleep(1)\n```\n\n\n## \u4f7f\u7528\u7f51\u5173API\nWTGatewayMqttClient\u7ee7\u627f\u4e86WTDeviceMqttClient\uff0c\u56e0\u6b64\u53ef\u4ee5\u4f5c\u4e3a\u5e38\u89c4\u8bbe\u5907\u8bbf\u95ee\u5176\u6240\u6709API\u3002\n\u6b64\u5916\uff0c\u7f51\u5173\u80fd\u591f\u4ee3\u8868\u8fde\u63a5\u5230\u5b83\u7684\u591a\u4e2a\u8bbe\u5907\u3002\n\n### \u53d1\u9001\u9065\u6d4b\u548c\u5c5e\u6027\n\n\u53ef\u4ee5\u4f7f\u7528\u5982\u4e0b\u4ee3\u7801\uff1a\n```python\nfrom time import time\nfrom wt_mqtt.wt_gateway_mqtt import WTGatewayMqttClient\n\ngateway = WTGatewayMqttClient(\"things.xiaobodata.com\", \"GATEWAY_TEST_TOKEN\")\ngateway.connect()\ngateway.gw_connect_device(\"Test Device A1\")\n\ngateway.gw_send_telemetry(\"Test Device A1\", {\"ts\": int(round(time() * 1000)), \"values\": {\"temperature\": 42.2}})\ngateway.gw_send_attributes(\"Test Device A1\", {\"firmwareVersion\": \"2.3.1\"})\n\ngateway.gw_disconnect_device(\"Test Device A1\")\ngateway.disconnect()\n```\n\n### \u4eceserver\u83b7\u53d6\u5171\u4eab\u5c5e\u6027\n\u83b7\u53d6`Test Device A1`\u7684\u5171\u4eab\u5c5e\u6027\uff0c\u53ef\u4ee5\u4f7f\u7528\u5982\u4e0b\u4ee3\u7801\uff1a\n```python\nfrom time import sleep\nfrom wt_mqtt.wt_gateway_mqtt import WTGatewayMqttClient\n\n\ndef callback(client, result, *args):\n    print(result)\n\n\ngateway = WTGatewayMqttClient(\"things.xiaobodata.com\", \"GATEWAY_TEST_TOKEN\")\ngateway.connect()\ngateway.gw_request_shared_attributes(\"Test Device A1\", [\"temperature\"], callback)\n\nwhile True:\n    sleep(1)\n\n```\n\n### \u54cd\u5e94\u670d\u52a1\u7aef\u7684RPC\u56de\u8c03\n\u53ef\u4ee5\u4f7f\u7528\u5982\u4e0b\u4ee3\u7801\uff1a\n```python\nimport json\nfrom time import sleep\n\nfrom psutil import cpu_percent, virtual_memory\nfrom wt_mqtt.wt_gateway_mqtt import WTGatewayMqttClient\n\n\ndef rpc_request_response(client, request_id, request_body):\n    # request body contains id, method and other parameters\n    print(request_body)\n    method = request_body[\"data\"][\"method\"]\n    device = request_body[\"device\"]\n    req_id = request_body[\"data\"][\"id\"]\n    # dependently of request method we send different data back\n    if method == 'getCPULoad':\n        client.send_rpc_reply(request_id, json.dumps({\"CPU percent\": cpu_percent()}))\n    elif method == 'getMemoryLoad':\n        client.send_rpc_reply(request_id, json.dumps({\"Memory\": virtual_memory().percent}))\n    else:\n        print('Unknown method: ' + method)\n\n\ngateway = WTGatewayMqttClient(\"things.xiaobodata.com\", \"GATEWAY_TEST_TOKEN\")\ngateway.connect()\n# now rpc_request_response will process rpc requests from servers\ngateway.gw_set_server_side_rpc_request_handler(rpc_request_response)\n# without device connection it is impossible to get any messages\ngateway.gw_connect_device(\"Test Device A1\")\n\nwhile True:\n    sleep(1)\n\n```\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "wt-mqtt",
+            "package_url": "https://pypi.org/project/wt-mqtt/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/wt-mqtt/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/wt-mqtt/2.0.0/",
+            "requires_dist": [
+                "jsonschema (>=3.2.0)",
+                "paho-mqtt (>=1.5.0)"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "WaveletThings Python SDK",
+            "version": "2.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 13474662,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3a13045cb582ec1be7e31432c4ca968a",
+                    "sha256": "3fed81e0de8a2fa1e4696e683acc19f8f320ce8b3592b71cadd4f0219dd8f5fe"
+                },
+                "downloads": -1,
+                "filename": "wt_mqtt-2.0.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "3a13045cb582ec1be7e31432c4ca968a",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 11959,
+                "upload_time": "2022-04-11T07:39:59",
+                "upload_time_iso_8601": "2022-04-11T07:39:59.358810Z",
+                "url": "https://files.pythonhosted.org/packages/17/d3/a7ad052cd9d9a0a5b211ae384107792370c9efb0bf3e223ca2134d835682/wt_mqtt-2.0.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "248390e5d8cd9d2b050f93ba860bbb43",
+                    "sha256": "d1f4c18c1be60e9d8f78165b870c0281002f65197c2037097a5c95130051890b"
+                },
+                "downloads": -1,
+                "filename": "wt_mqtt-2.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "248390e5d8cd9d2b050f93ba860bbb43",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 13771,
+                "upload_time": "2022-04-11T07:40:01",
+                "upload_time_iso_8601": "2022-04-11T07:40:01.072258Z",
+                "url": "https://files.pythonhosted.org/packages/ca/e8/087d075eb85b85ebc184da7e26bd3942cafca4a11eb84dff3154fab5c32e/wt_mqtt-2.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

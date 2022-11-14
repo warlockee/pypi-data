@@ -1,0 +1,97 @@
+{
+    "0.0.4": {
+        "info": {
+            "author": "AXY",
+            "author_email": "axy@declassed.art",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "Intended Audience :: System Administrators",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Internet :: WWW/HTTP",
+                "Topic :: Utilities"
+            ],
+            "description": "\nACME client library\n===================\n\nThis is an ACME client library based on ``requests`` and ``cryptography`` packages.\n\nThis library is written from scratch by studying https://tools.ietf.org/html/rfc8555\nand trying out Let's Encrypt staging and production environments.\n\nThis library automates all aspects of certificate issuance, including\ngenerating keys and CSRs, and checking certificate expiration.\n\nThis means there's no need to manually invoke ``openssl`` and any other commands,\nthe only exception is domain validation instructions displayed by ``MyAcmeAuthzManual``.\nHowever, you can provide your own private key for account and certificates,\nand your own CSRs in PEM format.\n\nThis library provides basic client classes for ACME, as well as \"batteries included\" stuff:\n\n* ``MyAcmeClient``:      the main class provides account management and basic methods for ACME requests\n\n* ``MyAcmeOrderABC``:    this abstract class implements certificate issuance state mashine\n\n* ``MyAcmeOrderFS``:     this subclass implements saving the state of certificate issuance to file system\n\n* ``MyAcmeAuthzABC``:    this abstract class defines methods for setting up and cleaning up domain validation\n\n* ``MyAcmeAuthzManual``: this implementation prints instructions for domain validation and waits for user input\n\n* ``MyAcmeAuthzScript``: this class invokes scripts for domain validation according to provided configuration\n\n* ``MyAcmeError``:       basic exception\n\n* ``MyAcmeHttpError``:   ACME HTTP exception\n\nA helper function ``get_certificate_validity_period`` returns certificate dates not_valid_before and not_valid_after,\nwhich can be used to check certificate expiration.\n\nHow to use\n----------\n\nThe first step is to instantiate ``MyAcmeClient`` class with a directory URL::\n\n    my_acme = MyAcmeClient('https://acme-v02.api.letsencrypt.org/directory')\n\nTo apply for certificates, you should have an account on the ACME server.\nThe account is identified by client's public key.\nThe account is identified ONLY by client's public key. Contact emails are optional.\n\nIf you have no account key yet, there's a method to generate it for you::\n\n    account_key = my_acme.generate_account_key()\n\nThe ``account_key`` is a key pair, containing both public and private keys\nin PEM format, as bytes. You should permanently save the account key somewhere::\n\n    with open('my-account-key.pem', 'wb') as f:\n        f.write(account_key)\n\nIf you aleady have an account key, you should set it explicitly::\n\n    with open('my-account-key.pem', 'rb') as f:\n        my_acme.account_key = f.read()\n\nor provide it to ``MyAcmeClient``::\n\n    with open('my-account-key.pem', 'rb') as f:\n        my_account_key = f.read()\n    my_acme = MyAcmeClient('https://acme-v02.api.letsencrypt.org/directory', my_account_key)\n\nOnce ``account_key`` is set, you can create an account on the ACME server, if it was not created yet::\n\n        acme.create_account()\n\nThis method can accept the list of contact URLs in the form \"mailto:admin@example.org\".\nBy default contacts is an empty list.\n\nIt's desirable to permanently save account URL, along with account key somewhere::\n\n    saved_account_url = my_acme.account_url\n\nThis is because this URL is needed for subsequent requests and if not saved,\nthe client has to issue extra request to obtain it.\n\nThis URL should be restored after instantiation of ``MyAcmeClient``::\n\n    my_acme.account_url = saved_account_url\n\n\nHow to apply for certificate issuance\n-------------------------------------\n\nAfter setting up the client, you should create an instance of some ``MyAcmeOrderABC`` subclass.\nThe library only provides ``MyAcmeOrderFS``, which stores state to a file, but if you have\nbetter ideas you can be more creative.\n\n``MyAcmeOrderABC`` needs an authenticator to validate domains. The simplest one is ``MyAcmeAuthzManual``\nwhich simply prints instructions and waits for your confirmations.\n\nSo, the first step is to create an authenticator::\n\n    authenticator = MyAcmeAuthzManual()\n\nThen, create an instance of order::\n\n    my_order = MyAcmeOrderFS(my_acme, 'example.com', authenticator, directory='.')\n\nYou can provide your own private key or CSR::\n\n    my_order = MyAcmeOrderFS(my_acme, 'example.com', authenticator, csr=example_com_csr, directory='.')\n    my_order = MyAcmeOrderFS(my_acme, 'example.com', authenticator, private_key=example_com_key, directory='.')\n\nPrivate key is unnecessary if you provide your CSR because CSR is already signed.\n\nThen, try to process the order::\n\n    my_order.process_order()\n\nNormally, ``process_order`` returns completion status as string, either \"complete\" or \"failed\".\nIn case of error, network error, for example, it raises an exception.\nIn this case you should repeat ``process_order`` until it returns completion status.\n\nWhen ``process_order`` has successfully completed, call ``get_certificate`` method to obtain your certificate.\nYou should save it somewhere, obviously::\n\n    certificate = my_order.get_certificate()\n\n    with open('my-certificate.pem', 'wb') as f:\n        f.write(certificate)\n\n\nInternationalized domain names\n------------------------------\n\nMyACME accepts and returns all domain names as strings so they may contain non-ASCII characters.\nDomain names are internally encoded and decoded as necessary.\n\n\nThe complete example\n--------------------\n\n::\n\n    my_domain = 'example.com'\n    with open('my-account-key.pem', 'rb') as f:\n        my_account_key = f.read()\n    my_acme = MyAcmeClient('https://acme-v02.api.letsencrypt.org/directory', my_account_key)\n    authenticator = MyAcmeAuthzManual()\n    my_order = MyAcmeOrderFS(my_acme, my_domain, authenticator, directory='.')\n    my_order.process_order()\n    certificate = my_order.get_certificate()\n    with open('my-certificate.pem', 'wb') as f:\n        f.write(certificate)\n\n\n\n\nCommand-line ACME client\n========================\n\nAccount creation\n----------------\n\nBefore applying to certificate issuance you need an account on ACME server.\n\nThe following command would generate private key and create an account::\n\n    myacme create account ak=my-account-key.pem\n\nHowever, if my-account-key.pem already exists (in case you have already generated it\nwith `openssl`, for example) this command would use your existing key.\n\nBy default ACME server is Let's Encrypt https://acme-v02.api.letsencrypt.org/directory\nYou can specify your own server by providing its directory URL::\n\n    myacme create account ak=my-account-key.pem acme=https://my.acme.com/directory\n\nOr, you can use a predefined URL::\n\n    myacme create account ak=my-account-key.pem acme=le-staging\n\nwhere ``le-staging`` is a directory URL for Let's Encrypt staging environment.\n\nOptionally you can provide one or more emails for your account::\n\n    myacme create account ak=my-account-key.pem email=john.doe@example.com email=sarah.connor@example.com\n\nIf you run this command for an existing account it will change contact emails.\n\n\nUpdate account\n--------------\n\nChange account key::\n\n    myacme update account ak=my-account-key.pem new-ak=new-account-key.pem\n\nNew account key may already exist. If not, will be generated::\n\n    myacme update account ak=my-account-key.pem email=john.doe@example.com\n\nThe above can be done with a single command.\n\nAccount deactivation\n--------------------\n\nIf you no longer need an account you can deactivate it::\n\n    myacme deactivate account ak=my-account-key.pem\n\nYou can specify other ACME server with `acme` parameter, see Account creation.\n\n\nManually applying for certificate issuance\n------------------------------------------\n\nIf you already have a CSR, you can get the certificate with a single command::\n\n    myacme certificate ak=my-account-key.pem csr=my-csr.pem cert=my-cert.pem\n\nYou'll have to prove you own your domain. This command will print instructions how to do that.\n\nIf you got a temporary error, such as network error or server error, you can run the above command repeatedly.\nThe state of appliance process is saved to a file <domain-name>.myacme.json in the current directory.\n\nIf you don't have a CSR but do have already generated private key (with `openssl` command, for example),\n``myacme`` will automatically generate a CSR for the issuance process::\n\n    myacme certificate ak=my-account-key.pem dom=example.com dom=www.example.com private-key=my-key.pem cert=my-cert.pem\n\nThe CSR will be saved only in the state filename, you can extract it with `myacme get csr` command (see below).\n\nFinally, if you have neither CSR, nor private key, `myacme` will generate everything for you::\n\n    myacme certificate ak=my-account-key.pem dom=example.com dom=www.example.com private-key=my-key.pem cert=my-cert.pem\n\nYes, this is exactly the same command as above. This simply checks your ``my-key.pem`` and if it does not exist,\nthe key will be automatically generated and written to that file.\n\n\nAutomatic certificate management\n--------------------------------\n\nXXX in progress\n\nInitialize certificate management environment::\n\n    myacme init dir=/etc/myacme\n\nThis command will create /etc/myacme directory (if it does not yet exist), all\nsubdirectories, basic configuration files, and an account.\n\nYou can provide more details with the following statements in any order:\n\n* ACME server, if you don't want default Let's Encrypt: acme=https://my.acme.com/directory\n* existing account key: ak=my-account-key.pem\n* contact emails: email=john.doe@example.com email=sarah.connor@example.com\n\nAdd managed certificate::\n\n    myacme add dir=/etc/myacme dom=example.com dom=www.example.com template=nginx\n\nThis will create a subdirectory ``/etc/myacme/example.com`` and copy configuration files\nfrom ``/etc/myacme/templates/nginx``\nYou need to revise configuration and set ``active`` parameter to true in XXX\n\nThe following command should be run daily::\n\n    myacme manage dir=/etc/myacme\n\nThis will check certificates and apply for re-issuance for expiring ones.\n\nIs root access necessary for automatic certificate management?\nBasically, no. If file permissions are properly set, say, if myacme can put certificates to a subdirectory\nunder ``/etc/nginx``, root access is obviously not required. However, nginx should be restarted after changing\ncertificate, but this is what ``sudo`` is for.\nIt's up to the user how to set up things properly.\n\n\nUtility commands\n----------------\n\nExtract private key from state file example.com.myacme.json to my-key.pem::\n\n    myacme get state=example.com.myacme.json private-key=my-key.pem\n\nThis works only if private key was generated automatically.\n\nExtract certificate from state file example.com.myacme.json to my-key.pem::\n\n    myacme get state=example.com.myacme.json cert=my-certificate.pem\n\nThis works only if certificate was successfully issued.\n\nYou can get everything with one command::\n\n    myacme get state=example.com.myacme.json private-key=my-key.pem cert=my-certificate.pem\n\nAuthorization scripts\n---------------------\n\nXXX\n\n``myacme-zonefile``\n\n\n\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://declassed.art/repository/myacme",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "myacme",
+            "package_url": "https://pypi.org/project/myacme/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/myacme/",
+            "project_urls": {
+                "Homepage": "https://declassed.art/repository/myacme"
+            },
+            "release_url": "https://pypi.org/project/myacme/0.0.4/",
+            "requires_dist": [
+                "cryptography (>=3.1)",
+                "idna",
+                "kvgargs",
+                "requests"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "MyACME client library and command line tool",
+            "version": "0.0.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 13218257,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c314cd31574b60a0c72aab4fd5cbc22e",
+                    "sha256": "5c6ed14950b44ecc014d865a3ce47e09af5b057ca591b3b1bf29a6eb2739736b"
+                },
+                "downloads": -1,
+                "filename": "myacme-0.0.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c314cd31574b60a0c72aab4fd5cbc22e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 23457,
+                "upload_time": "2022-03-04T19:56:58",
+                "upload_time_iso_8601": "2022-03-04T19:56:58.253390Z",
+                "url": "https://files.pythonhosted.org/packages/78/30/a310c86af6a058ede1babc965d736da07d5505435550995f5f756ba7268a/myacme-0.0.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b60ec6eb1e88066b2a7ba2f45436a638",
+                    "sha256": "ba664f3daf16036b6c5dcc5e609dcea3d46f1959f141ce7a2fff8cd372ec838a"
+                },
+                "downloads": -1,
+                "filename": "myacme-0.0.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "b60ec6eb1e88066b2a7ba2f45436a638",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 23829,
+                "upload_time": "2022-03-04T19:57:00",
+                "upload_time_iso_8601": "2022-03-04T19:57:00.059889Z",
+                "url": "https://files.pythonhosted.org/packages/5a/e3/df389666a9abb4917eeff02a4dad6244968efee0ecd43b0014d75d0f9861/myacme-0.0.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

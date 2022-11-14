@@ -1,0 +1,145 @@
+{
+    "3.4.0": {
+        "info": {
+            "author": "Sebastian Ehlert",
+            "author_email": "awvwgk@disroot.org",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "DFT-D4 Python API\n-----------------\n\nPython interface for the generally applicable atomic-charge dependent London dispersion correction, DFT-D4.\nThis Python project is targeted at developers who want to interface their project via Python with ``dftd4``.\n\nThis interface provides access to the C-API of ``dftd4`` via the CFFI module.\nThe low-level CFFI interface is available in the ``dftd4.library`` module and only required for implementing other interfaces.\nA more pythonic interface is provided in the ``dftd4.interface`` module which can be used to build more specific interfaces.\n\n.. code:: python\n\n   >>> from dftd4.interface import DampingParam, DispersionModel\n   >>> import numpy as np\n   >>> numbers = np.array([1, 1, 6, 5, 1, 15, 8, 17, 13, 15, 5, 1, 9, 15, 1, 15])\n   >>> positions = np.array([  # Coordinates in Bohr\n   ...     [+2.79274810283778, +3.82998228828316, -2.79287054959216],\n   ...     [-1.43447454186833, +0.43418729987882, +5.53854345129809],\n   ...     [-3.26268343665218, -2.50644032426151, -1.56631149351046],\n   ...     [+2.14548759959147, -0.88798018953965, -2.24592534506187],\n   ...     [-4.30233097423181, -3.93631518670031, -0.48930754109119],\n   ...     [+0.06107643564880, -3.82467931731366, -2.22333344469482],\n   ...     [+0.41168550401858, +0.58105573172764, +5.56854609916143],\n   ...     [+4.41363836635653, +3.92515871809283, +2.57961724984000],\n   ...     [+1.33707758998700, +1.40194471661647, +1.97530004949523],\n   ...     [+3.08342709834868, +1.72520024666801, -4.42666116106828],\n   ...     [-3.02346932078505, +0.04438199934191, -0.27636197425010],\n   ...     [+1.11508390868455, -0.97617412809198, +6.25462847718180],\n   ...     [+0.61938955433011, +2.17903547389232, -6.21279842416963],\n   ...     [-2.67491681346835, +3.00175899761859, +1.05038813614845],\n   ...     [-4.13181080289514, -2.34226739863660, -3.44356159392859],\n   ...     [+2.85007173009739, -2.64884892757600, +0.71010806424206],\n   ... ])\n   >>> model = DispersionModel(numbers, positions)\n   >>> res = model.get_dispersion(DampingParam(method=\"scan\"), grad=False)\n   >>> res.get(\"energy\")  # Results in atomic units\n   -0.005328888532435093\n   >>> res.update(**model.get_properties())  # also allows access to properties\n   >>> res.get(\"c6 coefficients\")[0, 0]\n   1.5976689760849156\n   >>> res.get(\"polarizibilities\")\n   array([ 1.97521745,  1.48512704,  7.33564674, 10.28920458,  1.99973802,\n          22.85298573,  6.65877552, 15.39410319, 22.73119177, 22.86303028,\n          14.56038118,  1.4815783 ,  3.91266859, 25.8236368 ,  1.93444627,\n          23.02494331])\n\n\nAdditional features\n~~~~~~~~~~~~~~~~~~~\n\nThe ``dftd4.parameters`` module becomes available if a TOML parser is available, either `tomlkit <https://github.com/sdispater/tomlkit>`_ or `toml <https://github.com/uiri/toml>`_ can be used here.\nThe returned dict can be used to supply parameters to the constructor of the ``DampingParam`` object, only the ``s6``, ``s8``, ``s9``, ``a1``, ``a2`` and ``alp`` entries will be used, the remaining entries are meta data describing the damping parameters.\n\n.. code-block:: python\n\n   >>> from dftd4.parameters import get_damping_param\n   >>> get_damping_param(\"b97m\")\n   {'s6': 1.0, 's9': 1.0, 'alp': 16.0, 's8': 0.6633, 'a1': 0.4288, 'a2': 3.9935}\n   >>> get_damping_param(\"r2scan\", keep_meta=True)\n   {'s6': 1.0, 's9': 1.0, 'alp': 16.0, 'damping': 'bj', 'mbd': 'approx-atm', 's8': 0.6018749, 'a1': 0.51559235, 'a2': 5.77342911, 'doi': '10.1063/5.0041008'}\n\n\nQCSchema Integration\n~~~~~~~~~~~~~~~~~~~~\n\nThis Python API natively understands QCSchema and the `QCArchive infrastructure <http://docs.qcarchive.molssi.org>`_.\nIf the QCElemental package is installed the ``dftd4.qcschema`` module becomes importable and provides the ``run_qcschema`` function.\n\n.. code:: python\n\n   >>> from dftd4.qcschema import run_qcschema\n   >>> import qcelemental as qcel\n   >>> atomic_input = qcel.models.AtomicInput(\n   ...     molecule = qcel.models.Molecule(\n   ...         symbols = [\"O\", \"H\", \"H\"],\n   ...         geometry = [\n   ...             0.00000000000000,  0.00000000000000, -0.73578586109551,\n   ...             1.44183152868459,  0.00000000000000,  0.36789293054775,\n   ...            -1.44183152868459,  0.00000000000000,  0.36789293054775\n   ...         ],\n   ...     ),\n   ...     driver = \"energy\",\n   ...     model = {\n   ...         \"method\": \"TPSS-D4\",\n   ...     },\n   ...     keywords = {},\n   ... )\n   ...\n   >>> atomic_result = run_qcschema(atomic_input)\n   >>> atomic_result.return_result\n   -0.0002667885779142513\n\n\nASE Integration\n~~~~~~~~~~~~~~~\n\nTo integrate with `ASE <https://wiki.fysik.dtu.dk/ase/>`_ this interface implements an ASE Calculator.\nThe ``DFTD4`` calculator becomes importable if an ASE installation is available.\n\n.. code:: python\n\n   >>> from ase.build import molecule\n   >>> from dftd4.ase import DFTD4\n   >>> atoms = molecule('H2O')\n   >>> atoms.calc = DFTD4(method=\"TPSS\")\n   >>> atoms.get_potential_energy()\n   -0.007310393443152083\n   >>> atoms.calc.set(method=\"PBE\")\n   {'method': 'PBE'}\n   >>> atoms.get_potential_energy()\n   -0.005358475432239303\n   >>> atoms.get_forces()\n   array([[-0.        , -0.        ,  0.00296845],\n          [-0.        ,  0.00119152, -0.00148423],\n          [-0.        , -0.00119152, -0.00148423]])\n\nTo use the ``DFTD4`` calculator as dispersion correction the calculator can be combined using the `SumCalculator <https://wiki.fysik.dtu.dk/ase/ase/calculators/mixing.html>`_ from the ``ase.calculators.mixing`` module.\n\n.. code:: python\n\n   >>> from ase.build import molecule\n   >>> from ase.calculators.mixing import SumCalculator\n   >>> from ase.calculators.nwchem import NWChem\n   >>> from dftd4.ase import DFTD4\n   >>> atoms = molecule('H2O')\n   >>> atoms.calc = SumCalculator([DFTD4(method=\"PBE\"), NWChem(xc=\"PBE\")])\n\nFor convenience ``DFTD4`` allows to combine itself with another calculator by using the ``add_calculator`` method which returns a SumCalculator:\n\n.. code:: python\n\n   >>> from ase.build import molecule\n   >>> from ase.calculators.emt import EMT\n   >>> from dftd4.ase import DFTD4\n   >>> atoms = molecule(\"C60\")\n   >>> atoms.calc = DFTD4(method=\"pbe\").add_calculator(EMT())\n   >>> atoms.get_potential_energy()\n   6.348142387048062\n   >>> [calc.get_potential_energy() for calc in atoms.calc.calcs]\n   [-6.015477436263984, 12.363619823312046]\n\nThe individual contributions are available by iterating over the list of calculators in ``calc.calcs``.\nNote that ``DFTD4`` will always place itself as first calculator in the list.\n\n\nInstalling\n~~~~~~~~~~\n\n.. image:: https://img.shields.io/conda/vn/conda-forge/dftd4-python.svg\n   :alt: Conda Version\n   :target: https://anaconda.org/conda-forge/dftd4-python\n\nThis project is packaged for the *conda* package manager and available on the *conda-forge* channel.\nTo install the *conda* package manager we recommend the `miniforge <https://github.com/conda-forge/miniforge/releases>`_ installer.\nIf the *conda-forge* channel is not yet enabled, add it to your channels with\n\n.. code:: sh\n\n   conda config --add channels conda-forge\n\nOnce the *conda-forge* channel has been enabled, this project can be installed with:\n\n.. code:: sh\n\n   conda install dftd4-python\n\nNow you are ready to use ``dftd4``, check if you can import it with\n\n.. code:: python\n\n   >>> import dftd4\n   >>> from dftd4.libdftd4 import get_api_version\n   >>> get_api_version()\n   '3.4.0'\n\n\nBuilding the extension module\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nTo perform an out-of-tree build some version of ``dftd4`` has to be available on your system and preferably findable by ``pkg-config``.\nTry to find a ``dftd4`` installation you build against first with\n\n.. code:: sh\n\n   pkg-config --modversion dftd4\n\nAdjust the ``PKG_CONFIG_PATH`` environment variable to include the correct directories to find the installation if necessary.\n\n\nUsing pip\n^^^^^^^^^\n\nThis project support installation with pip as an easy way to build the Python API.\n\n- C compiler to build the C-API and compile the extension module (the compiler name should be exported in the ``CC`` environment variable)\n- Python 3.6 or newer\n- The following Python packages are required additionally\n\n  - `cffi <https://cffi.readthedocs.io/>`_\n  - `numpy <https://numpy.org/>`_\n  - `pkgconfig <https://pypi.org/project/pkgconfig/>`_ (setup only)\n\nMake sure to have your C compiler set to the ``CC`` environment variable\n\n.. code:: sh\n\n   export CC=gcc\n\nInstall the project with pip\n\n.. code:: sh\n\n   pip install .\n\nTo install extra dependencies as well use\n\n.. code:: sh\n\n   pip install '.[parameters,ase,qcschema]'\n\nIf you already have a ``dftd4`` installation, *e.g.* from conda-forge, you can build the Python extension module directly without cloning this repository\n\n.. code:: sh\n\n   pip install \"https://github.com/dftd4/dftd4/archive/refs/heads/main#egg=dftd4-python&subdirectory=python\"\n\n\n\nUsing meson\n^^^^^^^^^^^\n\nThis directory contains a separate meson build file to allow the out-of-tree build of the CFFI extension module.\nThe out-of-tree build requires\n\n- C compiler to build the C-API and compile the extension module\n- `meson <https://mesonbuild.com>`_ version 0.55 or newer\n- a build-system backend, *i.e.* `ninja <https://ninja-build.org>`_ version 1.7 or newer\n- Python 3.6 or newer with the `CFFI <https://cffi.readthedocs.io/>`_ package installed\n\nSetup a build with\n\n.. code:: sh\n\n   meson setup _build -Dpython_version=$(which python3)\n\nThe Python version can be used to select a different Python version, it defaults to ``'python3'``.\nPython 2 is not supported with this project, the Python version key is meant to select between several local Python 3 versions.\n\nCompile the project with\n\n.. code:: sh\n\n   meson compile -C _build\n\nThe extension module is now available in ``_build/dftd4/_libdftd4.*.so``.\nYou can install as usual with\n\n.. code:: sh\n\n   meson configure _build --prefix=/path/to/install\n   meson install -C _build\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/dftd4/dftd4",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "dftd4",
+            "package_url": "https://pypi.org/project/dftd4/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/dftd4/",
+            "project_urls": {
+                "Homepage": "https://github.com/dftd4/dftd4"
+            },
+            "release_url": "https://pypi.org/project/dftd4/3.4.0/",
+            "requires_dist": [
+                "cffi",
+                "numpy"
+            ],
+            "requires_python": "",
+            "summary": "Python API of the DFT-D4 project",
+            "version": "3.4.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 13675140,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0d2de867511ba660826405859b683664",
+                    "sha256": "7dcb486e54c32e7bce0f1bc04361917f250c1f6d8e10f7a822468c80b2171e49"
+                },
+                "downloads": -1,
+                "filename": "dftd4-3.4.0-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "0d2de867511ba660826405859b683664",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 15140176,
+                "upload_time": "2022-04-30T15:28:25",
+                "upload_time_iso_8601": "2022-04-30T15:28:25.513395Z",
+                "url": "https://files.pythonhosted.org/packages/b0/74/ded7107b17b9a35dfa25a8ace510eaaab424548e00f42cd03658608f4364/dftd4-3.4.0-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b4629260f098c840b13464017e9baa3e",
+                    "sha256": "d8ce69b9dfe26c67db1b615ce1e3d832e6b1890ef0374a0d34267003d7111edc"
+                },
+                "downloads": -1,
+                "filename": "dftd4-3.4.0-cp36-cp36m-manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "b4629260f098c840b13464017e9baa3e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 15139481,
+                "upload_time": "2022-04-30T15:28:43",
+                "upload_time_iso_8601": "2022-04-30T15:28:43.781440Z",
+                "url": "https://files.pythonhosted.org/packages/17/79/f79ba2b8fac52da0aa2329bd750239e080a681c4b505cc44a318db6e4322/dftd4-3.4.0-cp36-cp36m-manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "00a12bd4b8623af361666f055f16bdad",
+                    "sha256": "9de15514c3ad381368d0317439fbf863f7e57f99a706e1d37ba414c452882eaa"
+                },
+                "downloads": -1,
+                "filename": "dftd4-3.4.0-cp37-cp37m-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "00a12bd4b8623af361666f055f16bdad",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 15139777,
+                "upload_time": "2022-04-30T15:29:02",
+                "upload_time_iso_8601": "2022-04-30T15:29:02.856307Z",
+                "url": "https://files.pythonhosted.org/packages/34/cf/e89a257d5ceab29730ada1bc7a2446dddcd61a965399d90e7d5b3862a8cb/dftd4-3.4.0-cp37-cp37m-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "36b6542cca26bbea553e997493d0ba71",
+                    "sha256": "ee8b837557da71c36b5bf7e465fd8ba53bc3720e267125770cc9dbc40c0c42ac"
+                },
+                "downloads": -1,
+                "filename": "dftd4-3.4.0-cp38-cp38-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "36b6542cca26bbea553e997493d0ba71",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 15140437,
+                "upload_time": "2022-04-30T15:29:19",
+                "upload_time_iso_8601": "2022-04-30T15:29:19.472410Z",
+                "url": "https://files.pythonhosted.org/packages/51/d1/79271800f4e3eb438e1adf5cf637305e9ca28633c39d33345a38bee62009/dftd4-3.4.0-cp38-cp38-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3c70c09c9e6192a7ea0f2c4dbd9e6dff",
+                    "sha256": "75c54e702b0573cf9757c9ba583bf08240f1f08ca9fa1a8a2c65292b7007480b"
+                },
+                "downloads": -1,
+                "filename": "dftd4-3.4.0-cp39-cp39-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "3c70c09c9e6192a7ea0f2c4dbd9e6dff",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 15140215,
+                "upload_time": "2022-04-30T15:29:36",
+                "upload_time_iso_8601": "2022-04-30T15:29:36.584959Z",
+                "url": "https://files.pythonhosted.org/packages/05/eb/b7f2a172ff9e9bbb7d11d32e23fa18c87692274d080fefc3794c477f9480/dftd4-3.4.0-cp39-cp39-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

@@ -1,0 +1,104 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "Suade Labs",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Libraries :: Python Modules",
+                "Topic :: Software Development :: Quality Assurance"
+            ],
+            "description": "# Rattr rats on your attrs.\n\nRattr (pronounced 'ratter') is a tool to determine attribute usage in python functions. It can parse python files, follow imports and then report to you about the attributes accessed by function calls in that file.\n\n# Status\n\nCurrently this project is under active development and likely to change significantly in the future. However we hope it might be useful and interesting to the wider python community.\n\n# But why?\n\nWe developed rattr to help with some analytics work in python where type checkers like mypy and pyre are cumbersome.\nIn analytics work, we often have functions that look like this:\n```python\ndef compute_cost_effectiveness(person):\n    return person.sales / person.salary\n```\n\nbecause we're pythonistas, the exact type of `person` is unimportant to us in this example - what's important is that it has a sales and salary attribute and that those are numbers. Annotating this function with that information for mypy would be cumbersome - and with thousands of functions it would be hard to do.\n\nRattr is a tool that solves the first part of this - it can detect that `compute_cost_effectiveness` needs to access \"sales\" and \"salary\" attributes and so it could tell us that the following would fail:\n\n```python\ndef create_report():\n    people = some_database.query(Person.name, Person.sales).all()\n    return {person.name: compute_cost_effectiveness(person) for person in people}\n```\n\nIt can also effectively compute the provenance of attributes. Suppose that you have a wide array of functions for computing information about financial products - like\n```python\ndef compute_some_complex_risk_metric_for(security, other_data):\n    # proprietary and complicated logic here\n    security.riskiness = bla\n    return security\n```\n\nand you have other functions that consume that information:\n```python\ndef should_i_buy(security):\n    if security.riskiness > 5:\n        return False\n    # More logic here ...\n```\n\nrattr can help you determine which functions are required for a calculation. Effectively allowing you to build powerful directed graph structures for your function libraries.\n\n# Developer Notes\n\n## Use of Undocumented Behaviour\n\nIn `rattr/analyser/types.py` several `Union` types are defined for\nconvenience. In Python 3.8 to check if the variable `a` is an instance of any\nof the types within the `Union` the `typing` module provides `get_args` i.e.\none would use `isinstance(a, get_args(UnionTypeName))`. However, this function\nis not provided in Python 3.7 and so the undocumented attribute `__args__` of\nthe `UnionTypeName` must be used i.e. `isinstance(a, UnionTypeName.__args__)`.\nAs this is undocumented it should be changed when we upgrade to Python 3.8+\n(and `$EDITOR` will not syntax highlight or tab-complete it).\n\n\n## Annotations\n\nRattr provides the ability to annotate functions in the target file such that\nthey may be ignored completely, ignored with their results determined manually,\netc. Additionally, each assertor may provide it's own annotations to ignore\nand/or define behaviour.\n\nGeneral Rattr annotations are located in `rattr/analyser/annotations.py` and\nassertor specific annotations are to be added by the assertion developer --\nhowever they should be placed in the file containing the `Assertor` class.\n\n### Annotation Format\n\nAnnotations should take the form `rattr_<annotation_name>` to avoid namespace\nconflicts in importing code.\n\n### Detecting and Parsing Annotations\n\nThe `rattr/analyser/utils.py` file provides the following annotation utility\nfunctions:\n\n* `has_annotation(name: str, fn: ast.FunctionDef) -> bool`\n* `get_annotation(name: str, fn: ast.FunctionDef) -> Optional[ast.AST]`\n* `parse_annotation(name: str, fn: ast.FunctionDef) -> Dict[str, Any]`\n* `parse_rattr_results_from_annotation(fn: ast.FunctionDef) -> Dict[str, Literal[...]]:`\n* `safe_eval(expr: ast.expr, culprit: Optional[ast.AST]) -> Union[Literal, Iterable[Iterable[...[Literal]]]]`\n* `is_name(name: Any) -> bool`\n* `is_set_of_names(set_of_names: Any) -> bool`\n* `is_args(args: Any) -> bool`\n\n\n### Provided Annotations\n\nAnnotation Name                             | Location\n:-------------------------------------------|:--------------------------------\n`rattr_ignore`                              | `rattr/analyser/annotations.py`\n`rattr_results(<results>)`                  | `rattr/analyser/annotations.py`\n\n### Results Annotation Grammar\n\n```python\n\n@rattr_results(\n    sets={\"a\", \"b.attr\"},\n    calls=[\n        (\"callee_function\", ([\"arg\", \"another\"], {\"kwarg\": \"some_var\"}))\n    ]\n)\ndef decorated_function(...):\n    # ...\n\n```\n\nAny argument to the decorator can be omitted and a default value will be used.\n\n\n## Known Issues\n\nNested functions are not currently analysed properly, functions containing\nnested functions must be annotated manually.\n\nComprehensions are not fully analysed, should be solvable by the same approach\nas nested functions -- \"un-nest\" them.\n\n\n--------------------------------------------------------------------------------\n\n\n# Usage Notes\n\nSee `python rattr -h`.\n\n\n## Errors and Warnings\n\nRattr can give five types of error/warnings: raised Python errors, output\nbeginning with \"info:\" or \"warning:\", output beginning with \"error:\", and\noutput beginning with \"fatal:\". The former can be seen as a developer caused\nerror, and the latter four are user errors.\n\n### User Error: \"info\" and \"warning\"\n\nWarns the user of potential issues or bad practise that should not affect the\nresults of analysis. Low-priority (often class based) warnings begin with\n\"info\".\n\n### User Error: \"error\"\n\nWarns the user of potential issues or bad practise that will likely affect the\nresults of analysis (though there are times when the results will still be\ncorrect).\n\n### User Error: \"fatal\"\n\nWarns the user of potential issues or bad practise so severe that the results\ncan not be produced for the given file.\n\n\n## Results Structure\n\nA dictionary from functions to results, which is in turn a dictionary of the\nvariables, attributes, etc (collectively nameables) that are get, set, called,\nor deleted.\n\n\n## Nameables Format\n\nPythonic Name   | Python Example                | Rattr Result Format\n:---------------|:------------------------------|:---------------------\nName            | `name`                        | `name`\nStarred         | `*name`                       | `*name`\nAttribute       | `name.attr`                   | `name.attr`\nCall            | `name(a, b, ...)`             | `name()`\nSubscript       | `name[0]` or `name['key']`    | `name[]`\n\nThe above can be nested in Rattr as in Python, for example the Python snippet\n`name.method(arg_one, arg_two, ...).result_attr['some key']` will become\n`name.method().result_attr[]`.\n\nHowever, some expression do not have resolvable names. For example, given the\nclass `A` and instances `a_one`, `a_two`; assuming that `A` implements\n`__add__`, which over two names of type `A` returns an `A`; and, `A` provides\nthe attribute `some_attr`; the following is legal Python code\n`(a_one + a_two).some_attr`. Another example of code whose name is unresolvable\nis `(3).to_bytes(length=1, byteorder='big')`.\n\nRattr will handle the above cases by returning a produced local name -- the\nresult of prepending the AST node type with an '@'. The former example\nwill become `@BinOp.some_attr`, and the latter `@Int.to_bytes`.\n\n\n## Example Results\n\n```\n{\n    ...\n\n    \"my_function\": {\n        \"gets\": [\n            \"variable_a\",\n            \"variable_b\",\n            \"object_a.some_attr\",\n        ],\n        \"sets\": [\n            \"object_a.set_me\",\n        ],\n        \"dels\": [],\n        \"calls\": [\n            \"min()\",\n            \"max()\"\n        ]\n    },\n}\n```\n\n## Support for Python 3.8\n\nBetween Python 3.7 and Python 3.8 there were several significant changes that\neffect Rattr and how it works, namely:\n\n1. the introduction of the walrus operator;\n2. the addition of `posonlyargs` to `ast.arguments`;\n3. complete rework of the representation of constants in `ast`.\n\nAs it stands Rattr will run on-and-under Python 3.8, however, with varying\nsupport for the above. Specifically: 1. is not supported, and usage will cause\nan error; 2. is not supported, and usage results in undefined behaviour; and 3.\nis fully supported.\n\nAn additional issue with Python 3.7/3.8 cross-compatibility is the introduction\nof `typing.get_origin` and `typing.get_args`, removing the need to rely on the\nundefined behaviour of `Union().__args__`. Though, as the latter works in both,\nthis does not affect the execution of Rattr -- it just results in some\ncomplaints by `mypy` which could be avoided it only Python 3.8 were supported.\n\nLinks regarding the above:\n\n[1] https://stackoverflow.com/questions/45957615/check-a-variable-against-union-type-at-runtime-in-python-3-6\n-- answers 1 and 2 specifically touch on the `typing.get_args` /\n`Union().__args__` issue.\n\n[2] https://greentreesnakes.readthedocs.io/en/latest/nodes.html#literals\n-- literals are very different.\n\n[3] https://greentreesnakes.readthedocs.io/en/latest/nodes.html#NamedExpr\n-- walrus operator.\n\n[4] https://greentreesnakes.readthedocs.io/en/latest/nodes.html#arguments\n-- `posonlyargs`.\n\n\n--------------------------------------------------------------------------------\n\n\n# Known Issues\n\nFor now these will throw a fatal error -- in the future Rattr should be more\n\"feature complete\" and should handle these cases properly.\n\n\n## Globals\n\n```python\n>>> y = 8\n>>> def fn(a):\n...     global y\n...     y = a\n...\n>>> fn(3)\n>>> y\n3\n>>>\n```\n\n\n## Redefinitions\n\n```python\n\ndef fn(m):\n    print(m.attr_one)\n\n    m = MyCoolClass()\n\n    print(m.attr_two)\n\n```\n\nRattr will produce `{ \"sets\": {\"m.attr_one\", \"m.attr_two\"} }`\\\nBut should produce `{ \"sets\": {\"m.attr_one\", \"@local:m.atter_two\"} }`?\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/SuadeLabs/ratter",
+            "keywords": "automation linting type-checking attributes rats",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "rattr",
+            "package_url": "https://pypi.org/project/rattr/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/rattr/",
+            "project_urls": {
+                "Homepage": "https://github.com/SuadeLabs/ratter"
+            },
+            "release_url": "https://pypi.org/project/rattr/0.1.0/",
+            "requires_dist": [
+                "isort (>=5)",
+                "black (==22.1.0) ; extra == 'dev'",
+                "click (==8.0.2) ; extra == 'dev'",
+                "flake8-bugbear (==22.1.11) ; extra == 'dev'",
+                "flake8 (==4.0.1) ; extra == 'dev'",
+                "flask (==2.0.3) ; extra == 'dev'",
+                "isort (==5.10.1) ; extra == 'dev'",
+                "pytest (==7.0.1) ; extra == 'dev'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Rattr rats on your attrs.",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14493376,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7adb4851987f84340af687600779d81f",
+                    "sha256": "da85601b229146e12df524602da4b50f9a460ad3e10e8ef659a9d18e51a39d4f"
+                },
+                "downloads": -1,
+                "filename": "rattr-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "7adb4851987f84340af687600779d81f",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 86496,
+                "upload_time": "2022-07-20T11:52:24",
+                "upload_time_iso_8601": "2022-07-20T11:52:24.617327Z",
+                "url": "https://files.pythonhosted.org/packages/78/9d/486ac0c4b44e6421d122bd628a2f86f11aabf75d08f9abebb9054b464918/rattr-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5621c7a8a61e9b40144e5f57680efd40",
+                    "sha256": "f75ed50c4e49d03dc1bae0e60483c50646d495d4912d797efabc04140b9f61e2"
+                },
+                "downloads": -1,
+                "filename": "rattr-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5621c7a8a61e9b40144e5f57680efd40",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 77344,
+                "upload_time": "2022-07-20T11:52:26",
+                "upload_time_iso_8601": "2022-07-20T11:52:26.586583Z",
+                "url": "https://files.pythonhosted.org/packages/bb/25/32aab241f1dc5a8c0ac4d5607a74c5c942b8bf3d984f5d435b538c31b936/rattr-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

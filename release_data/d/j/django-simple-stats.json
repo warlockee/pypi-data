@@ -1,0 +1,74 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "Serafeim Papastefanos",
+            "author_email": "spapas@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Environment :: Web Environment",
+                "Framework :: Django",
+                "Framework :: Django :: 3.0",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.6",
+                "Topic :: Internet :: WWW/HTTP",
+                "Topic :: Software Development :: Libraries"
+            ],
+            "description": "django-simple-stats\n-------------------\n\nA django package for creating stats from a query. \n\ninstallation\n============\n\nInstall it from pip:\n\n``pip install django-simple-stats``\n\nor the latest version from git:\n\n``pip install git+https://github.com/spapas/django-simple-stats``\n\nNo other installation is needed.\n\n\nUsage\n=====\n\nThe only supported method is the ``get_stats``. It expects a django query and a configuration list. \nEach element of the configuration list is a dictionary with the following attributes:\n\n* label (required): The textual description of this statistic\n* kind (required): What kind of aggregate we need. Choices are: ``query_aggregate_single``, ``query_aggregate``, ``choice_aggregate``, ``query_aggregate_date``, ``query_aggregate_buckets``. \n* method (required): The aggregate method. Can be one of ``count``, ``sum``, ``max``, ``min``, ``avg``.\n* field (required): The field that the aggreate will run on; use ``__`` for joins i.e ``fiedld1__field2``\n* what (optional): Only required for ``query_aggregate_date``, it is eithed ``year``, ``month``, ``day``\n* choices (optional): Only required for ``choice_aggregate``, it must be a django choices list \n* buckets (optional): only required for ``query_aggregate_buckets``. Must be a list from the biggest to the lowest value.\n\nSee below for a complete example.\n\nThe response will be a list of dictionaries with the following attributes:\n\n* label: Same as the label in the configuration\n* value: Will have a value if you use the query_aggregate_single, else will be None \n* values: Will be empty for query_aggregate_single else will be a list of tuples. Each tuple will have two elements, ``(label, value)``\n\nThe ``query_aggregate_single`` will run the aggregate function on a field and return a single value. For example you can get the total \nnumber of rows of your query or the sum of all fields. \n\nThe ``query_aggregate`` will run the aggregate function on a \nfield and return the list of values. This is mainly useful for foreign keys and if you've got distinct values in your queries.\nFor example count the number of rows per user. \nAlso it is useful for booleans for example to get the number of rows that have a flag turned on and off. \n\nThe ``choice_aggregate`` is similar to the ``query_aggregate`` but will use a ``choices`` attribute to return better looking values.\n\nThe ``query_aggregate_date`` is similar to the ``query_aggregate`` but will return the aggregates on a specific date field; use\n``what`` to pass ``year``, ``month``, ``day``.\n\nFinally, the ``query_aggregate_buckets`` is used to create buckets of values. You'll pass the list of buckets and the query will \nreturn the results that belong in each bucket. The stats module will \nrun individual queries with ``field__gte`` for each value. So for example if you pass ``[100, 50, 10]`` and you have a field ``price``\nit will run ``price__gte=100``, ``price__gte=50``, ``price__gte=10`` and return the results.\n\nExample\n=======\n\n.. code-block:: python\n\n    from simple_stats import get_stats\n\n    STATS_CFG = cfg = [\n            {\n                'label': 'Total',\n                'kind': 'query_aggregate_single',\n                'method': 'count',\n                'field': 'id',\n            },\n            {\n                'label': 'Per authority',\n                'kind': 'query_aggregate',\n                'method': 'count',\n                'field': 'pilot_authority__name',\n            }\n            {\n                'label': 'Per status',\n                'kind': 'choice_aggregate',\n                'method': 'count',\n                'field': 'status',\n                'choices': models.STATUS_CHOICES,\n            },\n            {\n                'label': 'Per year',\n                'kind': 'query_aggregate_date',\n                'method': 'count',\n                'field': 'created_on',\n                'what': 'year',\n                \n            },\n            {\n                'label': 'Per price',\n                'kind': 'query_aggregate_buckets',\n                'method': 'count',\n                'field': 'price',\n                'buckets': [100_00, 50_00, 1_000, 500, 0]\n            }\n        ]\n\n    def my_view(request):\n        qs = TestModel.objects.all()\n\n        stats = get_stats(qs, STATS_CFG)\n        return render(request, 'my_template.html', {'stats': stats})\n\nThe ``stats`` will be an array of dictionaries like the following:\n\n.. code-block:: python\n\n  [\n    {'label': 'Total', 'values': [], 'value': 1216}, \n    {'label': 'Per authority', 'values': [('Authority 1', 200), ('Authority 2', 9),   ], 'value': None}, \n    {'label': 'Per status', 'values': [('New', 200), ('Cancel', 0), 'value': None},\n    {'label': 'Per year', 'values': [(2021, 582), (2022, 634)], 'value': None}\n    {'label': 'Per price', 'values': [('> 5000', 1), ('> 1000', 29), ('> 500', 86), ('> 0', 305)], 'value': None}\n  ]\n  \nYou can display this in your template using something like:\n\n.. code-block:: python\n\n  <div class='row'>\n    {% for s in stats %}\n    <div class='col-md-4 mb-5' style='max-height: 500px; overflow: auto;'>\n        <h4>{{ s.label }}</h4>\n        {% if s.values %}\n            <table class='table table-condensed table-striped small table-sm'>\n                {% for v in s.values %}\n                    <tr>\n                        <td>{{ v.0 }}</td>\n                        <td>{{ v.1 }}</td>\n                    </tr>\n                {% endfor %}\n            </table>\n        {% else %}\n            <b>{{ s.value }}</b>\n        {% endif %}\n    </div>\n    {% endfor %}\n  </div>\n\n\n\n\n\nChangelog\n=========\n\n* v.0.1.0: Initial version",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/spapas/django-simple-stats",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "django-simple-stats",
+            "package_url": "https://pypi.org/project/django-simple-stats/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/django-simple-stats/",
+            "project_urls": {
+                "Homepage": "https://github.com/spapas/django-simple-stats"
+            },
+            "release_url": "https://pypi.org/project/django-simple-stats/0.1.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "A django package for creating simple stats from a query",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 13147331,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5f326143eddd962b29d4cbc36facd9bc",
+                    "sha256": "74736ca86bb1d97e123e413cb4fd05f25e4e12619bfb21ab12d5b064e0ba17fc"
+                },
+                "downloads": -1,
+                "filename": "django-simple-stats-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5f326143eddd962b29d4cbc36facd9bc",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 4714,
+                "upload_time": "2022-03-11T08:10:32",
+                "upload_time_iso_8601": "2022-03-11T08:10:32.778873Z",
+                "url": "https://files.pythonhosted.org/packages/a6/73/fab4ceb8f1b2487c421e92038e25bda86ea2cccf971ede6b78ad06830561/django-simple-stats-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
