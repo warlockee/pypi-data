@@ -1,0 +1,41 @@
+name: Update Data
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+concurrency: ci-${{ github.ref }}
+
+jobs:
+  release-data:
+    name: Release Data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+      - name: Install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: "poetry"
+      - name: Cache requests
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pypi_data_cache
+          key: ${{ runner.os }}-request-cache-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-request-cache-
+
+      - run: poetry install
+      - run: poetry run pypi_data_downloader download-releases release_data/ --limit=50000 --concurrency=100
+
+      - uses: EndBug/add-and-commit@v9
+        with:
+          add: 'release_data/'
+          # From https://github.community/t/github-actions-bot-email-address/17204/5
+          author_email: "41898282+github-actions[bot]@users.noreply.github.com"
+          author_name: "commit-bot"
+          message: "Scheduled data update from Github Actions"
+          push: true
