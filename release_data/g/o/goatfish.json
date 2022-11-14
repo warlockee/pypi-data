@@ -1,0 +1,150 @@
+{
+    "0.1": {
+        "info": {
+            "author": "Stochastic Technologies",
+            "author_email": "info@stochastictechnologies.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": null,
+            "docs_url": null,
+            "download_url": "UNKNOWN",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/stochastic-technologies/goatfish/",
+            "keywords": null,
+            "license": "BSD",
+            "maintainer": null,
+            "maintainer_email": null,
+            "name": "goatfish",
+            "package_url": "https://pypi.org/project/goatfish/",
+            "platform": "UNKNOWN",
+            "project_url": "https://pypi.org/project/goatfish/",
+            "project_urls": {
+                "Download": "UNKNOWN",
+                "Homepage": "https://github.com/stochastic-technologies/goatfish/"
+            },
+            "release_url": "https://pypi.org/project/goatfish/0.1/",
+            "requires_dist": null,
+            "requires_python": null,
+            "summary": "A small, schemaless ORM that is backed by SQLite.",
+            "version": "0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 8641966,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b2175eba0f64eaa00e9a974143631ba8",
+                    "sha256": "eaa1d661b9c72e0372f03f3af4e88fbf45e62163c3d02da27ce49a95275c305c"
+                },
+                "downloads": -1,
+                "filename": "goatfish-0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "b2175eba0f64eaa00e9a974143631ba8",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 2649,
+                "upload_time": "2012-02-16T01:06:16",
+                "upload_time_iso_8601": "2012-02-16T01:06:16.090396Z",
+                "url": "https://files.pythonhosted.org/packages/88/f8/728a4e5e8f3f9a2a507b1ecaf83b003ea521f84fac3c944c4a1e92e13b46/goatfish-0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.0.0a0": {
+        "info": {
+            "author": "Stavros Korokithakis",
+            "author_email": "hi@stavros.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: BSD License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.4",
+                "Programming Language :: Python :: 3.5",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8"
+            ],
+            "description": "Description\n===========\n\n[![Build Status](https://secure.travis-ci.org/stochastic-technologies/goatfish.png?branch=master)](http://travis-ci.org/stochastic-technologies/goatfish)\n[![Code Shelter](https://www.codeshelter.co/static/badges/badge-flat.svg)](https://www.codeshelter.co/)\n\n\n``goatfish`` is a small, schemaless ORM that is backed by SQLite.\n\nIt's also this:\n\n![A goatfish](https://upload.wikimedia.org/wikipedia/commons/d/da/Parupeneus_insularis.jpg)\n\nIts usage is very simple, just have your classes inherit from ``goatfish.Model``\nand and specify a connection, and the goatfish methods are available to you.\ngoatfish also supports querying for arbitrary properties in your models, as\nwell as indexing on arbitrary properties. It does not enforce a schema of any\nkind.\n\nIt appears that this method is identical to what FriendFeed used to implement\na schemaless layer over MySQL, which is pretty significant validation:\n\nhttp://backchannel.org/blog/friendfeed-schemaless-mysql\n\n\nUsage\n-----\n\nTo use ``goatfish``, all you need to do is create a class that inherits from\n``goatfish.Model``:\n\n    import goatfish\n    import sqlite3\n\n    db_connection = sqlite3.connect(\":memory:\")\n\n    class Test(goatfish.Model):\n        class Meta:\n            # This is so we know where to connect.\n            connection = db_connection\n            indexes = (\n                (\"foo\",),\n                (\"foo\", \"bar\"),\n            )\n\n    # Create the necessary tables. If they exist, do nothing.\n    Test.initialize()\n\n    foo = Test()\n    foo.foo = \"hi\"\n    foo.bar = \"hello\"\n    foo.save()\n\n    # Retrieve all elements.\n    >>> [test.bar for test in Test.all()]\n    ['hello']\n\n    # Count the number of elements.\n    >>> Test.count(foo=\"hi\")\n    1\n\n    # Run a query with parameters (slow, loads every item from the DB to check it).\n    >>> [test.bar for test in Test.find(bar=\"hello\")]\n    ['hello']\n\n    # This uses an index, so it's fast.\n    >>> [test.foo for test in Test.find(foo=\"hi\"})]\n    ['hi']\n\n    # Run a query with a parameter that doesn't exist in the dataset.\n    >>> [test.bar for test in Test.find({bar=\"hello\", baz=\"hi\"})]\n    []\n\n    >>> Test.find_one(bar=\"hello\").foo\n    \"hi\"\n\n    >>> print(Test.find_one(bar=\"doesn't exist\"))\n    None\n\n    # Delete the element.\n    >>> foo.delete()\n\n    # Try to retrieve all elements again.\n    >>> [test.bar for test in Test.find()]\n    []\n\n\nIndexes\n-------\n\nWhat sets ``goatfish`` apart from other modules such as ``shelve``, ``zodb``,\netc is its ability to query random attributes, and make those queries faster\nby using SQLite indexes.\n\nThe way this is achieved is by creating an intermediate table for each index\nwe specify. The index tables consist of the uuid column, and one column for\nevery field in the index. This way, we can store the value itself in these\nindex tables and query them quickly, as the rows have SQLite indexes\nthemselves.\n\nThe find() method uses these indexes automatically, if they exist, to avoid\nsequential scans. It will automatically use the largest index that contains\nthe data we want to query on, so a query of ``{\"foo\": 3, \"bar\": 2}`` when only\n``foo`` is indexed will use the index on ``foo`` to return the data, and do a\nsequential scan to match ``bar``.\n\nRight now, new indexes are only populated with data on save(), so you might\nmiss rows when querying on indexes that are not ready yet. To populate indexes,\ngo through the objects in your model and perform a save() in each of them.\nConvenience functions to populate single indexes will be provided shortly.\n\n\nInstallation\n------------\n\nTo install ``goatfish`` you need:\n\n* Python 3.4 or later.\n\nYou have multiple options for installation:\n\n* With pip (preferred), do ``pip install goatfish``.\n* With setuptools, do ``easy_install goatfish``.\n* To install from source, download it from\n  https://github.com/stochastic-technologies/goatfish/ and do\n  ``python setup.py install``.\n\n\nLicense\n-------\n\n``goatfish`` is distributed under the BSD license.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/stochastic-technologies/goatfish/",
+            "keywords": "database,schemaless,orm,sqlite",
+            "license": "BSD-2-Clause",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "goatfish",
+            "package_url": "https://pypi.org/project/goatfish/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/goatfish/",
+            "project_urls": {
+                "Homepage": "https://github.com/stochastic-technologies/goatfish/"
+            },
+            "release_url": "https://pypi.org/project/goatfish/2.0.0a0/",
+            "requires_dist": null,
+            "requires_python": ">=3.4",
+            "summary": "A small, schemaless ORM that is backed by SQLite.",
+            "version": "2.0.0a0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 8641966,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "19a699a41e9a6068b47cb37569e2a9e8",
+                    "sha256": "25b8c3088aae6e1caf4fe5d034f4e5a345391b1e987dd1e945740945f448e41f"
+                },
+                "downloads": -1,
+                "filename": "goatfish-2.0.0a0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "19a699a41e9a6068b47cb37569e2a9e8",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.4",
+                "size": 5461,
+                "upload_time": "2020-11-12T13:53:44",
+                "upload_time_iso_8601": "2020-11-12T13:53:44.365098Z",
+                "url": "https://files.pythonhosted.org/packages/1a/3f/08ed6e197676ad6091d111cb443f5a16d16bbe446040c8d630b426ad2667/goatfish-2.0.0a0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f8bc309d8a463ce0e104752689fd9256",
+                    "sha256": "313eb267c347c847831389a04942a68b9a1bc43485a73c5c7f69a2127f050a62"
+                },
+                "downloads": -1,
+                "filename": "goatfish-2.0.0a0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "f8bc309d8a463ce0e104752689fd9256",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.4",
+                "size": 5553,
+                "upload_time": "2020-11-12T13:53:45",
+                "upload_time_iso_8601": "2020-11-12T13:53:45.775580Z",
+                "url": "https://files.pythonhosted.org/packages/84/5a/5ba8e215e0c922fa26f01977ada994fc1adc3dc3cb998afe65dac1eb486e/goatfish-2.0.0a0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

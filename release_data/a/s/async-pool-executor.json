@@ -1,0 +1,69 @@
+{
+    "0.1": {
+        "info": {
+            "author": "bfzs",
+            "author_email": "ydf0509@sohu.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: Implementation",
+                "Topic :: Software Development :: Libraries"
+            ],
+            "description": "## pip install async_pool_executor\n\n\n\n## \u4e3b\u8981\u529f\u80fd\n\n```\n\u4e3b\u8981\u529f\u80fd\u662f\u4eff\u7167 concurrent.futures \u7684\u7ebf\u7a0b\u6c60\u62a5\u7684submit shutdown\u65b9\u6cd5\u3002\n\n\u4f7f\u5f97\u5728\u505a\u751f\u4ea7 \u6d88\u8d39 \u65f6\u5019\uff0c\u65e0\u9700\u5b66\u4e60\u70e6\u4eba\u7684\u5f02\u6b65 loop \u3001 run_until_complete \uff0c\u53ef\u4ee5\u76f4\u63a5\u5728\u540c\u6b65\u51fd\u6570\u4e2d submit\u3002\n\u751f\u4ea7\u548c\u6d88\u8d39\u4e0d\u9700\u8981\u5728\u540c\u4e00\u4e2aloop\u4e2d\uff0c\u559c\u6b22\u540c\u6b65\u7f16\u7a0b\u601d\u7ef4\u7684\u4eba\u53ef\u4ee5\u7528\u8fd9\u4e2a\u3002\n\n```\n\n\n## \u5b9e\u73b0\u4ee3\u7801\n\n```python\n\nimport asyncio\nimport atexit\nimport time\nimport traceback\nfrom threading import Thread\n\n\nclass AsyncPoolExecutor:\n    \"\"\"\n    \u4f7fapi\u548c\u7ebf\u7a0b\u6c60\u4e00\u6837\uff0c\u6700\u597d\u7684\u6027\u80fd\u505a\u6cd5\u662fsubmit\u4e5f\u5f04\u6210 async def\uff0c\u751f\u4ea7\u548c\u6d88\u8d39\u5728\u540c\u4e00\u4e2a\u7ebf\u7a0b\u540c\u4e00\u4e2aloop\u4e00\u8d77\u8fd0\u884c\uff0c\u4f46\u4f1a\u5bf9\u8c03\u7528\u94fe\u8def\u7684\u517c\u5bb9\u6027\u4ea7\u751f\u7834\u574f\uff0c\u4ece\u800c\u8c03\u7528\u65b9\u5f0f\u4e0d\u517c\u5bb9\u7ebf\u7a0b\u6c60\u3002\n    \"\"\"\n\n    def __init__(self, size, loop=None):\n        \"\"\"\n\n        :param size: \u540c\u65f6\u5e76\u53d1\u8fd0\u884c\u7684\u534f\u7a0b\u4efb\u52a1\u6570\u91cf\u3002\n        :param loop:\n        \"\"\"\n        self._size = size\n        self.loop = loop or asyncio.new_event_loop()\n        self._sem = asyncio.Semaphore(self._size, loop=self.loop)\n        self._queue = asyncio.Queue(maxsize=size, loop=self.loop)\n        t = Thread(target=self._start_loop_in_new_thread)\n        t.setDaemon(True)  # \u8bbe\u7f6e\u5b88\u62a4\u7ebf\u7a0b\u662f\u4e3a\u4e86\u6709\u673a\u4f1a\u89e6\u53d1atexit\uff0c\u4f7f\u7a0b\u5e8f\u81ea\u52a8\u7ed3\u675f\uff0c\u4e0d\u7528\u624b\u52a8\u8c03\u7528shutdown\n        t.start()\n        self._can_be_closed_flag = False\n        atexit.register(self.shutdown)\n\n\n    def submit(self, func, *args, **kwargs):\n        future = asyncio.run_coroutine_threadsafe(self._produce(func, *args, **kwargs), self.loop)  # \u8fd9\u4e2a run_coroutine_threadsafe \u65b9\u6cd5\u4e5f\u6709\u7f3a\u70b9\uff0c\u6d88\u8017\u7684\u6027\u80fd\u5de8\u5927\u3002\n        future.result()  # \u963b\u6b62\u8fc7\u5feb\u653e\u5165\uff0c\u653e\u5165\u8d85\u8fc7\u961f\u5217\u5927\u5c0f\u540e\uff0c\u4f7fsubmit\u963b\u585e\u3002\n\n    async def _produce(self, func, *args, **kwargs):\n        await self._queue.put((func, args, kwargs))\n\n    async def _consume(self):\n        while True:\n            func, args, kwargs = await self._queue.get()\n            if func == 'stop':\n                break\n            try:\n                await func(*args, **kwargs)\n            except Exception as e:\n                traceback.print_exc()\n\n    def _start_loop_in_new_thread(self, ):\n        # self._loop.run_until_complete(self.__run())  # \u8fd9\u79cd\u4e5f\u53ef\u4ee5\u3002\n        # self._loop.run_forever()\n\n        # asyncio.set_event_loop(self.loop)\n        self.loop.run_until_complete(asyncio.wait([self._consume() for _ in range(self._size)], loop=self.loop))\n        self._can_be_closed_flag = True\n\n    def shutdown(self):\n        for _ in range(self._size):\n            self.submit('stop', )\n        while not self._can_be_closed_flag:\n            time.sleep(0.1)\n        self.loop.close()\n        print('\u5173\u95ed\u5faa\u73af')\n\n\nif __name__ == '__main__':\n    import nb_log\n    async def async_f(x):\n        await asyncio.sleep(2)\n        print(x)\n\n    pool  =AsyncPoolExecutor(3)\n    for i in range(30):\n        pool.submit(async_f,i)\n```",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "async_pool_executor,threadpoolexecutor,sync,async",
+            "license": "BSD License",
+            "maintainer": "ydf",
+            "maintainer_email": "ydf0509@sohu.com",
+            "name": "async-pool-executor",
+            "package_url": "https://pypi.org/project/async-pool-executor/",
+            "platform": "all",
+            "project_url": "https://pypi.org/project/async-pool-executor/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/async-pool-executor/0.1/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "async_pool_executor,its api like the concurrent.futures",
+            "version": "0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 9292227,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "77ca00d2bab98f00bf46a99f2c9e5a56",
+                    "sha256": "9170b912ce8531920c80eef0f752c4e8c96d46840bfd4e08956d478749f72ace"
+                },
+                "downloads": -1,
+                "filename": "async_pool_executor-0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "77ca00d2bab98f00bf46a99f2c9e5a56",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 3306,
+                "upload_time": "2021-02-02T03:55:40",
+                "upload_time_iso_8601": "2021-02-02T03:55:40.058426Z",
+                "url": "https://files.pythonhosted.org/packages/36/d8/be61cec9d5f39ef23eb1ef33725bcbddf4b3564b00500f060cd71bb6b753/async_pool_executor-0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

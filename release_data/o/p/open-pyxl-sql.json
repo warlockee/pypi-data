@@ -1,0 +1,89 @@
+{
+    "0.11.0": {
+        "info": {
+            "author": "Fabien BATTINI",
+            "author_email": "fabien.battini@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: End Users/Desktop",
+                "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Office/Business :: Office Suites"
+            ],
+            "description": "# pyxl-sql: a tiny SQL engine for excel\n\npyxl-sql is a small implementation of SQL, for excel workbooks.\n- based on Openpyxl for Excel file format read/write\n- applies to excel workbooks that follow a 'table' format with unique column header\n- SQL queries are written inside the 'Pyxl SQL' sheet\n- uses python expressions\n- uses Excel formulas, with column names\n- is typically used to routinely merge/join information from several Excel files into a new one.\n- supports SELECT INTO, UPDATE, FROM, AS, \n\npyxl-sql can be used as a command-line tool.\nIn this case, it looks for Excel files in the directory and executes commands found on the 'Pyxl SQL'\nsheet. command-line options allow to change the behavior.\n\nAs such, the execution of the command-line tool can be automated through an Excel macro, e.g. attached to a \"button\"\n\npyxl-sql can also be used as a python library\n\npyxl-sql is tests with tox and cov. See the \"tests\" directory in the source tree\n\npyxl-sql is documented. See the \"doc\" directory in the source tree\n\n## Differences with standard SQL: restrictions and additions\n\n- SQL syntax does *not* manage intermediate (virtual) tables, so no (yet) sub-commands to a command \n(e.g. SELECT INTO applied to a SELECT)\n- Only a subset of SQL commands are managed\n- column names can contain space, and enclosed into {} when used in an expression or formula\n- by default, tables (i.e. excel sheets) are numbered following their appearance in the command,\n  starting at 0, \n  so that the syntax @1{FIELD NAME} indicates \"FIELD NAME\" in the table/sheet number 1, \n  i.e. an alias (\"AS\") is created automatically\n- a SET clause is used to specify the fields being created in a SELECT command (or equivalent), \n  in a way similar to the SET clause in an UPDATE command  \n- in a SET clause, the right member is NOT restricted to a field name, it can be an arbitrary PYTHON expression, \nstarting with ':=' for instance:\n\n``SET\tPriority\t=\t':= \"Major\" if @0{Range} in (\"High\", \"Medium\") and #0{Potential 2021} > 100000 else \"Minor\"'\n``\n- Excel formulas are also accepted, starting with '=', for instance:\n\n``SET Mean = '=SUM(M2:Q2)/SUM(R2:V2)'\n``\n- the SET syntax in incremented with a WHEN clause, similar to WHERE, but executed for each SET clause individually.\nFor instance, the following clause will assign the value for column 2019 either in columns 'Basic 2019' or 'Medium 2019'\ndepending on the value of the KPI row, thus transforming a line segmentation into a row segmentation.   \n\n``SET\tBasic 2019\t=\t2019\tWHEN\t:= @1{KPI} == \"Basic\"\n``\n\n``SET\tMedium 2019\t=\t2019\tWHEN\t:= @1{KPI} == \"Medium\"\n``\n\n\n\n\n- the AGGREGATES clause allows a python expression as a generalization of MAX, MIN etc ... \n- the IMPORT command allows importing python modules\n- the FORMAT command specified an Excel format for a column\n- the COMMENTS command introduces comments\n\n\n\n# pyxl-sql file format\n\npyxl-sql assumes that:\n- excel files are readable by OpenPyxl\n- sheets are formatted as 'tables', i.e. 1st line (default) is a column header\n- column headers are all different\n- one file holds pyxl-sql commands and clauses that will be executed\n- keywords are CAPITALIZED\n\nIn the case of empty sheet (to be completed by pyxlsql using \"SELECT INTO\"), \nthe *first line* after the header may hold \"examples\", which can hold formats or formulas \nthat will be replicated for each line. This example line will be erased by \"SELECT INTO\"\nSee 'Basic' example\n\n\n# pyxl-sql commands\npyxl-sql commands and clauses are stored in a special sheet (by default \"Pyxl SQL\")\nA command is stored on one line\nA command is completed by the clauses that follow on next lines\n\nCommands are split among several columns:\n- COMMAND: holds the command name, e.g. \"LEFT JOIN\", or the name of an associated Clause e.g. \"WHERE\"\n- Target: holds the name of the target sheet (or column in the case of CLAUSES )\n- KEY: holds a keyword that completes the definition of the command. e.g. \"LEFT JOIN\" is always completed by \"FROM\"\n- Source: holds the value that will be assigned to each element in the target. \nDepending on the command or clause, 'Source' can be a field name, an excel formula, a Python expression...\n\nFor some CLAUSES, a 2nd set (CONDITION, Target test, COMPARE, Source Test), on the same line, completes the definition\n\nThe remaining columns are for COMMENTS, which can be any arbitrary cell, and are not parsed\n\n## SHEET descriptor\nSheet are described by their names. e.g. \n- 'USA commands' : for sheets in the file being executed (i.e. which holds the 'Pyxl SQL' sheet )\n- 'Northwind.xlsx[Orders Details]' : for sheets in a different excel file\n\n## FIELD descriptors\na Field may be denoted with the following syntax:\n\n-  'field name' only, if no ambiguity\n-  '(@|#)N{field name}', if there is an ambiguity. N is the number of the sheet\n-  '(@|#)alias{field name} alias is the alias of the sheet\n\nin the last 2 examples:\n- @ denotes a string\n- \\# denotes a number\n\nThis type indication simplifies the management of n empty cells,  \nbecause excel considers empty as being 0 in a number context and \"\" in a string context,\nwhereas Python considers it as None. So the 'type' indication allows the conversion of None into \neither 0 or \"\", which simplifies the expressions\n\n\n## examples \n\nExamples are taken from https://www.w3schools.com/sql/default.asp\nand use the well-known Northwind sample database (V1 and V2)\n\n\n# Testing and example\n\nTesting is done with tox and cov. to run the test, just run 'tox' in the root directory\n`` (venv) PyxlSQL> tox\n``\n\nSee the tests/ directory in the source for more details.\n\nThe current coverage is 93%, most of the non-covered code is defensive\n\n# pyxl-sql as a tool\n\npyxl-sql is also a command-line tool, with command-line options.\nfor more information:\n\n``pyxlsql.py --help \n``\n\n# Documentation\n\nDocumentation is built using Sphinx https://www.sphinx-doc.org/\n\nDocumentation is generated in https://fabien_battini.gitlab.io/pyxlsql/html/\n\ngitlab repository: https://gitlab.com/fabien_battini/pyxlsql\n\nLinkedIN: https://www.linkedin.com/in/fabien-battini-supelec/\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://gitlab.com/fabien.battini/pyxlsql",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "open-pyxl-sql",
+            "package_url": "https://pypi.org/project/open-pyxl-sql/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/open-pyxl-sql/",
+            "project_urls": {
+                "Homepage": "https://gitlab.com/fabien.battini/pyxlsql"
+            },
+            "release_url": "https://pypi.org/project/open-pyxl-sql/0.11.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.6",
+            "summary": "A tiny SQL engine for Excel files, based on Openpyxl",
+            "version": "0.11.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 8999753,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "85b058b8faf1c8f18e3d4c5b3e6b3391",
+                    "sha256": "fac0bdd3d192accf8503f2da7204f69920f869894f6702480e014c98315af750"
+                },
+                "downloads": -1,
+                "filename": "open_pyxl_sql-0.11.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "85b058b8faf1c8f18e3d4c5b3e6b3391",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 39069,
+                "upload_time": "2020-12-28T16:08:44",
+                "upload_time_iso_8601": "2020-12-28T16:08:44.532337Z",
+                "url": "https://files.pythonhosted.org/packages/e5/7f/977f13ca4bd82d9833a06f1719aca4d640567971dd55351017df34756b30/open_pyxl_sql-0.11.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9b8e60f6dba9c43403641eb31b48179f",
+                    "sha256": "cd724af8b8829757ba5dc8efc55039df584616126608a1c3bed9386aabe4f84e"
+                },
+                "downloads": -1,
+                "filename": "open_pyxl_sql-0.11.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "9b8e60f6dba9c43403641eb31b48179f",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 32031,
+                "upload_time": "2020-12-28T16:08:45",
+                "upload_time_iso_8601": "2020-12-28T16:08:45.737006Z",
+                "url": "https://files.pythonhosted.org/packages/b0/ba/300303598cb9c089bb5129d59da7e9a78c4d6a8167c7bb85c03ad59bcb3e/open_pyxl_sql-0.11.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

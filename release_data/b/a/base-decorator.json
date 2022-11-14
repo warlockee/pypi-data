@@ -1,0 +1,69 @@
+{
+    "0.1": {
+        "info": {
+            "author": "bfzs",
+            "author_email": "ydf0509@sohu.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: Implementation",
+                "Topic :: Software Development :: Libraries"
+            ],
+            "description": "# base_decorator\n\n\n```\n\u901a\u7528\u7684\u88c5\u9970\u5668\u57fa\u7c7b\uff0c\u4f7f\u5199\u88c5\u9970\u5668\u53d8\u5f97\u66f4\u7b80\u5355\u3002\n```\n\n```python\nimport functools\nimport abc\nimport sys\n\n\nclass Undefind:\n    pass\n\n\nclass BaseDecorator(metaclass=abc.ABCMeta):\n    \"\"\"\n    \u7b80\u5316\u4e86\u88c5\u9970\u5668\u7684\u7f16\u5199\u3002\n\n    \u7528\u6237\u7684\u88c5\u9970\u5668\u9700\u8981\u7ee7\u627f\u8fd9\u4e2a\uff0c\u7528\u6237\u53ef\u4ee5\u6309\u9700\u91cd\u65b0\u5b9a\u4e49 before\uff0cafter\uff0cwhen_exception \u65b9\u6cd5\u3002\n\n    \u4e3a\u4e86\u4e00\u81f4\u6027\u548c\u7701\u4e8b\uff0c\u7edf\u4e00\u91c7\u7528\u6709\u53c2\u6570\u88c5\u9970\u5668\uff0c\u7528\u6237\u7684\u88c5\u9970\u5668\u540e\u9762\u5fc5\u987b\u5e26\u62ec\u53f7\u3002\n\n\n    \"\"\"\n\n    # def __init__(self, *args, **kwargs):\n    #     pass\n\n    raw_fun = Undefind()\n    raw_result = Undefind()\n    exc_info = Undefind()\n    final_result = Undefind()  # \u7528\u6237\u53ef\u4ee5\u81ea\u5df1\u5b9a\u4e49final_result\u7684\u503c\uff0c\u5982\u679c\u5b9a\u4e49\u4e86\u5c31\u628a\u8fd9\u4e2a\u503c\u4f5c\u4e3a\u51fd\u6570\u7684\u7ed3\u679c\uff0c\u5426\u5219\u628a\u51fd\u6570\u539f\u59cb\u7ed3\u679c\u4f5c\u4e3a\u7ed3\u679c\u3002\n\n    def __call__(self, fun, *args, **kwargs):\n        # print(locals())\n        if not callable(fun) or args or kwargs:  # \u6b63\u5e38\u662f\u53ea\u6709fun\u4e00\u4e2a\u53c2\u6570\uff0c\u9664\u975e\u662f\u88c5\u9970\u5668\u6ca1\u52a0\u62ec\u53f7\u9020\u6210\u7684\u3002\n            raise ValueError('\u4e3a\u4e86\u7b80\u5355\u548c\u4e00\u81f4\u8d77\u89c1\uff0c\u6240\u6709\u88c5\u9970\u5668\u90fd\u91c7\u7528\u6709\u53c2\u6570\u88c5\u9970\u5668\uff0c\u88ab\u88c5\u9970\u51fd\u6570\u4e0a\u9762\u7684\u88c5\u9970\u5668\u540e\u9762\u522b\u5fd8\u4e86\u52a0\u62ec\u53f7')\n        self.raw_fun = fun\n        f = functools.partial(BaseDecorator._execute, self)  # \u6bd4 self.execute \u5229\u4e8e\u8865\u5168\n        functools.update_wrapper(f, fun, )\n        return f\n\n    def _execute(self, *args, **kwargs):\n        self.before()\n        try:\n            self.raw_result = self.raw_fun(*args, **kwargs)\n            self.after()\n        except Exception as e:\n            self.exc_info = sys.exc_info()\n            self.when_exception()\n        if not isinstance(self.final_result, Undefind):  # \u7528\u6237\u53ef\u4ee5\u81ea\u5df1\u5b9a\u4e49final_result\u7684\u503c\uff0c\u5982\u679c\u5b9a\u4e49\u4e86\u5c31\u628a\u8fd9\u4e2a\u503c\u4f5c\u4e3a\u51fd\u6570\u7684\u7ed3\u679c\u3002\n            return self.final_result\n        else:\n            return self.raw_result\n\n    def before(self):\n        pass\n\n    def after(self):\n        pass\n\n    def when_exception(self):\n        # print(self.exc_info) # (<class 'ZeroDivisionError'>, ZeroDivisionError('division by zero',), <traceback object at 0x000001D22BA3FD48>)\n        raise self.exc_info[1]\n\n\nif __name__ == '__main__':\n    import nb_log  # noqa\n\n\n    class MyDeco(BaseDecorator):\n        def __init__(self, a=5, b=6):\n            self.a = a\n            self.b = b\n\n        def before(self):\n            print('\u5f00\u59cb\u6267\u884c')\n\n        # noinspection PyAttributeOutsideInit\n        def after(self):\n            self.final_result = self.a * self.b * self.raw_result\n\n\n    def common_deco(a=5, b=6):\n        \"\"\"  \u4e0a\u9762\u7684\u903b\u8f91\u5982\u679c\u7528\u5e38\u89c4\u65b9\u5f0f\u5199\"\"\"\n\n        def _inner(f):\n            @functools.wraps(f)\n            def __inner(*args, **kwargs):\n                try:\n                    print('\u5f00\u59cb\u6267\u884c')\n                    result = f(*args, **kwargs)\n                    return a * b * result\n                except Exception as e:\n                    raise e\n\n            return __inner\n\n        return _inner\n\n\n    @MyDeco(b=4)\n    # @common_deco(b=4)\n    def fun3(x):\n        print(x)\n        return x * 2\n\n\n    print(type(fun3))\n    print(fun3)\n    print(fun3.__wrapped__)  # noqa\n    print(fun3(10))\n\n```",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "base_decorator",
+            "license": "BSD License",
+            "maintainer": "ydf",
+            "maintainer_email": "ydf0509@sohu.com",
+            "name": "base-decorator",
+            "package_url": "https://pypi.org/project/base-decorator/",
+            "platform": "all",
+            "project_url": "https://pypi.org/project/base-decorator/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/base-decorator/0.1/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "base_decorator,make decorator easy to write",
+            "version": "0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 10793058,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a3c25add707090c45cf8f85203123472",
+                    "sha256": "13da148910922c50eccf33bd0834e2e2833e959bb313a0cd9317bd9342df222d"
+                },
+                "downloads": -1,
+                "filename": "base_decorator-0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a3c25add707090c45cf8f85203123472",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 3283,
+                "upload_time": "2021-07-01T06:24:06",
+                "upload_time_iso_8601": "2021-07-01T06:24:06.763677Z",
+                "url": "https://files.pythonhosted.org/packages/3c/52/f06c7b50532b17a4a5791c31161c6d3071669dfc70925ec3e8aacf582678/base_decorator-0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

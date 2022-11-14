@@ -1,0 +1,92 @@
+{
+    "1.0.0": {
+        "info": {
+            "author": "Zenaro Stefano (mario33881)",
+            "author_email": "mariortgasd@hotmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: MacOS :: MacOS X",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: Unix",
+                "Programming Language :: Python :: 3",
+                "Topic :: Software Development",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "# BLIFPARSER\n\nThis is a simple Python library that parses BLIF (Berkeley Logic Interchange Format) files (used by SIS, Sequential Interactive Synthesis).\n> And also evalutes if some keyword's parameters have syntactically correct values.\n\nOnly the basic keywords are parsed (```.model```, ```.inputs```, ```.outputs```, ```.names```, all the FSM keywords, ```.latch```, ```.exdc```, ```.end```).\n> More complex BLIF files with ```.clock```, ```.gate```, ```.mlatch```, ```.clock_event``` and delay constraits are only partially parsed.\n>\n> This is because the workflow I am supporting does not use these keywords\n\nCurrently only one ```.model``` keyword per file is supported.\n> You can see this as a \"feature\" because it forces the use of a good practise: use many files, one per each component.\n\nYou can also use this library as a basic BLIF validator.\n> Complex checks such as cross file definition checks and input-output names check are NOT implemented\n> because the primary intent of this library is to parse BLIF files.\n\nA more full/complex validator is in the works (and it will use this parser).\n\n---\n---\n\nWARNING\n\nThis parser DOES NOT use grammar files NOR [PEG](https://en.wikipedia.org/wiki/Parsing_expression_grammar) for parsing blif files:\n\nthis means that the parsing could be \"not perfect\".\n> If someone wants to contribute and change this feel free to make pull requests!\n>\n> If this library inspires you to write a better parser from scratch, please let me know by making a GH issue\n\nThis means that the library works because:\n* the BLIF (format) is simple: most of the time parameters are on the same line of the keywords\n* (some) unit and end to end tests were written\n\n---\n---\n\n## Index\n\n* [Requirements](#requirements)\n* [Installation](#installation)\n* [Usage](#usage)\n* [Description](#description)\n* [Changelog](#changelog)\n* [Author](#author)\n\n## Requirements\n* python 3\n\n## Installation\n\nFirst, install the library using PIP:\n\n    pip install blifparser\n\nThen:\n* if you want to use this library as a validation tool, check the \"[As a validator tool](#as-a-validator-tool)\" section\n\n* if you want to use this library inside your software, check the \"[As a library](#as-a-library)\" section\n    > If this is the only way you want to use this software, you can also install it using the installer on the Github Release page\n\n## Usage\n\n## As a validator tool\n\nExecute the script using this command:\n\n    blifparser <input_path>\n\nYou can also execute it this way:\n\n    python -m blifparser <input_path>\n\n> Replace ```<input_path>``` with the path to the BLIF file to validate\n\nWhen you have fixed the errors, execute the script until\nyou have fixed all the errors.\n> Not all errors appear after the first script execution.\n\n### As a library\n\nBasic/common usage:\n```py\n# import the os library: useful to get the absolute path to the input file\nimport os\n# import this library\nimport blifparser.blifparser as blifparser\n\n# get the file path and pass it to the parser\nfilepath = os.path.abspath(\"example.blif\")\nparser = blifparser.BlifParser(filepath)\n\n# get the object that contains the parsed data\n# from the parser\nblif = parser.blif\n```\n\nNow you can:\n\n```py\n# get the name of the model\nprint(blif.model.name)\n\n# get the list of the inputs\nprint(blif.inputs.inputs)\n\n# get the list of the outputs\nprint(blif.outputs.outputs)\n\n# get the list of .search keyword\nprint(blif.imports)\n\n# get the imported file name/path of the first .search keyword\nfirst_import = blif.imports[0]\nprint(first_import.filepath)\n\n# get the list of subcircuits (.subckt)\nprint(blif.subcircuits)\n\n# get data from the first subcircuit definition\nfirst_subcircuit = blif.subcircuits[0]\nprint(first_subcircuit.modelname)  # name of the model\nprint(first_subcircuit.params)     # subcircuit's parameters\n\n# get the list of boolean functions (.names)\nprint(blif.booleanfunctions)\n\n# get data from the first boolean function definition\nfirst_boolfunc = blif.booleanfunctions[0]\nprint(first_boolfunc.inputs)      # list with the names of the inputs\nprint(first_boolfunc.output)      # string with the name of the output\nprint(first_boolfunc.truthtable)  # list of lists (each row is a truth table row)\n\n# get the dictionary with the number of occurrencies of each keyword\nprint(blif.nkeywords)\n\n# get the list of problems/issues\nprint(blif.problems)\n\n# get the list of the latches\nprint(blif.latches)\n\n# get the data of the first latch\nfirst_latch = blif.latches[0]\nprint(first_latch.input)    # name of the input\nprint(first_latch.output)   # name of the output\nprint(first_latch.type)     # type of latch (like \"re\", ...)\nprint(first_latch.control)  # clock name\nprint(first_latch.initval)  # initial value\n\n# get the data of the FSM (Finite State Machine)\nprint(blif.fsm.i.num)       # number of inputs\nprint(blif.fsm.o.num)       # number of outputs\nprint(blif.fsm.s.num)       # number of states\nprint(blif.fsm.p.num)       # number of state transitions\nprint(blif.fsm.r.name)      # name of the reset state\nprint(blif.fsm.transtable)  # list of lists (contains the transition table)\n```\n\n## Description\n\nThese are the first steps to use this library:\n```py\n# import the os library: useful to get the absolute path to the input file\nimport os\n# import this library\nimport blifparser.blifparser as blifparser\n\n# get the file path and pass it to the parser\nfilepath = os.path.abspath(\"example.blif\")\nparser = blifparser.BlifParser(filepath)\n\n# get the object that contains the parsed data\n# from the parser\nblif = parser.blif\n```\n\nThe ```blifparser.BlifParser()``` object is the parser:\nit prepares the file for parsing using the ```prepare_file()``` method\nand then creates a ```keywords.generic.Blif()``` object that will contain\nall the information parsed from the file.\n> The ```prepare_file()``` method copies the file and \n> then removes (on the copy): \n> * the newlines made with the backslash \"```\\```\"\n> * the comments made with \"```#```\".\n\nThen each line is read and parsed:\n* if the line contains a keyword, a \"keyword\" object is created and then\n  \"linked\" to the ```keywords.generic.Blif()``` object (its parameters get parsed with the keyword)\n\n    > For example: if a ```.model``` keyword is found, a ```keywords.generic.Model()``` object\n    > gets created and set in the ```keywords.generic.Blif()``` object. (```keywords.generic.Blif().model```)\n\n* if the line contains text and the line comes after the ```.names``` keyword\n  it is interpreted as the truth table of the latest boolean function (defined by ```.names```)\n\n    > This behavior stops when the next keyword is found\n\n* if the line contains text and the line comes after the ```.start_kiss``` keyword\n  it is interpreted as the transition table of the Finite State Machine.\n\n    > This behavior stops when the next keyword is found\n\n* If an unexpected text/keyword is found a \"problem\" or issue is collected inside the ```keywords.generic.Blif().problems``` list.\n\nAt the end of the parsing:\n* if an FSM was found, a validation step checks if it is syntactically correct\n* if some boolean functions were found, a validation step checks if they are syntactically correct\n> The other validation steps are executed during object definition\n\nNow you can use the ```blif``` object to get the parsed data\n> Check the \"Usage > [As a library](#as-a-library)\" section for more details\n\n## Changelog\n\n**2021-04-23 1.0.0**:\n\nFirst commit\n\n## Author\n[Zenaro Stefano (mario33881)](https://github.com/mario33881)\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/mario33881/blifparser",
+            "keywords": "SIS BLIF parser development",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "blifparser",
+            "package_url": "https://pypi.org/project/blifparser/",
+            "platform": "",
+            "project_url": "https://pypi.org/project/blifparser/",
+            "project_urls": {
+                "Homepage": "https://github.com/mario33881/blifparser"
+            },
+            "release_url": "https://pypi.org/project/blifparser/1.0.0/",
+            "requires_dist": null,
+            "requires_python": ">=3",
+            "summary": "A simple BLIF parser",
+            "version": "1.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 10737139,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ec8eedec554d7c771f2210f3447744b3",
+                    "sha256": "dca41d9453196e1e3cc992c68cc4fc842bd4dd51c031e66ad6ba868d796a643f"
+                },
+                "downloads": -1,
+                "filename": "blifparser-1.0.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "ec8eedec554d7c771f2210f3447744b3",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3",
+                "size": 14867,
+                "upload_time": "2021-06-24T21:19:53",
+                "upload_time_iso_8601": "2021-06-24T21:19:53.535711Z",
+                "url": "https://files.pythonhosted.org/packages/c7/4c/7be42e918b2993b24cbbb43eea1fb14ce8a0ec89cbf3db83ad880822438c/blifparser-1.0.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "297bf2161546a83569cda016d795afef",
+                    "sha256": "5d81c8cd62678fc289b39b5e45fb578215335e66ffb41c9cf2340ed96471b414"
+                },
+                "downloads": -1,
+                "filename": "blifparser-1.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "297bf2161546a83569cda016d795afef",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3",
+                "size": 15876,
+                "upload_time": "2021-06-24T21:19:55",
+                "upload_time_iso_8601": "2021-06-24T21:19:55.096522Z",
+                "url": "https://files.pythonhosted.org/packages/78/07/df155c36b5cfcdf21d499919d996a9df5693fb2b4364e352cc65ead58d3f/blifparser-1.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
