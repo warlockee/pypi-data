@@ -45,7 +45,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15768445,
+        "last_serial": 15771896,
         "urls": [
             {
                 "comment_text": "",
@@ -99,7 +99,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# Music Kraken\n\nRUN WITH: `python3 -m src` from the project Directory\n\nThis programm will first get the metadata of various songs from metadata provider like musicbrainz, and then search for download links on pages like bandcamp. Then it will download the song and edit the metadata according.\n\n## Metadata\n\nFirst the metadata has to be downloaded. The best api to do so is undeniably [Musicbrainz](musicbrainz.org/). This is a result of them being a website with a large Database spanning over all Genres.\n\n### Musicbrainz\n\n![Musicbrainz Data Scheme](https://wiki.musicbrainz.org/-/images/9/9e/pymb3-model-core.png)\n\nTo fetch from [Musicbrainz](musicbrainz.org/) we first have to know what to fetch. A good start is to get an input querry, which can be just put into the MB-Api. It then returns a list of possible artists, releases and recordings.\n\nThen we can output them in the Terminal and ask for further input. Following can be inputed afterwards:\n\n- `q` to quit\n- `ok` to download\n- `..` for previous options \n- `.` for current options\n- `an integer` for this element\n\nIf the following chosen element is an artist, its discography + a couple tracks are outputed, if a release is chosen, the artists + tracklist + release is outputted, If a track is chosen its artists and releases are shown.\n\n**TO DO**\n\n- Schow always the whole tracklist of an release if it is chosen\n- Show always the whole discography of an artist if it is chosen\n\nUp to now it doesn't if the discography or tracklist is chosen.\n\n### Metadata to fetch\n\nI orient on which metadata to download on the keys in `mutagen.EasyID3` . Following I fatch and thus tag the MP3 with:\n- title\n- artist\n- albumartist\n- tracknumber\n- albumsort can sort albums cronological\n- titlesort is just set to the tracknumber to sort by track order to sort correctly\n- isrc\n- musicbrainz_artistid\n- musicbrainz_albumid\n- musicbrainz_albumartistid\n- musicbrainz_albumstatus\n- language\n- musicbrainz_albumtype\n- releasecountry\n- barcode\n\n#### albumsort/titlesort\n\nThose Tags are for the musicplayer to not sort for Example the albums of a band alphabetically, but in another way. I set it just to chronological order\n\n#### isrc\n\nThis is the **international standart release code**. With this a track can be identified 100% percicely all of the time, if it is known and the website has a search api for that. Obviously this will get important later.\n\n---\n\n## Download\n\nNow that the metadata is downloaded and cached, download sources need to be sound, because one can't listen to metadata. Granted it would be amazing if that would be possible. \n\n### Musify\n\nThe quickest source to get download links from is to my knowledge [musify](https://musify.club/). Its a russian music downloading page, where many many songs are available to stream and to download. Due to me not wanting to stress the server to much, I abuse a handy feature nearly every page where you can search suff has. The autocomplete api for the search input. Those always are quite limited in the number of results it returns, but it is optimized to be quick. Thus with the http header `Connection` set to `keep-alive` the bottelneck defently is not at the speed of those requests.\n\nFor musify the endpoint is following: [https://musify.club/search/suggestions?term={title}](https://musify.club/search/suggestions?term=LornaShore) If the http headers are set correctly, then searching for example for \"Lorna Shore\" yields following result:\n\n```json\n[\n    {\n        \"id\":\"Lorna Shore\",\n        \"label\":\"Lorna Shore\",\n        \"value\":\"Lorna Shore\",\n        \"category\":\"\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u0438\",\n        \"image\":\"https://39s.musify.club/img/68/9561484/25159224.jpg\",\n        \"url\":\"/artist/lorna-shore-59611\"       \n    },\n    {\"id\":\"Immortal\",\"label\":\"Lorna Shore - Immortal (2020)\",\"value\":\"Immortal\",\"category\":\"\u0420\u0435\u043b\u0438\u0437\u044b\",\"image\":\"https://39s-a.musify.club/img/70/20335517/52174338.jpg\",\"url\":\"/release/lorna-shore-immortal-2020-1241300\"},\n    {\"id\":\"Immortal\",\"label\":\"Lorna Shore - Immortal\",\"value\":\"Immortal\",\"category\":\"\u0422\u0440\u0435\u043a\u0438\",\"image\":\"\",\"url\":\"/track/lorna-shore-immortal-12475071\"}\n]\n```\n\nThis is a shortened example for the response the api gives. The results are very Limited, but it is also very efficient to parse. The steps I take are:\n\n- call the api with the querry being the track name\n- parse the json response to an object\n- look at how different the title and artist are on every element from the category `\u0422\u0440\u0435\u043a\u0438`, translated roughly to track or release.\n- If they match get the download links and cache them.\n\n### Youtube\n\nHerte the **isrc** plays a huge role. You probaply know it, when you search on youtube for a song, and the music videos has a long intro or the first result is a live version. I don't want those in my music collection, only if the tracks are like this in the official release. Well how can you get around that?\n\nTurns out if you search for the **isrc** on youtube the results contain the music, like it is on the official release and some japanese meme videos. The tracks I wan't just have the title of the released track, so one can just compare those two.\n\nFor searching, as well as for downloading I use the programm `youtube-dl`, which also has a programming interface for python.\n\nThere are two bottlenecks with this approach though:\n1. `youtube-dl` is just slow. Actually it has to be, to not get blocked by youtube.\n2. Ofthen musicbrainz just doesn't give the isrc for some songs.\n\n**TODO**\n- look at how the isrc id derived an try to generate it for the tracks without directly getting it from mb.\n\n\n**Progress**\n- There is a great site whith a huge isrc database [https://isrc.soundexchange.com/](https://isrc.soundexchange.com/).\n\n\n## Lyrics\n\nTo get the Lyrics, I scrape them, and put those in the USLT ID3 Tags of for example mp3 files. Unfortunately some players, like the one I use, Rhythmbox don't support USLT Lyrics. So I created an Plugin for Rhythmbox. You can find it here: [https://github.com/HeIIow2/rythmbox-id3-lyrics-support](https://github.com/HeIIow2/rythmbox-id3-lyrics-support).\n\n### Genius\n\nFor the lyrics source the page [https://genius.com/](https://genius.com/) is easily sufficient. It has most songs. Some songs are not present though, but that is fine, because the lyrics are optional anyways.\n\n## Project overview\n\nThe file structure is as follows (might be slightly outdated):\n\n```\nmusic-downloader\n\u251c\u2500\u2500 assets\n\u2502\u00a0\u00a0 \u2514\u2500\u2500 database_structure.sql\n\u251c\u2500\u2500 LICENSE\n\u251c\u2500\u2500 notes.md\n\u251c\u2500\u2500 README.md\n\u251c\u2500\u2500 requirements.txt\n\u2514\u2500\u2500 src\n    \u251c\u2500\u2500 audio\n    \u2502\u00a0\u00a0 \u2514\u2500\u2500 song.py\n    \u251c\u2500\u2500 download_links.py\n    \u251c\u2500\u2500 download.py\n    \u251c\u2500\u2500 lyrics\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 genius.py\n    \u2502\u00a0\u00a0 \u2514\u2500\u2500 lyrics.py\n    \u251c\u2500\u2500 __main__.py\n    \u251c\u2500\u2500 metadata\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 database.py\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 download.py\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 object_handeling.py\n    \u2502\u00a0\u00a0 \u2514\u2500\u2500 search.py\n    \u251c\u2500\u2500 scraping\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 file_system.py\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 musify.py\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 phonetic_compares.py\n    \u2502\u00a0\u00a0 \u2514\u2500\u2500 youtube_music.py\n    \u251c\u2500\u2500 url_to_path.py\n    \u2514\u2500\u2500 utils\n        \u251c\u2500\u2500 object_handeling.py\n        \u251c\u2500\u2500 phonetic_compares.py\n        \u2514\u2500\u2500 shared.py\n\n```\n\nYou can obviously find the source code in the folder src. The two \"most important\" files are `__main__.py` and `utils/shared.py`.\n\nIn the first one is the code gluing everything together and providing the cli.\n\n### utils\n\nThe constants like the global database object can be found in `shared.py`.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -137,7 +136,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15768445,
+        "last_serial": 15771896,
         "urls": [
             {
                 "comment_text": "",
@@ -176,6 +175,98 @@
                 "upload_time": "2022-11-14T23:49:58",
                 "upload_time_iso_8601": "2022-11-14T23:49:58.062351Z",
                 "url": "https://files.pythonhosted.org/packages/d5/92/2cd638ca68e3420b6e5cf3b815c101e12bbfaa6eb2ffcc588b60c1287241/music_kraken-0.0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.3": {
+        "info": {
+            "author": "Hellow2",
+            "author_email": "Hellow2 <Hellow2@outlook.de>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# Music Kraken\n\nRUN WITH: `python3 -m src` from the project Directory\n\nThis programm will first get the metadata of various songs from metadata provider like musicbrainz, and then search for download links on pages like bandcamp. Then it will download the song and edit the metadata according.\n\n## Metadata\n\nFirst the metadata has to be downloaded. The best api to do so is undeniably [Musicbrainz](musicbrainz.org/). This is a result of them being a website with a large Database spanning over all Genres.\n\n### Musicbrainz\n\n![Musicbrainz Data Scheme](https://wiki.musicbrainz.org/-/images/9/9e/pymb3-model-core.png)\n\nTo fetch from [Musicbrainz](musicbrainz.org/) we first have to know what to fetch. A good start is to get an input querry, which can be just put into the MB-Api. It then returns a list of possible artists, releases and recordings.\n\nThen we can output them in the Terminal and ask for further input. Following can be inputed afterwards:\n\n- `q` to quit\n- `ok` to download\n- `..` for previous options \n- `.` for current options\n- `an integer` for this element\n\nIf the following chosen element is an artist, its discography + a couple tracks are outputed, if a release is chosen, the artists + tracklist + release is outputted, If a track is chosen its artists and releases are shown.\n\n**TO DO**\n\n- Schow always the whole tracklist of an release if it is chosen\n- Show always the whole discography of an artist if it is chosen\n\nUp to now it doesn't if the discography or tracklist is chosen.\n\n### Metadata to fetch\n\nI orient on which metadata to download on the keys in `mutagen.EasyID3` . Following I fatch and thus tag the MP3 with:\n- title\n- artist\n- albumartist\n- tracknumber\n- albumsort can sort albums cronological\n- titlesort is just set to the tracknumber to sort by track order to sort correctly\n- isrc\n- musicbrainz_artistid\n- musicbrainz_albumid\n- musicbrainz_albumartistid\n- musicbrainz_albumstatus\n- language\n- musicbrainz_albumtype\n- releasecountry\n- barcode\n\n#### albumsort/titlesort\n\nThose Tags are for the musicplayer to not sort for Example the albums of a band alphabetically, but in another way. I set it just to chronological order\n\n#### isrc\n\nThis is the **international standart release code**. With this a track can be identified 100% percicely all of the time, if it is known and the website has a search api for that. Obviously this will get important later.\n\n---\n\n## Download\n\nNow that the metadata is downloaded and cached, download sources need to be sound, because one can't listen to metadata. Granted it would be amazing if that would be possible. \n\n### Musify\n\nThe quickest source to get download links from is to my knowledge [musify](https://musify.club/). Its a russian music downloading page, where many many songs are available to stream and to download. Due to me not wanting to stress the server to much, I abuse a handy feature nearly every page where you can search suff has. The autocomplete api for the search input. Those always are quite limited in the number of results it returns, but it is optimized to be quick. Thus with the http header `Connection` set to `keep-alive` the bottelneck defently is not at the speed of those requests.\n\nFor musify the endpoint is following: [https://musify.club/search/suggestions?term={title}](https://musify.club/search/suggestions?term=LornaShore) If the http headers are set correctly, then searching for example for \"Lorna Shore\" yields following result:\n\n```json\n[\n    {\n        \"id\":\"Lorna Shore\",\n        \"label\":\"Lorna Shore\",\n        \"value\":\"Lorna Shore\",\n        \"category\":\"\u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u0438\",\n        \"image\":\"https://39s.musify.club/img/68/9561484/25159224.jpg\",\n        \"url\":\"/artist/lorna-shore-59611\"       \n    },\n    {\"id\":\"Immortal\",\"label\":\"Lorna Shore - Immortal (2020)\",\"value\":\"Immortal\",\"category\":\"\u0420\u0435\u043b\u0438\u0437\u044b\",\"image\":\"https://39s-a.musify.club/img/70/20335517/52174338.jpg\",\"url\":\"/release/lorna-shore-immortal-2020-1241300\"},\n    {\"id\":\"Immortal\",\"label\":\"Lorna Shore - Immortal\",\"value\":\"Immortal\",\"category\":\"\u0422\u0440\u0435\u043a\u0438\",\"image\":\"\",\"url\":\"/track/lorna-shore-immortal-12475071\"}\n]\n```\n\nThis is a shortened example for the response the api gives. The results are very Limited, but it is also very efficient to parse. The steps I take are:\n\n- call the api with the querry being the track name\n- parse the json response to an object\n- look at how different the title and artist are on every element from the category `\u0422\u0440\u0435\u043a\u0438`, translated roughly to track or release.\n- If they match get the download links and cache them.\n\n### Youtube\n\nHerte the **isrc** plays a huge role. You probaply know it, when you search on youtube for a song, and the music videos has a long intro or the first result is a live version. I don't want those in my music collection, only if the tracks are like this in the official release. Well how can you get around that?\n\nTurns out if you search for the **isrc** on youtube the results contain the music, like it is on the official release and some japanese meme videos. The tracks I wan't just have the title of the released track, so one can just compare those two.\n\nFor searching, as well as for downloading I use the programm `youtube-dl`, which also has a programming interface for python.\n\nThere are two bottlenecks with this approach though:\n1. `youtube-dl` is just slow. Actually it has to be, to not get blocked by youtube.\n2. Ofthen musicbrainz just doesn't give the isrc for some songs.\n\n**TODO**\n- look at how the isrc id derived an try to generate it for the tracks without directly getting it from mb.\n\n\n**Progress**\n- There is a great site whith a huge isrc database [https://isrc.soundexchange.com/](https://isrc.soundexchange.com/).\n\n\n## Lyrics\n\nTo get the Lyrics, I scrape them, and put those in the USLT ID3 Tags of for example mp3 files. Unfortunately some players, like the one I use, Rhythmbox don't support USLT Lyrics. So I created an Plugin for Rhythmbox. You can find it here: [https://github.com/HeIIow2/rythmbox-id3-lyrics-support](https://github.com/HeIIow2/rythmbox-id3-lyrics-support).\n\n### Genius\n\nFor the lyrics source the page [https://genius.com/](https://genius.com/) is easily sufficient. It has most songs. Some songs are not present though, but that is fine, because the lyrics are optional anyways.\n\n## Project overview\n\nThe file structure is as follows (might be slightly outdated):\n\n```\nmusic-downloader\n\u251c\u2500\u2500 assets\n\u2502\u00a0\u00a0 \u2514\u2500\u2500 database_structure.sql\n\u251c\u2500\u2500 LICENSE\n\u251c\u2500\u2500 notes.md\n\u251c\u2500\u2500 README.md\n\u251c\u2500\u2500 requirements.txt\n\u2514\u2500\u2500 src\n    \u251c\u2500\u2500 audio\n    \u2502\u00a0\u00a0 \u2514\u2500\u2500 song.py\n    \u251c\u2500\u2500 download_links.py\n    \u251c\u2500\u2500 download.py\n    \u251c\u2500\u2500 lyrics\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 genius.py\n    \u2502\u00a0\u00a0 \u2514\u2500\u2500 lyrics.py\n    \u251c\u2500\u2500 __main__.py\n    \u251c\u2500\u2500 metadata\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 database.py\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 download.py\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 object_handeling.py\n    \u2502\u00a0\u00a0 \u2514\u2500\u2500 search.py\n    \u251c\u2500\u2500 scraping\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 file_system.py\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 musify.py\n    \u2502\u00a0\u00a0 \u251c\u2500\u2500 phonetic_compares.py\n    \u2502\u00a0\u00a0 \u2514\u2500\u2500 youtube_music.py\n    \u251c\u2500\u2500 url_to_path.py\n    \u2514\u2500\u2500 utils\n        \u251c\u2500\u2500 object_handeling.py\n        \u251c\u2500\u2500 phonetic_compares.py\n        \u2514\u2500\u2500 shared.py\n\n```\n\nYou can obviously find the source code in the folder src. The two \"most important\" files are `__main__.py` and `utils/shared.py`.\n\nIn the first one is the code gluing everything together and providing the cli.\n\n### utils\n\nThe constants like the global database object can be found in `shared.py`.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/HeIIow2/music-downloader",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "music-kraken",
+            "package_url": "https://pypi.org/project/music-kraken/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/music-kraken/",
+            "project_urls": {
+                "Homepage": "https://github.com/HeIIow2/music-downloader"
+            },
+            "release_url": "https://pypi.org/project/music-kraken/0.0.3/",
+            "requires_dist": [
+                "requests (~=2.28.1)",
+                "mutagen (~=1.46.0)",
+                "musicbrainzngs (~=0.7.1)",
+                "jellyfish (~=0.9.0)",
+                "pydub (~=0.25.1)",
+                "youtube-dl",
+                "beautifulsoup4 (~=4.11.1)",
+                "pycountry (~=22.3.5)"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "An extensive music downloader crawling the internet. It gets its metadata from a couple metadata provider, and it scrapes the audiofiles.",
+            "version": "0.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15771896,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "23bb4c242cc55aa5715e558a67450565",
+                    "sha256": "4a54810feb14b889b94f46b26d09010c4b9eadf8c840b00e79402c2cb9150c3b"
+                },
+                "downloads": -1,
+                "filename": "music_kraken-0.0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "23bb4c242cc55aa5715e558a67450565",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 29126,
+                "upload_time": "2022-11-15T07:41:04",
+                "upload_time_iso_8601": "2022-11-15T07:41:04.879487Z",
+                "url": "https://files.pythonhosted.org/packages/f0/b5/a1a2f2cb01de2ec4a1b4875cd289fe0ec5d7584a606dff07a1ae339e0ab0/music_kraken-0.0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "808e6b6deadb26a68603c0845f0d9933",
+                    "sha256": "79d6eacc8173c54b27644d838e493874d8395149a275b064910944dd9fd3ac93"
+                },
+                "downloads": -1,
+                "filename": "music_kraken-0.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "808e6b6deadb26a68603c0845f0d9933",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 26812,
+                "upload_time": "2022-11-15T07:41:06",
+                "upload_time_iso_8601": "2022-11-15T07:41:06.571086Z",
+                "url": "https://files.pythonhosted.org/packages/98/21/feccc590e6eab0112635370442e4fa2a43fe1f09be061e3da4973d20c08c/music_kraken-0.0.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
