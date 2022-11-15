@@ -1,0 +1,197 @@
+{
+    "0.0.2": {
+        "info": {
+            "author": "Martin Junghanns <github@s1ck.dev>, Paul Horn <developer@knutwalker.de>",
+            "author_email": "Martin Junghanns <github@s1ck.dev>, Paul Horn <developer@knutwalker.de>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Libraries"
+            ],
+            "description": "# graph\n\nA library that provides a collection of high-performant graph algorithms.\nThis crate builds on top of the [graph_builder](https://docs.rs/graph_builder/latest/)\ncrate, which can be used as a building block for custom graph algorithms.\n\n`graph_builder` provides implementations for directed and undirected graphs.\nGraphs can be created programatically or read from custom input formats in a\ntype-safe way. The library uses [rayon](https://github.com/rayon-rs/rayon)\nto parallelize all steps during graph creation. The implementation uses a\nCompressed-Sparse-Row (CSR) data structure which is tailored for fast and\n concurrent access to the graph topology.\n\n`graph` provides graph algorithms which take graphs created using `graph_builder`\nas input. The algorithm implementations are designed to run efficiently on\nlarge-scale graphs with billions of nodes and edges.\n\n**Note**: The development is mainly driven by\n[Neo4j](https://github.com/neo4j/neo4j) developers. However, the library is\n__not__ an official product of Neo4j.\n\n## What is a graph?\n\nA graph consists of nodes and edges where edges connect exactly two nodes. A\ngraph can be either directed, i.e., an edge has a source and a target node\nor undirected where there is no such distinction.\n\nIn a directed graph, each node `u` has outgoing and incoming neighbors. An\noutgoing neighbor of node `u` is any node `v` for which an edge `(u, v)`\nexists. An incoming neighbor of node `u` is any node `v` for which an edge\n`(v, u)` exists.\n\nIn an undirected graph there is no distinction between source and target\nnode. A neighbor of node `u` is any node `v` for which either an edge `(u,\nv)` or `(v, u)` exists.\n\n## How to use graph?\n\nThe library provides a builder that can be used to construct a graph from a\ngiven list of edges.\n\nFor example, to create a directed graph that uses `usize` as node\nidentifier, one can use the builder like so:\n\n```rust\nuse graph::prelude::*;\n\nlet graph: DirectedCsrGraph<usize> = GraphBuilder::new()\n    .csr_layout(CsrLayout::Sorted)\n    .edges(vec![(0, 1), (0, 2), (1, 2), (1, 3), (2, 3)])\n    .build();\n\nassert_eq!(graph.node_count(), 4);\nassert_eq!(graph.edge_count(), 5);\n\nassert_eq!(graph.out_degree(1), 2);\nassert_eq!(graph.in_degree(1), 1);\n\nassert_eq!(graph.out_neighbors(1).as_slice(), &[2, 3]);\nassert_eq!(graph.in_neighbors(1).as_slice(), &[0]);\n```\n\nTo build an undirected graph using `u32` as node identifer, we only need to\nchange the expected types:\n\n```rust\nuse graph::prelude::*;\n\nlet graph: UndirectedCsrGraph<u32> = GraphBuilder::new()\n    .csr_layout(CsrLayout::Sorted)\n    .edges(vec![(0, 1), (0, 2), (1, 2), (1, 3), (2, 3)])\n    .build();\n\nassert_eq!(graph.node_count(), 4);\nassert_eq!(graph.edge_count(), 5);\n\nassert_eq!(graph.degree(1), 3);\n\nassert_eq!(graph.neighbors(1).as_slice(), &[0, 2, 3]);\n```\n\nCheck out the [graph_builder](https://docs.rs/graph_builder/latest/) crate for\nfor more examples on how to build graphs from various input formats.\n\n## How to run algorithms\n\nIn the following we will demonstrate running [Page Rank](https://en.wikipedia.org/wiki/PageRank),\na graph algorithm to determine the importance of nodes in a graph based on the\nnumber and quality of their incoming edges.\n\nPage Rank requires a directed graph and returns the rank value for each node.\n\n```rust\nuse graph::prelude::*;\n\n// https://en.wikipedia.org/wiki/PageRank#/media/File:PageRanks-Example.svg\nlet graph: DirectedCsrGraph<usize> = GraphBuilder::new()\n    .edges(vec![\n           (1,2), // B->C\n           (2,1), // C->B\n           (4,0), // D->A\n           (4,1), // D->B\n           (5,4), // E->D\n           (5,1), // E->B\n           (5,6), // E->F\n           (6,1), // F->B\n           (6,5), // F->E\n           (7,1), // G->B\n           (7,5), // F->E\n           (8,1), // G->B\n           (8,5), // G->E\n           (9,1), // H->B\n           (9,5), // H->E\n           (10,1), // I->B\n           (10,5), // I->E\n           (11,5), // J->B\n           (12,5), // K->B\n    ])\n    .build();\n\nlet (ranks, iterations, _) = page_rank(&graph, PageRankConfig::new(10, 1E-4, 0.85));\n\nassert_eq!(iterations, 10);\n\nlet expected = vec![\n    0.024064068,\n    0.3145448,\n    0.27890152,\n    0.01153846,\n    0.029471997,\n    0.06329483,\n    0.029471997,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n];\n\nassert_eq!(ranks, expected);\n```\n\nLicense: MIT\n\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "graph,algorithms,parallel",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "graph-mate",
+            "package_url": "https://pypi.org/project/graph-mate/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/graph-mate/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/s1ck/graph/issues",
+                "Homepage": "https://github.com/s1ck/graph"
+            },
+            "release_url": "https://pypi.org/project/graph-mate/0.0.2/",
+            "requires_dist": [
+                "numpy >= 1.23.0"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "A library of high-performant graph algorithms.",
+            "version": "0.0.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15659734,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1904535267d74176b7f1ddc7f4e7dd60",
+                    "sha256": "bde8038cfaeb53b5d58a7b2b6b7cbe90cbaf0bbe2c591830efbc9d0914b52372"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.0.2-cp38-abi3-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "1904535267d74176b7f1ddc7f4e7dd60",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 460395,
+                "upload_time": "2022-11-04T20:40:21",
+                "upload_time_iso_8601": "2022-11-04T20:40:21.819998Z",
+                "url": "https://files.pythonhosted.org/packages/9a/fb/586bbc5d3721d4b55d8283563b6de6d48e6714e5d1bde34909745f80389f/graph_mate-0.0.2-cp38-abi3-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "23eb1a8adf1b6272a20a8031246a0b2c",
+                    "sha256": "8b436bf6453ff3f03e9c561f2c7ccdfe3cc7e1cd8572f312d5a478098159f851"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.0.2-cp38-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "23eb1a8adf1b6272a20a8031246a0b2c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 921085,
+                "upload_time": "2022-11-04T20:40:24",
+                "upload_time_iso_8601": "2022-11-04T20:40:24.055821Z",
+                "url": "https://files.pythonhosted.org/packages/45/4e/dd1c77d1f42bcee58e67222993c39b1e19ed24ca02a5f3b4d97fcbddad94/graph_mate-0.0.2-cp38-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c1b0f2b8c97cd1dace9dfc9fb1349a0e",
+                    "sha256": "567e1e5e77ab4c5c4bc4bcb74df62c824ca8072d4c29252956a784f8063273f3"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.0.2-cp38-abi3-manylinux_2_12_i686.manylinux2010_i686.whl",
+                "has_sig": false,
+                "md5_digest": "c1b0f2b8c97cd1dace9dfc9fb1349a0e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 1364236,
+                "upload_time": "2022-11-04T20:40:25",
+                "upload_time_iso_8601": "2022-11-04T20:40:25.979285Z",
+                "url": "https://files.pythonhosted.org/packages/6c/01/972c78c07a0d8cc1a95614910c78fa6eb3558a92fd673738f8e9d1819473/graph_mate-0.0.2-cp38-abi3-manylinux_2_12_i686.manylinux2010_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5a35cf04d03737b84d670dd7451113f1",
+                    "sha256": "297e16373c98ab3f95f15357378e08a0e6ae51c75311b73748933da8bfd180b4"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.0.2-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "5a35cf04d03737b84d670dd7451113f1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 1328907,
+                "upload_time": "2022-11-04T20:40:27",
+                "upload_time_iso_8601": "2022-11-04T20:40:27.474396Z",
+                "url": "https://files.pythonhosted.org/packages/e9/9b/e0958cba53400350e758c2a30867b0acb7e7a46148482bc152b1d3cf0614/graph_mate-0.0.2-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6e26b937b88fd7d772b6c73cf95dc1c9",
+                    "sha256": "f52dbfb8418f8dcc45171079f5e42d96e0d419d5945ec38a24dd15befd6c9469"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.0.2-cp38-abi3-win32.whl",
+                "has_sig": false,
+                "md5_digest": "6e26b937b88fd7d772b6c73cf95dc1c9",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 302812,
+                "upload_time": "2022-11-04T20:40:28",
+                "upload_time_iso_8601": "2022-11-04T20:40:28.878027Z",
+                "url": "https://files.pythonhosted.org/packages/b3/1b/4b84cf421c46f6e3f81dd8cd2e1dd7b67d926898cccd3b0f50a8d877bc2a/graph_mate-0.0.2-cp38-abi3-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a4fdab5fcb2f8da9474fb6b3e0d17abe",
+                    "sha256": "259f178e72ff4af1b5a78f1005bc66cc9a7c116f6b25d89525fcec0583368fee"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.0.2-cp38-abi3-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "a4fdab5fcb2f8da9474fb6b3e0d17abe",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 326708,
+                "upload_time": "2022-11-04T20:40:30",
+                "upload_time_iso_8601": "2022-11-04T20:40:30.582279Z",
+                "url": "https://files.pythonhosted.org/packages/ae/0d/b4109d6cad7d853d52a053e3d55e2d523f044b0fa5d0c50e842f5ef01516/graph_mate-0.0.2-cp38-abi3-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e6726c7976f9c00075801481bac602b2",
+                    "sha256": "712813ae632f9e21c0a758024dca24c323f1dc108e1ffed89afe399e5f5d47fa"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.0.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e6726c7976f9c00075801481bac602b2",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 71891,
+                "upload_time": "2022-11-04T20:40:31",
+                "upload_time_iso_8601": "2022-11-04T20:40:31.999988Z",
+                "url": "https://files.pythonhosted.org/packages/b0/c5/479c4158d0387e4d54eccb1c207b7b85788cb1882d86f65efb86365a2e3d/graph_mate-0.0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

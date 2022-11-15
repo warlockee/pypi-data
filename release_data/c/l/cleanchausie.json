@@ -1,0 +1,137 @@
+{
+    "1.0.0": {
+        "info": {
+            "author": "Alec Rosenbaum",
+            "author_email": "engineering@close.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Environment :: Web Environment",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "http://github.com/closeio/cleanchausie",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Alec Rosenbaum",
+            "maintainer_email": "engineering@close.io",
+            "name": "cleanchausie",
+            "package_url": "https://pypi.org/project/cleanchausie/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/cleanchausie/",
+            "project_urls": {
+                "Homepage": "http://github.com/closeio/cleanchausie"
+            },
+            "release_url": "https://pypi.org/project/cleanchausie/1.0.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Data validation and transformation library for Python. Successor to CleanCat.",
+            "version": "1.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15763307,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8fc52544c86d785c6960b7459b487b6a",
+                    "sha256": "8dbf697170347f7db6019fbe4c9f2ee323d3070547ef0442cda7706c7fd9d1b5"
+                },
+                "downloads": -1,
+                "filename": "cleanchausie-1.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "8fc52544c86d785c6960b7459b487b6a",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 20217,
+                "upload_time": "2022-11-08T17:43:34",
+                "upload_time_iso_8601": "2022-11-08T17:43:34.728512Z",
+                "url": "https://files.pythonhosted.org/packages/51/b2/b2c4f170613b23d223805ef5a5cdeb377706191c5e357a7d82338c643be8/cleanchausie-1.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.1.0": {
+        "info": {
+            "author": "Alec Rosenbaum",
+            "author_email": "engineering@close.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Environment :: Web Environment",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "# CleanChausie\n\nCleanChausie is a data validation and transformation library for Python. It is a successor to CleanCat.\n\n*Interested in working on projects like this? [`Close`](https://close.com) is looking for [great engineers](https://jobs.close.com) to join our team.*\n\nKey features:\n\n- Operate on/with type-checked objects that have good IDE/autocomplete support\n- Annotation-based declarations for simple fields\n- Composable/reusable fields and field validation logic\n- Support (but not require) passing around a context (to avoid global state)\n  - Context pattern is compatible with explicit sqlalchemy-based session management. i.e. pass in a session when validating\n- Cleanly support intra-schema field dependencies (i.e. one field can depend on the validated value of another)\n- Explicit nullability/omission parameters\n- Errors returned for multiple fields at a time, with field attribution\n\n## Installation\n\nCleanChausie requires Python 3.8+.\nTo install, run `python3 -m pip install cleanchausie`.\n\n## CleanChausie by example\n\n### A basic example in Flask\n\nThis shows:\n\n- Annotation-based declarations for simple fields.\n- Type-checked objects (successful validation results in initialized instances of the schema)\n\n```python\nfrom typing import List\nfrom cleanchausie.fields import (\n    EmailField, ListField, URLField, ValidationError, field\n)\nfrom cleanchausie.schema import Schema\nfrom flask import app, request, jsonify\n\nclass JobApplication(Schema):\n    first_name: str\n    last_name: str\n    email: str = field(EmailField())\n    urls: List[str] = field(ListField(URLField(default_scheme='http://')))\n\n@app.route('/job_application', methods=['POST'])\ndef test_view():\n    result = JobApplication.clean(request.json)\n    if isinstance(result, ValidationError):\n        return jsonify({'errors': [{'msg': e.msg, 'field': e.field} for e in result.errors] }), 400\n\n    # Now \"result\" has the validated data, in the form of a `JobApplication` instance.\n    assert isinstance(result, JobApplication)\n    name = f'{result.first_name} {result.last_name}'\n```\n\n### Explicit nullability\n\nTODO: revisit omission defaults so that they match the annotation\n\n```python\nfrom typing import Optional, Union\nfrom cleanchausie.consts import OMITTED\nfrom cleanchausie.fields import field, StrField, Omittable, Required\nfrom cleanchausie.schema import Schema\n\nclass NullabilityExample(Schema):\n    # auto defined based on annotations\n    nonnull_required: str\n    nullable_omittable: Optional[str]\n\n    # manually specified\n    nonnull_omittable: Union[str, OMITTED] = field(StrField(), nullability=Omittable(allow_none=False))\n    nullable_required: Optional[str] = field(StrField(), nullability=Required(allow_none=True))\n```\n\n### Composable/reusable fields\n\n```python\nfrom typing import Union\nfrom cleanchausie.fields import field, Field, StrField, IntField, Error\nfrom cleanchausie.schema import Schema\n\n@field(parents=(StrField(),))\ndef trimmed_string(value: str) -> str:\n    return value.strip()\n\ndef max_val(max_value: int) -> Field:\n    @field()\n    def _max_val(value: int) -> Union[int, Error]:\n        if value > max_value:\n            return Error(msg=f'value is above allowed max of {max_value}')\n        return value\n    return _max_val\n\ndef min_val(min_value: int) -> Field:\n    @field()\n    def _min_val(value: int) -> Union[int, Error]:\n        if value < min_value:\n            return Error(msg=f'value is below allowed min of {min_value}')\n        return value\n    return _min_val\n\ndef constrained_int(min: int, max: int) -> Field:\n    return field(parents=(IntField(), min_val(min), max_val(max)))\n\nclass ReusableFieldsExampleSchema(Schema):\n    first_name: str = trimmed_string\n    age: int = field(parents=(IntField(), min_val(0)))\n    score: int = constrained_int(min=0, max=100)\n```\n\n### Context support\n\n```python\nimport attrs\nfrom cleanchausie.fields import field, StrField\nfrom cleanchausie.schema import Schema\n\nclass MyModel:  # some ORM model\n    id: str\n    created_by: 'User'\n\n@attrs.frozen\nclass Context:\n    authenticated_user: 'User'  # the User making a request\n    session: 'Session'  # active ORM Session\n\nclass ContextExampleSchema(Schema):\n    @field(parents=(StrField(),), accepts=('id',))\n    def obj(self, value: str, context: Context) -> MyModel:\n        return (\n            context.session\n            .query(MyModel)\n            .filter(MyModel.created_by == context.authenticated_user.id)\n            .filter(MyModel.id == value)\n        )\n\nwith atomic() as session:\n    result = ContextExampleSchema.clean(\n        data={'id': 'mymodel_primarykey'},\n        context=Context(authenticated_user=EXAMPLE_USER, session=session)\n    )\nassert isinstance(result, ContextExampleSchema)\nassert isinstance(result.obj, MyModel)\n```\n\n### Intra-schema field dependencies\n\n```python\nfrom cleanchausie.fields import field\nfrom cleanchausie.schema import Schema\n\nclass DependencyExampleSchema(Schema):\n    a: str\n    b: str\n    \n    @field()\n    def a_and_b(self, a: str, b: str) -> str:\n        return f'{a}::{b}'\n\n\nresult = DependencyExampleSchema.clean(\n    data={'a': 'foo', 'b': 'bar'},\n)\nassert isinstance(result, DependencyExampleSchema)\nassert result.a_and_b == 'foo::bar'\n```\n\n### Per-field errors\n\n```python\nfrom cleanchausie.fields import (\n    Error, ValidationError, field\n)\nfrom cleanchausie.schema import Schema\n\nclass PerFieldErrorExampleSchema(Schema):\n    first_name: str\n    last_name: str\n\nresult = PerFieldErrorExampleSchema.clean({})\nassert isinstance(result, ValidationError)\nassert result.errors == [\n    Error(msg='This field is required.', field=('last_name',)),\n    Error(msg='This field is required.', field=('first_name',))\n]\n```\n\n## Release process\n\n- Make sure to thoroughly review and test the code changes.\n- Make sure you have [`releaserabbit`](https://github.com/closeio/releaserabbit) installed.\n- From the project's root run `releaserabbit` with the desired version increment - `major`, `minor` or `patch`.\n- A version bump should happen automatically, and the new version should be uploaded to PyPI.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "http://github.com/closeio/cleanchausie",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Alec Rosenbaum",
+            "maintainer_email": "engineering@close.io",
+            "name": "cleanchausie",
+            "package_url": "https://pypi.org/project/cleanchausie/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/cleanchausie/",
+            "project_urls": {
+                "Homepage": "http://github.com/closeio/cleanchausie"
+            },
+            "release_url": "https://pypi.org/project/cleanchausie/1.1.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Data validation and transformation library for Python. Successor to CleanCat.",
+            "version": "1.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15763307,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "be8d94f2cef822f0d4aaa6988c75117d",
+                    "sha256": "7daa6b677b81004db29025a7493cc921f6019e1b555112a686aa91342c3bd415"
+                },
+                "downloads": -1,
+                "filename": "cleanchausie-1.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "be8d94f2cef822f0d4aaa6988c75117d",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 21206,
+                "upload_time": "2022-11-14T14:51:13",
+                "upload_time_iso_8601": "2022-11-14T14:51:13.561440Z",
+                "url": "https://files.pythonhosted.org/packages/47/b6/3909256bbdccd0b71d40be98e7dbab68a6576a9cefd108ae45f2f1558f26/cleanchausie-1.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

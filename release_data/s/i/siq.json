@@ -1,0 +1,161 @@
+{
+    "0.0.0": {
+        "info": {
+            "author": "Avants, Gosselin, Tustison, Reardon",
+            "author_email": "stnava@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/stnava/siq",
+            "keywords": "",
+            "license": "Apache 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "siq",
+            "package_url": "https://pypi.org/project/siq/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/siq/",
+            "project_urls": {
+                "Homepage": "https://github.com/stnava/siq"
+            },
+            "release_url": "https://pypi.org/project/siq/0.0.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "deep perceptual resampling and super resolution with antspyx",
+            "version": "0.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15765374,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ffc39f3abea278202bfeadfc11107ed4",
+                    "sha256": "ade5a809fd39be4208b6b6e7c4f70490adc49349b24dd36d4aa3c493c02e147a"
+                },
+                "downloads": -1,
+                "filename": "siq-0.0.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "ffc39f3abea278202bfeadfc11107ed4",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 13111,
+                "upload_time": "2022-11-14T14:49:14",
+                "upload_time_iso_8601": "2022-11-14T14:49:14.520949Z",
+                "url": "https://files.pythonhosted.org/packages/9a/69/9ad6c6f613fd0d3fc01f19459112bb4b3d869980b151ffb3ea0683a2a8a6/siq-0.0.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "954c7b32aa7bcc1c7d4cd41d1e04a68a",
+                    "sha256": "5d02c432d27fafff13f1ea4080c14f011199b5747aaf21a538d34a5c32e90eaf"
+                },
+                "downloads": -1,
+                "filename": "siq-0.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "954c7b32aa7bcc1c7d4cd41d1e04a68a",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 13582,
+                "upload_time": "2022-11-14T14:49:17",
+                "upload_time_iso_8601": "2022-11-14T14:49:17.073976Z",
+                "url": "https://files.pythonhosted.org/packages/f4/90/794e52c5091d43091552be879c40315c6d3e73d769d2b61ae47209adca2a/siq-0.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.1": {
+        "info": {
+            "author": "Avants, Gosselin, Tustison, Reardon",
+            "author_email": "stnava@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# SIQ - super-resolution image quantification\n\n## deep perceptual resampling and super-resolution for (medical) imaging\n\ninstall by calling (within the source directory):\n\n```\npython setup.py install\n```\n\nor install via `pip install siq`\n\n# what this will do\n\nfacilitates:\n\n* creating training and testing data for deep networks\n\n* generating and testing perceptual losses in 2D and 3D\n\n* general training and inference functions for deep networks\n\n* evaluation strategies for the above\n\n# first time setup\n\n```python\nimport antspyt1w\nantspyt1w.get_data( force_download=True )\n# import siq     # FIXME - for later\n# siq.get_data( force_download=True )\n```\n\nNOTE: `get_data` has a `force_download` option to make sure the latest\npackage data is installed.\n\n# example processing\n\n```python\nimport os\nimport siq\nimport glob\nimport ants\nfns=glob.glob( os.path.expanduser( \"~/.antspyt1w/2*T1w*gz\" ) )\nimport tensorflow as tf\nofn = os.path.expanduser(\"~/code/DPR/models/dsr3d_2up_64_256_6_3_v0.0zzz.h5\")\nif os.path.exists( ofn ):\n    print(\"existing model\") # should always initialize with pre-trained model\n    mdl = tf.keras.models.load_model( ofn, compile=False )\nelse:\n    print(\"default model - initialized with random weights\")\n    mdl = siq.default_dbpn( [2,2,2] ) # should match ratio of high to low size patches\nmyoutprefix = '/tmp/XXX'\ntraining_path = siq.train(\n    mdl, \n    fns[0:3], \n    fns[0:3], \n    output_prefix=myoutprefix,\n    target_patch_size=[32,32,32],\n    target_patch_size_low=[16,16,16],\n    n_test=2, \n    learning_rate=5e-05, \n    feature_layer=6, \n    feature=2, \n    tv=0.1,\n    max_iterations=2, \n    verbose=True)\ntraining_path.to_csv( myoutprefix + \"_training.csv\" )\nimage = ants.image_read( fns[0] )\nimage = ants.resample_image( image, [48,48,48] ) # downsample for speed in testing\ntest = siq.inference( image, mdl )\n```\n\n## todo\n\n1. segmentation\n\n2. numpy read/write\n\n3. dice\n\n## to publish a release\n\n```\nrm -r -f build/ antspymm.egg-info/ dist/\npython3 setup.py sdist bdist_wheel\npython -m twine upload -u username -p password  dist/*\n```\n\n\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/stnava/siq",
+            "keywords": "",
+            "license": "Apache 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "siq",
+            "package_url": "https://pypi.org/project/siq/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/siq/",
+            "project_urls": {
+                "Homepage": "https://github.com/stnava/siq"
+            },
+            "release_url": "https://pypi.org/project/siq/0.0.1/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "deep perceptual resampling and super resolution with antspyx",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15765374,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "972be08d57f1902d705c51e399ade474",
+                    "sha256": "ea6407b5aa64dccfab2d5b68d2d37809909f5a375bf01c508c9dca35951697cd"
+                },
+                "downloads": -1,
+                "filename": "siq-0.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "972be08d57f1902d705c51e399ade474",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 14042,
+                "upload_time": "2022-11-14T17:54:40",
+                "upload_time_iso_8601": "2022-11-14T17:54:40.560762Z",
+                "url": "https://files.pythonhosted.org/packages/e2/a8/546a77f61448e7513093828ff641388039fd8688ff08fa8681b9f609999d/siq-0.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a882dc018b14f8b37cb522c4362a8f7f",
+                    "sha256": "e109aa3ceab69c358137e2e41c89e703fc9341c105dd09ce7992b3ff5e5c3304"
+                },
+                "downloads": -1,
+                "filename": "siq-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a882dc018b14f8b37cb522c4362a8f7f",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 14573,
+                "upload_time": "2022-11-14T17:54:43",
+                "upload_time_iso_8601": "2022-11-14T17:54:43.588713Z",
+                "url": "https://files.pythonhosted.org/packages/4a/65/7e1e9905889589ab2e25334bc83a614889e7cb8a87adda60558d03896102/siq-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

@@ -1,0 +1,87 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "Pierce Freeman",
+            "author_email": "pierce@freeman.vc",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11"
+            ],
+            "description": "# dagorama (WIP)\n\nDagorama is an opinionated computation library for use in background processing. You can think of it as a hybrid between Celery, Airflow, and Dask.\n\nIts primary design goal is to let users write chained data processing logic in vanilla Python and easily scale to external dedicated machines. In addition, it strives to provide:\n- Easily interpretable control flow in vanilla Python, without having to learn a new language ORM\n- Be written for modern Python, with support for IDE suggestions and mypy typehints\n- Support dynamic logic, like branching if statements that condition a sub-tree execution on some runtime conditions\n- Easily integrate with unit tests on one machine when testing\n- Provide sensible defaults for background processing\n\n## Quick Start\n\nLet's take this trivial example, representative of wanting to perform a series of long running blocking tasks. Those tasks could be ML inference, image rendering, or data aggregation. In any case it needs to process for a few seconds before returning results. In particular we care about logic that fully utilizes the compute resources of the current process. This is unlike web requests, which have network induced latency and can be trivially parallelized through asyncio.\n\n```python\nfrom collections import Counter\nfrom time import sleep, time\n\nclass MyTask:\n    def entrypoint(self):\n        results = [\n            self.perform_work(i)\n            for i in range(4)\n        ]\n\n        return self.rollup_statuses(results)\n\n    def perform_work(self, identifier: int) -> int:\n        sleep(2)\n        return identifier // 2\n\n    def rollup_statuses(self, responses: list[int]):\n        return Counter([status for status in responses])\n\ndef main():\n    start = time()\n    task = MyTask()\n    response = task.entrypoint()\n    end = time()\n    print(f\"Response: {response} in {round(end-start, 2)}s\")\n    assert response == Counter({0: 2, 1: 2})\n\nif __name__ == \"__main__\":\n    main()\n```\n\nIf you let this run, you should see an echoed counter after a bit of processing.\n\n```bash\n$ python samples/test1.py\nResponse: Counter({0: 2, 1: 2}) in 8.01s\n```\n\nThis code also has valid typehints, so mypy is happy during the typehinting.\n\n```bash\n$ mypy samples/test1.py\nSuccess: no issues found in 1 source file\n```\n\nNaturally we want to get our results as quickly as possible, while scaling to the available resources of the machine (or machines) that are in our compute cluster. This would _almost_ be a natural fit for something like a Celery queue - we'll spawn four separate jobs, one for each `perform_work` function. But how do we handle the aggregation stage? Do we block on a main process until it's done? How is state managed? What if the main process exits before we're completed, how can we pick up from where we were before?\n\nThis dependency chaining actually isn't great for queues. Instead you'll want something more akin to a computation graph or DAG, one that can condition later functions on the successful completion of previous functions. Here's how you would write the same thing in dagorama.\n\n```python\nfrom dagorama.decorators import dagorama\nfrom dagorama.definition import DAGDefinition, resolve\nfrom dagorama.runner import launch_workers\nfrom dagorama_broker.launch import launch_broker\n\nfrom collections import Counter\nfrom time import sleep, time\n\nclass MyTask(DAGDefinition):\n    @dagorama()\n    def entrypoint(self):\n        results = [\n            self.perform_work(i)\n            for i in range(4)\n        ]\n\n        return self.rollup_statuses(results)\n\n    @dagorama()\n    def perform_work(self, identifier: int) -> int:\n        sleep(2)\n        return identifier // 2\n\n    @dagorama()\n    def rollup_statuses(self, responses: list[int]):\n        return Counter([status for status in responses])\n\ndef main():\n    with launch_broker():\n        start = time()\n        task = MyTask()\n        promise = task()\n\n        with launch_workers(4):\n            sleep(3)\n        response = resolve(task, promise)\n        end = time() \n\n    print(f\"Response: {response} in {round(end-start, 2)}s\")\n    assert response == Counter({0: 2, 1: 2})\n\nif __name__ == \"__main__\":\n    main()\n```\n\nFor the sake of fitting this logic in one script there are a few different things going on here.\n\n1. We've wrapped each function in a `@dagorama` decorator. This decorator indicates that a function execution like `self.perform_work()` or `self.rollup_statuses()` should be performed on a separate worker node. This is akin to launching a new task within a conventional queue.\n2. We launch the background broker with `with launch_broker()`. This will spawn a separate broker process that coordinates across multiple workers.\n3. We launch the workers themselves with launch_workers. In this case we perform the work in separate processes. This could just as easily be on separate machines without changing the APIs or code.\n\nUnlike before, we now complete in roughly the time for the primary work.\n\n```\n$ python run samples/test2.py\nResponse: Counter({0: 2, 1: 2}) in 3.03s\n```\n\nMypy is similarly happy with our DAG definition.\n```bash\n$ mypy samples/test2.py\nSuccess: no issues found in 1 source file\n```\n\nYou'll notice the diff of the core MyTask class is very small:\n\n```bash\n$ diff samples/test1.py samples/test2.py \n1c1,2\n< class MyTask:\n---\n> class MyTask(DAGDefinition):\n>     @dagorama()\n9a11\n>     @dagorama()\n13a16\n>     @dagorama()\n```\n\nThis is the core design goal of dagorama: write vanilla python and scale easily.\n\n## API Notes\n\nThis section attempts to be the only section you'll need to know to use dagorama in day-to-day development, without starting to offroad.\n\nEach group of logical code that you want to flow to one another should be contained in a class that inherits from `DAGDefinition`. You'll want this code to be deployed on each worker node so they're able to access the same core definition files. Docker is the preferred mechanism to ensure that the same code is mirrored on each device and computations will happen as expected. Each instance of a DAGDefinition created via `DAGDefinition()` wraps one execution of the functions within the DAG. If you're processing 5 separate input images, for example, you'll want to spawn 5 DAGDefinitions.\n\nThe dagorama broker will ensure that earlier DAG instances will complete before ones that are invoked later. The prioritization scheme is FIFO on the DAG instantiation order. This is useful in situations where you want to decrease the latency from start of processing to DAG completion for use in near-realtime logic.\n\nEach function that you want to execute on a separate machine should be wrapped in a `@dagorama` decorator. Calls to this function will be added to the computational graph and distributed appropriately. Class functions that aren't decorated will be run inline to the current executor.\n\nA `@dagorama` decorated function will _look_ like it returns the typehinted values to static analyzers like mypy. This allows you to write more interpretable code by passing around logical values. In reality, however, @dagorama functions will return a `DAGPromise` at runtime. This DAGPromise is meaningless - it doesn't have a value yet, since it hasn't yet been passed to a runner. These response values should only be passed to other `@dagorama` decorated functions as function arguments. When this is done workers will only execute that function once all its dependencies have been realized.\n\nThere are some situations where you want to limit the functions that will run on certain hardware. A common case is for ML functions to only be run on GPU accelerated devices. We follow the kubernetes model here by adding a taint to each function that shouldn't be deployed by default, like `@dagorama(taint_name=\"GPU\")`. To pull from this queue workers will have to explicitly specify this taint, otherwise they won't pull from the backing queue.\n\nTo launch a worker function, install the python package in your virtualenv and run:\n\n```\nworker [--include-queue {queue}] [--exclude-queue {queue}] [--toleration {toleration}]\n```\n\n## Production Deployment (WIP)\n\nOutside of local testing, you probably won't want to run the workers on your same machine. Instead you'll want to distribute them across multiple machines. In this setup we recommend:\n\n- 1 Broker: Go executable running on a VM, kubernetes pod, or within docker. Backed by a persistent database to resume state in case of runtime interruptions.\n- N Workers. The devices that perform the computation. Can be the same physical hardware configurations or different depending on usecase.\n- M Spawners. The service that will first instantiate the DAG. This is typically the end application like a server backend.\n\n## Typehinting\n\nDagorama should satisfy typehints the same way that normal functions do. In other words, you can treat the DAGPromise returned as a fulfilled value before passing it into other functions downstream of the main DAG.\n\n## Development\n\nHacking on dagorama is encouraged. Here are some quick getting started steps.\n\n### Installing Python Dependencies\n\nWe manage our dependencies with poetry. It's not strictly speaking necessary (the pyproject.toml should install via pip in a standard virtual environment) but.\n\nIf you don't already have Poetry, install it [here](https://python-poetry.org/docs/).\n\n```\npoetry install\n```\n\n### Installing gRPC\n\nClients communicate with the broker over gRPC. You'll need support to generate the protobuf files within Golang and Python.\n\nGolang quick start: https://grpc.io/docs/languages/go/quickstart/\n\n```\ngo install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28\ngo install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2\nexport PATH=\"$PATH:$(go env GOPATH)/bin\"\n```\n\nWhen you update the grpc files, re-generate the client and server definition files via:\n\n```\n./build_protobuf.sh\n```\n\n### Unit Tests\n\nIf you want to run unit tests you'll also need `dagorama-broker` installed. This convenience package allows the tests to dynamically spawn and tear down a broker via pytest fixtures.\n\n```\npoetry run pip install -e ./dagorama-broker\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "dagorama",
+            "package_url": "https://pypi.org/project/dagorama/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/dagorama/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/dagorama/0.1.0/",
+            "requires_dist": [
+                "grpcio (>=1.50.0,<2.0.0)",
+                "click (>=8.1.3,<9.0.0)"
+            ],
+            "requires_python": ">=3.10,<4.0",
+            "summary": "",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15658666,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5b71d13c7370cdc1a16c925128850544",
+                    "sha256": "15a36258dcd019463eb679125f6390f82d21e1b9c59991aef7e505cfca124898"
+                },
+                "downloads": -1,
+                "filename": "dagorama-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "5b71d13c7370cdc1a16c925128850544",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10,<4.0",
+                "size": 24838,
+                "upload_time": "2022-11-04T18:36:04",
+                "upload_time_iso_8601": "2022-11-04T18:36:04.368423Z",
+                "url": "https://files.pythonhosted.org/packages/5c/63/c2d03371a175d0a7dd2c5e9a9d3c1947d778fb0edc8a2a639603070640f7/dagorama-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9d872997cee6c9eaa38aed13acca4161",
+                    "sha256": "ec35b0251bf8a787247a31d0deed958dc280086916f4e17ff10e2c6a0eb49856"
+                },
+                "downloads": -1,
+                "filename": "dagorama-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "9d872997cee6c9eaa38aed13acca4161",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10,<4.0",
+                "size": 22758,
+                "upload_time": "2022-11-04T18:36:05",
+                "upload_time_iso_8601": "2022-11-04T18:36:05.675425Z",
+                "url": "https://files.pythonhosted.org/packages/e1/14/5ed2b79bed58fbe30e457dcd27c8fd0ae87761741921a0c759c027cb1e72/dagorama-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

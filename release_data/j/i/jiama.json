@@ -1,0 +1,100 @@
+{
+    "0.8.1": {
+        "info": {
+            "author": "",
+            "author_email": "Li zhigang <imlzg@126.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Framework :: AsyncIO",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Topic :: Communications"
+            ],
+            "description": "# \u7532\u9a6c jiama\n\u4e00\u4e2a\u57fa\u4e8e RabbitMQ \u7684\u5f02\u6b65 RPC \u6846\u67b6\u3002\nAn asyncio RPC framework based on RabbitMQ.\n\n\n\u4fd7\u8bdd\u8bf4\uff1a\u5916\u4e8b\u4e0d\u51b3\u7528 REST\uff0c\u5185\u4e8b\u4e0d\u51b3\u7528 RPC\uff0c\u627e\u4e00\u5708\u53ea\u53d1\u73b0\u4e00\u4e2a Nameko\uff0c\u5374\u662f\u540c\u6b65\u7684\uff0c\u9042\u6709 Jiama \u95ee\u4e16\u3002\n\n\n### \u5b89\u88c5 install\n```shell\npip install jiama\n```\n\n\n\nRabbitmq \u7684\u5b89\u88c5\u53ef\u4ee5\u4f7f\u7528 docker \u65b9\u5f0f\uff0c\u5177\u4f53\u53c2\u89c1[\u5b98\u7f51](https://www.rabbitmq.com/download.html)\u3002\n```shell\nsudo docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.10-management\n```\n\n\n\n### \u63a5\u53e3 API\n#### jiama run module_path:ServiceClass -c config.toml\njiama run \u662f\u4e00\u4e2a Shell \u547d\u4ee4\uff0c\u7528\u4e8e\u542f\u52a8\u8fdc\u7a0b\u670d\u52a1\uff0c\u540e\u8ddf\u591a\u4e2a\u6a21\u5757\u8def\u5f84\u548c\u670d\u52a1\u7c7b\u4f5c\u4e3a\u53c2\u6570\uff0c\u7528 -c \u6307\u5b9a\u914d\u7f6e\u6587\u4ef6\u3002\n\n\n\n#### jiama.server.rpc\n\u670d\u52a1\u7aef\u88c5\u9970\u5668\uff0c\u7528\u4e8e\u6807\u5fd7\u4e00\u4e2a\u65b9\u6cd5\u4e3a\u8fdc\u7a0b\u670d\u52a1\u65b9\u6cd5\u3002\n\n\n\n#### jiama.client.RpcProxy()\nRPC \u670d\u52a1\u4ee3\u7406\uff0c\u5355\u4f8b\u6a21\u5f0f\uff0c\u63d0\u4f9b\u5728\u5ba2\u6237\u7aef\u8bbf\u95ee\u8fdc\u7a0b\u670d\u52a1\u7684\u80fd\u529b\u3002\n\n\n\n#### jiama.client.RpcProxy().create(config: dict)\n\u521b\u5efa RPC \u670d\u52a1\u4ee3\u7406\n- `config` dict - \u914d\u7f6e\u9009\u9879\uff0c\u5305\u62ec RPC \u548c log \u914d\u7f6e\uff0c\u5177\u4f53\u53c2\u89c1 test/jiama/config.toml\n\n\n\n#### jiama.client.RpcProxy.close()\n\u5173\u95ed\u8fdc\u7a0b\u670d\u52a1\u4ee3\u7406\n\n\n\n#### rpc.service.method()\n\u8bbf\u95ee\u8fdc\u7a0b\u670d\u52a1\u65b9\u6cd5\n\n\n### \u793a\u4f8b examples\n\n#### \u670d\u52a1\u7aef\njiama/sample.py\n\n```python\nfrom jiama.client import RpcProxy\nfrom jiama.server import rpc\n\n\nclass Service1:\n    @rpc\n    def add(self, x=1, y=2):\n        return x + y\n\nclass Service2:\n    @rpc\n    def sub(self, x=10, y=1):\n        return x - y\n\nclass Service3:\n    def __init__(self):\n        self.config = {'uri': 'amqp://guest:guest@localhost'}\n\n    @rpc\n    async def mul(self, x=1):\n        async with await RpcProxy().create(self.config) as rpc:\n            y = await rpc.Service1.add(1, 1)\n        return x * y\n```\n\n```shell\njiama run jiama.sample -c ./config.toml\n```\n\n\n#### \u5ba2\u6237\u7aef\n\n```python\nimport asyncio\n\nfrom jiama.client import RpcProxy\n\n\nclass Client:\n    def __init__(self):\n        self.config = {\n            'rpc': {\n                'client_id': 'test',\n                'amqp_uri': 'amqp://guest:guest@localhost/',\n            }\n        }\n\n    async def init(self):\n        '''\n        \u8fd9\u662f\u4e00\u4e2a\u9700\u8981\u88ab\u4f60\u7684\u6846\u67b6\u81ea\u52a8\u8c03\u7528\u7684\u521d\u59cb\u5316\u65b9\u6cd5\uff0c\u6bd4\u5982: fastAPI \u7684 startup\n        This is a initialization method invoked by you framework like fastAPI's startup\n        '''\n        self.rpc = await RpcProxy().create(self.config)\n        return self\n\n    async def req(self):\n        r = await self.rpc.Service1.add(3, 2)\n        logger.info(f'Result of add is {r}')\n\n        r = await self.rpc.Service2.sub(30, 9)\n        logger.info(f'Result of sub is {r}')\n\n        r = await self.rpc.Service3.mul(5)\n        logger.info(f'Result of mul with nested rpc is {r}')\n\n    async def destroy(self):\n        await self.rpc.close()\n\n\nasync def main():\n    c = await Client().init()\n    await c.req()\n    await c.destroy()\n\nif __name__ == '__main__':\n    asyncio.run(main())\n```\n\n\n\n### License\n[MIT](LICENSE) \u00a9 Li zhigang\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "asyncio,rpc,rabbitmq",
+            "license": "MIT License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "jiama",
+            "package_url": "https://pypi.org/project/jiama/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/jiama/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/liangshanpo/jiama/issues",
+                "Homepage": "https://github.com/liangshanpo/jiama"
+            },
+            "release_url": "https://pypi.org/project/jiama/0.8.1/",
+            "requires_dist": [
+                "aio-pika",
+                "click",
+                "yujian",
+                "tomli",
+                "loguru"
+            ],
+            "requires_python": ">=3.10",
+            "summary": "An aio RPC framework based on RabbitMQ.",
+            "version": "0.8.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15749827,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1340d0829eebf9aa80e51041b3843c51",
+                    "sha256": "0a9ed817f80a7e3ccc183e65f4d877ad4fe16e673ffe2338cdc4a7454fef980d"
+                },
+                "downloads": -1,
+                "filename": "jiama-0.8.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "1340d0829eebf9aa80e51041b3843c51",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10",
+                "size": 11031,
+                "upload_time": "2022-11-13T08:13:39",
+                "upload_time_iso_8601": "2022-11-13T08:13:39.317537Z",
+                "url": "https://files.pythonhosted.org/packages/78/f0/51fcd5ff93dae8ddf9b1276712464c378c02ad75c61110195648e46a0d90/jiama-0.8.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1978f7a613b35ac820c5a38a8ce82f55",
+                    "sha256": "37dc7cb95085bcdc98ac9fa5d8d66b813ca04cb4980db8966d064d8702f013e3"
+                },
+                "downloads": -1,
+                "filename": "jiama-0.8.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "1978f7a613b35ac820c5a38a8ce82f55",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10",
+                "size": 11058,
+                "upload_time": "2022-11-13T08:13:42",
+                "upload_time_iso_8601": "2022-11-13T08:13:42.349560Z",
+                "url": "https://files.pythonhosted.org/packages/3c/df/5fd8fdfac97fd7dfe42ec95402208be91f7bb7f6617e603616a8de0bfc4e/jiama-0.8.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

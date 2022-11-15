@@ -1,0 +1,93 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "W. Stuart Dols, Brian Polidoro, NIST",
+            "author_email": "william.dols@nist.gov",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: BSD License",
+                "License :: Public Domain",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Python :: Implementation :: PyPy",
+                "Topic :: Scientific/Engineering"
+            ],
+            "description": "# Python Bindings for ContamX \r\n\r\n**NOTE: This package is not yet fully functional.**\r\n\r\nThis is the initial implementation of a Python wrapper for `contamx-lib` which is a dynamic link library with an API to run ContamX.  \r\n\r\nCurrently, this Python package only includes the basic components required to generate the wrapper, and the Python wrapper only implements a few basic methods. The demonstration case simply imports `contamxpy`, obtains a `state`, and gets the version of `contamx-lib`.  \r\n\r\n# Usage\r\n\r\nTypically, one would work within a Python virtual environment which can be created and activated using the following commands.  \r\n```\r\n$ python -m venv .venv\r\n$ .venv\\Scripts\\activate  (on Windows)\r\n```   \r\nInstall `contamxpy` from PyPI.  \r\n```\r\n$(.venv) python -m pip install contamxpy\r\n```   \r\n## Example Test Module: *test_cxcffi.py*  \r\n```python\r\nimport contamxpy as cxLib\r\nimport os, sys\r\nfrom optparse import OptionParser\r\n\r\n#================================================================= main() =====\r\ndef main():\r\n    #----- Manage option parser\r\n    parser = OptionParser(usage=\"%prog [options] arg1\\n\\targ1=PRJ filename\\n\")\r\n    parser.set_defaults(verbose=0)\r\n    parser.add_option(\"-v\", \"--verbose\", action=\"store\", dest=\"verbose\", type=\"int\", default=0,\r\n                        help=\"Define verbose output level: 0=Min, 1=Medium, 2=Maximum.\")\r\n    (options, args) = parser.parse_args()\r\n\r\n    #----- Process command line options -v\r\n    verbose = options.verbose\r\n\r\n    if len(args) != 1:\r\n        parser.error(\"Need one argument:\\n  arg1 = PRJ file.\")\r\n        return\r\n    else:\r\n        prj_name  = args[0]\r\n\r\n    if ( not os.path.exists(prj_name) ):\r\n        print(\"ERROR: PRJ file not found.\")\r\n        return\r\n\r\n    if verbose > 1:\r\n        print(f\"cxLib attributes =>\\n\\t{dir(cxLib)}\")\r\n\r\n    msg_cmd = \"Running test_cxcffi.py: arg1 = \" + args[0] + \" \" + str(options)\r\n    print(msg_cmd, \"\\n\")\r\n\r\n    #----- Initialize contamx-lib State\r\n    p_contam_state: object = cxLib.getState()\r\n    cxLib.setWindPressureMode(p_contam_state, 0)\r\n\r\n    #----- Query State for PRJ info\r\n    verStr = cxLib.getVersion(p_contam_state)\r\n    if verbose >= 0:\r\n        print(f\"getVersion() returned {verStr}.\")\r\n\r\n# --- End main() ---#\r\n\r\nif __name__ == \"__main__\":\r\n    main()```\r\n```\r\n\r\n# Developer Notes\r\n\r\nThese bindings were developed using the **C Foreign Function Interface (CFFI)**. CFFI utilizes C header files that define the API to the shared object, i.e., contamx-lib.dll (or .so). It builds a dynamic Python module that provides access to the dll (or .so).  \r\n\r\n## Steps to Develop Python Bindings\r\n\r\n### 1. Create directory for *contamxpy*  \r\n- Either clone the repo OR\r\n- python -m pip install contamxpy (e.g., into a virtual environment)  \r\n```\r\ncontamxpy\\  \r\n|\r\n| setup.py\r\n| setup.cfg\r\n| MANIFEST.in \r\n| LICENSE.txt\r\n| README.md\r\n| contamxpy_build.py\r\n| contamxpy.py\r\n| contamx-lib.lib\r\n| contamx-lib.dll\r\n|\r\n\u251c\u2500\u2500 include\\\r\n|   \u2514\u2500\u2500 common-api.h\r\n|       commonState.h\r\n|       contam-x-cosim.h\r\n|       contam-x-state.h\r\n|       element-api.h\r\n|       flags.h\r\n|       library-api.h\r\n|       project-api.h\r\n|       string-len-max.h\r\n|       types.h\r\n|\r\n\u2514\u2500\u2500 demo_files\\\r\n    \u2514\u2500\u2500 test_cxcffi.py\r\n        testOneZoneWthCtm.prj\r\n        testOneZoneWthCtm.wth\r\n        testOneZoneWthCtm.ctm\r\n```\r\n### 2. Create virtual environment\r\n   `python -m venv .venv`  \r\n   \r\n### 3. Activate virtual environment\r\n   + Windows => `.venv\\Scripts\\activate.bat`\r\n   + Linux => `.venv/bin/activate`\r\n   \r\n### 4. Install *cffi* and *wheel* packages  \r\n   `$ python -m pip install cffi, wheel`\r\n\r\n### 5. Generate *contamxpy* \r\n\r\nRun the build module.\r\n```\r\ncontamxpy_build.py\r\n```   \r\nThis should generate *_contamxpy.c*, etc.\r\n```\r\ncontamxpy\\  \r\n|\r\n\u251c\u2500\u2500 Release\\\r\n|   \u2514\u2500\u2500 *.exp/.lib/.obj\r\n|\r\n\u2514\u2500\u2500 _contamxpy.c\r\n    _contamxpy.cp310-win_amd64.pyd\r\n```\r\n\r\nMost importantly it will generate a .pyd file, e.g., \r\n`_contamxpy-0.0.1-abi3-cp310-win_amd64.pyd`. This is a dynamic python module \r\nwhich will be imported into a driver program.  \r\n\r\n### 6. Install the development version locally\r\n```\r\n$(.venv) pip install .\r\n```\r\n### 7. Generate Files for Distribution\r\nBuilt distribution, i.e., wheel file:\r\n```\r\n$(.venv) python -m setup bdist_wheel\r\n```\r\nSource distribution, i.e., compressed archive (.gz, .zip):\r\n```\r\n$(.venv) python -m setup sdist\r\n$(.venv) python -m setup sdist --format=zip\r\n```\r\n\r\n## Development Files  \r\n\r\n### build_cxcffi.py\r\n\r\nThe file shown below is a minimum implementation for using `cxiLib`. \r\nIt must be modified to incorporate the full functionality of the \r\nAPI associated with `contamx-lib.dll`.  \r\n\r\n```python\r\nfrom __future__ import annotations\r\n\r\n# Using the \"out-of-line\", \"API mode\"\r\nfrom cffi import FFI\r\n\r\nCDEF = '''\\\r\n    // see types.h\r\n    typedef int32_t IX;\r\n    typedef double  R8;\r\n\r\n    void* cxiGetContamState();\r\n    void cxiSetupSimulation(void* contamXState, char* projectPath, IX useCosim);\r\n    void cxiSetWindPressureMode(void* contamXState, IX useWP);\r\n\r\n    IX cxiGetSimulationStartDate(void* contamXState);\r\n    IX cxiGetSimulationStartTime(void* contamXState);\r\n    IX cxiGetSimulationEndDate(void* contamXState);\r\n    IX cxiGetSimulationEndTime(void* contamXState);\r\n    IX cxiGetSimulationTimeStep(void* contamXState);\r\n    IX cxiGetCurrentDate(void* contamXState);\r\n    IX cxiGetCurrentTime(void* contamXState);\r\n    void cxiDoCoSimStep(void* contamXState, IX stepForward);\r\n    void cxiEndSimulation(void* contamXState);\r\n\r\n    IX cxiGetVersion(void* contamXState, char* strVersion);\r\n    IX cxiGetNumCtms(void* contamXState);\r\n    IX cxiGetCtmName(void* contamXState, IX ctmNumber, char* strName);\r\n    IX cxiGetNumZones(void* contamXState);\r\n    IX cxiGetZoneMF(void* contamXState, IX zoneNumber, IX ctmNumber, R8* pMassFraction);\r\n'''\r\n\r\nSRC = '''\\\r\n    #include \"include//contam-x-cosim.h\"\r\n'''\r\n\r\nffibuilder = FFI()\r\nffibuilder.cdef(CDEF)\r\nffibuilder.set_source(\r\n    \"_contamxpy\", SRC,\r\n    include_dirs=['.','include'],  # C header files for contam-x-lib\r\n    libraries=['contamx-lib'],     # Library to link with (.lib, .dll)\r\n)\r\n\r\nif __name__ == \"__main__\":\r\n    ffibuilder.compile(verbose=True)\r\n```\r\n### setup.py  \r\n\r\nThis file is only required if you want to install the *contamxpy* \r\npackage within a virtual environment using pip. However, once the \r\n*.pyd* file is generated, it can be utilized by a python module \r\nalong with the *contamx-lib.dll*.  \r\n\r\n```python\r\nfrom __future__ import annotations\r\n\r\nimport platform\r\nimport sys\r\n\r\nfrom setuptools import setup\r\n\r\nif platform.python_implementation() == 'CPython':\r\n    try:\r\n        import wheel.bdist_wheel\r\n    except ImportError:\r\n        cmdclass = {}\r\n    else:\r\n        class bdist_wheel(wheel.bdist_wheel.bdist_wheel):\r\n            def finalize_options(self) -> None:\r\n                self.py_limited_api = f'cp3{sys.version_info[1]}'\r\n                super().finalize_options()\r\n\r\n        cmdclass = {'bdist_wheel': bdist_wheel}\r\nelse:\r\n    cmdclass = {}\r\n\r\nsetup(\r\n    cffi_modules=['contamxpy_build.py:ffibuilder'], cmdclass=cmdclass,\r\n    data_files=[(\r\n        'lib\\\\site-packages\\\\', [\"contamx-lib.dll\"])]\r\n    )\r\n```\r\n### setup.cfg\r\n```ini\r\n[metadata]\r\nname = contamxpy\r\nversion = 0.0.1\r\ndescription = ContamX Python wrapper\r\nlong_description = file: README.md\r\nlong_description_content_type = text/markdown\r\nurl = https://www.nist.gov/el/energy-and-environment-division-73200/nist-multizone-modeling\r\nauthor = W. Stuart Dols, Brian Polidoro\r\nauthor_email = william.dols@nist.gov\r\nlicense = Public Domain\r\nlicense_files = LICENSE.txt\r\nclassifiers =\r\n    License :: Public Domain :: BSD License\r\n    Programming Language :: Python :: 3\r\n    Programming Language :: Python :: 3 :: Only\r\n    Programming Language :: Python :: Implementation :: CPython\r\n    Programming Language :: Python :: Implementation :: PyPy\r\n\r\n[options]\r\npy_modules = contamxpy\r\ninstall_requires = cffi>=1\r\npython_requires = >=3.7\r\nsetup_requires = cffi>=1\r\n```\r\n### MANIFEST.in\r\nThe manifest file is used to add files to the source builds.  \r\n```\r\ninclude include\\*.h\r\ninclude contamx-lib.*\r\ninclude demo_files\\*.*\r\n```\r\n\r\n# REFERENCES\r\n1. https://www.youtube.com/watch?v=X5irxO5VCHw\r\n2. https://github.com/asottile/ukkonen\r\n3. https://cffi.readthedocs.io/en/latest/index.html\r\n4. https://docs.python.org/3.10/distutils/index.html\r\n5. https://setuptools.pypa.io/en/latest/setuptools.html\r\n6. https://packaging.python.org/en/latest/tutorials/packaging-projects/\r\n\r\n# TODO  \r\n- Implement full API.  \r\n- Test on Linux  \r\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "Public Domain",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "contamxpy",
+            "package_url": "https://pypi.org/project/contamxpy/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/contamxpy/",
+            "project_urls": {
+                "Source": "https://github.com/usnistgov/contamxpy/",
+                "Web Page": "https://www.nist.gov/el/energy-and-environment-division-73200/nist-multizone-modeling/"
+            },
+            "release_url": "https://pypi.org/project/contamxpy/0.0.1/",
+            "requires_dist": [
+                "cffi (>=1)"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Python wrapper for the CONTAM Simulation Engine, ContamX",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15690695,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e281e3628f6304a3f1fbbd1f0c85cd5c",
+                    "sha256": "76d861634f6711aa02bbe06e2db05751b4260db21d7d3401811b0614c3497655"
+                },
+                "downloads": -1,
+                "filename": "contamxpy-0.0.1-cp310-abi3-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "e281e3628f6304a3f1fbbd1f0c85cd5c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 819551,
+                "upload_time": "2022-11-07T21:06:34",
+                "upload_time_iso_8601": "2022-11-07T21:06:34.554799Z",
+                "url": "https://files.pythonhosted.org/packages/77/93/a0a2c52e0eb981847ba3fdc74d4bbc2c291a3903d60ef96228c1149f92e5/contamxpy-0.0.1-cp310-abi3-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8d03b075cd4cbfd3b5a497438dd76beb",
+                    "sha256": "e22b743e0adb6050a7301db26c4d57af57d47d000adbf620d3f54c75759fc586"
+                },
+                "downloads": -1,
+                "filename": "contamxpy-0.0.1.zip",
+                "has_sig": false,
+                "md5_digest": "8d03b075cd4cbfd3b5a497438dd76beb",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 914480,
+                "upload_time": "2022-11-07T21:07:18",
+                "upload_time_iso_8601": "2022-11-07T21:07:18.096069Z",
+                "url": "https://files.pythonhosted.org/packages/14/79/08e492fd5fcc71458dcccd76226e5e24d5bf82071d6c14db2ad831783429/contamxpy-0.0.1.zip",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

@@ -1,0 +1,88 @@
+{
+    "0.1.1": {
+        "info": {
+            "author": "Sergio Le\u00f3n",
+            "author_email": "panicoenlaxbox@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11"
+            ],
+            "description": "[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)\n[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)\n[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1)](https://pycqa.github.io/isort/)\n[![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)\n[![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)\n![Twitter Follow](https://img.shields.io/twitter/follow/panicoenlaxbox?style=social)\n\n# Introduction\n\nThis library is \"almost\" a port of [Mediatr](https://github.com/jbogard/MediatR).\n\n> I say \"almost\" because along the way, I've made some decisions that seemed right to me.\n\n# Usage\n\nFirst, install package:\n\n`pip install mediatpy`\n\n## Request Handler\n\n### Create a Request\n\nYou must create a `Request` and define what Response will return.\n\nIn this example, both `Request` and Response has no data, but of course, you can define whatever attributes you want.\n\n```python\nclass MyResponse:\n    ...\n    \nclass MyRequest(Request[MyResponse]):\n    ...\n```\n\n### Create a Request Handler\n\nThen, you must create a `RequestHandler` to manage the `Request` and return the expected Response.\n\n```python\nclass MyRequestHandler(RequestHandler[MyRequest, MyResponse]):\n    async def handle(self, request: MyRequest) -> MyResponse:\n        return MyResponse()\n```\n\n### Register Request Handler\n\nWith an instance of `Mediator`, you can use `register_request_handler`.\n\n```python\nmediator = Mediator()\nmediator.register_request_handler(MyRequestHandler)\n```\n\n### Use them all together\n\n```python\nimport asyncio\n\nfrom mediatpy import Request, RequestHandler, Mediator\n\n\nclass MyResponse:\n    ...\n\n\nclass MyRequest(Request[MyResponse]):\n    ...\n\n\nclass MyRequestHandler(RequestHandler[MyRequest, MyResponse]):\n    async def handle(self, request: MyRequest) -> MyResponse:\n        return MyResponse()\n\n\nasync def main():\n    mediator = Mediator()\n    mediator.register_request_handler(MyRequestHandler)\n    request = MyRequest()\n    response = await mediator.send(request)\n    assert isinstance(response, MyResponse)\n\n\nif __name__ == '__main__':\n    asyncio.run(main())\n```\n\n### Decorator\n\nIf you prefer, you can use a python decorator to associate in a more declarative way the `RequestHandler`.\n\n```python\nimport asyncio\n\nfrom mediatpy import Request, RequestHandler, Mediator\n\n\nclass MyResponse:\n    ...\n\n\nclass MyRequest(Request[MyResponse]):\n    ...\n\n\nmediator = Mediator()\n\n\n@mediator.request_handler\nclass MyRequestHandler(RequestHandler[MyRequest, MyResponse]):\n    async def handle(self, request: MyRequest) -> MyResponse:\n        return MyResponse()\n\n\nasync def main():\n    request = MyRequest()\n    response = await mediator.send(request)\n    assert isinstance(response, MyResponse)\n\n\nif __name__ == '__main__':\n    asyncio.run(main())\n```\n\n## Typing\n\nThe library has been created using [generics](https://docs.python.org/3.10/library/typing.html#building-generic-types) and using [mypy](http://mypy-lang.org/) to validate types. This means, that you will have autocomplete in editors that support it.\n\n![image](https://raw.githubusercontent.com/panicoenlaxbox/mediatpy/main/docs/IntelliSense.png)\n\n## Pipeline Behavior\n\nYou can create a pipeline where both, before and after `RequestHandler` execution, execute whatever number of `PipelineBehavior` you define.\n\n### Create a Pipeline Behavior\n\n```python\nimport asyncio\nfrom typing import Callable, Awaitable\n\nfrom mediatpy import Request, RequestHandler, Mediator, PipelineBehavior\n\n\nclass MyResponse:\n    ...\n\n\nclass MyRequest(Request[MyResponse]):\n    ...\n\n\nmediator = Mediator()\n\n\n@mediator.request_handler\nclass MyRequestHandler(RequestHandler[MyRequest, MyResponse]):\n    async def handle(self, request: MyRequest) -> MyResponse:\n        print(self.__class__.__name__)\n        return MyResponse()\n\n\n@mediator.pipeline_behavior\nclass MyPipelineBehavior(PipelineBehavior[MyRequest, MyResponse]):\n    async def handle(self, request: MyRequest, next_behavior: Callable[..., Awaitable[MyResponse]]) -> MyResponse:\n        print(f\"Before {self.__class__.__name__}\")\n        response = await next_behavior()\n        print(f\"After {self.__class__.__name__}\")\n        return response\n\n\nasync def main():\n    request = MyRequest()\n    await mediator.send(request)\n\n\nif __name__ == '__main__':\n    asyncio.run(main())\n```\n\nWhich writes the following to the standard output:\n\n```text\nBefore MyPipelineBehavior\nMyRequestHandler\nAfter MyPipelineBehavior\n```\n\n### More Pipeline Behaviors\n\nYou can define more `PipelineBehavior` and even define some of them with a supertype to catch all of the executions of their subtypes. Moreover, you can be sure that the execution order of `PipelineBehavior` will be the expected right.\n\nFor example, `MyGenericPipelineBehavior` is defined before `MyPipelineBehavior` and it's using `Request` instead of `MyRequest` in their definition, so it will be executed for `Request` and for all their subtypes as `MyRequest`.\n\n```python\n@mediator.pipeline_behavior\nclass MyGenericPipelineBehavior(PipelineBehavior[Request, MyResponse]):  # Request instead of MyRequest\n    async def handle(self, request: MyRequest, next_behavior: Callable[..., Awaitable[MyResponse]]) -> MyResponse:\n        print(f\"Before {self.__class__.__name__}\")\n        response = await next_behavior()\n        print(f\"After {self.__class__.__name__}\")\n        return response\n\n\n@mediator.pipeline_behavior\nclass MyPipelineBehavior(PipelineBehavior[MyRequest, MyResponse]):\n    async def handle(self, request: MyRequest, next_behavior: Callable[..., Awaitable[MyResponse]]) -> MyResponse:\n        print(f\"Before {self.__class__.__name__}\")\n        response = await next_behavior()\n        print(f\"After {self.__class__.__name__}\")\n        return response\n```\n\n```text\nBefore MyGenericPipelineBehavior\nBefore MyPipelineBehavior\nMyRequestHandler\nAfter MyPipelineBehavior\nAfter MyGenericPipelineBehavior\n```\n\n## Notification\n\nLast but not least, you can trigger a `Notification` and it will be processed for any number of registered `NotificationHandler`.\n\nBy default, you can trigger a `Notification` that isn't handled by any `NotificationHandler`. If you want to raise and error if `Notification` it's unhandled, use `raise_error_if_not_any_registered_notification_handler` parameter during the creation of `Mediator` instance.\n\nBy design, `NotificationHandler` are not guaranteed to be executed in the order they are registered.\n\nAs in the case of `PipelineBehavior`, you can use the subtype to handle subtypes as well.\n\n```python\nimport asyncio\n\nfrom mediatpy import Mediator, Notification, NotificationHandler\n\n\nclass MyNotification(Notification):\n    ...\n\n\nmediator = Mediator()\n\n\n@mediator.register_notification_handler\nclass MyNotificationHandler(NotificationHandler[MyNotification]):\n    async def handle(self, notification: MyNotification) -> None:\n        print(self.__class__.__name__)\n\n\n@mediator.register_notification_handler\nclass MyGenericNotificationHandler(NotificationHandler[Notification]):\n    async def handle(self, notification: Notification) -> None:\n        # You could use isinstance if you want...\n        if isinstance(notification, MyNotification):\n            print(self.__class__.__name__)\n\n\nasync def main():\n    notification = MyNotification()\n    await mediator.publish(notification)\n\n\nif __name__ == '__main__':\n    asyncio.run(main())\n```\n\n```text\nMyNotificationHandler\nMyGenericNotificationHandler\n```\n\n## Dependency Injection\n\n`Mediator` does not know anything about third-party dependency containers, but for easing its integration with them, it supplies optional parameters in its constructor that you can use to create (or maybe delegate) objects when they are needed.\n\n```python\nimport asyncio\nfrom typing import Type\n\nfrom mediatpy import Mediator, Notification, NotificationHandler\n\n\nclass MyNotification(Notification):\n    ...\n\n\ndef my_custom_notification_handler_factory(notification_handler: Type[NotificationHandler]) -> NotificationHandler:\n    # Here you could delegate to the container or do anything else to create the requested object\n    return notification_handler()\n\n\nmediator = Mediator(notification_handler_factory=my_custom_notification_handler_factory)\n\n\n@mediator.register_notification_handler\nclass MyNotificationHandler(NotificationHandler[MyNotification]):\n    async def handle(self, notification: MyNotification) -> None:\n        print(self.__class__.__name__)\n\n\nasync def main():\n    notification = MyNotification()\n    await mediator.publish(notification)\n\n\nif __name__ == '__main__':\n    asyncio.run(main())\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/panicoenlaxbox/mediatpy",
+            "keywords": "mediator",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "mediatpy",
+            "package_url": "https://pypi.org/project/mediatpy/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/mediatpy/",
+            "project_urls": {
+                "Homepage": "https://github.com/panicoenlaxbox/mediatpy",
+                "Repository": "https://github.com/panicoenlaxbox/mediatpy"
+            },
+            "release_url": "https://pypi.org/project/mediatpy/0.1.1/",
+            "requires_dist": null,
+            "requires_python": ">=3.10,<4.0",
+            "summary": "Mediator implementation in Python",
+            "version": "0.1.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15734082,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fe5936f13dcadca90cee8955ac4f65d6",
+                    "sha256": "705e05ae20332745deab7d10b9f6dd23b58abedb7edf90da3efc48cc77390e9a"
+                },
+                "downloads": -1,
+                "filename": "mediatpy-0.1.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "fe5936f13dcadca90cee8955ac4f65d6",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10,<4.0",
+                "size": 5069,
+                "upload_time": "2022-11-11T08:30:18",
+                "upload_time_iso_8601": "2022-11-11T08:30:18.083152Z",
+                "url": "https://files.pythonhosted.org/packages/f1/5e/85975ffc02adf0434481c3fc799d2f5604a7ae99b42251a8c26f8caa5de5/mediatpy-0.1.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7fdad08fa2f156b0ed240e76f2c1b558",
+                    "sha256": "3c0bb0d7e62655a3f0fc9233858d86c5c324f46dc4c4eef3a42d82e851ebb326"
+                },
+                "downloads": -1,
+                "filename": "mediatpy-0.1.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7fdad08fa2f156b0ed240e76f2c1b558",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10,<4.0",
+                "size": 6413,
+                "upload_time": "2022-11-11T10:04:22",
+                "upload_time_iso_8601": "2022-11-11T10:04:22.210214Z",
+                "url": "https://files.pythonhosted.org/packages/47/32/4a1e9a6b0e87582c40d93c493bec4a8b5d3a67f1063cbb1df546fcb23f5d/mediatpy-0.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

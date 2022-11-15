@@ -1,0 +1,100 @@
+{
+    "0.1.0a3": {
+        "info": {
+            "author": "Tomas Mrozek",
+            "author_email": "tm@nohup.run",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Environment :: Console",
+                "Framework :: Flake8",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Documentation",
+                "Topic :: Software Development :: Libraries :: Python Modules",
+                "Topic :: Software Development :: Quality Assurance"
+            ],
+            "description": "# Flake8 - check for blank lines before statements\n\n![Python](https://img.shields.io/badge/Python-3.8+-blue?logo=python&logoColor=white)\n![License](https://img.shields.io/badge/License-MIT-blue)\n![codecov](https://codecov.io/gh/ts-mk/flake8-bbs/branch/initial/graph/badge.svg?token=PI2I083V09)]\n![CI](https://github.com/ts-mk/flake8-bbs/actions/workflows/tests.yml/badge.svg)\n\n\n## Introduction\n\nPEP 8 recommends to use blank lines only to separate logical sections:\n\n> Extra blank lines may be used (sparingly) to separate groups of related functions. Blank lines may be omitted between a bunch of related one-liners (e.g. a set of dummy implementations).\n>\n> Use blank lines in functions, sparingly, to indicate logical sections.\n\nHowever, some people believe that adding blank lines also before (compound) statements improves code readability which is otherwise hindered despite syntax highlighting that modern code editors provide, as demonstrated in the following example:\n\n```python\nimport os\n\na = 3\nif a == 1:\n    print(a)\nwith os.open('filename.txt') as f:\n    content = f.read_lines()\nif a == 2:\n    print(a)\n```\n\nThis Flake8 plugin therefore checks for a blank line before each statement as long as it's **not the first line of code within a module** and **not the first statement within another statement**.\n\n\n## Requirements\n\n* Python >= 3.8\n* flake8 >= 3.8.0\n\n\n## Use in production\n\nUntil version 1.0.0 is reached, this plugin is considered as **NOT ready for production**.\n\n\n## Statements and their error codes\n\nThe statements are split into different categories based on whether they are [simple statements](https://docs.python.org/3.11/reference/simple_stmts.html) or [compound statements](https://docs.python.org/3.11/reference/compound_stmts.html) and whether the error occurs between two statements of the same type or not. This allows you to filter entire groups using `BBS` and the first digit, e.g. `BBS3`.\n\n### BBS1xx: Simple statements\n\nSimple statements, excluding [expression statements](https://docs.python.org/3.11/reference/simple_stmts.html#expression-statements) and [assignment statements](https://docs.python.org/3.11/reference/simple_stmts.html#assignment-statements).\n\n| Statement     | Error  |\n|:--------------|:-------|\n| `assert`      | BBS101 |\n| `break`       | BBS102 |\n| `continue`    | BBS103 |\n| `del`         | BBS104 |\n| `global`      | BBS105 |\n| `import`      | BBS106 |\n| `import from` | BBS107 |\n| `nonlocal`    | BBS108 |\n| `pass`        | BBS109 |\n| `raise`       | BBS110 |\n| `return`      | BBS111 |\n| `yield`       | BBS112 |\n| `yield from`  | BBS113 |\n\n\n### BBS2xx: Simple statements of the same type\n\nTwo or more consecutive simple statements, e.g. `del`. Some of these errors shouldn't occur (e.g. `return` followed by another `return`) because having consecutive siblings of those types does not make sense but the plugin would raise those errors anyway.\n\n| Statement     | Error  |\n|:--------------|:-------|\n| `assert`      | BBS201 |\n| `break`       | BBS202 |\n| `continue`    | BBS203 |\n| `del`         | BBS204 |\n| `global`      | BBS205 |\n| `import`      | BBS206 |\n| `import from` | BBS207 |\n| `nonlocal`    | BBS208 |\n| `pass`        | BBS209 |\n| `raise`       | BBS210 |\n| `return`      | BBS211 |\n| `yield`       | BBS212 |\n| `yield from`  | BBS213 |\n\n### BBS3xx: Compound statements\n\n| Statement    | Error  |\n|:-------------|:-------|\n| `async def`  | BBS301 |\n| `async for`  | BBS302 |\n| `async with` | BBS303 |\n| `class`      | BBS304 |\n| `def`        | BBS305 |\n| `for`        | BBS306 |\n| `if`         | BBS307 |\n| `match`      | BBS308 |\n| `try`        | BBS309 |\n| `while`      | BBS310 |\n| `with`       | BBS311 |\n\n### BBS4xx: Compound statements of the same type\n\nTwo or more consecutive compound statements, e.g. `for`.\n\n| Statement    | Error  |\n|:-------------|:-------|\n| `async def`  | BBS401 |\n| `async for`  | BBS402 |\n| `async with` | BBS403 |\n| `class`      | BBS404 |\n| `def`        | BBS405 |\n| `for`        | BBS406 |\n| `if`         | BBS407 |\n| `match`      | BBS408 |\n| `try`        | BBS409 |\n| `while`      | BBS410 |\n| `with`       | BBS411 |\n\n\n## Configuration\n\nThe plugin checks for a blank line before **every statement**. There are no custom configuration options. Instead, you could simply ignore some errors. This system has benefits as well as drawbacks.\n\nThe benefit is that you could take advantage of Flake8's `ignore` and `per-file-ignores` (flake8>=3.7.0) config options and have a different behaviour for a different set of files:\n\n```ini\n[flake8]\nignore = BBS2\nper-file-ignores =\n    app/*: BBS101, BBS102, BBS103, BBS104, BBS105, BBS106, BBS107, BBS109, BBS110\n    tests/*: BBS1\n```\n\nThe drawback is that with more than 40 different errors, there is quite a bit to exclude... and it's certain that you would need to exclude some because the same or conflicting checks might already be applied by another plugin (e.g. checks by [flake8-import-order](https://github.com/PyCQA/flake8-import-order)) or should be handled by other formatting tools (e.g. [black](https://github.com/psf/black)).\n\n### Recommended exclusions\n\nA custom set of what makes sense to the author.\n\n```ini\n[flake8]\nignore = BBS101, BBS102, BBS103, BBS104, BBS105, BBS106, BBS107, BBS109, BBS110, BBS2\n```\n\n### All simple statements excluded\n\n...so only compound statements would raise errors.\n\n```ini\n[flake8]\nignore = BBS1, BBS2\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/ts-mk/flake8-bbs/",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Tomas Mrozek",
+            "maintainer_email": "tm@nohup.run",
+            "name": "flake8-bbs",
+            "package_url": "https://pypi.org/project/flake8-bbs/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/flake8-bbs/",
+            "project_urls": {
+                "Documentation": "https://github.com/ts-mk/flake8-bbs/blob/master/README.md",
+                "Homepage": "https://github.com/ts-mk/flake8-bbs/",
+                "Repository": "https://github.com/ts-mk/flake8-bbs/"
+            },
+            "release_url": "https://pypi.org/project/flake8-bbs/0.1.0a3/",
+            "requires_dist": [
+                "flake8 (>=3.8.0)"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "A flake8 extension that checks blank lines before statements",
+            "version": "0.1.0a3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15714132,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b6d79e213dcef3df1efece4afae68857",
+                    "sha256": "46805a501ee2f66f6e81558ccca9a0d59db2d49d88e60557f847a9d7c81e6f45"
+                },
+                "downloads": -1,
+                "filename": "flake8_bbs-0.1.0a3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b6d79e213dcef3df1efece4afae68857",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 6386,
+                "upload_time": "2022-11-09T14:32:58",
+                "upload_time_iso_8601": "2022-11-09T14:32:58.797013Z",
+                "url": "https://files.pythonhosted.org/packages/41/e9/c21ccdcce25775f7120a39d74010f39afdaf68072f95f9150304abddcba3/flake8_bbs-0.1.0a3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d6583a7b6881b701052e424c52b5ff69",
+                    "sha256": "9afcee021c6afae98973d60a827f46587a2210a6fa06636fcdff45a43e2c5d29"
+                },
+                "downloads": -1,
+                "filename": "flake8-bbs-0.1.0a3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d6583a7b6881b701052e424c52b5ff69",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 6603,
+                "upload_time": "2022-11-09T14:32:56",
+                "upload_time_iso_8601": "2022-11-09T14:32:56.750003Z",
+                "url": "https://files.pythonhosted.org/packages/f4/30/158e1f8a9aaf937e49d0144a6deb3205d05ffd54bddb515fa29597bbcb05/flake8-bbs-0.1.0a3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

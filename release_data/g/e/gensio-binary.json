@@ -1,0 +1,542 @@
+{
+    "2.6.0.post2": {
+        "info": {
+            "author": "Corey Minyard",
+            "author_email": "cminyard@mvista.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "=============\ngensio-binary\n=============\n\nThis is a fork of `gensio <https://github.com/cminyard/gensio>`_ that builds\nbinary python wheels for the PyPI package\n`gensio-binary <https://pypi.org/project/gensio-binary/>`_. \n\nIf you need a new or alternate version of `gensio-binary` published, please\nfile `an issue in this fork <https://github.com/masenf/gensio/issues/new>`_, NOT\nTHE UPSTREAM.\n\n===========================\ngensio - General Stream I/O\n===========================\n\n\nThis is gensio (pronounced gen'-see-oh), a framework for giving a\nconsistent view of various stream (and packet) I/O types.  You create\na gensio object (or a gensio), and you can use that gensio without\nhaving to know too much about what is going on underneath.  You can\nstack gensio on top of another one to add protocol funcionality.  For\ninstance, you can create a TCP gensio, stack SSL on top of that, and\nstack Telnet on top of that.  It supports a number of network I/O and\nserial ports.  gensios that stack on other gensios are called filters.\n\nYou can do the same thing with receiving ports.  You can set up a\ngensio accepter (accepter) to accept connections in a stack.  So in\nour previous example, you can setup TCP to listen on a specific port\nand automatically stack SSL and Telnet on top when the connection\ncomes in, and you are not informed until everything is ready.\n\nA *very* important feature of gensio is that it makes establishing\nencrypted and authenticated connections much easier than without it.\nBeyond basic key management, it's really no harder than TCP or\nanything else.  It offers extended flexibility for controlling the\nauthentication process if needed.  It's really easy to use.\n\nNote that the gensio(5) man page has more details on individual gensio\ntypes.\n\nBuilding\n========\n\nThis is a normal autoconf system, nothing special.  Note that if you\nget this directly from git, you won't have the build infrastructure\nincluded.  There is a script named \"reconf\" in the main directory\nthat will create it for you.\n\nIf you don't know about autoconf, the INSTALL file has some info,\nor google it.\n\nTo fully build gensio, you need the following:\n\n* swig - For python and go bindings\n\n* python dev libraries - For python bindings\n\n* go language installed in the path\n\n* openssl dev libraries and executable - For all the crypto\n\n* openipmi dev libraries - For IPMI serial over lan, if you want that.\n  Note that you need a pretty recent one, really 2.0.31 or newer.\n\n* libsctp dev library - For sctp support\n\n* pkgconfig - If you want gensio to install its pkgconfig files.\n\n* avahi dev - If you want gensio to have mdns support.\n\n* pam dev - For support of logins with gtlsshd\n\n* libwrap - for tcpd\n\n* glib dev - for the glib os funcs\n\n* tcl dev - for the tcl os funcs\n\n* alsa dev - for sound (on Linux)\n\nThe following sets everything except openipmi up on ubuntu 20.04:\n\n  sudo apt install gcc g++ git swig python3-dev libssl-dev pkg-config\t\\\n    libavahi-client-dev avahi-daemon libtool autoconf automake make\t\\\n    libsctp-dev libpam-dev libwrap0-dev libglib2.0-dev tcl-dev\t\t\\\n    libasound2-dev\n\nOn Redhat, libwrap is gone, so you won't be using that, and swig doesn't appear\nto be available, so you will have to built that yourself with at least go and\npython support.  Here's the command for Redhat-like systems:\n\n  sudo yum install gcc g++ git python3-devel swig openssl-devel \\\n    pkg-config avahi-devel libtool autoconf automake make \\\n    lksctp-tools-devel pam-devel glib2-devel tcl-devel \\\n    alsa-lib-devel\n\nYou might have to do the following to enable access to the development\npackages:\n\n  sudo dnf config-manager --set-enabled devel\n\nAnd get the SCTP kernel modules, you might have to do:\n\n  sudo yum install kernel-modules-extra\n\nTo use Go language, you must get a version of swig 4.1.0 or greater.\nYou may have to pull a bleeding edge version out of git and use that.\n\nHandling python installation configuration is a bit of a pain.  By\ndefault the build scripts will put it wherever the python program\nexpects installed python programs to be.  A normal user generally\ndoesn't have write access to that directory.\n\nTo override this, you can use the --with-pythoninstall\nand --with-pythoninstalllib configure options or you can set the\npythoninstalldir and pythoninstalllibdir environment variables to\nwhere you want the libraries and modules to go.\n\nNote that you may need to set --with-uucp-locking to your lockdir (on\nolder systems it's /var/lock, which is the default.  On newer it might\nbe /run/lock/lockdev.  You might also need to be a member of dialout\nand lock groups to be able to open serial devices and/or locks.\n\nDynamic vs Static gensios\n-------------------------\n\nThe gensio library supports loading gensios dynamically or building\nthem in to the library.  By default if you create shared libraries,\nthen all gensios are compiled for dynamic loading and installed in a\nplace that makes it possible.  If you do not create shared libraries,\nall gensios are built in to the library.\n\nTo set all gensios to be statically compiled, you can add\n\"--with-all-gensios=yes\" on the configure command line and it will\nbuild them in to the library.\n\nYou can also disable all gensios by default by specifying\n\"--with-all-gensios=no\".\n\nYou can override individual gensios, too.  For instance, if you only\nwanted to build the tcp gensio into the library and make the rest\ndynamic, you could set up for all dynamic gensios and then add\n\"--with-net=yes\".  This can also let you disable all gensios and only\nenable the ones you want.\n\ngo language support requires go to be installed and in the path.\n\ngensio tools\n============\n\nA couple of tools are available that use gensios, both as an example\nand for trying things out.  These are:\n\ngensiot\n    A tool for making basic gensio connections.  You can create any\n    arbitrary gensio setup you like.  See gensiot(1) for details.\n\ngtlsshd\n    An sshd-like daemon that uses certauth, ssl, and SCTP or TCP\n    gensios for making connections.  It uses standard PAM\n    authentication and uses ptys.  See gtlsshd(8) for details.\n\ngtlssh\n    An ssh-like program that can connect to gtlsshd.  It can also\n    be used with ser2net to make establishing encrypted and\n    authenticated connections easier.  See gtlssh(1) for details.\n\nAvailable gensios\n=================\n\nThe following gensios are available in the library:\n\nsctp\n    Normal SCTP communication.  Streams and out of bound data are\n    supported.  End of message demarcation is not supported because it\n    doesn't currently work on Linux.\n\ntcp\n    Normal TCP communication.  Out of bound data is supported.\n\nudp\n    Sort-of connection oriented UDP.\n\nstdio\n    Access to either the calling program's stdio, or the ability\n    to run a program and connect to its stdin, stdout, and stderr.\n    NOTE: Do not use this for file I/O.  Use the file gensio.\n\nfile\n    Used for accessing files.  Allows both input and output file,\n    and streams the data to/from the files.  No accepter available.\n\npty\n    Run a program in a PTY and use the gensio to communicate with\n    its tty.  No accepter available.\n\nserialdev\n    Connect to a device.  It can hook to termios type devices, more\n    than just serial ports.  It also has a write-only option for\n    talking to printer ports.  No accepter available.\n\nipmisol\n    Connect to a remote over IPMI SOL.  Full serial port capabilities\n    are available.  No accepter available, unfortunately.\n\ndummy\n    An accepter that doesn't do anything except look like an accepter\n    to the user.  Useful in some situations where an accepter is\n    expected but you don't need to do anything.\n\necho\n    A gensio that echos everything that is sent to it.  Useful for\n    testing.  No accepter available.\n\ntelnet\n    A filter gensio that implements the telnet protocol.  It can do\n    full serial support with RFC2217.\n\nssl\n    Implement SSL/TLS as a gensio filter.  It supports client\n    authentication, too.\n\ncertauth\n    A user authentication protocol implemented as a gensio filter.\n\nmux\n    A channel multiplexer.  You can create channels on top of it using\n    open_channel().  Channels work as normal gensio, so you can have a\n    number of gensios running on top of a single gensio.  It also has\n    end-of-message demarcation and obviously full flow-control\n    capability individually on each channel.  If you just need a\n    gensio with end-of-message demarcation, you can use this as\n    without creating channels.\n\nmsgdelim\n    Converts an unreliable stream interface into an unreliable packet\n    interface.  This is primarily so a reliable packet interface like\n    relpkt can run over a serial port.  It does not support streaming\n    of data, so it's not very useful by itself.\n\nrelpkt\n    Converts an unreliable packet interface to a reliable packet interface\n    (that also supports streaming).  Made for running over msgdelim.  It will\n    run over UDP, but it's not ideal for that because it doesn't do all the\n    internet-friendly flow control and such that SCTP and TCP do.\n\ntrace\n    A transparent gensio that allows the data read and/or written to\n    be sent to a file, either as raw data or as human-readable hex\n    data.  It can also be used to block data flowing in one or both\n    directions.\n\nperf\n    A gensio that can send/receive data on top of a stack of gensios\n    and measure the throughput on the channel.  The received data from\n    perf is information about the channel throughput.\n\nconacc\n    A gensio accepter that takes a gensio stack string as a parameter.\n    This lets you use a gensio as an accepter.  When conacc is started,\n    it opens the gensio, and when the gensio opens it reports a new\n    child for the accepter.  When the child closes it attempts to open\n    the child again and go through the process again (unless accepts\n    have been disabled on conacc).\n\n    Why would you want to use this?  Say in ser2net you wanted to\n    connect one serial port to another.  You could have a connection like:\n\n    .. code-block:: yaml\n\n      connection: &con0\n        accepter: conacc,serialdev,/dev/ttyS1,115200\n        connector: serialdev,/dev/ttyS2,115200\n\n    And it would connect /dev/ttyS1 to /dev/ttyS2.  Without conacc,\n    you could not use serialdev as an accepter.  It would also let you\n    use gtlsshd on a serial port if you wanted encrypted authenticated\n    logins over a serial port.  If you ran gtlsshd with the following:\n\n    .. code-block:: bash\n\n      gtlsshd --notcp --nosctp --oneshot --nodaemon --other_acc\n         'conacc,relpkt(mode=server),msgdelim,/dev/ttyUSB1,115200n81'\n\n    You could connect with:\n\n    .. code-block:: bash\n\n      gtlssh --transport 'relpkt,msgdelim,/dev/ttyUSB2,115200n81' USB2\n\n    This creates a reliable packet transport over a serial port.  The\n    mode=server is required to make relpkt run as the server, since it\n    would normally run as a client since it is not being started as an\n    accepter.  The ssl gensio (which runs over the transport) requires\n    reliable communication, so it won't run directly over a serial\n    port.\n\nxlt\n    This gensio allows character translations to be done on data flowing\n    through this filter.  It's primarily to convert carraige returns and\n    line feeds.\n\nmdns\n    This gensio uses mDNS to lookup a service (protocol type, network\n    type, port, address) and then connect to that service.  If you\n    have a program like ser2net that advertise mDNS service, you don't\n    have to worry about finding port numbers and such, it's all\n    handled for you.\n\nkeepopen\n    This gensio presents an always open connection to the upper layer and\n    keeps the lower layer connection open.  If it closes, it re-opens it.\n\nscript\n    This gensio executes an external program with the external program's\n    stdio connected to the child of this gensio.  Once the external program\n    terminates, this gensio will report that it is open and pass all the\n    data through.  This can be used to run scripts to set things up on a\n    connection before hooking to the parent gensio.\n\nsound\n    A gensio that provides access to sound devices and files.  It's a\n    little complicated, read the docs in gensio.5\n\nafskmdm\n    Yes, it looks like a jumble of letters.\n\n    A filter gensio that sits on top of the sound gensio and does an\n    Audio Frequency Shift Keying modem, like is used on AX.25 amateur\n    radio.\n\nkiss\n    An amateur radio protocol for talking to TNCs.  This is used by AX25\n    in many cases.\n\nax25\n    An amateur radio protocol for packet radio.  To fully use this you\n    would need to write code, since it uses channels and oob data for\n    unnumbered information, but you can do basic things with just\n    gensiot if all you need is one communication channel.  For\n    instance, if you wanted to chat with someone over the radio, and\n    the kiss port is on 8001 on both machines, on the accepting machine\n    you can run:\n\n    .. code-block:: bash\n\n      gensiot -i 'stdio(self)' -a \\\n          'ax25(laddr=AE5KM-1),kiss,conacc,tcp,localhost,8001'\n\n    which will hook to the TNC and wait for a connection on address\n    AE5KM-1.  Then you could run:\n\n    .. code-block:: bash\n\n      gensiot -i 'stdio(self)' \\\n          'ax25(laddr=AE5KM-2,addr=\"0,AE5KM-1,AE5KM-2\"),kiss,tcp,localhost,8001'\n\n    on the other machine.  This will connect to the other machine over\n    TNC 0 with the given address.  Then anything you type in one will\n    appear on the other, a line at a time.  Type \"Ctrl-D\" to exit.\n    The 'stdio(self)' part turns off raw mode, so it's a line at a\n    time and you get local echo.  Otherwise every character you types\n    would send a packet and you couldn't see what you were typing.\n\n    To hook to the N5COR-11 AX.25 BBS system, you would do:\n\n    .. code-block:: bash\n\n      gensiot -i 'xlt(nlcr),stdio(self)' \\\n        'ax25(laddr=AE5KM-2,addr=\"0,N5COR-11,AE5KM-2\"),kiss,tcp,localhost,8001'\n\n    Most BBS systems use CR, not NL, for the new line, so the xlt\n    gensio is used to translate incoming these characters.\n\n    Of course, this being gensio, you can put any workable gensio\n    underneath ax25 that you would like.  So if you want to play\n    around or test without a radio, you could do ax25 over UDP\n    multicast.  Here's the accepter side:\n\n    .. code-block:: bash\n\n      gensiot -i 'stdio(self)' -a \\\n      'ax25(laddr=AE5KM-1),conacc,'\\\n      'udp(mcast=\"ipv4,224.0.0.20\",laddr=\"ipv4,1234\",nocon),'\\\n      'ipv4,224.0.0.20,1234'\n\n    and here's the connector side:\n\n    .. code-block:: bash\n\n      gensiot -i 'stdio(self)' \\\n      'ax25(laddr=AE5KM-2,addr=\"0,AE5KM-1,AE5KM-2\"),'\\\n      'udp(mcast=\"ipv4,224.0.0.20\",laddr=\"ipv4,1234\",nocon),'\\\n      'ipv4,224.0.0.20,1234'\n\n    kiss is not required because UDP is already a packet-oriented\n    media.  Or you can use the greflector program to create a\n    simulated radio situation.  On the machine \"radiopi2\", run:\n\n    .. code-block:: bash\n\n      greflector kiss,tcp,1234\n\n    which will create a program that will reflect all received input\n    to all other connections.  Then on the accepter side:\n\n    .. code-block:: bash\n\n      gensiot -i 'stdio(self)' -a \\\n      'ax25(laddr=AE5KM-1),kiss,conacc,tcp,radiopi2,1234'\n\n    and the connecting side:\n\n    .. code-block:: bash\n\n      gensiot -i 'stdio(self)' \\\n      'ax25(laddr=AE5KM-2,addr=\"0,AE5KM-1,AE5KM-2\"),kiss,tcp,radiopi2,1234'\n\n    The test code uses the reflector for some testing, since it's so\n    convenient to use.\n\nratelimit\n    Limit the data throughput for a gensio stack.\n\t\t  \nThese are all documented in detail in gensio(5).  Unless otherwise\nstated, these all are available as accepters or connecting gensios.\n\nCreating Your Own Gensios\n=========================\n\nYou can create your own gensios and register them with the library and\nstack them along with the other gensios.\n\nThe easiest way to do this is to steal code from a gensio that does\nkind of what you want, then modify it to create your own gensio.\nThere is, unfortunately, no good documentation on how to do this.\n\nThe include file include/gensio/gensio_class.h has the interface\nbetween the main gensio library and the gensio.  The gensio calls all\ncome through a single function with numbers to identify the function\nbeing requested.  You have to map all these to the actual operations.\nThis is somewhat painful, but it makes forwards and backwards\ncompatibility much easier.\n\nCreating your own gensio this way is fairly complex.  The state\nmachine for something like this can be surprisingly complex.  Cleanup\nis the hardest part.  You have to make sure you are out of all\ncallbacks and no timers might be called back in a race condition at\nshutdown.  Only the simplest gensios (echo, dummy), strange gensios\n(conadd, keepopen, stdio), and gensios that have channels (mux, ax25)\ndirectly implement the interface.  Everything else uses\ninclude/gensio/gensio_base.h.  gensio_base provides the basic state\nmachine for a gensio.  It has a filter portion (which is optional) and\na low-level (ll) portion, which is not.\n\nThe filter interface has data run through it for the processing.  This\nis used for things like ssl, certauth, ratelimit, etc.  Filter gensios\nwould use this.  These all use gensio_ll_gensio (for stacking a gensio\non top of another gensio) for the ll.\n\nTerminal gensios each have their own ll and generally no filter.  For\nlls based on a file descriptor (fd), gensio_ll_fd is used.  There is\nalso an ll for IPMI serial-over-lan (ipmisol) and for sound.  Most of\nthe terminal gensios (tcp, udp, sctp, serial port, pty) use the fd ll,\nobviously.\n\nOnce you have a gensio, you can compile it as a module and stick it in\n/usr/libexec/gensio-<version>.  Then the gensio will just pick it up\nand use it.  You can also link it in with your application and do the\ninit function from your application.\n\nmDNS support\n============\n\nThe mdns gensio has already been discussed, but the gensio library\nprovides an easy to use mDNS interface.  The include file for it is in\ngensio_mdns.h, and you can use the gensio_mdns(3) man page to get more\ninformation on it.\n\nTo make an mdns connection using gensiot, say you have ser2net set up\nwith mdns enabled like:\n\n.. code-block:: yaml\n\n  connection: &my-port\n    accepter: telnet(rfc2217),tcp,3001\n    connector: serialdev,/dev/ttyUSB1,115200N81\n    options:\n      mdns: true\n\nthen you can connection to it with gensiot:\n\n.. code-block:: bash\n\n  gensiot 'mdns,my-port'\n\ngensiot will find the server, port, and whether telnet and rfc2217 are\nenabled and make the connection.\n\nIn addition, there is an gmdns tool that lets you do queries and\nadvertising, and gtlssh can do mDNS queries to find services.  If you\nhave secure authenticated logins for ser2net, and you enable mdns on\nser2net, like:\n\n.. code-block:: yaml\n\n  connection: &access-console\n    accepter: telnet(rfc2217),mux,certauth(),ssl,tcp,3001\n    connector: serialdev,/dev/ttyUSBaccess,115200N81\n    options:\n      mdns: true\n\nit makes the setup very convenient, as you can just do:\n\n.. code-block:: bash\n\n  gtlssh -m access-console\n\nThat's right, you can just directly use the connection name, no need\nto know the host, whether telnet or rfc2217 is enabled, or what the\nport is.  You still have to set up the keys and such on the ser2net\nserver, of course, per those instructions.\n\nGeneral Concepts\n================\n\ngensio has an object oriented interface that is event-driven.\nSynchronous interfaces are also available.  You deal with two main\nobjects in gensio: a gensio and a gensio accepter.  A gensio provides\na communication interface where you can connect, disconnect, write,\nreceive, etc.\n\nA gensio accepter lets you receive incoming connections.  If a\nconnection comes in, it gives you a gensio.\n\nThe interface is event-driven because it is, for the most part,\ncompletely non-blocking.  If you open a gensio, you give it a callback\nthat will be called when the connection is up, or the connection\nfails.  Same for close.  A write will return the number of bytes\naccepted, but it may not take all the bytes (or even any of the bytes)\nand the caller must account for that.\n\nThe open and close interfaces have a secondary blocking interface for\nconvenience.  These end in _s.  This is for convenience, but it's not\nnecessary and use of these must be careful because you can't really\nuse them from callbacks.\n\nSpeaking of callbacks, data and information coming from gensio to the\nuser is done with a function callback.  Read data, and when the gensio\nis ready for write data comes back in a callback.  A similar interface\nis used for calling from the user to the gensio layer, but it is\nhidden from the user.  This sort of interface is easily extensible,\nnew operations can be easily added without breaking old interfaces.\n\nThe library provides several ways to create a gensio or gensio\naccepter.  The main way is str_to_gensio() and\nstr_to_gensio_accepter().  These provide a way to specify a stack of\ngensios or accepters as a string and build.  In general, you should\nuse this interface if you can.\n\nIn general, interfaces that are not performance sensitive are string\nbased.  You will see this in gensio_control, and in auxiliary data in\nthe read and write interface to control certain aspects of the write.\n\nThe library also provides ways to set up your gensios by individually\ncreating each one.  In some situations this might be necessary, but it\nlimits the ability to use new features of the gensio library as it\ngets extended.\n\nIf a gensio supports multiple streams (like SCTP), stream numbers are\npassed in the auxdata with \"stream=n\".  Streams are not individually\nflow controlled.\n\nChannels, on the other hand, are separate flows of data over the same\nconnection.  Channels are represented as separate gensios, and they\ncan be individually flow controlled.\n\nInclude Files\n=============\n\nThere are a few include files you might need to deal with when using\ngensios:\n\ngensio.h\n    The main include files for gensios and gensio accepters.\n\nsergensio.h\n    Serial port handling gensios and gensio accepters.\n\ngensio_os_funcs.h\n    The definition for an OS handler.\n\nargvutils.h\n    Many gensio functions take an argv array, this is utilities for\n    dealing with argvs.\n\ngensio_selector.h\n    A definition for a default OS handler.\n\nThese are for the most part documented in the man pages.\n\nFor creating your own gensios, the following include files are\navailable for you:\n\ngensio_class.h\n    The main include file for creating your own gensio.\n\nsergensio_class.h\n    The main include file for creating your own serial port gensio.\n\ngensio_base.h\n    This handles a lot of the boiler plate for a gensio.  Most of the\n    standard gensios use this.  It splits the gensio function into\n    an optional filter, and a lower layer interface called an ll.\n\ngensio_ll_fd.h\n    An ll that provides most of the boilerplate for dealing with a\n    file descriptor.\n\ngensio_ll_gensio.h\n    An ll that provides all that is necessary for stacking a gensio\n    on top of another gensio.  The filter gensios (telnet, ssl, etc.)\n    use this as the ll.\n\nEach include file has lots of documentation about the individual calls\nand handlers.\n\nErrors\n======\n\ngensio has it's own set of errors to abstract it from the OS errors\n(named GE_xxx) and provide more flexibility in error reporting.  These\nare in the gensio_err.h include file (automatically included from\ngensio.h) and may be translated from numbers to a meaningful string\nwith gensio_err_to_str().  Zero is defined to be not an error.\n\nIf an unrecongnized operating system error occurs, GE_OSERR is\nreturned and a log is reported through the OS handler log interface.\n\nOS Handler\n==========\n\nOne slightly annoying thing about gensio is that it requires you to\nprovide an OS handler (struct gensio_os_funcs) to handle OS-type\nfunctions like memory allocation, mutexes, the ability to handle file\ndescriptors, timers and time, and a few other things.\n\nThe library does provide several OS handlers.  The get the default one\nfor your system (POSIX or Windows) call gensio_default_os_hnd().  You\ncan see that man page for more details.  This will generally be the\nbest performing option you have for your system.\n\nFor POSIX systems, OS handlers for glib and TCL are available,\nallocated with gensio_glib_funcs_alloc() and gensio_tcl_funcs_alloc().\nThese really don't work very well, especially from a performance point\nof view, the APIs for glib and TCL are not well designed for what\ngensio does.  TCL can only support single-threaded operation.  glib\nmultithreaded operation only has one thread at a time waiting for I/O.\nBut they do work, and the tests are run with them.  These are not\navailable on Windows because of poor abstractions on glib and because\nof lack of motivation on TCL.\n\nBut if you are using something else like X Windows, etc that has it's\nown event loop, you may need to adapt one for your needs.  But the\ngood thing is that you can do this, and integrate gensio with pretty\nmuch anything.\n\nThere is also a waiter interface that provides a convenient way to\nwait for things to occur while running the event loop.  This is how\nyou generally enter the event loop, because it provides a convenient\nway to signal when you are done and need to leave the loop.\n\nDocumentation for this is in::\n\n  include/gensio/gensio_os_funcs.h\n\nCreating a gensio\n=================\n\nConnecting gensios\n------------------\n\nTo create a gensio, the general way to do this is to call\n``str_to_gensio()`` with a properly formatted string.  The string is\nformatted like so::\n\n  <type>[([<option>[,<option[...]]])][,<type>...][,<end option>[,<end option>]]\n\nThe ``end option`` is for terminal gensios, or ones that are at the\nbottom of the stack.  For instance, ``tcp,localhost,3001`` will create\na gensio that connects to port 3001 on localhost.  For a serial port,\nan example is ``serialdev,/dev/ttyS0,9600N81`` will create a connection\nto the serial port /dev/ttyS0.\n\nThis lets you stack gensio layers on top of gensio layers.  For\ninstance, to layer telnet on top of a TCP connection:\n\n.. code-block:: bash\n\n  telnet,tcp,localhost,3001\n\nSay you want to enable RFC2217 on your telnet connection.  You can add\nan option to do that:\n\n.. code-block:: bash\n\n  telnet(rfc2217=true),tcp,localhost,3001\n\nWhen you create a gensio, you supply a callback with user data.  When\nevents happen on a gensio, the callback will be called so the user\ncould handle it.\n\ngensio accepters\n----------------\n\nA gensio accepter is similar to a connecting gensio, but with\n``str_to_gensio_accepter()`` instead.  The format is the same.  For\ninstance:\n\n.. code-block:: bash\n\n  telnet(rfc2217=true),tcp,3001\n\nwill create a TCP accepter with telnet on top.  For accepters, you\ngenerally do not need to specify the hostname if you want to bind to\nall interfaces on the local machine.\n\nUsing a gensio\n==============\n\nOnce you have created a gensio, it's not yet open or operational.  To\nuse it, you have to open it.  To open it, do:\n\n.. code-block:: c\n\n  struct gensio *io;\n  int rv;\n\n  rv = str_to_gensio(\"tcp,localhost,3001\", oshnd,\n                     tcpcb, mydata, &io);\n  if (rv) { handle error }\n  rv = gensio_open(io, tcp_open_done, mydata);\n  if (rv) { handle error }\n\nNote that when ``gensio_open()`` returns, the gensio is not open.  You\nmust wait until the callback (``tcp_open_done()`` in this case) is\ncalled.  After that, you can use it.\n\nOnce the gensio is open, you won't immediately get any data on it\nbecause receive is turned off.  You must call\n``gensio_set_read_callback_enable()`` to turn on and off whether the\ncallback (``tcpcb`` in this case) will be called when data is received.\n\nWhen the read handler is called, the buffer and length is passed in.\nYou do not have to handle all the data if you cannot.  You *must*\nupdate the buflen with the number of bytes you actually handled.  If\nyou don't handle data, the data not handled will be buffered in the\ngensio for later.  Not that if you don't handle all the data, you\nshould turn off the read enable or the event will immediately called\nagain.\n\nIf something goes wrong on a connection, the read handler is called\nwith an error set.  ``buf`` and ``buflen`` will be NULL in this case.\n\nFor writing, you can call ``gensio_write()`` to write data.  You may\nuse ``gensio_write()`` at any time on an open gensio.\n``gensio_write()`` may not take all the data you write to it.  The\n``count`` parameter passes back the number of bytes actually taken in\nthe write call.\n\nYou can design your code to call\n``gensio_set_write_callback_enable()`` when you have data to send and\nthe gensio will call the write ready callback and you can write from\nthe callback.  This is generally simpler, but enabling and disabling\nthe write callback adds some overhead.\n\nA more efficient approach is to write data whenever you need to and\nhave the write callback disabled.  If the write operation returns less\nthan the full request, the other end has flow-controlled and you\nshould enable the write callback and wait until it is called before\nsending more data.\n\nIn the callbacks, you can get the user data you passed in to the\ncreate call with ``gensio_get_user_data()``.\n\nNote that if you open then immediately close a gensio, this is fine,\neven if the open callback hasn't been called.  The open callback may\nor may not be called in that case, though, so it can be difficult to\nhandle this properly.\n\nSynchronous I/O\n---------------\n\nYou can do basic synchronous I/O with gensios.  This is useful in some\nsituations where you need to read something inline.  To do this, call:\n\n.. code-block:: c\n\n  err = gensio_set_sync(io);\n\nThe given gensio will cease to deliver read and write events.  Other\nevents *are* delivered.  Then you can do:\n\n.. code-block:: c\n\n  err = gensio_read_s(io, &count, data, datalen, &timeout);\n  err = gensio_write_s(io, &count, data, datalen, &timeout);\n\nCount is set to the actual number of bytes read/written.  It may be\nNULL if you don't care (though that doesn't make much sense for read).\n\nTimeout may be NULL, if so then wait for forever.  If you set a\ntimeout, it is updated to the amount of time left.\n\nNote that signals will cause these to return immediately, but no\nerror is reported.\n\nReads will block until some data comes in and returns that data.  It\ndoes not wait until the buffer is full.  timeout is a timeval, the\nread will wait that amount of time for the read to complete and\nreturn.  A timeout is not an error, the count will just be set to\nzero.\n\nWrites block until the whole buffer is written or a timeout occurs.\nAgain, the timeout is not an error, the total bytes actually written\nis returned in count.\n\nOnce you are done doing synchronous I/O with a gensio, call:\n\n.. code-block:: c\n\n  err = gensio_clear_sync(io);\n\nand delivery through the event interface will continue as before.  You\nmust not be in a synchronous read or write call when calling this, the\nresults will be undefined.\n\nNote that other I/O on other gensios will still occur when waiting for\nsynchronous I/O\n\nThere is not currently a way to wait for multiple gensios with\nsynchronous I/O.  If you are doing that, you should really just use\nthe event-driven I/O.  It's more efficient, and you end up doing the\nsame thing in the end, anyway.\n\nUsing a gensio accepter\n=======================\n\nLike a gensio, a gensio accepter is not operational when you create\nit.  You must call ``gensio_acc_startup()`` to enable it:\n\n.. code-block:: c\n\n  struct gensio_accepter *acc;\n  int rv;\n\n  rv = str_to_gensio_accepter(\"tcp,3001\", oshnd,\n                              tcpacccb, mydata, &acc);\n  if (rv) { handle error }\n  rv = gensio_startup(acc);\n  if (rv) { handle error }\n\nNote that there is no callback to the startup call to know when it's\nenabled, because there's no real need to know because you cannot write\nto it, it only does callbacks.\n\nEven after you start up the accepter, it still won't do anything until\nyou call ``gensio_acc_set_accept_callback_enable()`` to enable that\ncallback.\n\nWhen the callback is called, it gives you a gensio in the ``data``\nparameter that is already open with read disabled.  A gensio received\nfrom a gensio acceptor may have some limitations.  For instance, you\nmay not be able to close and then reopen it.\n\ngensio accepters can do synchronous accepts using ``gensio_acc_set_sync()``\nand ``gensio_acc_accept_s``.  See the man pages on those for details.\n\nLogging\n=======\n\n``struct gensio_os_funcs`` has a vlog callback for handling internal\ngensio logs.  These are called when something of significance happens\nbut gensio has no way to report an error.  It also may be called to\nmake it easier to diagnose an issue when something goes wrong.\n\nSerial I/O\n==========\n\nThe gensio and gensio accepter classes each have subclasses for\nhandling serial I/O and setting all the parameters associated with a\nserial port.\n\nYou can discover if a gensio (or any of its children) is a serial port\nby calling ``gensio_to_sergensio()``.  If that returns NULL, it is not\na sergensio and none of it's children are sergensios.  If it returns\nnon-NULL, it returns the sergensio object for you to use.  Note that\nthe gensio returned by ``sergensio_to_gensio()`` will be the one\npassed in to ``gensio_to_sergensio()``, not necessarily the gensio\nthat sergensio is directly associated with.\n\nA sergensio may be a client, meaning that it can set serial settings,\nor it may be a server, meaning that it will receive serial settings\nfrom the other end of the connection.\n\nMost sergensios are client only: serialdev (normal serial port),\nipmisol, and stdio accepter.  Currently only telnet has both client\nand server capabilities.\n\n\nPython Interface\n================\n\nNOTE: The python interface described here is deprecated.  Use the one\nin c++/swig/pygensio now.\n\nYou can access pretty much all of the gensio interface through python,\nthough it's done a little differently than the C interface.\n\nSince python is fully object oriented, gensios and gensio accepters\nare first-class objects, along with gensio_os_funcs, sergensios, and\nwaiters.\n\nHere's a small program:\n\n.. code-block:: python\n\n  import gensio\n\n  class Logger:\n      def gensio_log(self, level, log):\n          print(\"***%s log: %s\" % (level, log))\n\n  class GHandler:\n      def __init__(self, o, to_write):\n          self.to_write = to_write\n          self.waiter = gensio.waiter(o)\n          self.readlen = len(to_write)\n\n      def read_callback(self, io, err, buf, auxdata):\n          if err:\n              print(\"Got error: \" + err)\n              return 0\n          print(\"Got data: \" + buf);\n          self.readlen -= len(buf)\n          if self.readlen == 0:\n              io.read_cb_enable(False)\n              self.waiter.wake()\n          return len(buf)\n\n      def write_callback(self, io):\n          print(\"Write ready!\")\n          if self.to_write:\n              written = io.write(self.to_write, None)\n              if (written >= len(self.to_write)):\n                  self.to_write = None\n                  io.write_cb_enable(False)\n              else:\n                  self.to_write = self.to_write[written:]\n          else:\n              io.write_cb_enable(False)\n\n      def open_done(self, io, err):\n          if err:\n              print(\"Open error: \" + err);\n              self.waiter.wake()\n          else:\n              print(\"Opened!\")\n              io.read_cb_enable(True)\n              io.write_cb_enable(True)\n\n      def wait(self):\n          self.waiter.wait_timeout(1, 2000)\n\n  o = gensio.alloc_gensio_selector(Logger())\n  h = GHandler(o, \"This is a test\")\n  g = gensio.gensio(o, \"telnet,tcp,localhost,2002\", h)\n  g.open(h)\n\n  h.wait()\n\nThe interface is a pretty direct translation from the C interface.  A\npython representation of the interface is in swig/python/gensiodoc.py,\nyou can see that for documentation.\n\nC++\n===\n\nThe C++ interface is documented in c++/README.rst.\n\npygensio\n========\n\nThe new pygensio interface is a cleaner implementation using swig\ndirectors instead of hand-coded callbacks into python.  See the\nREADME.rst in c++/swig/pygensio.  There are also glib and tcl OS_Funcs\nin the glib and tcl directories.\n\nGO\n===\n\nThe full C++ interface is available to Go programs through swig and\nswig directors.  See c++/swig/go/README.rst for details.\n\n=============\nRunning Tests\n=============\n\nThere are a number of tests for gensios.  They currently only run on\nLinux and require some external tools.\n\nThey require the serialsim kernel module and python interface.  These\nare at https://github.com/cminyard/serialsim and allow the tests to\nuse a simulated serial port to read modem control line, inject errors,\netc.\n\nYou can get by without serialsim if you have three serial devices: one\nhooked in echo mode (RX and TX tied together) and two serial devices\nhooked together do I/O on one device goes to/comes from the other.\nThen set the following environment variables:\n\n.. code-block:: bash\n\n  export GENSIO_TEST_PIPE_DEVS=\"/dev/ttyxxx:/dev/ttywww\"\n  export GENSIO_TEST_ECHO_DEV=\"/dev/ttyzzz\"\n\nIt will not be able to test modemstate or rs485.\n\nThey also require the ipmi_sim program from the OpenIPMI library at\nhttps://github.com/cminyard/openipmi to run the ipmisol tests.\n\nTo run the tests, you need to enable some internal debugging to get\nthe full effect.  You generally want to run something like:\n\n.. code-block:: bash\n\n  ./configure --enable-internal-trace CFLAGS='-g -Wall'\n\nYou can turn on -O3 in the CFLAGS, too, if you like, but it makes\ndebugging harder.\n\nThere are two basic types of tests.  The python tests are functional\ntests testing both the python interface and the gensio library.\nCurrently they are ok, but there is plenty of room for improvement.\nIf you want to help, you can write tests.\n\nThe oomtest used to be an out of memory tester, but has morphed into\nsomething more extensive.  It spawns a gensiot program with specific\nenvironment variables to cause it to fail at certain points, and to do\nmemory leak and other memory checks.  It writes data to the gensiot\nthrough its stdin and receives data on stdout.  Some tests (like\nserialdev) use an echo.  Other tests make a separate connection over\nthe network and data flows both into stdin and comes back over the\nseparate connection, and flows into the separate connection and comes\nback via stdout.  oomtest is multi-threaded and the number of threads\ncan be controlled.  oomtest has found a lot of bugs.  It has a lot of\nknobs, but you have to look at the source code for the options.  It\nneeds to be documented, if someone would like to volunteer...\n\nFuzzing\n=======\n\nTo set up for fuzzing, install afl, then configure with the following:\n\n.. code-block:: bash\n\n  mkdir Zfuzz; cd Zfuzz\n  ../configure --enable-internal-trace=yes --disable-shared --with-go=no \\\n      CC=afl-gcc CXX=afl-g++\n\nOr use clang, if available:\n\n.. code-block:: bash\n\n  ../configure --enable-internal-trace=yes --disable-shared --with-go=no \\\n      CC=afl-clang-fast CXX=afl-clang-fast++ LIBS='-lstdc++'\n\nI'm not sure why the LIBS thing is necessary above, but I had to add\nit to get it to compile.\n\nThen build.  Then \"cd tests\" and run \"make test_fuzz_xxx\" where xxx is\none of: certauth, mux, ssl, telnet, or relpkt.  You will probably need\nto adjust some things, afl will tell you.  Note that it will run\nforever, you will need to ^C it when you are done.\n\nThe makefile in tests/Makefile.am has instructions on how to handle a\nfailure to reproduce for debugging.\n\nCode Coverage\n=============\n\nRunning code coverage on the library is pretty easy.  First you need\nto configure the code to enable coverage:\n\n.. code-block:: bash\n\n  mkdir Ocov; cd Ocov\n  ../configure --enable-internal-trace=yes \\\n      CC='gcc -fprofile-arcs -ftest-coverage' \\\n      CXX='g++ -fprofile-arcs -ftest-coverage'\n\nThe compile and run \"make check\".\n\nTo generate the report, run:\n\n.. code-block:: bash\n\n  gcovr -f '.*/.libs/.*' -e '.*python.*'\n\nThis will generate a summary.  If you want to see the coverage of\nindividual lines in a file, you can do:\n\n.. code-block:: bash\n\n  cd lib\n  gcov -o .libs/ *.o\n\nYou can look in the individual .gcov files created for information\nabout what is covered.  See the gcov docs for detail.\n\nAt the time of writing, I was getting about 74% code coverage,\nSo that's really pretty good.  I'll be working to improve\nthat, mostly through improved functional testing.\n\nser2net is used for testing some things, primarily the serial port\nconfiguration (termios and rfc2217).  You can build ser2net against\nthe gcov version of the gensio library and run \"make check\" in ser2net\nto get coverage on those parts.  With that, I'm seeing about 76%\ncoverage, so it doesn't add much to the total.\n\nIt would be nice to be able to combine this with fuzzing, but I'm not\nsure how to do that.  afl does it's own thing with code coverage.\nThere appears to be a afl-cov package that somehow integrated gcov,\nbut I haven't looked into it.\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/masenf/gensio",
+            "keywords": "",
+            "license": "",
+            "maintainer": "Masen Furer",
+            "maintainer_email": "m_github@0x26.net",
+            "name": "gensio-binary",
+            "package_url": "https://pypi.org/project/gensio-binary/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/gensio-binary/",
+            "project_urls": {
+                "Homepage": "https://github.com/masenf/gensio"
+            },
+            "release_url": "https://pypi.org/project/gensio-binary/2.6.0.post2/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "a framework for giving a consistent view of various stream (and packet) I/O types",
+            "version": "2.6.0.post2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15649551,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f86537a01842da23f749854b2ddd2a72",
+                    "sha256": "9c30cef842d70a4670a07919563b4062fa1a98e118113c1416b5159cb0a918b2"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp310-cp310-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "f86537a01842da23f749854b2ddd2a72",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 4168631,
+                "upload_time": "2022-11-04T03:41:01",
+                "upload_time_iso_8601": "2022-11-04T03:41:01.552677Z",
+                "url": "https://files.pythonhosted.org/packages/b7/84/d21bd4e217eed36b6a97159d5eab3e3775f718e8c7b3749a113a001bce60/gensio_binary-2.6.0.post2-cp310-cp310-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7c1de8732eea4e61a4e774ba8b0c415f",
+                    "sha256": "66693d84ca0452fe6565d7a225dde9ac608e83d12c75e2b7cf6e05ac4be90237"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "7c1de8732eea4e61a4e774ba8b0c415f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 2790751,
+                "upload_time": "2022-11-04T03:41:04",
+                "upload_time_iso_8601": "2022-11-04T03:41:04.374576Z",
+                "url": "https://files.pythonhosted.org/packages/63/98/16d13d3493ed50fba1dfca5811563c45afc9ef0e341b461b87a86d139b0c/gensio_binary-2.6.0.post2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2c67f568cf241e698b14c8e8beffb819",
+                    "sha256": "cae780e553046c8ad2c7a94a469a9d8c6f3c194243c895585b1c4377d38babde"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "2c67f568cf241e698b14c8e8beffb819",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 2515555,
+                "upload_time": "2022-11-04T03:41:07",
+                "upload_time_iso_8601": "2022-11-04T03:41:07.273772Z",
+                "url": "https://files.pythonhosted.org/packages/e0/0f/bd0f0fa5ecda51523ad0fe0386dc59f48861d4ccfeba11efcc41c56ba778/gensio_binary-2.6.0.post2-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "66b0f60e5455d430a9428d89f9d1fc55",
+                    "sha256": "1cd14470353ebe88679f5f1fa774f32a2dee960d3af067b4bccc81981b5bc7e5"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "66b0f60e5455d430a9428d89f9d1fc55",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 2733930,
+                "upload_time": "2022-11-04T03:41:11",
+                "upload_time_iso_8601": "2022-11-04T03:41:11.445799Z",
+                "url": "https://files.pythonhosted.org/packages/59/81/f50e07e7b85a6b51f3e3c93dc3ad88fad1580800ac31693f1f3132d1461d/gensio_binary-2.6.0.post2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bd97333bff66db0fd4b3fede3e1fa5b4",
+                    "sha256": "2cb058c9bc2002b403d1b804f9ed33264d9d794ef9b640b773e37186009e7a0d"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp311-cp311-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "bd97333bff66db0fd4b3fede3e1fa5b4",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": null,
+                "size": 5151488,
+                "upload_time": "2022-11-04T03:41:14",
+                "upload_time_iso_8601": "2022-11-04T03:41:14.332246Z",
+                "url": "https://files.pythonhosted.org/packages/66/fe/f126f51534aef4bdc1d51eab12029bc8661d76f66e47cfc239c7311d990e/gensio_binary-2.6.0.post2-cp311-cp311-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "10b31e5ceb2c4a0f625146fc846f8141",
+                    "sha256": "f62053049a5d20acab158282ab1930bad2dccdddfe220450cc0863b5d11d99d4"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "10b31e5ceb2c4a0f625146fc846f8141",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": null,
+                "size": 2799352,
+                "upload_time": "2022-11-04T03:41:17",
+                "upload_time_iso_8601": "2022-11-04T03:41:17.049620Z",
+                "url": "https://files.pythonhosted.org/packages/af/37/6d90dc8b768ee5e0228c8703caf708887dfa67d83228ad36c5e12967c0a3/gensio_binary-2.6.0.post2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "18ab4b03a0dbde177c5560094dd6f6ec",
+                    "sha256": "c4cf37f21fff668aef9bec87dc8320944be205676d1f3302a49c82c122324daf"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "18ab4b03a0dbde177c5560094dd6f6ec",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": null,
+                "size": 2525915,
+                "upload_time": "2022-11-04T03:41:19",
+                "upload_time_iso_8601": "2022-11-04T03:41:19.273694Z",
+                "url": "https://files.pythonhosted.org/packages/ed/0a/7ef23eac35b24da89b65610ab7a396960b5a94c02193d65639bde60e0f47/gensio_binary-2.6.0.post2-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3fa0eac29077084d430da7620084f5f5",
+                    "sha256": "fb59ccbfb540541b9a7215b7897fc684aa3855f452f59ef7bfeaec8217096dd4"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "3fa0eac29077084d430da7620084f5f5",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": null,
+                "size": 2742302,
+                "upload_time": "2022-11-04T03:41:21",
+                "upload_time_iso_8601": "2022-11-04T03:41:21.780816Z",
+                "url": "https://files.pythonhosted.org/packages/f3/8f/384bebe2f8ce945d5dd994346f43303d2944f2c0384cd5c6f89cb6f9bdab/gensio_binary-2.6.0.post2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d4d5521b793a847184c83582abcae607",
+                    "sha256": "8fda25ed1c0b692fb41057d895807fddc0a6d8b52533bf734cef93ff475ea354"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp36-cp36m-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d4d5521b793a847184c83582abcae607",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 1600522,
+                "upload_time": "2022-11-04T03:41:23",
+                "upload_time_iso_8601": "2022-11-04T03:41:23.834822Z",
+                "url": "https://files.pythonhosted.org/packages/d0/83/a73262c97de6838dbc8932aef36f6528059710d9300d47fe2eae5c5aa2ac/gensio_binary-2.6.0.post2-cp36-cp36m-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5ad5c3acef4bd5cec879b5ffaa33d164",
+                    "sha256": "775b73d0b85d5bca4ea3e1e6a2bf3f52e95ea0f2ab34c9108f8d2b3014e08312"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "5ad5c3acef4bd5cec879b5ffaa33d164",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 2779136,
+                "upload_time": "2022-11-04T03:41:26",
+                "upload_time_iso_8601": "2022-11-04T03:41:26.303623Z",
+                "url": "https://files.pythonhosted.org/packages/bf/4c/717d52f3169f876d4bc603c976110958906a98c4c7317ac663538bb5a052/gensio_binary-2.6.0.post2-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "842604074ad27ac9de2e4b10da1079d1",
+                    "sha256": "a1841a07cdef1e4d214dc8524e6976134fa178b7d6a5b6a02a37a3f47507cff7"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp36-cp36m-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "842604074ad27ac9de2e4b10da1079d1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 2498194,
+                "upload_time": "2022-11-04T03:41:28",
+                "upload_time_iso_8601": "2022-11-04T03:41:28.861558Z",
+                "url": "https://files.pythonhosted.org/packages/2e/9c/9cfe77cadd9775de4bcfd0b866f366bd33ba19612e8682b6fdf5c7d09f35/gensio_binary-2.6.0.post2-cp36-cp36m-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "87c425c69efe1be6e4e2f3717787eb6e",
+                    "sha256": "904c51efc262a99c6064dc3d944ddddc440070d66245baa4377167ba91402073"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "87c425c69efe1be6e4e2f3717787eb6e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 2722000,
+                "upload_time": "2022-11-04T03:41:31",
+                "upload_time_iso_8601": "2022-11-04T03:41:31.440899Z",
+                "url": "https://files.pythonhosted.org/packages/2a/64/5710e19d995143a4f93299b30fe8271a142991da62284b0bff9a3a976211/gensio_binary-2.6.0.post2-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "94c8d566f564518aa571b7b12da4b35d",
+                    "sha256": "3431dab9af9e2050317b64dd6f707839b27e30b607536ddefc380d43875631cd"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp37-cp37m-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "94c8d566f564518aa571b7b12da4b35d",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 1674072,
+                "upload_time": "2022-11-04T03:41:33",
+                "upload_time_iso_8601": "2022-11-04T03:41:33.887130Z",
+                "url": "https://files.pythonhosted.org/packages/78/d7/876cb1d5b68dad8d90a165873a1d8d6d6429464c49d8a5bc26e934a9dc77/gensio_binary-2.6.0.post2-cp37-cp37m-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1b00283effc32f388485a60568da5571",
+                    "sha256": "450b264786386b9a3e2ca8daf9c6149b32ebc0f3830bb8e7f17019b3e7a3c44c"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "1b00283effc32f388485a60568da5571",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 2784317,
+                "upload_time": "2022-11-04T03:41:36",
+                "upload_time_iso_8601": "2022-11-04T03:41:36.885566Z",
+                "url": "https://files.pythonhosted.org/packages/de/ba/04a4d49353561694c560b3df1bd37bd12dcf8e19f9297b6f27dcd1daf127/gensio_binary-2.6.0.post2-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4e0776e9f599e2dd85c8a5a9f68bbc87",
+                    "sha256": "13f0cde2ffd0092a79ccf5887540bf7386117201404fdf274de9c9e78f64f493"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp37-cp37m-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "4e0776e9f599e2dd85c8a5a9f68bbc87",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 2503328,
+                "upload_time": "2022-11-04T03:41:39",
+                "upload_time_iso_8601": "2022-11-04T03:41:39.417720Z",
+                "url": "https://files.pythonhosted.org/packages/7c/c3/e81677d275586f089c3b009dbc49dfd6a8ef6e4a5811bdab0aa5eb0068db/gensio_binary-2.6.0.post2-cp37-cp37m-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d01dfe1d107372f2d1261f31b8bfbe34",
+                    "sha256": "7efcb1d4875b635993782f2854add9c4d2f9980958028f89268927f93ff76dfa"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d01dfe1d107372f2d1261f31b8bfbe34",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 2727001,
+                "upload_time": "2022-11-04T03:41:41",
+                "upload_time_iso_8601": "2022-11-04T03:41:41.706459Z",
+                "url": "https://files.pythonhosted.org/packages/f9/0d/2679b31ac7995327ad566b8078b92a908c7341b9ff1e7616c5d82fb6a767/gensio_binary-2.6.0.post2-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "eee8821fd120b0907d490bcd865a39a2",
+                    "sha256": "787e7a5dcfe336246f0ca8c7b0e5a976f3e33509fa80b75eb6c12dbb81433383"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp38-cp38-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "eee8821fd120b0907d490bcd865a39a2",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 1788483,
+                "upload_time": "2022-11-04T03:41:45",
+                "upload_time_iso_8601": "2022-11-04T03:41:45.330965Z",
+                "url": "https://files.pythonhosted.org/packages/5c/c7/5470c8d497aaa4be705f3a6ff38d8baf96c32ebcdbbb40987f09ac033229/gensio_binary-2.6.0.post2-cp38-cp38-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cd56f9eb867cbf05e136b947842052cf",
+                    "sha256": "4263a77c5611fcd7ca49c4464a134b38198079664825b7d168ab487b5f8b6603"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "cd56f9eb867cbf05e136b947842052cf",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 2792882,
+                "upload_time": "2022-11-04T03:41:47",
+                "upload_time_iso_8601": "2022-11-04T03:41:47.525451Z",
+                "url": "https://files.pythonhosted.org/packages/d9/6a/d961a1bc61ca21d00b434ea55a2dda4c1e86bd183faf73f497ef8cfe9bc2/gensio_binary-2.6.0.post2-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "65bf6efc2ab474fe3c646be900c48a71",
+                    "sha256": "974e8d4f6ddcc068a6e307bf03a3d737e8069f47d451f8bdccb08187242a1936"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp38-cp38-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "65bf6efc2ab474fe3c646be900c48a71",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 2513627,
+                "upload_time": "2022-11-04T03:41:49",
+                "upload_time_iso_8601": "2022-11-04T03:41:49.865560Z",
+                "url": "https://files.pythonhosted.org/packages/ab/1a/d08d717f8f10e57de7e9203153c2b0ffa82bc8a2c336b2457a228d41397a/gensio_binary-2.6.0.post2-cp38-cp38-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3bf0af3b351d8a723cf3779226f8daa0",
+                    "sha256": "4e4719a3cd20e54065cea51e60b1dc2df8beabe78400647f8a4b1ddd67d46122"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "3bf0af3b351d8a723cf3779226f8daa0",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 2735525,
+                "upload_time": "2022-11-04T03:41:52",
+                "upload_time_iso_8601": "2022-11-04T03:41:52.122471Z",
+                "url": "https://files.pythonhosted.org/packages/bc/4b/f3694ad0660136a515a53e9ea81bb95383d9bad780fe44804e5974a418b8/gensio_binary-2.6.0.post2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b65d024ce03e2b2576fc2d7464d6e137",
+                    "sha256": "c77eca356f1fcaf3e3ff2054ff25758ed92747e7b93ff831280ebe6974656256"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp39-cp39-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "b65d024ce03e2b2576fc2d7464d6e137",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 3237138,
+                "upload_time": "2022-11-04T03:41:54",
+                "upload_time_iso_8601": "2022-11-04T03:41:54.435156Z",
+                "url": "https://files.pythonhosted.org/packages/6d/30/8753eb6224a293ad66c6a8ac33ecacbe1074dbcf5cf23ccb4ba1ee2e99bd/gensio_binary-2.6.0.post2-cp39-cp39-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c120ca7d812cf4282c5bd476b064e9dd",
+                    "sha256": "b2b0d7d35fb06907abdf4f7d5bba8f8d05cbe8b9a87dcb09cff92c0ceb9674e7"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "c120ca7d812cf4282c5bd476b064e9dd",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 2790053,
+                "upload_time": "2022-11-04T03:41:56",
+                "upload_time_iso_8601": "2022-11-04T03:41:56.641435Z",
+                "url": "https://files.pythonhosted.org/packages/c5/75/449a6d23110aeea118e59f68b288b255574580cd440063279eeaca76a904/gensio_binary-2.6.0.post2-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1c28900348a553347f405d3fed669226",
+                    "sha256": "db2094997e7a4bf2481970d67c720276ebd148bcd51484d945930c963c6b5d0a"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "1c28900348a553347f405d3fed669226",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 2515052,
+                "upload_time": "2022-11-04T03:41:58",
+                "upload_time_iso_8601": "2022-11-04T03:41:58.990995Z",
+                "url": "https://files.pythonhosted.org/packages/a7/29/ef18c30faee3f37c6b64714b87ec7d14bc03cdf8d18ea27b796a8335db75/gensio_binary-2.6.0.post2-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a431099a8543cc2d552fa8664e219886",
+                    "sha256": "d81bb7257884b9e642c64ff96c4f4ab4c72918571063c5d0ac06f2afbe14918c"
+                },
+                "downloads": -1,
+                "filename": "gensio_binary-2.6.0.post2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "a431099a8543cc2d552fa8664e219886",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 2733247,
+                "upload_time": "2022-11-04T03:42:01",
+                "upload_time_iso_8601": "2022-11-04T03:42:01.684215Z",
+                "url": "https://files.pythonhosted.org/packages/51/dd/ffbe4953738162641d9e30f0db9379d3c42229e8997632b0807577d0db76/gensio_binary-2.6.0.post2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a2b6db1d60aedc9b643cd11c28351bbc",
+                    "sha256": "c76b99268f7661e5755a7a5cb9078803fb661d4ec10f468fab887104253d67b8"
+                },
+                "downloads": -1,
+                "filename": "gensio-binary-2.6.0.post2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a2b6db1d60aedc9b643cd11c28351bbc",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 833066,
+                "upload_time": "2022-11-04T03:42:04",
+                "upload_time_iso_8601": "2022-11-04T03:42:04.591796Z",
+                "url": "https://files.pythonhosted.org/packages/6c/cc/a43d81e09c78788806f718790ddaa4db8052cffb924ca9336cd3b8365290/gensio-binary-2.6.0.post2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
