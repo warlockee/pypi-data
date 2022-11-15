@@ -1,0 +1,83 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "",
+            "author_email": "snorkysnark <snorkysnark@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# Injection-safe SQL templating engine, Powered by Jinja+Psycopg\n\n## Why [jinja](https://jinja.palletsprojects.com/en/3.1.x/) templates are not enough\n\n```python\nenv = Environment()\ntemplate = env.from_string(\n    \"\"\"\n    select * from {{ table }}\n    {% if name is not None %}\n    where name = {{ name }}\n    {% endif %}\n    \"\"\"\n)\ntemplate.render(\n    table=\"foo\",\n    name=\"R'lyeh\" # This will fail\n)\n```\n\nPros:\n- if blocks, loops, filters, custom code, etc\n\nCons:\n- just a string templating engine, doesn't do any escaping\n\n## Psycopg's built-in string composition\n\nSimilarly, [psycopg3](https://www.psycopg.org/psycopg3/docs/api/sql.html)\nhas its own way of building queries, based on python's string formatting syntax\n\n```python\ncomposed = SQL(\n    \"\"\"\n    select * from {table}\n    where name = {name}\n    \"\"\"\n).format(table=Identifier(\"foo\"), name=\"R'lyeh\")\n\nwith psycopg.connect() as conn:\n    # db connection is needed to actually render the query\n    query = composed.as_string(conn)\n```\n\nPros:\n- Can differentiate between identifiers, literals and plain SQL\n- Native escaping using libpq\n\nCons:\n- Limited templating functionality\n\n## JinjaPsycopg, best of both worlds\n\n```python\nfrom jinja_psycopg import JinjaPsycopg\nfrom psycopg.sql import Identifier\n\nquery = \"\"\"\\\nselect * from {{ table }}\n{% if name is not None %}\nwhere name = {{ name }}\n{% endif %}\"\"\"\n\nrenderer = JinjaPsycopg()\ntemplate = renderer.from_string(query)\ncomposed = template.render(table=Identifier(\"foo\"), name=\"R'lyeh\")\n\nwith psycopg.connect() as conn, conn.cursor() as cursor:\n    # Render to string\n    query = composed.as_string(cursor)\n    # Execute\n    cursor.execute(composed)\n```\nor, as a shortcut:\n\n```python\ncomposed = renderer.render(query, { \"table\": Identifier(\"foo\"), \"name\": \"R'lyeh\" })\n```\n\n[make_module](https://jinja.palletsprojects.com/en/3.1.x/api/?highlight=make_module#jinja2.Template.make_module)\nis also supported, allowing you to extract configuration values from your template\n\n```python\nsqlmodule = renderer.from_string(\n    \"\"\"\n    {% set config = { 'option': True } %}\n    select field from {{ table }}\n    \"\"\"\n).make_module({ \"table\": Identifier(\"foo\") })\n\nassert getattr(sqlmodule.module, \"config\")['option'] == True\n\n# Render to SQL\ncomposed = sqlmodule.render()\n```\n\n### Custom SQL Objects\n\n```python\n@dataclass\nclass Table:\n    schema: str\n    name: str\n\n    def __sql__(self):\n        return SQL(\"{}.{}\").format(\n            Identifier(self.schema), Identifier(self.name)\n        )\n\nrenderer.render(\"select * from {{ table }}\", { \"table\": Table(\"public\", \"foo\") })\n```\n\n### Filters\n\n#### psycopg\n\nThis filter is applied **automatically** to all jinja blocks:\n\n`{{ value }}` is equivalent to `{{ (value) | psycopg }}`\n\nIt stores the actual value inside a ContextVar,\nreplacing `{{value}}` with a placeholder like `{dictionary_key}`\nto later be passed to SQL.format\n\n#### sql\n\nTreat a string value as plain SQL, not as a literal\n\n`ALTER TABLE foo {{ 'ADD COLUMN html TEXT' | sql }}`\n\n#### sqljoin\n\nSame as jinja's\n[join](https://jinja.palletsprojects.com/en/3.1.x/templates/?highlight=join#jinja-filters.join) filter,\nbut operates on SQL objects\n\n`{{ [Identifier(\"foo\"), Identifier(\"bar\")] | sqljoin(',') }}`\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "jinja-psycopg",
+            "package_url": "https://pypi.org/project/jinja-psycopg/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/jinja-psycopg/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/jinja-psycopg/0.1.0/",
+            "requires_dist": [
+                "psycopg>=3.0.15",
+                "jinja2>=3.1.2"
+            ],
+            "requires_python": ">=3.9",
+            "summary": "",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14525237,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d8928b00970e8cbccc5e453d9b93c60a",
+                    "sha256": "aeef316ab07bb18059a7a0786391d5fdc18df1d03d8494ef99b479910a375fd5"
+                },
+                "downloads": -1,
+                "filename": "jinja_psycopg-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "d8928b00970e8cbccc5e453d9b93c60a",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.9",
+                "size": 7492,
+                "upload_time": "2022-07-23T16:08:55",
+                "upload_time_iso_8601": "2022-07-23T16:08:55.608004Z",
+                "url": "https://files.pythonhosted.org/packages/c3/63/41b319c5c98860921dd5b4525696badd359df7bf00ea7b3978a2ffcfcbf0/jinja_psycopg-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5f7a34994d8fd91d51699cc32f742a04",
+                    "sha256": "4d1d24fae44986842bbc4e1a80880ff8f5a208355ff7ce2aa11093a0e4ce122f"
+                },
+                "downloads": -1,
+                "filename": "jinja-psycopg-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5f7a34994d8fd91d51699cc32f742a04",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9",
+                "size": 7845,
+                "upload_time": "2022-07-23T16:08:57",
+                "upload_time_iso_8601": "2022-07-23T16:08:57.571666Z",
+                "url": "https://files.pythonhosted.org/packages/c9/af/54150a99f02fc851c9b0d20bd05c8b1dbf1ae7428b19b03f466b0a4cb82f/jinja-psycopg-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

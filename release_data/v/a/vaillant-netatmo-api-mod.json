@@ -1,0 +1,90 @@
+{
+    "0.10.0": {
+        "info": {
+            "author": "Mislav Mandaric",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# vaillant-netatmo-api\n\n[![GitHub version](https://badge.fury.io/gh/MislavMandaric%2Fvaillant-netatmo-api.svg)](https://badge.fury.io/gh/MislavMandaric%2Fvaillant-netatmo-api)\n[![PyPI version](https://badge.fury.io/py/vaillant-netatmo-api.svg)](https://badge.fury.io/py/vaillant-netatmo-api)\n![Tests](https://github.com/MislavMandaric/vaillant-netatmo-api/actions/workflows/tests.yml/badge.svg)\n\n\n## General\n\nPython 3 library for managing Vaillant thermostats using the Netatmo API. It provides one-to-one mapping with Vaillant's Netatmo API and offeres similar functionality as the official Vaillant vSMART/eRELAX app.\n\n> NOTE: This library is still in a prerelease status and will be until v1.0.0. There might be breaking changes to the public API in any of the v0.x.y versions.\n\n## Installation\n\nLibrary can be simply installed using pip.\n\n```bash\npip install vaillant-netatmo-api\n```\n\nLibrary requires Python 3 and has [tenacity](https://github.com/jd/tenacity) and [httpx](https://github.com/encode/httpx) dependencies.\n\n> NOTE: httpx is currently a prerelease software. The version outlined in the `requirements.txt` should be working properly, but if there are some breaking changes, please check their Github issue tracker for known issues.\n\n## Usage\n\n### Getting the token from the OAuth API\n\nAll Netatmo APIs are protected and require a bearer token to authenticate. To get this token, Netatmo offers an OAuth API.\n\nSince Vaillant uses Resource Owner Password Credentials Grant, there is only one method in the `AuthClient` API:\n\n* `async_token`: getting a bearer token and storing it in the token store\n\n```python\nfrom vaillant_netatmo_api import auth_client\n\nCLIENT_ID = \"\"\nCLIENT_SECRET = \"\"\n\ndef handle_token_update(token):\n    token_string = token.serialize()\n    write_to_storage(token_string)\n\nasync with auth_client(CLIENT_ID, CLIENT_SECRET, handle_token_update) as client:\n    await client.async_token(\n        username,\n        password,\n        user_prefix,\n        app_version,\n    )\n```\n\n### Accessing the Thermostat API\n\nThere are three APIs available for the `ThermostatClient`, all of which require the bearer token for authentication:\n\n* `async_get_thermostats_data`: getting all the devices associated with the user account\n* `async_set_system_mode`: changing system mode for a device and module (ie. summer, winter or frostguard)\n* `async_set_minor_mode`: changing minor mode for a device and module (ie. manual mode, away mode or hot water boost mode)\n* `async_sync_schedule`: updating schedule data for a device and module\n* `async_switch_schedule`: changing active schedule for a device and module\n\n```python\nfrom vaillant_netatmo_api import thermostat_client, SystemMode, Token\n\nCLIENT_ID = \"\"\nCLIENT_SECRET = \"\"\n\ntoken_string = read_from_storage()\ntoken = Token.deserialize(token_string)\n\ndef handle_token_update(token):\n    token_string = token.serialize()\n    write_to_storage(token_string)\n\nasync with thermostat_client(CLIENT_ID, CLIENT_SECRET, token, handle_token_update) as client:\n    devices = await client.async_get_thermostats_data()\n\n    d_id = devices[0].id\n    m_id = devices[0].modules[0].id\n\n    await client.async_set_system_mode(d_id, m_id, SystemMode.WINTER)\n```\n\n### Using clients as singletons\n\nEven though library offers context manager for using `AuthClient` and `ThermostatClient`, this should only be done during development or in very infrequent usage scenarios.\n\nBoth of the clients use `httpx.AsyncClient` as the underlying HTTP communication library, which implements connection pooling and connection reuse. This means doing multiple concurent requests should be done by using the same instance of the `AuthClient` or `ThermostatClient`, which is not possible by using the context manager API since this API will return new instance of the client every time `auth_client` or `thermostat_client` method is called.\n\nTo achieve optimal usage, which will utilize connection pooling and connection reuse, both `AuthClient` and `ThermostatClient` should be used by instantiating the clients and providing `httpx.AsyncClient` instance in a constructor. This provided client should be used as singleton, or with some other context management mechanism, with the context wider than one block of code or one inbound request.\n\nHere is an example for usage in Home Assistant.\n\n```python\n# When setting up integration with all the devices of one account, instantiate and store the client in a configuration memory store\nasync def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:\n    client = get_async_client(hass)\n    token_store = TokenStore(\n        entry.data[CONF_CLIENT_ID],\n        entry.data[CONF_CLIENT_SECRET],\n        token,\n        handle_token_update,\n    )\n\n    hass.data[DOMAIN][entry.entry_id] = ThermostatClient(client, token_store)\n    hass.config_entries.async_setup_platforms(entry, PLATFORMS)\n\n    return True\n\n# When unloading the integration of this same account, read the client and close it manually\nasync def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:\n    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)\n    if unload_ok:\n        hass.data[DOMAIN].pop(entry.entry_id)\n\n    return unload_ok\n```\n\nSimilar hooks which represent some kind of application context should be used when integrating this library into a different application (Flask, Django or similar).\n\n## Acknowledgements\n\nThis library would not exist if it weren't for previous implementations by the following projects:\n\n* https://github.com/philippelt/netatmo-api-python\n* https://github.com/jabesq/netatmo-api-python\n* https://github.com/samueldumont/netatmo-api-python\n* https://github.com/jabesq/pyatmo\n* https://github.com/pjmaenh/pyvaillant\n\nThey laid out the foundation by exploring and documenting the APIs.\n\n## Disclaimers\n\nThis library is not associated with Vaillant or Netatmo in any way. If either Vaillant or Netatmo decide to change anything with the API, or block the usage outside of their first party apps, this library will stop working.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/Przemko92/vaillant-netatmo-api",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "vaillant-netatmo-api-mod",
+            "package_url": "https://pypi.org/project/vaillant-netatmo-api-mod/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/vaillant-netatmo-api-mod/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/Przemko92/vaillant-netatmo-api/issues",
+                "Homepage": "https://github.com/Przemko92/vaillant-netatmo-api"
+            },
+            "release_url": "https://pypi.org/project/vaillant-netatmo-api-mod/0.10.0/",
+            "requires_dist": [
+                "httpx (>=0.18.2)",
+                "tenacity (>=8.0.1)"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "Python 3 library for managing Vaillant thermostats using the Netatmo API.",
+            "version": "0.10.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15398629,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0fa871c2f3390624fe88de912ef3dc3c",
+                    "sha256": "7c301e7955d74b50b8ac5a9711ff515e0d14e2864e5f83aeb1521397998830a9"
+                },
+                "downloads": -1,
+                "filename": "vaillant_netatmo_api_mod-0.10.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "0fa871c2f3390624fe88de912ef3dc3c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 21737,
+                "upload_time": "2022-10-13T12:58:41",
+                "upload_time_iso_8601": "2022-10-13T12:58:41.408104Z",
+                "url": "https://files.pythonhosted.org/packages/3c/e6/d5f02f9dae485b045716bb20157f7ba5076faeab336aa6a9b42813893061/vaillant_netatmo_api_mod-0.10.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d2abb89997550cd141541454dd60d1bb",
+                    "sha256": "34eb10617709e879e3cd2247868b4fef6a1016b73d78d43d128367cf2717cb60"
+                },
+                "downloads": -1,
+                "filename": "vaillant-netatmo-api-mod-0.10.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d2abb89997550cd141541454dd60d1bb",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 19384,
+                "upload_time": "2022-10-13T12:58:42",
+                "upload_time_iso_8601": "2022-10-13T12:58:42.710508Z",
+                "url": "https://files.pythonhosted.org/packages/64/c4/f425776dce84d769f1f835185822eee4f25037902b1dde2c0e60c1f9ff65/vaillant-netatmo-api-mod-0.10.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

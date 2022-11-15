@@ -1,0 +1,108 @@
+{
+    "1.2.2": {
+        "info": {
+            "author": "",
+            "author_email": "Gianluca Iori <gianthk.iori@gmail.com>, Martino Pani <martino.pani@port.ac.uk>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering",
+                "Topic :: Utilities"
+            ],
+            "description": "# ciclope\nComputed Tomography to Finite Elements.\n\n[![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/Naereen/StrapDown.js/blob/master/LICENSE)\n[![PyPi Version](https://img.shields.io/pypi/v/ciclope.svg?style=flat-square)](https://pypi.org/project/ciclope/1.2.2/)\n[![PyPI pyversions](https://img.shields.io/pypi/pyversions/ciclope.svg?style=flat-square)](https://pypi.org/project/ciclope/1.2.2/)\n[![Documentation Status](https://readthedocs.org/projects/ciclope/badge/?version=latest)](https://ciclope.readthedocs.io/en/latest/?badge=latest)\n\n**ciclope** processes micro Computed Tomography (microCT) data to generate Finite Element (FE) models. <br />\n\n---\n## Installation\nInstall using pip. The flag `[all]` will install optional dependencies needed to run full pipelines and examples.\nFor development installation see the [development guide](development.md).\n```commandline\npip install ciclope[all]\n```\nFor running the examples you will need to install [DXchange](https://dxchange.readthedocs.io/en/latest/index.html):\n```shell\nconda install -c conda-forge dxchange\n```\n\n---\n## Usage\n**ciclope** pipelines can be run from the command line as a script. Scroll down and take a look at the [Examples](###Examples) folder for this type of use.\nTo view the command line script help run:\n```commandline\nciclope -h\n```\n\nTo use **ciclope** within python, import the package with\n```python\nimport ciclope\n```\n### Image pre-processing\n`ciclope.utils` contains functions that help you read and pre-process 3D datasets for FE model generation. You can skip this and use `ciclope` with 3D data as [`numpy.ndarray`](https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html), or directly with a 3D [`meshio`](https://github.com/nschloe/meshio) object.\n\nRead 3D CT dataset stored as stack of TIFFs:\n```python\nfrom ciclope.utils.recon_utils import read_tiff_stack\n\ninput_file = '/path_to_your_file/slice_0000.tiff'\n\ndata_3D = read_tiff_stack(input_file)\nvs = np.ones(3) * 0.06  # voxelsize [mm]\n```\nSegment and remove unconnected voxels:\n```python\nfrom skimage import morphology\nfrom ciclope.utils.preprocess import remove_unconnected\n\nBW = data_3D > 142 # fixed global threshold\nBW = morphology.closing(BW, morphology.ball(2)) # optional step\nL = remove_unconnected(BW)\n```\n\n### FE model generation\n\n#### voxel-FE\n![](test_data/trabecular_bone/trab_sample_mini3_UD3.png)\nGenerate **voxel-FE** model of linear elastic compression test:\n```python\nimport ciclope\n\ninput_template = \"./input_templates/tmp_example01_comp_static_bone.inp\"\n\n# generate unstructured grid mesh\nmesh = ciclope.voxelFE.vol2ugrid(data_3D, vs)\n\n# generate CalculiX input file\nciclope.voxelFE.mesh2voxelfe(mesh, input_template, 'foo.inp', keywords=['NSET', 'ELSET'])\n```\n\n#### tetrahedra-FE\n![](test_data/steel_foam/B_matrix_tetraFE_mesh.png)\nGenerate mesh of tetrahedra. `ciclope` uses [`pygalmesh`](https://github.com/nschloe/pygalmesh) for tetrahedra mesh generation:\n```python\nmesh = ciclope.tetraFE.cgal_mesh(L, vs, 'tetra', max_facet_distance=0.2, max_cell_circumradius=0.1)\n```\n\nGenerate **tetrahedra-FE** model of non-linear tensile test\n```python\ninput_template = \"./input_templates/tmp_example02_tens_static_steel.inp\"\n\n# generate CalculiX input file\nciclope.tetraFE.mesh2tetrafe(mesh, input_template, 'foo.inp', keywords=['NSET', 'ELSET'])\n```\n\n### Postprocessing\n`ciclope.utils.postprocess.paraviewplot` calls [ParaView](https://www.paraview.org/) to generate and save plots of a chosen model scalar field:\n\nPlot midplanes of the vertical displacement field `UD3`:\n\n```python\nciclope.utils.postprocess.paraview_plot('test_data/tooth/results/Tooth_3_scaled_2.vtk', slicenormal=\"xyz\",\n                                        RepresentationType=\"Surface\", Crinkle=True, ColorBy=['U', 'D2'], Roll=90,\n                                        ImageResolution=[1024, 1024], TransparentBackground=True,\n                                        colormap='Cool to Warm')\n```\n| | | |\n|:-------------------------:|:-------------------------:|:-------------------------:|\n|![](test_data/tooth/results/Tooth_3_scaled_2_UD3_XY.png) | ![](test_data/tooth/results/Tooth_3_scaled_2_UD3_XZ.png) | ![](test_data/tooth/results/Tooth_3_scaled_2_UD3_YZ.png) |\n\nPlot midplanes of the Von Mises stress `S_Mises`:\n\n```python\nciclope.utils.postprocess.paraview_plot(\"test_data/tooth/results/Tooth_3_scaled_2.vtk\", slicenormal=\"xyz\",\n                                        RepresentationType=\"Surface\", Crinkle=False, ColorBy=\"S_Mises\", Roll=90,\n                                        ImageResolution=[1024, 1024])\n```\n| | | |\n|:-------------------------:|:-------------------------:|:-------------------------:|\n|![](test_data/tooth/results/Tooth_3_scaled_2_S_Mises_XY.png) | ![](test_data/tooth/results/Tooth_3_scaled_2_S_Mises_XZ.png) | ![](test_data/tooth/results/Tooth_3_scaled_2_S_Mises_YZ.png) |\n\n---\n## ciclope pipeline \nThe following table shows a general pipeline for FE model generation from CT data that can be executed with ciclope:\n\n| # | Step | Description | **ciclope** flag |\n|:-:|:-|:-|:-|\n| 1. | **Load CT data** | | |\n| 2. | **Pre-processing** | Gaussian smooth | `--smooth` |\n| | | Resize image | `-r` |\n| | | Add embedding | (not implemented yet) |\n| | | Add caps | `--caps` |\n| 3. | **Segmentation** | Uses Otsu method if left empty | `-t` |\n| | | Remove unconnected voxels | |\n| 4. | **Meshing** | Outer shell mesh of triangles | `--shell_mesh` |\n| | | Volume mesh of tetrahedra | `--vol_mesh` |\n| 5. | **FE model generation** | Apply Boundary Conditions | |\n| | | Material mapping | `-m`, `--mapping` |\n| | | Voxel FE | `--voxelfe` |\n| | | Tetrahedra FE | `--tetrafe` |\n\n---\n## Notes on ciclope\n* Tetrahedra meshes are generated with [pygalmesh](https://github.com/nschloe/pygalmesh) (a Python frontend to [CGAL](https://www.cgal.org/))\n* High-resolution surface meshes for visualization are generated with the [PyMCubes](https://github.com/pmneila/PyMCubes) module.\n* All mesh exports are performed with the [meshio](https://github.com/nschloe/meshio) module.\n* **ciclope** handles the definition of material properties and FE analysis parameters (e.g. boundary conditions, simulation steps..) through separate template files. The folders [material_properties](/material_properties) and [input_templates](/input_templates) contain a library of template files that can be used to generate FE simulations.\n  * Additional libraries of [CalculiX](https://github.com/calculix) examples and template files can be found [here](https://github.com/calculix/examples) and [here](https://github.com/calculix/mkraska)\n___\n\n## Examples\n### [Example 1: voxel-uFE model of trabecular bone; linear compression test](examples/ipynb/ciclope_ex01_voxeluFE_CalculiX.ipynb) [![Made withJupyter](https://img.shields.io/badge/Made%20with-Jupyter-orange?style=for-the-badge&logo=Jupyter)](examples/old/ciclope_ex01_voxelFE_trabecularbone_CalculiX.ipynb)\n![](test_data/LHDL/3155_D_4_bc/results/LHDL_voxelFE_U3.png)\n\nThe pipeline can be executed from the command line with:\n```commandline\nciclope test_data/LHDL/3155_D_4_bc/cropped/3155_D_4_bc_0000.tif test_data/LHDL/3155_D_4_bc/results/3155_D_4_bc_voxelFE.inp -vs 0.0195 0.0195 0.0195 -r 2 -t 63 --smooth 1 --voxelfe --template input_templates/tmp_example01_comp_static_bone.inp --verbose\n```\n\nThe example shows how to:\n- [x] Load and inspect microCT volume data\n- [x] Apply Gaussian smooth\n- [x] Resample the dataset\n- [x] Segment the bone tissue\n- [x] Remove unconnected clusters of voxels\n- [x] Convert the 3D binary to a voxel-FE model for simulation in CalculX or Abaqus\n  - [x] Linear, static analysis; displacement-driven\n  - [X] Local material mapping (dataset Grey Values to bone Tissue Elastic Modulus)\n- [x] Launch simulation in Calculix\n- [x] Convert Calculix output to .VTK for visualization in Paraview\n- [x] Visualize simulation results in Paraview\n\n### [Example 2: tetrahedra-uFE model of trabecular bone; linear compression test](examples/ipynb/ciclope_ex04_tetraFE_steelfoam_nonlinear_CalculiX.ipynb) [![Made withJupyter](https://img.shields.io/badge/Made%20with-Jupyter-orange?style=for-the-badge&logo=Jupyter)](examples/ipynb/ciclope_ex02_tetrauFE_CalculiX.ipynb)\n![](test_data/LHDL/3155_D_4_bc/results/LHDL_tetraFE_U3.png)\n\nThe pipeline can be executed from the command line with:\n```commandline\nciclope test_data/LHDL/3155_D_4_bc/cropped/3155_D_4_bc_0000.tif test_data/LHDL/3155_D_4_bc/results/3155_D_4_bc.inp -vs 0.0195 0.0195 0.0195 -r 2 -t 63 --smooth 1 --tetrafe --max_facet_distance 0.025 --max_cell_circumradius 0.05 --vol_mesh --template input_templates/tmp_example01_comp_static_bone.inp\n```\n\n### [Example #3 - tetrahedra-FE model of embedded tooth](examples/ipynb/ciclope_ex03_tetraFE_tooth_CalculiX.ipynb) [![Made withJupyter](https://img.shields.io/badge/Made%20with-Jupyter-orange?style=for-the-badge&logo=Jupyter)](examples/ciclope_ex02_tetraFE_steelfoam_CalculiX.ipynb)\n![](test_data/tooth/results/Tooth_3_scaled_2_Smises2.png)\nCompression test of embedded human tooth.\n\n### [Example #4 - non-linear tetrahedra-FE model of stainless steel foam](examples/ipynb/ciclope_ex04_tetraFE_steelfoam_nonlinear_CalculiX.ipynb) [![Made withJupyter](https://img.shields.io/badge/Made%20with-Jupyter-orange?style=for-the-badge&logo=Jupyter)](examples/ciclope_ex02_tetraFE_steelfoam_CalculiX.ipynb)\n![](test_data/steel_foam/B_matrix_tetraFE_Nlgeom_results/PEEQ.gif)\n\nThe pipeline can be executed from the command line with:\n```commandline\nciclope input.tif output.inp -vs 0.0065 0.0065 0.0065 --smooth -r 1.2 -t 90 --vol_mesh --tetrafe --template ./../input_templates/tmp_example02_tens_Nlgeom_steel.inp -v\n```\n\nThe example shows how to:\n- [x] Load and inspect synchrotron microCT volume data\n- [x] Apply Gaussian smooth\n- [x] Resample the dataset\n- [x] Segment the steel\n- [x] Remove unconnected clusters of voxels\n- [x] Generate volume mesh of tetrahedra\n- [x] Generate high-resolution mesh of triangles of the model outer shell (for visualization)\n- [x] Convert the 3D binary to a tetrahedra-FE model for simulation in CalculX or Abaqus\n  - [x] Non-linear, quasi-static analysis definition: tensile test with material plasticity. For more info visit: [github.com/mkraska/CalculiX-Examples](https://github.com/mkraska/CalculiX-Examples/blob/master/Drahtbiegen/Zug/Zug.inp)\n  - [ ] Local material mapping\n- [x] Launch simulation in Calculix\n- [x] Convert Calculix output to .VTK for visualization in Paraview\n- [x] Visualize simulation results in Paraview\n\n## Acknowledgements\nThis project was partially developed during the Jupyter Community Workshop [\u201cBuilding the Jupyter Community in Musculoskeletal Imaging Research\u201d](https://github.com/JCMSK/2022_JCW) sponsored by [NUMFocus](https://numfocus.org/).\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "computed tomography,finite elements,image processing,engineering,simulation,biomechanics",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "ciclope",
+            "package_url": "https://pypi.org/project/ciclope/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/ciclope/",
+            "project_urls": {
+                "Home": "https://github.com/gianthk/ciclope"
+            },
+            "release_url": "https://pypi.org/project/ciclope/1.2.2/",
+            "requires_dist": [
+                "numpy",
+                "meshio>=5.0.0",
+                "pygalmesh",
+                "PyMCubes",
+                "matplotlib ; extra == \"all\"",
+                "scipy ; extra == \"all\"",
+                "scikit-image ; extra == \"all\"",
+                "tqdm ; extra == \"all\"",
+                "pypng ; extra == \"all\"",
+                "itkwidgets ; extra == \"all\"",
+                "itk ; extra == \"all\"",
+                "vtk ; extra == \"all\"",
+                "ccx2paraview ; extra == \"all\""
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Computed Tomography to Finite Elements",
+            "version": "1.2.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15538070,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c5ddbe64b45816453aaf1e347934ed78",
+                    "sha256": "f53647234d29f1d913715edf2f9b7c41b32905b1bf9daa6a247d3704df117137"
+                },
+                "downloads": -1,
+                "filename": "ciclope-1.2.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c5ddbe64b45816453aaf1e347934ed78",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 31314,
+                "upload_time": "2022-10-26T14:16:00",
+                "upload_time_iso_8601": "2022-10-26T14:16:00.186718Z",
+                "url": "https://files.pythonhosted.org/packages/6f/17/274a57508153c3365c2459e40b4f2b3dbf329b2fb4cd91b47130de76cb76/ciclope-1.2.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d7796df7e071c35b504b7d203d5dfcff",
+                    "sha256": "1a740f3bbe6c1c0de6367bb69d3b593f685567bd9bc0603d25ad1e5611579a90"
+                },
+                "downloads": -1,
+                "filename": "ciclope-1.2.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d7796df7e071c35b504b7d203d5dfcff",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 29652,
+                "upload_time": "2022-10-26T14:16:02",
+                "upload_time_iso_8601": "2022-10-26T14:16:02.387467Z",
+                "url": "https://files.pythonhosted.org/packages/06/91/00387b0f7b40eb49e709729102180f6219767b6dac2519dbbf141db43ef6/ciclope-1.2.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

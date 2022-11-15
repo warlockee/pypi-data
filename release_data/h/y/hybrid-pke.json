@@ -1,0 +1,328 @@
+{
+    "1.0.0": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Rust",
+                "Topic :: Security :: Cryptography"
+            ],
+            "description": "Hybrid PKE\n===============\nThe Hybrid Public Key Encryption (HPKE) standard in Python.\n\n`hybrid_pke` = [`hpke-rs`](https://github.com/franziskuskiefer/hpke-rs) :heavy_plus_sign: [`PyO3`](https://github.com/PyO3/pyo3)\n\nThis library provides Python bindings to the `hpke-rs` crate, which supports primitives from either [Rust Crypto](https://github.com/RustCrypto) or [EverCrypt](https://hacl-star.github.io/HaclValeEverCrypt.html).\n\n<details>\n  <summary> Table of Contents </summary>\n  <ol>\n    <li><a href=\"#usage\">Usage</a></li>\n    <li><a href=\"#features\">Features</a></li>\n    <li><a href=\"#installation\">Installation</a></li>\n    <li><a href=\"#development\">Development</a></li>\n    <li><a href=\"#related-projects\">Related Projects</a></li>\n  </ol>\n</details>\n\n## Usage\n### Basic\nThe single-shot API is intended for single message encryption/decryption. The default HPKE configuration uses the unauthenticated Base mode, an X25519 DH key encapsulation mechanism, a SHA256 key derivation mechanism, and a ChaCha20Poly1305 AEAD function.\n\n```python\nimport hybrid_pke\n\nhpke = hybrid_pke.default()\ninfo = b\"\"  # shared metadata, correspondance-level\naad = b\"\"  # shared metadata, message-level\nsecret_key_r, public_key_r = hpke.generate_key_pair()  # receiver keys, pre-generated\n\n# ============== Sender ==============\n\nmessage = b\"hello from the other side!\"\nencap, ciphertext = hpke.seal(public_key_r, info, aad, message)\n\n# ============= Receiver =============\n\nplaintext = hpke.open(encap, secret_key_r, info, aad, ciphertext)\nprint(plaintext.decode(\"utf-8\"))\n# >> hello from the other side!\n```\n\n### Advanced\n\n<details><summary> Sender & Receiver Contexts </summary>\n\nThe Sender Context and Receiver Context APIs allow for setting up a context for repeated encryptions and decryptions. It's recommended whenever you intend to perform several encryptions or decryptions in quick succession.\n```python\ninfo = b\"quotes from your favorite aphorists\"\naads = [\n  b\"Szasz\",\n  b\"Nietzsche\",\n  b\"Morandotti\",\n  b\"Brudzinski\",\n  b\"Hubbard\",\n]\n\n# ============== Sender ==============\n\nmessages = [\n    b\"Two wrongs don't make a right, but they make a good excuse.\",\n    b\"Become who you are!\",\n    b\"Only those who aren't hungry are able to judge the quality of a meal.\",\n    b\"Under certain circumstances a wanted poster is a letter of recommendation.\",\n    b\"Nobody ever forgets where he buried the hatchet.\",\n]\nencap, sender_context = hpke.setup_sender(public_key_r, info)\n\nciphertexts = []\nfor aad, msg in zip(aads, messages):\n    ciphertext = sender_context.seal(aad, msg)\n    ciphertexts.append(ciphertext)\n\n# ============= Receiver =============\n\nreceiver_context = hpke.setup_receiver(encap, secret_key_r, info)\nplaintexts = []\nfor aad, ctxt in zip(aads, ciphertexts):\n    plaintext = receiver_context.open(aad, ctxt)\n    plaintexts.append(plaintext)\n\nprint(f\"\\\"{plaintexts[0].decode()}\\\" - {aad[0].decode()}\")\nprint(f\"\\\"{plaintexts[1].decode()}\\\" - {aad[1].decode()}\")\n# >> \"Two wrongs don't make a right, but they make a good excuse.\" - Szasz\n# >> \"Become who you are!\" - Nietzsche\n```\n</details>\n\n<details><summary> Mode.AUTH: Authenticated Sender </summary>\n\nAuth mode allows for signing and verifying encryptions with a previously authenticated sender key-pair.\n```python\nhpke = hybrid_pke.default(mode=hybrid_pke.Mode.AUTH)\nsecret_key_r, public_key_r = hpke.generate_key_pair()  # receiver keys\nsecret_key_s, public_key_s = hpke.generate_key_pair()  # sender keys, pre-authenticated\n\n# ============== Sender ==============\n\n# sign with sender's secret key\nencap, ciphertext = hpke.seal(public_key_r, info, aad, message, sk_s=secret_key_s)\n\n# ============= Receiver =============\n\n# verify with sender's public key\nplaintext = hpke.open(encap, secret_key_r, info, aad, ciphertext, pk_s=public_key_s)\n```\n</details>\n\n<details><summary>Mode.PSK: Pre-shared Key Authentication</summary>\n\nPSK mode allows for signing and verifying encryptions with a previously shared key held by both the sender and recipient.\n```python\nhpke = hybrid_pke.default(mode=hybrid_pke.Mode.PSK)\n# pre-shared key + ID\npsk = bytes.fromhex(\"0247fd33b913760fa1fa51e1892d9f307fbe65eb171e8132c2af18555a738b82\")\npsk_id = bytes.fromhex(\"456e6e796e20447572696e206172616e204d6f726961\")\n\n# ============== Sender ==============\n\n# sign with pre-shared key\nencap, ciphertext = hpke.seal(public_key_r, info, aad, message, psk=psk, psk_id=psk_id)\n\n# ============= Receiver =============\n\n# verify with pre-shared key\nplaintext = hpke.open(encap, secret_key_r, info, aad, ciphertext, psk=psk, psk_id=psk_id)\n```\n</details>\n\n<details><summary>Mode.AUTH_PSK: Combining AUTH and PSK. </summary>\n\nPSK mode allows for signing and verifying encryptions with a previously shared key held by both the sender and recipient.\n```python\nhpke = hybrid_pke.default(mode=hybrid_pke.Mode.PSK)\nsecret_key_r, public_key_r = hpke.generate_key_pair()  # receiver keys\nsecret_key_s, public_key_s = hpke.generate_key_pair()  # sender keys, pre-authenticated\n# pre-shared key + ID\npsk = bytes.fromhex(\"0247fd33b913760fa1fa51e1892d9f307fbe65eb171e8132c2af18555a738b82\")\npsk_id = bytes.fromhex(\"456e6e796e20447572696e206172616e204d6f726961\")\n\n# ============== Sender ==============\n\n# sign with both pre-shared key and sender's secret key\nencap, ciphertext = hpke.seal(\n    public_key_r, info, aad, message,\n    psk=psk, psk_id=psk_id, sk_s=secret_key_s,\n)\n\n# ============= Receiver =============\n\n# verify with both pre-shared key and sender's public key\nplaintext = hpke.open(\n    encap, secret_key_r, info, aad, ciphertext,\n    psk=psk, psk_id=psk_id, pk_s=public_key_s,\n)\n```\n</details>\n\n<p align=\"right\">(<a href=\"#top\">back to top</a>)</p>\n\n## Features\nThe features available match those supported by `hpke-rs`.\n\n<details><summary>HPKE Modes</summary>\n\n- [x] mode_base\n- [x] mode_psk\n- [x] mode_auth\n- [x] mode_auth_psk\n</details>\n\n<details><summary>KEMs: (Diffie-Hellman) Key Encapsulation Mechanisms</summary>\n\n- [x] DHKEM(P-256, HKDF-SHA256)\n- [ ] DHKEM(P-384, HKDF-SHA384)\n- [ ] DHKEM(P-521, HKDF-SHA512)\n- [x] DHKEM(X25519, HKDF-SHA256)\n- [ ] DHKEM(X448, HKDF-SHA512)\n</details>\n\n<details><summary>KDFs: Key Derivation Functions </summary>\n\n- [x] HKDF-SHA256\n- [x] HKDF-SHA384\n- [x] HKDF-SHA512\n</details>\n\n<details><summary>AEADs: Authenticated Encryption with Additional Data functions</summary>\n\n- [x] AES-128-GCM\n- [x] AES-256-GCM\n- [x] ChaCha20Poly1305\n- [x] Export only\n</details>\n\n<p align=\"right\">(<a href=\"#top\">back to top</a>)</p>\n\n## Installation\nWheels for various platforms and architectures can be found on [PyPI](https://pypi.org/project/hybrid-pke/) or in the `wheelhouse.zip` archive from the [latest Github release](https://github.com/capeprivacy/hybrid-pke/releases).\n\nThe library can also be installed from source with [`maturin`](https://github.com/PyO3/maturin) -- see below.\n\n<p align=\"right\">(<a href=\"#top\">back to top</a>)</p>\n\n## Development\n\nWe use [`maturin`](https://github.com/PyO3/maturin) to build and distribute the PyO3 extension module as a Python wheel.\n\nFor users of `cmake`, we provide a [`Makefile`](https://github.com/capeprivacy/hybrid-pke/blob/main/Makefile) that includes some helpful development commands.\n\n<details><summary>Some useful tips</summary>\n\n- `maturin develop` builds & installs the Python package into your Python environment (`venv` or `conda` recommended)\n- `pytest .` tests the resulting Python package.\n- `pytest -n auto .` runs the full test suite in parallel.\n- `maturin build --release -o dist --sdist` builds the extension module in release-mode and produces a wheel for your environment's OS and architecture.\n- The `-i`/`--interpreter` flag for `maturin` can be used to swap out different Python interpreters, if you have multiple Python installations.\n</details>\n\n<p align=\"right\">(<a href=\"#top\">back to top</a>)</p>\n\n## Related Projects\n- [hpke-py](https://github.com/ctz/hpke-py): An implementation of HPKE based on primitives from [cryptography.io](https://cryptography.io).\n\n<p align=\"right\">(<a href=\"#top\">back to top</a>)</p>\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "hybrid-pke",
+            "package_url": "https://pypi.org/project/hybrid-pke/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/hybrid-pke/",
+            "project_urls": {
+                "repository": "https://github.com/capeprivacy/hybrid-pke"
+            },
+            "release_url": "https://pypi.org/project/hybrid-pke/1.0.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.8",
+            "summary": "The Hybrid Public Key Encryption (HPKE) standard in Python",
+            "version": "1.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14768740,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e54ed97541fd2873b1362d75524c0741",
+                    "sha256": "fb7952dd6587c93d1f26f07d50339aa002b7a924c3320f4ecf9c9e3d2874e36f"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp310-cp310-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "e54ed97541fd2873b1362d75524c0741",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.8",
+                "size": 413404,
+                "upload_time": "2022-08-15T20:17:49",
+                "upload_time_iso_8601": "2022-08-15T20:17:49.944926Z",
+                "url": "https://files.pythonhosted.org/packages/b0/39/dd95da23fa1a23902726490a84a74fde1b0955be85ca7c197e70328b9eea/hybrid_pke-1.0.0-cp310-cp310-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3c7c5ab6653e2495e311bc3ccb522849",
+                    "sha256": "edfd0a8228fe461ef7dfff519f8658a982381c1b8dc1673918bf87ef9fffea0b"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp310-cp310-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "3c7c5ab6653e2495e311bc3ccb522849",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.8",
+                "size": 782144,
+                "upload_time": "2022-08-15T20:17:51",
+                "upload_time_iso_8601": "2022-08-15T20:17:51.663483Z",
+                "url": "https://files.pythonhosted.org/packages/82/15/adb32cc18f7ca058c99f5ea15d64da2397d491b9085396a200139c98c0d9/hybrid_pke-1.0.0-cp310-cp310-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b1c68bad45507f2fb0a0e449612adee2",
+                    "sha256": "c6da275f5ce45a67614bf06bf71d9889542856cfe63b0f9a87ab0322f8bbd184"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "b1c68bad45507f2fb0a0e449612adee2",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.8",
+                "size": 1205173,
+                "upload_time": "2022-08-15T20:17:54",
+                "upload_time_iso_8601": "2022-08-15T20:17:54.099849Z",
+                "url": "https://files.pythonhosted.org/packages/d5/f1/f843f8334b3da09317972ea33c2c1b55c097f08997d4063ab88c1d1642a4/hybrid_pke-1.0.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "478bd8abb777455012acb8f9c08ae9d1",
+                    "sha256": "17c0b07d0626caa19adc7b90461b1fa858b8d310ab63deee856ab282a063e417"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp310-none-win32.whl",
+                "has_sig": false,
+                "md5_digest": "478bd8abb777455012acb8f9c08ae9d1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.8",
+                "size": 298379,
+                "upload_time": "2022-08-15T20:17:56",
+                "upload_time_iso_8601": "2022-08-15T20:17:56.158268Z",
+                "url": "https://files.pythonhosted.org/packages/64/5a/3d7b3c9fb57d131f83d3792cf9a8c6cd81a87ff76b58d9c479591fbe48d0/hybrid_pke-1.0.0-cp310-none-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "59c75aef007f696b3a6f319d12c52494",
+                    "sha256": "9862627d5f258cb0a6f6c272616c455c65352640ce7f9d36c5a41e27f410fcc5"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp38-cp38-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "59c75aef007f696b3a6f319d12c52494",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 413136,
+                "upload_time": "2022-08-15T20:17:57",
+                "upload_time_iso_8601": "2022-08-15T20:17:57.914390Z",
+                "url": "https://files.pythonhosted.org/packages/3f/c2/ea62085e63ea2773fa8decefab890eba1e1e97271c6fa9358784821bdeed/hybrid_pke-1.0.0-cp38-cp38-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "37f509e55df7ff949ae9a590597cbc29",
+                    "sha256": "5b05f1a2653c4739951eddecf9db6ba01ac96d3aac96f6156bb1f21dfd7f0cf0"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp38-cp38-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "37f509e55df7ff949ae9a590597cbc29",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 781792,
+                "upload_time": "2022-08-15T20:17:59",
+                "upload_time_iso_8601": "2022-08-15T20:17:59.982429Z",
+                "url": "https://files.pythonhosted.org/packages/91/61/a534b423e7d076d2a1d7a91850fea02b174082b502f8a2c443e4208ddb55/hybrid_pke-1.0.0-cp38-cp38-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5af19f684c9f98ad6010b85a3b275437",
+                    "sha256": "5e41dc381b15c942bccefaa259cb6ce923b5c19132e32f01214df1f185c325b3"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "5af19f684c9f98ad6010b85a3b275437",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 1205012,
+                "upload_time": "2022-08-15T20:18:02",
+                "upload_time_iso_8601": "2022-08-15T20:18:02.068889Z",
+                "url": "https://files.pythonhosted.org/packages/5d/e5/380576f0eae810357ce7b5d3396df43748a08f1b75d08f73d506906cc370/hybrid_pke-1.0.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1cc95c7f8d3da269d1993a3b33ba9527",
+                    "sha256": "a72e79086f091bc0f9d0a9087081a8ef144ee1e2d7e23551f187b3362f02dbe8"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp38-none-win32.whl",
+                "has_sig": false,
+                "md5_digest": "1cc95c7f8d3da269d1993a3b33ba9527",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 298627,
+                "upload_time": "2022-08-15T20:18:03",
+                "upload_time_iso_8601": "2022-08-15T20:18:03.447410Z",
+                "url": "https://files.pythonhosted.org/packages/a9/9a/499c45d6488f51898f90283d78d61a17152f76e0f3945425ec66d98eabeb/hybrid_pke-1.0.0-cp38-none-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "214c249257dbfe4e207901c646b1421c",
+                    "sha256": "946e95f22516ba1b2a2f44bfd2fd99598cae59aea1223581dd0e6b3cee39ad9a"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp39-cp39-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "214c249257dbfe4e207901c646b1421c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8",
+                "size": 413465,
+                "upload_time": "2022-08-15T20:18:05",
+                "upload_time_iso_8601": "2022-08-15T20:18:05.486978Z",
+                "url": "https://files.pythonhosted.org/packages/36/b1/a62c5ae7865edc7498713f0d77f9525372af561517e722266127834422dd/hybrid_pke-1.0.0-cp39-cp39-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e43262716c4bc6cc27c58bb0aa0f6464",
+                    "sha256": "54b855a61f82283bd608d23fd23c6e2e0f696c42562498266b0ba112bf4f4eb0"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp39-cp39-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "e43262716c4bc6cc27c58bb0aa0f6464",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8",
+                "size": 782302,
+                "upload_time": "2022-08-15T20:18:07",
+                "upload_time_iso_8601": "2022-08-15T20:18:07.004310Z",
+                "url": "https://files.pythonhosted.org/packages/dc/bf/b04472f26b7e46bc84b855e4a38c510096190ab37937be2de089b7db1608/hybrid_pke-1.0.0-cp39-cp39-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8855c3ecbde981fe77036dd77e1b610f",
+                    "sha256": "d77231e59a33dc44d40e3d1fe7be14dae094f06122f4e6b48997d805b1fc8c1e"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp39-cp39-manylinux_2_28_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "8855c3ecbde981fe77036dd77e1b610f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8",
+                "size": 1204994,
+                "upload_time": "2022-08-15T19:30:26",
+                "upload_time_iso_8601": "2022-08-15T19:30:26.186467Z",
+                "url": "https://files.pythonhosted.org/packages/06/e6/ee86fa0e53f1a7a5de1cb8b8f67098d50dec33c34c5533b65a53efa22cba/hybrid_pke-1.0.0-cp39-cp39-manylinux_2_28_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e08be5d2b0c745a2750dfc6781c3611c",
+                    "sha256": "1ce57231651a948a57a5f12819080b3b73f1bb5e3fb3ac82fa6c21644276bd31"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "e08be5d2b0c745a2750dfc6781c3611c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8",
+                "size": 1205271,
+                "upload_time": "2022-08-15T20:18:09",
+                "upload_time_iso_8601": "2022-08-15T20:18:09.539159Z",
+                "url": "https://files.pythonhosted.org/packages/65/1c/b1a16e21278476691414eb244912c7621d8edff815ccb081d7adc6f133dc/hybrid_pke-1.0.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ece8a111c5d36a5d017a5a3518f803ec",
+                    "sha256": "d11c8831ea2a1b80df38064ae035d03993ff66d7b3dd12ecca70db540fd40232"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0-cp39-none-win32.whl",
+                "has_sig": false,
+                "md5_digest": "ece8a111c5d36a5d017a5a3518f803ec",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8",
+                "size": 298381,
+                "upload_time": "2022-08-15T20:18:10",
+                "upload_time_iso_8601": "2022-08-15T20:18:10.742955Z",
+                "url": "https://files.pythonhosted.org/packages/73/ae/ad677cd8db1cb088e4fd4be18a7864b0ddd36e80ea63cf504b8775cf8c73/hybrid_pke-1.0.0-cp39-none-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "169e3510b94ad791420d6f2876506055",
+                    "sha256": "7256e1c7b28d7a27301d341286048ca376d37926ee7881df99369b075805c417"
+                },
+                "downloads": -1,
+                "filename": "hybrid_pke-1.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "169e3510b94ad791420d6f2876506055",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 1738033,
+                "upload_time": "2022-08-15T19:30:28",
+                "upload_time_iso_8601": "2022-08-15T19:30:28.705054Z",
+                "url": "https://files.pythonhosted.org/packages/56/d5/e9baa9a0d83586a2d484f1cd3356fb84fd83c0095541796bead2a43da758/hybrid_pke-1.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

@@ -1,0 +1,104 @@
+{
+    "20220805": {
+        "info": {
+            "author": "Cameron Simpson",
+            "author_email": "Cameron Simpson <cs@cskk.id.au>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "A general purpose Task and TaskQueue for running tasks with\ndependencies and failure/retry, potentially in parallel.\n\n*Latest release 20220805*:\nInitial PyPI release.\n\n## Class `BlockedError(TaskError, cs.fsm.FSMError, builtins.Exception, builtins.BaseException)`\n\nRaised by a blocked `Task` if attempted.\n\n## Function `main(argv)`\n\nDummy main programme to exercise something.\n\n## Function `make(*tasks, fail_fast=False, queue=None)`\n\nGenerator which completes all the supplied `tasks` by dispatching them\nonce they are no longer blocked.\nYield each task from `tasks` as it completes (or becomes cancelled).\n\nParameters:\n* `tasks`: `Task`s as positional parameters\n* `fail_fast`: default `False`; if true, cease evaluation as soon as a\n  task completes in a state with is not `DONE`\n* `queue`: optional callable to submit a task for execution later\n  via some queue such as `Later` or celery\n\nThe following rules are applied by this function:\n- if a task is being prepared, raise an `FSMError`\n- if a task is already running or queued, wait for its completion\n- if a task is pending:\n  * if any prerequisite has failed, fail this task\n  * if any prerequisite is cancelled, cancel this task\n  * if any prerequisite is pending, make it first\n  * if any prerequisite is not done, fail this task\n  * otherwise dispatch this task and then yield it\n- if `fail_fast` and the task is not done, return\n\nExamples:\n\n    >>> t1 = Task('t1', lambda: print('doing t1'), track=True)\n    >>> t2 = t1.then('t2', lambda: print('doing t2'), track=True)\n    >>> list(make(t2))    # doctest: +ELLIPSIS\n    t1 PENDING->dispatch->RUNNING\n    doing t1\n    t1 RUNNING->done->DONE\n    t2 PENDING->dispatch->RUNNING\n    doing t2\n    t2 RUNNING->done->DONE\n    [Task('t2',<function <lambda> at ...>,state='DONE')]\n\n## Function `make_later(L, *tasks, fail_fast=False)`\n\nDispatch the `tasks` via `L:Later` for asynchronous execution\nif it is not already completed.\nThe caller can wait on `t.result` for completion.\n\nThis calls `make_now()` in a thread and uses `L.defer` to\nqueue the task and its prerequisites for execution.\n\n## Function `make_now(*tasks, fail_fast=False, queue=None)`\n\nRun the generator `make(*tasks)` to completion and return the\nlist of completed tasks.\n\n## Class `Task(cs.fsm.FSM, cs.gvutils.DOTNodeMixin, cs.resources.RunStateMixin)`\n\nA task which may require the completion of other tasks.\n\nThe model here may not be quite as expected; it is aimed at\ntasks which can be repaired and rerun.\nAs such, if `self.run(func,...)` raises an exception from\n`func` then this `Task` will still block dependent `Task`s.\nDually, a `Task` which completes without an exception is\nconsidered complete and does not block dependent `Task`s.\n\nKeyword parameters:\n* `cancel_on_exception`: if true, cancel this `Task` if `.run`\n  raises an exception; the default is `False`, allowing repair\n  and retry\n* `cancel_on_result`: optional callable to test the `Task.result`\n  after `.run`; if the callable returns `True` the `Task` is marked\n  as cancelled, allowing repair and retry\n* `func`: the function to call to complete the `Task`;\n  it will be called as `func(*func_args,**func_kwargs)`\n* `func_args`: optional positional arguments, default `()`\n* `func_kwargs`: optional keyword arguments, default `{}`\n* `lock`: optional lock, default an `RLock`\n* `state`: initial state, default from `self._state.initial_state`,\n  which is initally '`PENDING`'\n* `track`: default `False`;\n  if `True` then apply a callback for all states to print task transitions;\n  otherwise it should be a callback function suitable for `FSM.fsm_callback`\nOther arguments are passed to the `Result` initialiser.\n\nExample:\n\n    t1 = Task(name=\"task1\")\n    t1.bg(time.sleep, 10)\n    t2 = Task(name=\"task2\")\n    # prevent t2 from running until t1 completes\n    t2.require(t1)\n    # try to run sleep(5) for t2 immediately after t1 completes\n    t1.notify(t2.call, sleep, 5)\n\nUsers wanting more immediate semantics can supply\n`cancel_on_exception` and/or `cancel_on_result` to control\nthese behaviours.\n\nExample:\n\n    t1 = Task(name=\"task1\")\n    t1.bg(time.sleep, 2)\n    t2 = Task(name=\"task2\")\n    # prevent t2 from running until t1 completes\n    t2.require(t1)\n    # try to run sleep(5) for t2 immediately after t1 completes\n    t1.notify(t2.call, sleep, 5)\n\n## Class `TaskError(cs.fsm.FSMError, builtins.Exception, builtins.BaseException)`\n\nRaised by `Task` related errors.\n\n## Class `TaskQueue`\n\nA task queue for managing and running a set of related tasks.\n\nUnlike `make` and `Task.make`, this is aimed at a \"dispatch\" worker\nwhich dispatches individual tasks as required.\n\nExample 1, put 2 dependent tasks in a queue and run:\n\n     >>> t1 = Task(\"t1\", lambda: print(\"t1\"))\n     >>> t2 = t1.then(\"t2\", lambda: print(\"t2\"))\n     >>> q = TaskQueue(t1, t2)\n     >>> for _ in q.run(): pass\n     ...\n     t1\n     t2\n\nExample 2, put 1 task in a queue and run.\nThe queue only runs the specified tasks:\n\n     >>> t1 = Task(\"t1\", lambda: print(\"t1\"))\n     >>> t2 = t1.then(\"t2\", lambda: print(\"t2\"))\n     >>> q = TaskQueue(t1)\n     >>> for _ in q.run(): pass\n     ...\n     t1\n\nExample 2, put 1 task in a queue with `run_dependent_tasks=True` and run.\nThe queue pulls in the dependencies of completed tasks and also runs those:\n\n\n     >>> t1 = Task(\"t1\", lambda: print(\"t1\"))\n     >>> t2 = t1.then(\"t2\", lambda: print(\"t2\"))\n     >>> q = TaskQueue(t1, run_dependent_tasks=True)\n     >>> for _ in q.run(): pass\n     ...\n     t1\n     t2\n\n*Method `TaskQueue.__init__(self, *tasks, run_dependent_tasks=False)`*:\nInitialise the queue with the supplied `tasks`.\n\n## `TaskSubType = ~TaskSubType`\n\nType variable.\n\nUsage::\n\n  T = TypeVar('T')  # Can be anything\n  A = TypeVar('A', str, bytes)  # Must be str or bytes\n\nType variables exist primarily for the benefit of static type\ncheckers.  They serve as the parameters for generic types as well\nas for generic function definitions.  See class Generic for more\ninformation on generic types.  Generic functions work as follows:\n\n  def repeat(x: T, n: int) -> List[T]:\n      '''Return a list containing n references to x.'''\n      return [x]*n\n\n  def longest(x: A, y: A) -> A:\n      '''Return the longest of two strings.'''\n      return x if len(x) >= len(y) else y\n\nThe latter example's signature is essentially the overloading\nof (str, str) -> str and (bytes, bytes) -> bytes.  Also note\nthat if the arguments are instances of some subclass of str,\nthe return type is still plain str.\n\nAt runtime, isinstance(x, T) and issubclass(C, T) will raise TypeError.\n\nType variables defined with covariant=True or contravariant=True\ncan be used to declare covariant or contravariant generic types.\nSee PEP 484 for more details. By default generic types are invariant\nin all type variables.\n\nType variables can be introspected. e.g.:\n\n  T.__name__ == 'T'\n  T.__constraints__ == ()\n  T.__covariant__ == False\n  T.__contravariant__ = False\n  A.__constraints__ == (str, bytes)\n\nNote that only type variables defined in global scope can be pickled.\n\n# Release Log\n\n\n\n*Release 20220805*:\nInitial PyPI release.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://bitbucket.org/cameron_simpson/css/commits/all",
+            "keywords": "python3",
+            "license": "GNU General Public License v3 or later (GPLv3+)",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "cs.taskqueue",
+            "package_url": "https://pypi.org/project/cs.taskqueue/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/cs.taskqueue/",
+            "project_urls": {
+                "Homepage": "https://bitbucket.org/cameron_simpson/css/commits/all",
+                "URL": "https://bitbucket.org/cameron_simpson/css/commits/all"
+            },
+            "release_url": "https://pypi.org/project/cs.taskqueue/20220805/",
+            "requires_dist": [
+                "cs.deco (>=20220805)",
+                "cs.fsm (>=20220805)",
+                "cs.gvutils (>=20220805)",
+                "cs.logutils (>=20220531)",
+                "cs.pfx (>=20220523)",
+                "cs.py.func (>=20220619)",
+                "cs.queues (>=20220805)",
+                "cs.resources (>=20220429)",
+                "cs.result (>=20220805)",
+                "cs.seq (>=20220530)",
+                "cs.threads (>=20211208)",
+                "icontract",
+                "typeguard"
+            ],
+            "requires_python": "",
+            "summary": "A general purpose Task and TaskQueue for running tasks with dependencies and failure/retry, potentially in parallel.",
+            "version": "20220805",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14659993,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4f7d1ef2bab6e11ab2b1e4008b0f04b5",
+                    "sha256": "22d025108771cfdaf37f84fac6a2e5902baa9c7474d3869f30d79e852eb011a1"
+                },
+                "downloads": -1,
+                "filename": "cs.taskqueue-20220805-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "4f7d1ef2bab6e11ab2b1e4008b0f04b5",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 12887,
+                "upload_time": "2022-08-05T00:37:54",
+                "upload_time_iso_8601": "2022-08-05T00:37:54.185303Z",
+                "url": "https://files.pythonhosted.org/packages/0b/a2/0bcd143f91aed191a765b53f02b2fea5a767aeb4688ce11c5d449cf12d91/cs.taskqueue-20220805-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "be5692c55517a70772ff8b54d4b44b6f",
+                    "sha256": "e4c0863a5dc576c053edfd438f3d8f7f56b2433a61e8950c457059cf6df94ebe"
+                },
+                "downloads": -1,
+                "filename": "cs.taskqueue-20220805.tar.gz",
+                "has_sig": false,
+                "md5_digest": "be5692c55517a70772ff8b54d4b44b6f",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 15292,
+                "upload_time": "2022-08-05T00:37:56",
+                "upload_time_iso_8601": "2022-08-05T00:37:56.544906Z",
+                "url": "https://files.pythonhosted.org/packages/7f/1d/61276e10f7f1a0c137ae059ae367bf947de81007f50cb890a3b1e294dfcc/cs.taskqueue-20220805.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

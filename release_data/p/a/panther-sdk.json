@@ -1,0 +1,137 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "Panther Labs Inc.",
+            "author_email": "support@panther.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 1 - Planning",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: GNU Affero General Public License v3",
+                "Programming Language :: Python :: 3",
+                "Topic :: Security",
+                "Typing :: Typed"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://panther.com",
+            "keywords": "security detection",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "panther-sdk",
+            "package_url": "https://pypi.org/project/panther-sdk/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/panther-sdk/",
+            "project_urls": {
+                "Homepage": "https://panther.com"
+            },
+            "release_url": "https://pypi.org/project/panther-sdk/0.0.1/",
+            "requires_dist": null,
+            "requires_python": ">=3.9",
+            "summary": "",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15628856,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5cf69a4c7e25aca337a0e327956d60f3",
+                    "sha256": "64128037582e809cd99ffe11f539394682bd59b78e65f36c5bc2c2ce7c24e300"
+                },
+                "downloads": -1,
+                "filename": "panther_sdk-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5cf69a4c7e25aca337a0e327956d60f3",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9",
+                "size": 27838,
+                "upload_time": "2022-11-01T17:27:20",
+                "upload_time_iso_8601": "2022-11-01T17:27:20.052247Z",
+                "url": "https://files.pythonhosted.org/packages/6b/16/02c102884e961601b3c223783f4e130e9c1fb7d0b8336bb12c86f29946d3/panther_sdk-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.19": {
+        "info": {
+            "author": "Panther Labs Inc.",
+            "author_email": "support@panther.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 1 - Planning",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: GNU Affero General Public License v3",
+                "Programming Language :: Python :: 3",
+                "Topic :: Security",
+                "Typing :: Typed"
+            ],
+            "description": "# Panther SDK\nThe Panther SDK module allows you to configure detections for your [Panther](https://panther.com) instance.\n\n## Getting Started\n\n### Install\nThe Panther SDK can be installed using PIP.\n\n```sh\npip3 install panther-sdk==0.0.19\n```\n\n### Writing a detection\nYou can use the `detection` module in Panther SDK to configure detections. The example below shows a detection that processing an HTTP log.\n\nAssuming we have a log type `Internal.HTTP.Traffic` that has the following shape:\n```json\n{\n    \"method\": \"POST\",\n    \"useSSL\": false,\n    \"path\": \"/api/some/endpoint\",\n    \"host\": \"internal.megacorp.com\"\n}\n```\n\nWe can write a detection to check for insecure `POST` and `PUT` requests:\n```python\n# import the \"detection\" module, as we'll be creating a rule.\nfrom panther_sdk import detection\n\n# The next four functions are used in the detection definition that follows. Panther \n# detections allow for parts of a detection to be defined with custom Python code.\n\n\n# \"filter_insecure\" is an example of python function that will be used to create\n# a detection.PythonFilter that only matches insecure events. The event argument will\n# have a python dict object corresponding to the JSON event.\ndef filter_insecure(event, params):\n    return event[\"useSSL\"] == False\n\n\n# \"filter_http_methods\" is a slightly more complicated python function that we will use\n# to create a detection.PythonFilter later. This function uses the second \"params\" argument\n# to make the function's logic reusable.\ndef filter_http_methods(event, params):\n    allowed_methods = params[\"methods\"]\n    actual_method = event[\"method\"]\n    return actual_method in allowed_methods\n\n\n# \"reference_generator\" is another example where we will use some python code to dynamically\n# change the information Panther presents on an Alert resulting from a Detection match. In\n# this example, we're populating a query param with some relevant information from \n# the contextual event.\ndef reference_generator(event):\n    origin = event[\"origin\"]\n    return f\"https://wiki.internal.megacorp.com/hosts_db?host={origin}\"\n\n\n# \"make_context\" will be used to attach arbitrary data to the resulting Alert. This\n# can be used to simply change how data is presented or be used to push machine readable information\n# to a downstream Alert Destination.\ndef make_context(event):\n    # The Panther SDK's hooks to arbitrary python come with some restrictions. When the\n    # detection is saved, the Panther backend will capture the source of provided function to use\n    # in realtime log data processing and other backend processes. Because of this, functions used\n    # to define a detection must not have references that are not local to the function body. Therefore,\n    # imports targeting any of the below _must_ be included in the function body:\n    #\n    #   - The python standard library\n    #   - Libraries that are enabled on your Panther instance\n    #   - Panther \"Global Helpers\" that you have configured on your instance\n    \n    import fnmatch \n    \n    path = event[\"path\"]\n    return {\n        \"is_api_path\": fnmatch.fnmatch(path, \"/api/*\")\n    }\n\n\n# \"pick_severity\" is a custom function we are using to define the severity of Alerts based on\n# the data present in the current log. The detection.Rule declaration below shows how this method\n# is registered with the definition of our Rule.\ndef pick_severity(event) -> str:\n    from panther_sdk import detection # required. see notes in comment above \"make_context\"\n    \n    if event[\"origin\"] != \"internal.megacorp.com\":\n        return detection.SeverityInfo\n\n    return detection.SeverityInfo\n\n\n# Declare a rule. Every call to \"detection.Rule\" in your repo will create a Rule in the Panther backend.\n# This example uses a subset of the fields available to define a Rule. See \"Full Dataclass API\" for\n# all the available fields.\ndetection.Rule(\n    # Give the Rule an id. This name must be unique on your Panther \n    # instance. Dot separated names following \"namespace\" pattern is recommended. \n    rule_id=\"Internal.HTTP.Traffic.Insecure\",\n    \n    # Pick a human friendly name for the rule. This will be used\n    # to present the Rule in the Panther Console UI\n    name=\"Detect insecure internal HTTP traffic\",\n    \n    # Specify one or more log types for your Rule. This setting is what\n    # tells the Panther backend to run this Rule against the log data depicted above.\n    log_types=[\"Internal.HTTP.Traffic\"],\n    \n    # Specify an enabled state for the Rule. Detections can be uploaded in a\n    # disabled state and will not begin processing log data until enabled.\n    enabled=True,\n    \n    # Optionally, you can specify a list of tags to associate with the detection.\n    tags=[\"internal\"],\n\n    # The \"filters\" list defines the sequence of matching logic that an event\n    # will be tested against to determine whether there is a match. Returning \"True\" proceeds to the\n    # next check. If the final check returns \"True\", there is a match.\n    filters=[\n        # If the HTTP transaction was secure, we're not interested in that log in this detection.\n        # Therefore, the first filter uses the \"filter_insecure\" function we defined to filter to only\n        # events that have useSSL set to \"false\". \n        detection.PythonFilter(func=filter_insecure),\n        \n        # For now, we're only interested in getting alerted for insecure POST and PUT requests.\n        # We therefore define the second filter step using \"filter_http_methods\". Unlike \"filter_insecure\",\n        # we pass some parameters to this function. \n        detection.PythonFilter(func=filter_http_methods, params={'methods': [\"POST\", \"PUT\"]}),\n    ],\n\n    # On this line, we're defining the severity that should be associated with any resulting alerts.\n    # We have the option of defining a static severity (simply: severity=\"INFO\") but, in this case, we want\n    # to make the severity dynamic based on data from the event. To do this, we reference the \"pick_severity\"\n    # function we defined at the top of the file. We also provide a fallback value in case the dynamic function\n    # cannot be processed. This fallback will also be the Severity value displayed in the Panther Console UI\n    severity=detection.DynamicStringField(\n        func=pick_severity,\n        fallback=detection.SeverityInfo,\n    ),\n\n    # Below we specify the \"reference\" field. This optional field is used to attach a link to any Alerts \n    # resulting from this detection. Similar to \"severity\" we can make this field dynamic based on \n    # event data. There is also a fallback value specified.\n    reference=detection.DynamicStringField(\n        func=reference_generator,\n        fallback=\"https://wiki.internal.megacorp.com/hosts_db\",\n    ),\n    \n    # Fields like \"runbook\" and \"description\" are also available to further customize how any \n    # resulting Alerts will be displayed. These can have dynamic handlers defined, but in this \n    # example static string values will work just fine.\n    runbook=\"Optional runbook content\",\n    description=\"A helpful description\",\n    \n    # Finally, we use the optional \"alert_context\" field to tell the Panther backend to use our \n    # \"make_context\" function to generate custom data that will be attached to any resulting Alerts.\n    alert_context=make_context,\n)\n```\n\n## Full Dataclass API\n\n\n## detection module\n\n### DynamicStringField\nMake a field dynamic based on the detection input\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `fallback` | Fallback value in case the dynamic handler fails | `str` |\n| `func` | Dynamic handler | `Optional[Callable[[PantherEvent], str]]` |\n\n\n### DynamicDestinations\nMake destinations dynamic based on the detection input\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `fallback` | Fallback value in case the dynamic handler fails | `Optional[List[str]]` |\n| `func` | Dynamic handler | `Callable[[PantherEvent], List[str]]` |\n\n\n### AlertGrouping\nConfiguration for how an alert is grouped\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `period_minutes` | How long should matches be grouped into an alert after the first match | `int` |\n| `group_by` | Function to generate a key for grouping matches | `Optional[Callable[[PantherEvent], str]]` |\n\n\n### PythonFilter\nCreate a filter by referencing a python function\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `func` | Provide a function whose python source will be used as the filter definition | `Callable[[PantherEvent], bool]` |\n\n\n### UnitTestMock\nMock for a unit test\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `name` | name of the object to mock | `str` |\n| `return_value` | string to assign as the return value for the mock | `str` |\n\n\n### JSONUnitTest\nUnit test with json content\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `name` | name of the unit test | `str` |\n| `expect_match` | whether the data should match and trigger an alert | `bool` |\n| `data` | json string | `str` |\n| `mocks` | list of mocks to use in the test | `Optional[List[UnitTestMock]]` |\n\n\n### Policy\nDefine a Policy-type detection to execute against log data in your Panther instance\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `policy_id` | ID for the Policy | `str` |\n| `ignore_patterns` | Patterns of resource ids to ignore for the policy | `Optional[Union[str, List[str]]]` |\n| `destinations` | Alert destinations for the policy | `Optional[Union[str, List[str], DynamicDestinations]]` |\n| `filters` | Define event filters for the policy | `Union[Union[PythonFilter], List[Union[PythonFilter]]]` |\n| `enabled` | Whether the policy is enabled or not | `bool` |\n| `resource_types` | What resource types this policy will apply to | `Union[str, List[str]]` |\n| `severity` | What severity alerts generated from this policy get assigned | `Union[str, DynamicStringField]` |\n| `name` | What name to display in the UI and alerts. The PolicyID will be displayed if this field is not set. | `Optional[str]` |\n| `description` | Description for the policy | `Optional[Union[str, DynamicStringField]]` |\n| `reference` | The reason this policy exists, often a link to documentation | `Optional[Union[str, DynamicStringField]]` |\n| `reports` | A mapping of framework or report names to values this policy covers for that framework | `Optional[Dict[str, List[str]]]` |\n| `runbook` | The actions to be carried out if this policy fails, often a link to documentation | `Optional[Union[str, DynamicStringField]]` |\n| `tags` | Tags used to categorize this policy | `Optional[Union[str, List[str]]]` |\n| `unit_tests` | Unit tests for this policy | `Optional[Union[Union[JSONUnitTest], List[Union[JSONUnitTest]]]]` |\n| `alert_title` | Title to use in the alert | `Optional[Callable[[PantherEvent], str]]` |\n| `alert_context` | Optional JSON to attach to alerts generated by this policy | `Optional[Callable[[PantherEvent], Dict[str, Any]]]` |\n| `alert_grouping` | Configuration for how an alert is grouped | `Optional[AlertGrouping]` |\n\n\n### Rule\nDefine a Rule-type detection to execute against log data in your Panther instance\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `rule_id` | ID for the rule | `str` |\n| `severity` | Severity for the rule | `Union[str, DynamicStringField]` |\n| `threshold` | Number of matches received before an alert is triggered | `int` |\n| `name` | Display name for the rule | `Optional[str]` |\n| `log_types` | Log Types to associate with this rule | `Union[str, List[str]]` |\n| `filters` | Define event filters for the rule | `Union[Union[PythonFilter], List[Union[PythonFilter]]]` |\n| `enabled` | Whether the rule is enabled or not | `bool` |\n| `unit_tests` | Define event filters for the rule | `Optional[Union[Union[JSONUnitTest], List[Union[JSONUnitTest]]]]` |\n| `tags` | Tags for the rule | `Optional[Union[str, List[str]]]` |\n| `reference` | Reference for the rule | `Optional[Union[str, DynamicStringField]]` |\n| `runbook` | Runbook for the rule | `Optional[Union[str, DynamicStringField]]` |\n| `description` | Description for the rule | `Optional[Union[str, DynamicStringField]]` |\n| `summary_attrs` | Summary Attributes for the rule | `Optional[List[str]]` |\n| `reports` | Report mappings for the rule | `Optional[Dict[str, List[str]]]` |\n| `destinations` | Alert destinations for the rule | `Optional[Union[str, List[str], DynamicDestinations]]` |\n| `alert_title` | Title to use in the alert | `Optional[Callable[[PantherEvent], str]]` |\n| `alert_context` | Optional JSON to attach to alerts generated by this rule | `Optional[Callable[[PantherEvent], Dict[str, Any]]]` |\n| `alert_grouping` | Configuration for how an alert is grouped | `Optional[AlertGrouping]` |\n\n\n### ScheduledRule\nDefine a ScheduledRule-type detection to execute against query results in your Panther instance\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `rule_id` | ID for the scheduled rule | `str` |\n| `severity` | What severity alerts generated from this scheduled rule get assigned | `Union[str, DynamicStringField]` |\n| `threshold` | Number of matches received before an alert is triggered | `int` |\n| `name` | Display name for the scheduled rule | `Optional[str]` |\n| `scheduled_queries` | Scheduled queries to associate with this scheduled rule | `Union[str, List[str]]` |\n| `filters` | Define event filters for the scheduled rule | `Union[Union[PythonFilter], List[Union[PythonFilter]]]` |\n| `enabled` | Short description for the scheduled rule | `bool` |\n| `unit_tests` | Define event filters for the scheduled rule | `Optional[Union[Union[JSONUnitTest], List[Union[JSONUnitTest]]]]` |\n| `tags` | Tags for the scheduled rule | `Optional[Union[str, List[str]]]` |\n| `reference` | Reference for the scheduled rule | `Optional[Union[str, DynamicStringField]]` |\n| `runbook` | Runbook for the scheduled rule | `Optional[Union[str, DynamicStringField]]` |\n| `description` | Description for the scheduled rule | `Optional[Union[str, DynamicStringField]]` |\n| `summary_attrs` | Summary Attributes for the scheduled rule | `Optional[List[str]]` |\n| `reports` | Report mappings for the scheduled rule | `Optional[Dict[str, List[str]]]` |\n| `destinations` | Alert destinations for the scheduled rule | `Optional[Union[str, List[str], DynamicDestinations]]` |\n| `alert_title` | Title to use in the alert | `Optional[Callable[[PantherEvent], str]]` |\n| `alert_context` | Optional JSON to attach to alerts generated by this rule | `Optional[Callable[[PantherEvent], Dict[str, Any]]]` |\n| `alert_grouping` | Configuration for how an alert is grouped | `Optional[AlertGrouping]` |\n\n## query module\n\n### CronSchedule\nCron expression based schedule definition for a query\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `expression` | Defines how often queries using this schedule run | `str` |\n| `timeout_minutes` | Defines the timeout applied to queries with this schedule | `int` |\n\n\n### IntervalSchedule\nInterval based schedule definition for a query\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `rate_minutes` | Defines how often queries using this schedule run | `int` |\n| `timeout_minutes` | Defines the timeout applied to queries with this schedule | `int` |\n\n\n### Query\nA saved or scheduled query\n\n| Field | Description | Type |\n| ----- | ---- | ----------- |\n| `name` | Unique name for the query | `str` |\n| `description` | Short description for the query | `str` |\n| `default_database` | Default database for the query | `str` |\n| `sql` | SQL statement | `str` |\n| `enabled` | Whether the query is enabled or not | `bool` |\n| `tags` | Tags for the query | `Optional[Union[str, List[str]]]` |\n| `schedule` | Schedule attached to the query | `Optional[Union[IntervalSchedule, CronSchedule]]` |\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://panther.com",
+            "keywords": "security detection",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "panther-sdk",
+            "package_url": "https://pypi.org/project/panther-sdk/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/panther-sdk/",
+            "project_urls": {
+                "Homepage": "https://panther.com"
+            },
+            "release_url": "https://pypi.org/project/panther-sdk/0.0.19/",
+            "requires_dist": null,
+            "requires_python": ">=3.9",
+            "summary": "",
+            "version": "0.0.19",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15628856,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2631e77496e8d1e1f7b3bca007cb605c",
+                    "sha256": "fa8ec6cc888c4c62c339fef7cdbdbd6a31b612f72a1738b49d59837fdbd56fe1"
+                },
+                "downloads": -1,
+                "filename": "panther_sdk-0.0.19.tar.gz",
+                "has_sig": false,
+                "md5_digest": "2631e77496e8d1e1f7b3bca007cb605c",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9",
+                "size": 27774,
+                "upload_time": "2022-11-02T15:37:55",
+                "upload_time_iso_8601": "2022-11-02T15:37:55.675922Z",
+                "url": "https://files.pythonhosted.org/packages/56/3a/616300a9b242b5e5a99bc72d2657ef15344b1a9fd8b22016b072e0927b3a/panther_sdk-0.0.19.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

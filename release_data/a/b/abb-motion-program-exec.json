@@ -1,0 +1,129 @@
+{
+    "0.2.0": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/johnwason/abb_motion_program_exec",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "abb-motion-program-exec",
+            "package_url": "https://pypi.org/project/abb-motion-program-exec/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/abb-motion-program-exec/",
+            "project_urls": {
+                "Homepage": "https://github.com/johnwason/abb_motion_program_exec"
+            },
+            "release_url": "https://pypi.org/project/abb-motion-program-exec/0.2.0/",
+            "requires_dist": [
+                "bs4",
+                "requests",
+                "numpy"
+            ],
+            "requires_python": "",
+            "summary": "Simple module to execute motion commands on ABB robots and log results",
+            "version": "0.2.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14942656,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "055f6f606b0777861d818afb8631cc46",
+                    "sha256": "234c5e574899029457745fb6a329d1f3a227eb59a364f44b049bb044df654741"
+                },
+                "downloads": -1,
+                "filename": "abb_motion_program_exec-0.2.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "055f6f606b0777861d818afb8631cc46",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 12711,
+                "upload_time": "2022-08-31T00:36:24",
+                "upload_time_iso_8601": "2022-08-31T00:36:24.074262Z",
+                "url": "https://files.pythonhosted.org/packages/b4/d3/28f4bda0b6c60a1d45c1365c4f34f77c60e03df4b8c673ed71050913fb97/abb_motion_program_exec-0.2.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.0.post1": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# abb_motion_program_exec\n\n`abb_motion_program_exec` provides a simple way to download and run a sequence of\n`MoveAbsJ`, `MoveJ`, `MoveL`, `MoveC`, and `WaitTime` commands on\nan ABB IRC5 robot controller. This program is intended to be a proof of\nconcept for more sophisticated controller interfaces. Multi-move control of two robots is also\nsupported.\n\n## Installation\n\nBegin by installing the software for the robot controller. This software can be\ninstalled manually by copying files to the robot controller and importing configuration files,\nor by using a RobotWare Add-In. The RobotWare Add-In is cleaner and probably more reliable,\nbut is also less flexible and requires using the Installation Manager which can be confusing. If\nyou aren't sure which to use, try using the manual installation first.\n\n* See [robot_setup_manual.md](doc/robot_setup_manual.md) for manual setup instructions.\n* See [robot_setup_robotware_addin.md](doc/robot_setup_robotware_addin.md) for RobotWare Add-In \n  setup instructions\n* See [robot_multimove_setup_manual.md](doc/robot_multimove_setup_manual.md) for ABB Multi-Move\n  setup to control two robots. See later sections of this doc for more information on Multi-Move.\n\nThis contains the robot-side code, that reads\nand executes the contents of `motion_program.bin`. `motion_program.bin`\ncontains the sequence of instructions to run, encoded in binary\nformat for fast interpretation.\n\nThe Python client module is `abb_motion_program_exec_client.py`. This\nscript can be executed to run a sample motion sequence on an ABB 1200\nrobot. (Simulation only due to the choice of waypoints!) The\nmodule can also be included in another Python program.\n\n**Only one instance of a Robot Studio virtual controller can be run at a time.** Only\ninstances of Robot Studio can be run at a time running a single virtual controller. This is due to\nthe controller using TCP port 80 on the local computer to accept REST commands from Python. If\nmore than one controller is started, TCP port 80 will already be in use and can cause unpredictable\nbehavior. Restart the computer if connections cannot be made from Python to the controller. Multiple\nreal robots can be used concurrently since they will each have a unique IP address to bind port 80.\n\n## Usage\n\nOnce the `abb_motion_program_exec.mod` has been loaded on the controller,\nthe Python module can be used to command motion sequences. The class\n`MotionProgram` contains is used to build the sequence of motions. It has\nthe following commands of interest:\n\n* `MoveAbsJ(to_joint_pos: jointtarget, speed: speeddata, zone: zonedata)` - Move the\n  robot to a specified joint waypoint.\n* `MoveJ(to_point: robtarget, speed: speeddata, zone: zonedata)` - Move the\n  robot to the specified Cartesian target using joint interpolation.\n* `MoveL(to_point: robtarget, speed: speeddata, zone: zonedata)` - Move\n  the robot to the specified Cartesian target using linear interpolation.\n* `MoveC(cir_point: robtarget, to_point: robtarget, speed: speeddata, zone: zonedata)` -\n  Move the robot to the specified Cartesian target circularly using an intermediate\n  waypoint.\n* `WaitTime(t: float)` - Wait a specified time in seconds.\n\nCalling each of these functions adds the command to the sequence.\n\nThe constructor for `MotionProgram` optionally takes a `tool` parameter.\nThis parameter is expected to be type `tooldata` and will be passed\nto each of the move commands. Because the tool is expected to be a\n`PERS` type by the ABB software, it can't be modified for each\nmotion command without a significant performance penalty.\n\n```python\nmy_motion_program = MotionProgram(tool=my_tool)\n```\n\nThe following types are defined as subclasses of `NamedTuple`:\n\n```python\nclass speeddata(NamedTuple):\n    v_tcp: float\n    v_ori: float\n    v_leax: float\n    v_reax: float\n\nclass zonedata(NamedTuple):\n    finep: bool\n    pzone_tcp: float\n    pzone_ori: float\n    pzone_eax: float\n    zone_ori: float\n    zone_leax: float\n    zone_reax: float\n\nclass jointtarget(NamedTuple):\n    robax: np.ndarray # shape=(6,)\n    extax: np.ndarray # shape=(6,)\n\nclass pose(NamedTuple):\n    trans: np.ndarray # [x,y,z]\n    rot: np.ndarray # [qw,qx,qy,qz]\n\nclass confdata(NamedTuple):\n    cf1: float\n    cf4: float\n    cf6: float\n    cfx: float\n\nclass robtarget(NamedTuple):\n    trans: np.ndarray # [x,y,z]\n    rot: np.ndarray # [qw,qx,qy,qz]\n    robconf: confdata # \n    extax: np.ndarray # shape=(6,)\n\nclass loaddata(NamedTuple):\n    mass: float\n    cog: np.ndarray # shape=(3,)\n    aom: np.ndarray # shape=(4,)\n    ix: float\n    iy: float\n    iz: float\n\nclass tooldata(NamedTuple):\n    robhold: bool\n    tframe: pose\n    tload : loaddata\n\n```\n\nSee the ABB Robotics manual \"Technical reference manual RAPID \nInstructions, Functions and Data types\" for more details on these data\ntypes. Note that `pos`, `orient`, `robjoint`, and `extjoint` are\nimplemented using numpy arrays or lists.\n\nThe following standard `speeddata` are available in the module:\n`v5`, `v10`, `v20`, `v30`, `v40`, `v50`, `v60`, `v80`, `v100`,\n`v200`, `v300`, `v400`, `v500`, `v600`, `v800`, `v1000`, `v1500`,\n`v2000`, `v2500`, `v3000`, `v4000`, `v5000`, `v6000`, `v7000`,\n`vmax`.\n\nThe following standard `zonedata` are available in the module:\n`fine`, `z0`, `z1`, `z5`, `z10`, `z15`, `z20`, `z30`, `z40`,\n`z50`, `z60`, `z80`, `z100`, `z150`, `z200`.\n\nThe following `tooldata` are available in the module: `tool0`\n\nOnce the program is complete, it can be executed on the robot using\n`MotionProgramExecClient`. The constructor is by default:\n\n```\nmp_client = MotionProgramClient(base_url='http://127.0.0.1:80', username='Default User', password='robotics')\n```\n\nThe `base_url`, `username`, and `password` should be adjusted to the actual robot. The\nclient using ABB Web Services. `base_url` must be set to the IP address of the\nrobot, or using `localhost` if using the simulator.\n\nOnce the client is constructed, it can be used to execute the program:\n\n```python\nlog_csv_bin = mp_client.execute_motion_program(mp)\n```\n\n`log_csv_bin` will contain a CSV file in binary format. This can either be saved to a binary\nfile directly, or converted to a string and used in Python. To convert to a string, use:\n\n```python\nlog_csv = log_csv_bin.decode('ascii')\n```\n\nThe CSV data has the following columns:\n\n* `timestamp` - The time of the row. This is time from the startup of the logger task in seconds.\n  Subtract the initial time from all samples to get a 0 start time for the program.\n* `cmd_num` - The currently executing command number. Use `get_program_rapid()` to print out\n  the program with command numbers annotated.\n* `J1` - Joint 1 position in degrees\n* `J2` - Joint 2 position in degrees\n* `J3` - Joint 3 position in degrees\n* `J4` - Joint 4 position in degrees\n* `J5` - Joint 5 position in degrees\n* `J6` - Joint 6 position in degrees\n\nThe first line of the CSV data contains column headers.\n\n## Python module installation\n\nThe `abb_motion_program_exec_client` module can be installed into the local Python\ninstallation using the following command executed in the project root directory:\n\n```\npip install --user .\n```\n\n## Example\n\n```python\nimport abb_motion_program_exec_client as abb\n\nj1 = abb.jointtarget([10,20,30,40,50,60],[0]*6)\nj2 = abb.jointtarget([90,-91,60,-93,94,-95],[0]*6)\nj3 = abb.jointtarget([-80,81,-82,83,-84,85],[0]*6)\n\nmy_tool = abb.tooldata(True,abb.pose([0,0,0.1],[1,0,0,0]),abb.loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0)) \n\nmp = abb.MotionProgram(tool=my_tool)\nmp.MoveAbsJ(j1,abb.v1000,abb.fine)\nmp.MoveAbsJ(j2,abb.v5000,abb.fine)\nmp.MoveAbsJ(j3,abb.v500,abb.fine)\nmp.MoveAbsJ(j2,abb.v5000,abb.z50)\nmp.MoveAbsJ(j3,abb.v500,abb.z200)\nmp.MoveAbsJ(j2,abb.v5000,abb.fine)\nmp.WaitTime(1)\n\nr1 = abb.robtarget([0.1649235*1e3, 0.1169957*1e3, 0.9502961*1e3], [ 0.6776466, -0.09003431, 0.6362069, 0.3576725 ], abb.confdata(0,0,0,0),[0]*6)\nr2 = abb.robtarget([ 0.6243948*1e3, -0.479558*1e3 ,  0.7073749*1e3], [ 0.6065634, -0.2193409,  0.6427138, -0.4133877], abb.confdata(-1,-1,0,1),[0]*6)\n\nr3 = abb.robtarget([417.9236, 276.9956, 885.2959], [ 0.8909725 , -0.1745558 ,  0.08864544,  0.4096832 ], abb.confdata( 0.,  1., -2.,  0.),[0]*6)\nr4 = abb.robtarget([417.9235 , -11.00438, 759.2958 ], [0.7161292 , 0.1868255 , 0.01720813, 0.6722789 ], abb.confdata( 0.,  2., -2.,  0.),[0]*6)\nr5 = abb.robtarget([ 417.9235, -173.0044,  876.2958], [0.6757616, 0.3854275, 0.2376617, 0.5816431], abb.confdata(-1.,  1., -1.,  0.),[0]*6)\n\nmp.MoveJ(r1,abb.v500,abb.fine)\nmp.MoveJ(r2,abb.v400,abb.fine)\nmp.MoveJ(r1,abb.v500,abb.z100)\nmp.MoveJ(r2,abb.v400,abb.z100)\nmp.MoveJ(r1,abb.v500,abb.fine)\nmp.WaitTime(1.5)\n\nmp.MoveJ(r3,abb.v5000,abb.fine)\nmp.MoveL(r4,abb.v200,abb.fine)\nmp.MoveL(r3,abb.v200,abb.fine)\nmp.MoveL(r4,abb.v1000,abb.z100)\nmp.MoveL(r3,abb.v1000,abb.z100)\nmp.MoveL(r4,abb.v1000,abb.fine)\nmp.WaitTime(2.5)\n\nmp.MoveJ(r3,abb.v5000,abb.fine)\n\nmp.MoveC(r4,r5,abb.v200,abb.z10)\nmp.MoveC(r4,r3,abb.v50,abb.fine)\n\n# Print out RAPID module of motion program for debugging\nprint(mp.get_program_rapid())\n\n# Execute the motion program on the robot\n# Change base_url to the robot IP address\nclient = abb.MotionProgramExecClient(base_url=\"http://127.0.0.1:80\")\nlog_results = client.execute_motion_program(mp)\n\n# Write log csv to file\nwith open(\"log.csv\",\"wb\") as f:\n    f.write(log_results)\n\n# Or convert to string and use in memory\nlog_results_str = log_results.decode('ascii')\nprint(log_results_str)\n\n```\n\nExample log CSV data (truncated):\n\n```\ntimestamp, cmd_num, J1, J2, J3, J4, J5, J6\n85.34, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344\n85.344, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344\n85.348, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344\n85.352, 1, 30.5081, 4.1176, 5.80734, 161.136, 87.3982, -162.344\n```\n\n## Multi-Move Robot Example\n\nTwo robots can be controlled using ABB Multi-Move. See \n[robot_multimove_setup_manual.md](doc/robot_multimove_setup_manual.md) for setup instructions.\n\nThey must have exactly the same number of motion commands. The commands\nare passed with the `\\ID` parameter corresponding to the command number. `SyncMoveOn` is activated\nto cause the robots to move in sync. The `execute_multimove_motion_program()` function\nof `MotionProgramExecClient` is used to send multi-move programs to the robot.\n\n```python\nimport abb_motion_program_exec_client as abb\n\n\n# Fill motion program for T_ROB1\nt1 = abb.robtarget([575,200,780],[.707,0,.707,0],abb.confdata(0,0,-1,1),[0]*6)\nt2 = abb.robtarget([575,-200,980],[.707,0,.707,0],abb.confdata(0,0,-1,1),[0]*6)\nt3 = abb.robtarget([575,0,780],[.707,0,.707,0],abb.confdata(-1,-1,0,1),[0]*6)\n\nmy_tool = abb.tooldata(True,abb.pose([0,0,0.1],[1,0,0,0]),abb.loaddata(0.001,[0,0,0.001],[1,0,0,0],0,0,0)) \n\nmp = abb.MotionProgram(tool=my_tool)\nmp.MoveAbsJ(abb.jointtarget([5,-20,30,27,-11,-27],[0]*6),abb.v1000,abb.fine)\nmp.MoveL(t1,abb.v1000,abb.fine)\nmp.MoveL(t2,abb.v5000,abb.fine)\nmp.MoveL(t3,abb.v500,abb.fine)\nmp.WaitTime(1)\nmp.MoveL(t1,abb.v5000,abb.z50)\nmp.MoveL(t2,abb.v500,abb.z200)\nmp.MoveL(t3,abb.v5000,abb.fine)\n\n# Fill motion program for T_ROB2. Both programs must have\n# same number of commands\nt1_2 = abb.robtarget([1750,-200,1280],[.707,0,.707,0],abb.confdata(-1,-1,0,1),[0]*6)\nt2_2 = abb.robtarget([1750,200,1480],[.707,0,.707,0],abb.confdata(0,0,-1,1),[0]*6)\nt3_2 = abb.robtarget([1750,0,1280],[.707,0,.707,0],abb.confdata(0,0,0,1),[0]*6)\n\nmy_tool2 = abb.tooldata(True,abb.pose([0,0,0.5],[1,0,0,0]),abb.loaddata(0.1,[0,0,0.1],[1,0,0,0],0,0,0)) \n\nmp2 = abb.MotionProgram(tool=my_tool2)\nmp2.MoveAbsJ(abb.jointtarget([1,1,40,2,-40,-2],[0]*6),abb.v1000,abb.fine)\nmp2.MoveL(t1_2,abb.v1000,abb.fine)\nmp2.MoveL(t2_2,abb.v5000,abb.fine)\nmp2.MoveL(t3_2,abb.v500,abb.fine)\nmp2.WaitTime(1)\nmp2.MoveL(t1_2,abb.v5000,abb.z50)\nmp2.MoveL(t2_2,abb.v500,abb.z200)\nmp2.MoveL(t3_2,abb.v5000,abb.fine)\n\n\n# Execute the motion program on the robot\n# Change base_url to the robot IP address\nclient = abb.MotionProgramExecClient(base_url=\"http://127.0.0.1:80\")\n\n# Execute both motion programs simultaneously\nlog_results = client.execute_multimove_motion_program([mp,mp2])\n\n# Write log csv to file\nwith open(\"log.csv\",\"wb\") as f:\n   f.write(log_results)\n\n# Or convert to string and use in memory\nlog_results_str = log_results.decode('ascii')\nprint(log_results_str)\n\n```\n\n## License\n\nApache 2.0 License, Copyright 2022 Wason Technology, LLC, Rensselaer Polytechnic Institute\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/johnwason/abb_motion_program_exec",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "abb-motion-program-exec",
+            "package_url": "https://pypi.org/project/abb-motion-program-exec/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/abb-motion-program-exec/",
+            "project_urls": {
+                "Homepage": "https://github.com/johnwason/abb_motion_program_exec"
+            },
+            "release_url": "https://pypi.org/project/abb-motion-program-exec/0.2.0.post1/",
+            "requires_dist": [
+                "bs4",
+                "requests",
+                "numpy"
+            ],
+            "requires_python": "",
+            "summary": "Simple module to execute motion commands on ABB robots and log results",
+            "version": "0.2.0.post1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14942656,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "43f142eeb94b4bedca7edf9838f0bb9b",
+                    "sha256": "d8a34611603374f02b8613197770fea5782f8be8d03cb975954e985c4d469668"
+                },
+                "downloads": -1,
+                "filename": "abb_motion_program_exec-0.2.0.post1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "43f142eeb94b4bedca7edf9838f0bb9b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 16785,
+                "upload_time": "2022-08-31T00:43:42",
+                "upload_time_iso_8601": "2022-08-31T00:43:42.997198Z",
+                "url": "https://files.pythonhosted.org/packages/69/e1/91d11576464af37173a320eec4bbadaabe2e2125d3d4a6b4ed37c2e8512d/abb_motion_program_exec-0.2.0.post1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

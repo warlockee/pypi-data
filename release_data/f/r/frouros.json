@@ -1,0 +1,108 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "Jaime C\u00e9spedes Sisniega",
+            "author_email": "cespedes@ifca.unican.es",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Science/Research",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence",
+                "Topic :: Scientific/Engineering :: Mathematics",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "[//]: # (![Frouros logo]&#40;logo.svg&#41;)\n\n<p align=\"center\">\n  <!-- CI -->\n  <a href=\"https://github.com/IFCA/frouros/actions/workflows/ci.yml\">\n    <img src=\"https://github.com/IFCA/frouros/actions/workflows/ci.yml/badge.svg?style=flat-square\" alt=\"ci\"/>\n  </a>\n  <!-- Code coverage -->\n  <a href=\"https://codecov.io/gh/IFCA/frouros\">\n    <img src=\"https://codecov.io/gh/IFCA/frouros/branch/main/graph/badge.svg?token=DLKQSWYTYM\" alt=\"coverage\"/>\n  </a>\n  <!-- Documentation -->\n  <a href=\"https://frouros.readthedocs.io/\">\n    <img src=\"https://readthedocs.org/projects/frouros/badge/?version=latest\" alt=\"documentation\"/>\n  </a>\n  <!-- License -->\n  <a href=\"https://opensource.org/licenses/BSD-3-Clause\">\n    <img src=\"https://img.shields.io/badge/License-BSD%203--Clause-blue.svg\" alt=\"bsd_3_license\">\n  </a>\n</p>\n\n<p align=\"center\">Frouros is a Python library for drift detection in Machine Learning problems.</p>\n\nIt provides a set of algorithms for drift detection, both for the supervised and unsupervised parts, as well as some semi-supervised algorithms. It is design with the intention of being integrated easily with the [scikit-learn](https://github.com/scikit-learn/scikit-learn) library. This integration allows Frouros to be used in machine learning problem pipelines, in the implementation of new drift detection algorithms and could be used to compare performance between detectors, as a benchmark.\n\n## Quickstart\n\nAs a quick and easy example, we can generate two bivariate normal distribution in order to use an unsupervised method like MMD (Maximum Mean Discrepancy). This method tries to verify if generated samples come from the same distribution or not. If they come from different distributions, it means that there is covariate drift.\n\n```python\nfrom sklearn.gaussian_process.kernels import RBF\nimport numpy as np\nfrom frouros.unsupervised.distance_based import MMD\n\nnp.random.seed(31)\n# X samples from a normal distribution with mean = [1. 1.] and cov = [[2. 0.][0. 2.]]\nx_mean = np.ones(2)\nx_cov = 2*np.eye(2)\n# Y samples a normal distribution with mean = [0. 0.] and cov = [[2. 1.][1. 2.]]\ny_mean = np.zeros(2)\ny_cov = np.eye(2) + 1\n\nnum_samples = 200\nX_ref = np.random.multivariate_normal(x_mean, x_cov, num_samples)\nX_test = np.random.multivariate_normal(y_mean, y_cov, num_samples)\n\nalpha = 0.01  # significance level for the hypothesis test\n\ndetector = MMD(num_permutations=1000, kernel=RBF(length_scale=1.0), random_state=31)\ndetector.fit(X=X_ref)\ndetector.transform(X=X_test)\nmmd, p_value = detector.distance\n\np_value < alpha\n>>> True  # Drift detected. We can reject H0, so both samples come from different distributions.\n```\n\nMore advance examples can be found [here](https://frouros.readthedocs.io).\n\n## Installation\n\nFrouros supports Python 3.8, 3.9 and 3.10 versions. It can be installed via pip:\n\n```bash\npip install frouros\n```\nthere is also the option to use [PyTorch](https://github.com/pytorch/pytorch) models with the help of [skorch](https://github.com/skorch-dev/skorch):\n```bash\npip install frouros[pytorch]\n```\n\n## Drift detection methods\n\nThe currently supported methods are listed in the following table. They are divided in three main categories depending on the type of drift that they are capable of detecting and how they detect it.\n\n<table class=\"center\">\n<thead>\n<tr>\n    <th>Type</th>\n    <th>Subtype</th>\n    <th>Method</th>\n  </tr>\n</thead>\n<tbody>\n  <tr>\n    <td rowspan=\"12\">\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/base.py\"> \n            <div style=\"height:100%;width:100%\">\n                Supervised\n            </div>\n        </a>\n    </td>\n    <td rowspan=\"3\">\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/cusum_based/base.py\"> \n            <div style=\"height:100%;width:100%\">\n                CUSUM Based\n            </div>\n        </a>\n    </td>\n   <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/cusum_based/cusum.py\"> \n            <div style=\"height:100%;width:100%\">\n                CUSUM\n            </div>\n        </a>\n    </td>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/cusum_based/geometric_moving_average.py\">  \n            <div style=\"height:100%;width:100%\">\n                Geometric Moving Average\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/cusum_based/page_hinkley.py\">  \n            <div style=\"height:100%;width:100%\">\n                Page Hinkley\n            </div>\n        </a>\n    </td>\n  </tr>\n    <td rowspan=\"7\">\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/ddm_based/base.py\">  \n            <div style=\"height:100%;width:100%\">\n                DDM Based\n            </div>\n        </a>\n    </td>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/ddm_based/ddm.py\">  \n            <div style=\"height:100%;width:100%\">\n                DDM\n            </div>\n        </a>\n    </td>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/ddm_based/ecdd.py\">  \n            <div style=\"height:100%;width:100%\">\n                ECDD-WT\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/ddm_based/eddm.py\">  \n            <div style=\"height:100%;width:100%\">\n                EDDM\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/ddm_based/hddm.py\">  \n            <div style=\"height:100%;width:100%\">\n                HDDM-A\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/ddm_based/hddm.py\">  \n            <div style=\"height:100%;width:100%\">\n                HDDM-W\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/ddm_based/rddm.py\">  \n            <div style=\"height:100%;width:100%\">\n                RDDM\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/ddm_based/stepd.py\">  \n            <div style=\"height:100%;width:100%\">\n                STEPD\n            </div>\n        </a>\n    </td>\n  </tr>\n  <td rowspan=\"2\">\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/window_based/base.py\">  \n            <div style=\"height:100%;width:100%\">\n                Window Based\n            </div>\n        </a>\n    </td>\n  <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/window_based/adwin.py\">  \n            <div style=\"height:100%;width:100%\">\n                ADWIN\n            </div>\n        </a>\n    </td>\n  <tr>\n  <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/window_based/kswin.py\">  \n            <div style=\"height:100%;width:100%\">\n                KSWIN\n            </div>\n        </a>\n    </td>\n  </tr>\n  </tr>\n  <tr>\n    <td rowspan=\"2\">\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/semi_supervised/base.py\"> \n            <div style=\"height:100%;width:100%\">\n                Semi-supervised\n            </div>\n        </a>\n    </td>\n    <td rowspan=\"2\">\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/semi_supervised/margin_density_based/base.py\"> \n            <div style=\"height:100%;width:100%\">\n                Margin Density Based\n            </div>\n        </a>\n    </td>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/semi_supervised/margin_density_based/md3.py\"> \n            <div style=\"height:100%;width:100%\">\n                MD3-SVM\n            </div>\n        </a>\n    </td>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/supervised/margin_density_based/md3.py\">  \n            <div style=\"height:100%;width:100%\">\n                MD3-RS\n            </div>\n        </a>\n    </td>\n  </tr>\n  </tr>\n  <tr>\n    <td rowspan=\"10\">\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/base.py\"> \n            <div style=\"height:100%;width:100%\">\n                Unsupervised\n            </div>\n        </a>\n    </td>\n    <td rowspan=\"6\">\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/distance_based/base.py\"> \n            <div style=\"height:100%;width:100%\">\n                Distance Based\n            </div>\n        </a>\n    </td>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/distance_based/emd.py\"> \n            <div style=\"height:100%;width:100%\">\n                EMD\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/distance_based/histogram_intersection.py\"> \n            <div style=\"height:100%;width:100%\">\n                Histogram Intersection\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/distance_based/js.py\"> \n            <div style=\"height:100%;width:100%\">\n                JS\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/distance_based/kl.py\"> \n            <div style=\"height:100%;width:100%\">\n                KL\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n      <td>\n      <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/distance_based/mmd.py\"> \n                <div style=\"height:100%;width:100%\">\n                    MMD\n                </div>\n            </a>\n      </td>\n  </tr>\n  <tr>\n      <td>\n      <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/distance_based/psi.py\"> \n                <div style=\"height:100%;width:100%\">\n                    PSI\n                </div>\n            </a>\n      </td>\n  </tr>\n  <tr>\n    <td rowspan=\"4\">\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/statistical_test/base.py\"> \n            <div style=\"height:100%;width:100%\">\n                Statistical Test\n            </div>\n        </a>\n    </td>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/statistical_test/chisquare.py\"> \n            <div style=\"height:100%;width:100%\">\n                Chi-Square\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/statistical_test/cvm.py\">\n            <div style=\"height:100%;width:100%\">\n                CVM\n            </div>    \n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/statistical_test/ks.py\">\n            <div style=\"height:100%;width:100%\">\n                KS\n            </div>    \n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/unsupervised/statistical_test/welch_t_test.py\">\n            <div style=\"height:100%;width:100%\">\n                Welch's T-test\n            </div>    \n        </a>\n    </td>\n  </tr>\n</tbody>\n</table>\n\n## Datasets\n\nSome well-known datasets and synthetic generators are provided and listed in the following table.\n\n<table class=\"center\">\n<thead>\n<tr>\n    <th>Type</th>\n    <th>Dataset</th>\n  </tr>\n</thead>\n<tbody>\n  <tr>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/datasets/real.py\"> \n            <div style=\"height:100%;width:100%\">\n                Real\n            </div>\n        </a>\n    </td>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/datasets/real.py\">  \n            <div style=\"height:100%;width:100%\">\n                Elec2\n            </div>\n        </a>\n    </td>\n  </tr>\n  <tr>\n    <td rowspan=\"3\">\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/datasets/synthetic.py\"> \n            <div style=\"height:100%;width:100%\">\n                Synthetic\n            </div>\n        </a>\n    </td>\n    <td>\n        <a href=\"https://github.com/jaime-cespedes-sisniega/frouros/blob/main/frouros/datasets/synthetic.py\">  \n            <div style=\"height:100%;width:100%\">\n                SEA\n            </div>\n        </a>\n    </td>\n  </tr>\n</tbody>\n</table>\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/IFCA/frouros",
+            "keywords": "drift-detection,concept-drift,supervised-drift-detection,unsupervised-drift-detection,semi-supervised-drift-detection,machine-learning,data-science",
+            "license": "BSD-3-Clause",
+            "maintainer": "Jaime C\u00e9spedes Sisniega",
+            "maintainer_email": "cespedes@ifca.unican.es",
+            "name": "frouros",
+            "package_url": "https://pypi.org/project/frouros/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/frouros/",
+            "project_urls": {
+                "Homepage": "https://github.com/IFCA/frouros",
+                "documentation": "https://frouros.readthedocs.io",
+                "download": "https://pypi.org/project/frouros/",
+                "homepage": "https://frouros.readthedocs.io",
+                "repository": "https://github.com/IFCA/frouros"
+            },
+            "release_url": "https://pypi.org/project/frouros/0.1.0/",
+            "requires_dist": [
+                "numpy (<1.24,>=1.23.0)",
+                "requests (<2.28,>=2.27.0)",
+                "scikit-learn (<1.2,>=1.1.0)",
+                "scipy (<1.9,>=1.8.0)",
+                "sphinx (<5.0,>=4.5.0) ; extra == 'docs'",
+                "sphinx-book-theme (<0.4,>=0.3.0) ; extra == 'docs'",
+                "sphinxcontrib-bibtex (<2.5,>=2.4.0) ; extra == 'docs'",
+                "myst-parser (<0.19,>=0.18.0) ; extra == 'docs'",
+                "myst-nb (<0.17,>=0.16.0) ; extra == 'docs'",
+                "torch (<1.13,>=1.12.0) ; extra == 'pytorch'",
+                "skorch (<0.12.0,>=0.11.0) ; extra == 'pytorch'"
+            ],
+            "requires_python": ">=3.8,<3.11",
+            "summary": "A Python library for drift detection in Machine Learning problems",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14673514,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fcd943122ecaf6b6236c48ed8e230bb4",
+                    "sha256": "3adc3ebca17964cf7c760c0fc9caf1efaf8a4f321d94bc5149ad5988adcc346d"
+                },
+                "downloads": -1,
+                "filename": "frouros-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "fcd943122ecaf6b6236c48ed8e230bb4",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<3.11",
+                "size": 79818,
+                "upload_time": "2022-08-06T10:29:39",
+                "upload_time_iso_8601": "2022-08-06T10:29:39.822113Z",
+                "url": "https://files.pythonhosted.org/packages/36/0f/9c4188c67796f33adc10cf47c3d0c7b7371b6ef906da5e6aa9bdc29c0502/frouros-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "87035966b821e3b4fa3419eec095be24",
+                    "sha256": "8b3f9b88a19883cd1d464820f5785eec541b99a0aa2d5bc8e8a7ebcfd06596a5"
+                },
+                "downloads": -1,
+                "filename": "frouros-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "87035966b821e3b4fa3419eec095be24",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<3.11",
+                "size": 49641,
+                "upload_time": "2022-08-06T10:29:42",
+                "upload_time_iso_8601": "2022-08-06T10:29:42.346849Z",
+                "url": "https://files.pythonhosted.org/packages/d4/d3/0363a9e42cee21823565b8b3ce69e9df9b3a97efcfca059991b879c75978/frouros-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

@@ -1,0 +1,91 @@
+{
+    "0.2.1": {
+        "info": {
+            "author": "David Gibbs,Michael Strasser",
+            "author_email": "gibbsdavidl@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# gssnng\n\n**Try it out!  ===>>>**  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Gibbsdavidl/gssnng/blob/main/notebooks/gssnng_quick_start.ipynb)\n\n\nGene Set Scoring on the Nearest Neighbor Graph (gssnng) for Single Cell RNA-seq (scRNA-seq).\n\nThe problem:  single cells often have very poor overlap with any gene set of interest, making gene set scoring difficult.\n\nThe method works by sampling nearest neighbors for each cell, creating a mini-pseudobulk expression profile, \nand performing single sample gene set scoring. This gives each cell a score and preserves gradients across clusters. \n\nWorks with AnnData objects stored as h5ad files. Expression values are taken from adata.X.\n\nScoring functions, works with ranked or unranked data (**\"your mileage may vary\"**):\n\nSome method references (singscore, RBO) are below.\n\n```\n    singscore:            Normalised mean (median centered) ranks (requires ranked data)\n    \n    ssgsea:               The well known single sample GSEA.\n        \n    rank_biased_overlap:  RBO, Weighted average of agreement between sorted ranks and gene set.\n\n    robust_std:     Med(x-med / mad), median of robust standardized values (recommend unranked).\n    \n    mean_z:         Mean( (x - mean)/stddv ), average z score. (recommend unranked).\n    \n    average_score:  Mean ranks or counts     \n    \n    median_score:   Median of counts or ranks\n    \n    summed_up:      Sum up the ranks or counts.\n```\n\n## Installation from PyPI\n```\npip3 install gssnng\n```\n\n\n## Installation from GitHub\n\n```\n# also gets you the demo data and gene sets.\ngit clone https://github.com/Gibbsdavidl/gssnng\n\npip install -e gssnng\n```\n\n## Example script\n\nCopy the script out from the cloned repo and run, check the paths if you get an error.\n\n```\n cp gssnng/gssnng/test/example_script.py  .\n \n python3.8 test_gssnng.py\n```\n\n\n## Usage \n\nSee gssnng/notebooks for examples on all methods\n\n1. Read in an AnnData object using scanpy (an h5ad file).\n\n2. Get gene sets formatted as a .gmt file. (default is undirected, can take _UP,  _DN, and split gene sets _UP+_DN)\n\n3. Score cells, each gene set will show up as a column in adata.obs.\n\n```\nfrom gssnng import score_cells\n\nq = sc.read_h5ad('gssnng/gssnng/test/data/pbmc3k_processed.h5ad')\n\nsc.pp.neighbors(q, n_neighbors=32)\n\nscores_cells.with_gene_sets(adata=q,                            # AnnData object\n                            gene_set_file='cibersort_lm22.gmt', # File path of gene sets\n                            groupby='louvain',                  # Will sample neighbors within this group\n                            smooth_mode='connectivity',         # Smooths matrix using distance weights from NN graph.\n                            recompute_neighbors=0,              # Rebuild nearest neighbor graph with groups, 0 turns off function\n                            score_method='singscore',           # Method of scoring\n                            method_params={'normalization':'theoretical'},  # Special parameters for some methods \n                            samp_neighbors=27,                  # Number of sampled neighbors for pseudobulk\n                            ranked=True,                        # Use ranked data, True or False\n                            cores=8)                            # Groups are scored in parallel.\n    \n\nsc.pl.umap(q, color=['louvain','T.cells.CD8.up'], wspace=0.35)\n```\n\n## Parameters\n\n    adata:  AnnData object from scanpy.read_*\n    AnnData containing the cells to be scored\n\n    gene_set_file: str[path]\n    The gene set file with list of gene sets, gmt, one per line. See `this definition <https://software.broadinstitute.org/cancer/software/gsea/wiki/index.php/Data_formats#GMT:_Gene_Matrix_Transposed_file_format_.28.2A.gmt.29>`_ .\n\n    groupby: [str, list, dict]\n    either a column label in adata.obs, and all categories taken, or a dict specifies one group.\n    SEE DESCRIPTION BELOW\n\n    smooth_mode: \"adjacency\" or \"connectivity\",\n    Dictates how to use the neighborhood graph.\n    `adjacency` weights all neighbors equally, `connectivity` weights close neighbors more\n\n    recompute_neighbors: int\n    should neighbors be recomputed within each group, 0 for no, >0 for yes and specifies N\n\n    score_method: str\n    which scoring method to use\n\n    method_params: dict\n    python dict with XGBoost params.\n\n    samp_neighbors: int\n    number of neighbors to sample\n\n    ranked: bool\n    whether the gene expression counts should be rank ordered\n\n    cores: int\n    number of parallel processes to work through groupby groups\n\n## Groupby\n\nThe specific neighborhood for each cell can be controlled by using the groupby parameter. In the example\nabove, by setting groupby='louvain', only cells within a louvain cluster will be considered as being part of the\nneighborhood and will available for sampling.\nGroupby specifies a column name that's found in the AnnData.obs table, and it can also take a list of column names.\nIn that case, cells will be grouped as the intersection of categories. For example, using groupby=['louvain','phenotype']\nwill take cells that are first in a given louvain cluster and then also in a given phenotype group. By also setting\nthe recompute_neighbors, the nearest neighbor graph is recomputed within this subset of cells. Controlling the\nneighborhood leads to more controlled smoothing of the count matrix and is more suitable for downstream comparisons.\n\n## Gene sets\n\nWe are following the MSigDB nomenclature, where gene sets default to undirected, but can be marked with the suffix \"_UP\"\n(example: CD8_signature_UP or CD8.signature.up).  In this case, when data is ranked, genes with higher expression have larger ranks. If the \ngene set has suffix \"_DN\" (example: CD8_signature_DN or CD8.signature.dn), then lowest expressed genes have largest ranks. In the \nuse of singscore or Z scores, the undirected case is based on absolute values, so either direction, in the extreme, will result in a large score.\n\n## Method options\n\nSome methods have some additional options. They are passed as a dictionary, method_params={param_name: param_value}.\n\n    singscore:  {'normalization': 'theoretical'}, {'normalization': 'standard'}\n\nThe singscore manuscript describes the theoretical method of standarization which involves determining the theoretical max and minimum ranks for the given gene set.\n\n    ssGSEA: {'omega': 0.25}\n    \nThe ssGSEA method uses this parameter as a exponent to the ranks.\n\n    rank_biased_overlap:  {'rbo_depth': n}  (n: int)\n\nHere, n is the depth that is decended down the ranks, where at each step, the overlap with the gene set is measured and added to the score.\n\n*The following methods do not have additional options.*\n\n    robust_std\n    mean_z\n    average_score\n    median_score\n    summed_up\n\n## References\n\nrank biased overlap:  https://arxiv.org/pdf/1408.3587.pdf\n\nsingscore:  https://pubmed.ncbi.nlm.nih.gov/30400809/\n\nssGSEA: https://gsea-msigdb.github.io/ssGSEA-gpmodule/v10/index.html\n\nanndata: https://anndata.readthedocs.io/en/latest/\n\nMSigDB: https://www.gsea-msigdb.org/gsea/msigdb/\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "http://github.com/gibbsdavidl/gssnng",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "gssnng",
+            "package_url": "https://pypi.org/project/gssnng/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/gssnng/",
+            "project_urls": {
+                "Homepage": "http://github.com/gibbsdavidl/gssnng"
+            },
+            "release_url": "https://pypi.org/project/gssnng/0.2.1/",
+            "requires_dist": [
+                "pandas",
+                "numpy",
+                "matplotlib",
+                "seaborn",
+                "scipy",
+                "statsmodels",
+                "scanpy",
+                "tqdm"
+            ],
+            "requires_python": "",
+            "summary": "Gene Set Scoring on the Nearest Neighbor Graph (gssnng)",
+            "version": "0.2.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15573440,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5e7e4dfeaf0ba0134bc05251f073253c",
+                    "sha256": "5e8e487693ccb8c14fc44bf3b87cd7627593d1181be09b750da1432c2281abd9"
+                },
+                "downloads": -1,
+                "filename": "gssnng-0.2.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "5e7e4dfeaf0ba0134bc05251f073253c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 15130,
+                "upload_time": "2022-10-29T00:28:16",
+                "upload_time_iso_8601": "2022-10-29T00:28:16.725159Z",
+                "url": "https://files.pythonhosted.org/packages/8e/cb/f6abd3a8aa290c6ce733a22cbe39753737c09dc46a99c5c36eae37c60f98/gssnng-0.2.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "61be9333d0d374b563df959347b0c0d5",
+                    "sha256": "3190bf4904b86917fef2ff643fb7c2e47d4e0b243c9483dd10b6aec83cab0b35"
+                },
+                "downloads": -1,
+                "filename": "gssnng-0.2.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "61be9333d0d374b563df959347b0c0d5",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 24597084,
+                "upload_time": "2022-10-29T00:28:30",
+                "upload_time_iso_8601": "2022-10-29T00:28:30.891079Z",
+                "url": "https://files.pythonhosted.org/packages/19/65/8eba8221f8a2483937e7a95891337218a056615c87b3344c2757c56f549d/gssnng-0.2.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

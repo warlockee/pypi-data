@@ -1,0 +1,125 @@
+{
+    "0.0.0": {
+        "info": {
+            "author": "MIT Data To AI Lab",
+            "author_email": "dai-lab@mit.edu",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 2 - Pre-Alpha",
+                "Intended Audience :: Developers",
+                "Natural Language :: English",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8"
+            ],
+            "description": "<p align=\"left\">\n<img width=15% src=\"https://dai.lids.mit.edu/wp-content/uploads/2018/06/Logo_DAI_highres.png\" alt=\"DAI-Lab\" />\n<i>A project from Data to AI Lab at MIT.</i>\n</p>\n\n<!-- Uncomment these lines after releasing the package to PyPI for version and downloads badges -->\n<!--[![PyPI Shield](https://img.shields.io/pypi/v/gpe.svg)](https://pypi.python.org/pypi/gpe)-->\n<!--[![Downloads](https://pepy.tech/badge/gpe)](https://pepy.tech/project/gpe)-->\n<!--[![Travis CI Shield](https://travis-ci.org/signals-dev/gpe.svg?branch=master)](https://travis-ci.org/signals-dev/gpe)-->\n<!--[![Coverage Status](https://codecov.io/gh/signals-dev/gpe/branch/master/graph/badge.svg)](https://codecov.io/gh/signals-dev/gpe)-->\n\n# GreenGuard Prediction Engineering\n\nPrediction engineering methods for GreenGuard.\n\n- Homepage: https://github.com/signals-dev/gpe\n\n# Overview\n\nThe **GreenGuard Prediction Engineering** library is a framework designed to assist in the\ngeneration of machine learning problems for wind farms operations data by analyzing past\noccurrences of events.\n\nThe main features of **GPE** are:\n\n* **EntitySet creation**: tools designed to represent wind farm data and the relationship\nbetween different tables. We have functions to create EntitySets for datasets with PI data\nand datasets using SCADA data.\n* **Labeling Functions**: a collection of functions, as well as tools to create custom versions\nof them, ready to be used to analyze past operations data in the search for occurrences of\nspecific types of events in the past.\n* **Prediction Engineering**: a flexible framework designed to apply labeling functions on\nwind turbine operations data in a number of different ways to create labels for custom\nMachine Learning problems.\n* **Feature Engineering**: a guide to using Featuretools to apply automated feature engineerinig\nto wind farm data.\n\n# Install\n\n## Requirements\n\n**GPE** has been developed and runs on Python 3.6 and 3.7.\n\nAlso, although it is not strictly required, the usage of a [virtualenv](\nhttps://virtualenv.pypa.io/en/latest/) is highly recommended in order to avoid interfering\nwith other software installed in the system where you are trying to run **GPE**.\n\n## Download and Install\n\n**GPE** can be installed locally using [pip](https://pip.pypa.io/en/stable/) with\nthe following command:\n\n```bash\npip install --extra-index-url https://pypi.dailab.ml/ gpe\n```\n\nThis will pull and install the latest stable release from the [DAI-Lab private PyPi Instance](\nhttps://pypi.dailab.ml/).\n\nIf you want to install from source or contribute to the project please read the\n[Contributing Guide](CONTRIBUTING.rst).\n\n## Docker usage\n\nAlternatively, **GPE** is prepared to be run inside a docker environment. Please check the\n[docker documentation](docker/README.md) for details about how to run **GPE** using docker.\n\n# Quickstart\n\nIn this short tutorial we will guide you through a series of steps that will help you\ngetting started with **GPE**.\n\n## 1. Loading the data\n\nThe first step we will be to use preprocessed data to create an EntitySet. Depending on the\ntype of data, we will either the `gpe.create_pidata_entityset` or `gpe.create_scada_entityset`\nfunctions.\n\n**NOTE**: if you cloned the **GPE** repository, you will find some demo data inside the\n`notebooks/data` folder which has been preprocessed to fit the `create_entityset` data\nrequirements.\n\n```python3\nimport os\nimport pandas as pd\nfrom gpe import create_scada_entityset\n\ndata_path = 'notebooks/data'\n\ndata = {\n  'turbines': pd.read_csv(os.path.join(data_path, 'turbines.csv')),\n  'alarms': pd.read_csv(os.path.join(data_path, 'alarms.csv')),\n  'work_orders': pd.read_csv(os.path.join(data_path, 'work_orders.csv')),\n  'stoppages': pd.read_csv(os.path.join(data_path, 'stoppages.csv')),\n  'notifications': pd.read_csv(os.path.join(data_path, 'notifications.csv')),\n  'scada': pd.read_csv(os.path.join(data_path, 'scada.csv'))\n}\n\nscada_es = create_scada_entityset(data)\n```\n\nThis will load the turbine, alarms, stoppages, work order, notifications, and SCADA data, and return it\nas an EntitySet.\n\n```\nEntityset: SCADA data\n  DataFrames:\n    turbines [Rows: 1, Columns: 10]\n    alarms [Rows: 2, Columns: 9]\n    work_orders [Rows: 2, Columns: 20]\n    stoppages [Rows: 2, Columns: 16]\n    notifications [Rows: 2, Columns: 15]\n    scada [Rows: 2, Columns: 5]\n  Relationships:\n    alarms.COD_ELEMENT -> turbines.COD_ELEMENT\n    stoppages.COD_ELEMENT -> turbines.COD_ELEMENT\n    work_orders.COD_ELEMENT -> turbines.COD_ELEMENT\n    scada.COD_ELEMENT -> turbines.COD_ELEMENT\n    notifications.COD_ORDER -> work_orders.COD_ORDER\n```\n\n## 2. Selecting a Labeling Function\n\nThe second step will be to choose an adequate **Labeling Function**.\n\nWe can see the list of available labeling functions using the `gpe.labeling.get_labeling_functions`\nfunction.\n\n```python3\nfrom gpe import labeling\n\nlabeling.get_labeling_functions()\n```\n\nThis will return us a dictionary with the name and a short description of each available\nfunction.\n\n```\n{'brake_pad_presence': 'Calculates the total power loss over the data slice.',\n 'converter_replacement_presence': 'Calculates the converter replacement presence.',\n 'total_power_loss': 'Calculates the total power loss over the data slice.'}\n ```\n\nIn this case, we will choose the `total_power_loss` function, which calculates the total\namount of power lost over a slice of time.\n\n## 3. Generate Target Times\n\nOnce we have loaded the data and the Labeling Function, we are ready to start using\nthe `gpe.generate_labels` function to generate a Target Times table.\n\n```python3\nfrom gpe import DataLabeler\n\ndata_labeler = DataLabeler(labeling.labeling_functions.total_power_loss)\ntarget_times, metadata = data_labeler.generate_label_times(scada_es)\n```\n\nThis will return us a `compose.LabelTimes` containing the three columns required to start\nworking on a Machine Learning problem: the turbine ID (COD_ELEMENT), the cutoff time (time) and the label.\n\n```\n   COD_ELEMENT       time    label\n0            0 2022-01-01  45801.0\n```\n\n# What's Next?\n\nIf you want to continue learning about **GreenGuard Prediction Engineering** and all its\nfeatures please have a look at the tutorials found inside the [notebooks folder](\nhttps://github.com/signals-dev/gpe/tree/master/notebooks).\n\n\n# History\n\n## 0.2.3 - 2020-09-20\n\n- Update test environment and make test commands.\n\n## 0.2.2 - 2020-02-12\n\n- Add github actions and perform tests over the readme example.\n\n## 0.2.1 - 2020-02-12\n\n- Slight user API improvements.\n- Removal of unused code.\n- Improved documentation and tutorials.\n- Setup to run GPE on a Docker container.\n\n## 0.2.0 - 2020-02-06\n\nFirst full release\n\n- Data Preprocessing\n- Prediction Engineering Framework\n- First Labeling functions\n\n## 0.1.0 - 2019-10-31\n\nFirst Pre-Release\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/sintel-dev/gpe",
+            "keywords": "zephyr Draco Prediction Engineering",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "zephyr-ml",
+            "package_url": "https://pypi.org/project/zephyr-ml/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/zephyr-ml/",
+            "project_urls": {
+                "Homepage": "https://github.com/sintel-dev/gpe"
+            },
+            "release_url": "https://pypi.org/project/zephyr-ml/0.0.0/",
+            "requires_dist": [
+                "numpy (<1.23.0,>=1.16.0)",
+                "pandas (<2,>=1)",
+                "composeml (<1.0,>=0.1.6)",
+                "featuretools (<2.0.0,>=1.0.0)",
+                "xlrd (<2,>=1.0.0)",
+                "jupyter (==1.0.0)",
+                "openpyxl (==3.0.3)",
+                "pyarrow",
+                "bumpversion (<0.6,>=0.5.3) ; extra == 'dev'",
+                "pip (>=9.0.1) ; extra == 'dev'",
+                "watchdog (<0.11,>=0.8.3) ; extra == 'dev'",
+                "m2r (<0.3,>=0.2.0) ; extra == 'dev'",
+                "nbsphinx (<0.7,>=0.5.0) ; extra == 'dev'",
+                "Sphinx (<3,>=1.7.1) ; extra == 'dev'",
+                "sphinx-rtd-theme (<0.5,>=0.2.4) ; extra == 'dev'",
+                "autodocsumm (>=0.1.10) ; extra == 'dev'",
+                "Jinja2 (<3.1) ; extra == 'dev'",
+                "flake8 (<4,>=3.7.7) ; extra == 'dev'",
+                "isort (<5,>=4.3.4) ; extra == 'dev'",
+                "autoflake (<2,>=1.1) ; extra == 'dev'",
+                "autopep8 (<2,>=1.4.3) ; extra == 'dev'",
+                "twine (<4,>=1.10.0) ; extra == 'dev'",
+                "wheel (>=0.30.0) ; extra == 'dev'",
+                "coverage (<6,>=4.5.1) ; extra == 'dev'",
+                "tox (<4,>=2.9.1) ; extra == 'dev'",
+                "jupyter (>=1.0.0) ; extra == 'dev'",
+                "pytest (>=3.4.2) ; extra == 'dev'",
+                "pytest-cov (>=2.6.0) ; extra == 'dev'",
+                "jupyter (<2,>=1.0.0) ; extra == 'dev'",
+                "rundoc (<0.5,>=0.4.3) ; extra == 'dev'",
+                "pytest (>=3.4.2) ; extra == 'test'",
+                "pytest-cov (>=2.6.0) ; extra == 'test'",
+                "jupyter (<2,>=1.0.0) ; extra == 'test'",
+                "rundoc (<0.5,>=0.4.3) ; extra == 'test'"
+            ],
+            "requires_python": ">=3.7,<3.9",
+            "summary": "Prediction engineering methods for Draco.",
+            "version": "0.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14983262,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bac18126db6b2a6eea1516f0c9b0927c",
+                    "sha256": "ce77da32eee3818881f5d1d6ba5644a17f815ed9003d8bf5fab351e5bee35bb3"
+                },
+                "downloads": -1,
+                "filename": "zephyr_ml-0.0.0-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "bac18126db6b2a6eea1516f0c9b0927c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": ">=3.7,<3.9",
+                "size": 14902,
+                "upload_time": "2022-09-03T16:48:24",
+                "upload_time_iso_8601": "2022-09-03T16:48:24.142586Z",
+                "url": "https://files.pythonhosted.org/packages/ac/14/823e6c65d8667c94b83fc786c74ddecb9ea38eae75dcfb01c078d42be885/zephyr_ml-0.0.0-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ca679c9369dc7f34c04140960558c603",
+                    "sha256": "86845a518ec91be5d09aa2e03e1aae06012ae7b0e6024c82ccf2491b677a8387"
+                },
+                "downloads": -1,
+                "filename": "zephyr-ml-0.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ca679c9369dc7f34c04140960558c603",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<3.9",
+                "size": 61866,
+                "upload_time": "2022-09-03T16:48:26",
+                "upload_time_iso_8601": "2022-09-03T16:48:26.229079Z",
+                "url": "https://files.pythonhosted.org/packages/90/8a/61849be83212ee0a0b00980161b8b00bece7f1956b38eda7715bb2386e85/zephyr-ml-0.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "0.6.1": {
+        "info": {
+            "author": "Olegm",
+            "author_email": "gistart@yandex.ru",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# asyncio-pool-ng\n\nForked from [asyncio-pool](https://github.com/gistart/asyncio-pool) to include typing/mypy support and remove support for older versions of Python.\n\nPool of asyncio coroutines with familiar interface. Supports python 3.7+.\n\nAioPool makes sure _no more_ and _no less_ (if possible) than `size` spawned coroutines are active at the same time. _spawned_ means created and scheduled with one of the pool interface methods, _active_ means coroutine function started executing it's code, as opposed to _waiting_ -- which waits for pool space without entering coroutine function.\n\n## Interface\n\nRead [code doctrings](../main/asyncio_pool/pool.py) for details.\n\n#### AioPool(size=4, *, loop=None)\n\nCreates pool of `size` concurrent tasks. Supports async context manager interface.\n\n#### spawn(coro, cb=None, ctx=None)\n\nWaits for pool space, then creates task for `coro` coroutine, returning future for it's result. Can spawn coroutine, created by `cb` with result of `coro` as first argument. `ctx` context is passed to callback as third positinal argument.\n\n#### exec(coro, cb=None, ctx=None)\n\nWaits for pool space, then creates task for `coro`, then waits for it to finish, then returns result of `coro` if no callback is provided, otherwise creates task for callback, waits for it and returns result of callback.\n\n#### spawn_n(coro, cb=None, ctx=None)\n\nCreates waiting task for `coro`, returns future without waiting for pool space. Task is executed \"in pool\" when pool space is available.\n\n#### join()\n\nWaits for all spawned (active and waiting) tasks to finish. Joining pool from coroutine, spawned by the same pool leads to *deadlock*.\n\n#### cancel(*futures)\n\nCancels spawned tasks (active and waiting), finding them by provided `futures`. If no futures provided -- cancels all spawned tasks.\n\n#### map(fn, iterable, cb=None, ctx=None, *, get_result=getres.flat)\n\nSpawns coroutines created by `fn` function for each item in `iterable` with `spawn`, waits for all of them to finish (including callbacks), returns results maintaining order of `iterable`.\n\n#### map_n(fn, iterable, cb=None, ctx=None, *, get_result=getres.flat)\n\nSpawns coroutines created by `fn` function for each item in `iterable` with `spawn_n`, returns futures for task results maintaining order of `iterable`.\n\n#### itermap(fn, iterable, cb=None, ctx=None, *, flat=True, get_result=getres.flat, timeout=None, yield_when=asyncio.ALL_COMPLETED)\n\nSpawns tasks with `map_n(fn, iterable, cb, ctx)`, then waits for results with `asyncio.wait` function, yielding ready results one by one if `flat` == True, otherwise yielding list of ready results.\n\n\n\n## Usage\n\n`spawn` and `map` methods is probably what you should use in 99% of cases. Their overhead is minimal (~3% execution time), and even in worst cases memory usage is insignificant.\n\n`spawn_n`, `map_n` and `itermap` methods give you more control and flexibily, but they come with a price of higher overhead. They spawn all tasks that you want, and most of the tasks wait their turn \"in background\". If you spawn too much (10**6+ tasks) -- you'll use most of the memory you have in system, also you'll lose a lot of time on \"concurrency management\" of all the tasks spawned.\n\nPlay with `python tests/loadtest.py -h` to understand what you want to use.\n\nUsage examples (more in [tests/](../main/tests/) and [examples/](../main/examples/)):\n\n```python\n\n\nasync def worker(n):  # dummy worker\n    await aio.sleep(1 / n)\n    return n\n\n\nasync def spawn_n_usage(todo=[range(1,51), range(51,101), range(101,200)]):\n    futures = []\n    async with AioPool(size=20) as pool:\n        for tasks in todo:\n            for i in tasks:  # too many tasks\n                # Returns quickly for all tasks, does not wait for pool space.\n                # Workers are not spawned, they wait for pool space in their\n                # own background tasks.\n                fut = pool.spawn_n(worker(i))\n                futures.append(fut)\n        # At this point not a single worker should start.\n\n        # Context manager calls `join` at exit, so this will finish when all\n        # workers return, crash or cancelled.\n\n    assert sum(itertools.chain.from_iterable(todo)) == \\\n        sum(f.result() for f in futures)\n\n\nasync def spawn_usage(todo=range(1,4)):\n    futures = []\n    async with AioPool(size=2) as pool:\n        for i in todo:  # 1, 2, 3\n            # Returns quickly for 1 and 2, then waits for empty space for 3,\n            # spawns 3 and returns. Can save some resources I guess.\n            fut = await pool.spawn(worker(i))\n            futures.append(fut)\n        # At this point some of the workers already started.\n\n        # Context manager calls `join` at exit, so this will finish when all\n        # workers return, crash or cancelled.\n\n    assert sum(todo) == sum(fut.result() for fut in futures)  # all done\n\n\nasync def map_usage(todo=range(100)):\n    pool = AioPool(size=10)\n    # Waits and collects results from all spawned workers,\n    # returns them in same order as `todo`, if worker crashes or cancelled:\n    # returns exception object as a result.\n    # Basically, it wraps `spawn_usage` code into one call.\n    results = await pool.map(worker, todo)\n\n    # await pool.join()  # is not needed here, bcs no other tasks were spawned\n\n    assert isinstance(results[0], ZeroDivisionError) \\\n        and sum(results[1:]) == sum(todo)\n\n\nasync def itermap_usage(todo=range(1,11)):\n    result = 0\n    async with AioPool(size=10) as pool:\n        # Combines spawn_n and iterwait, which is a wrapper for asyncio.wait,\n        # which yields results of finished workers according to `timeout` and\n        # `yield_when` params passed to asyncio.wait (see it's docs for details)\n        async for res in pool.itermap(worker, todo, timeout=0.5):\n            result += res\n        # technically, you can skip join call\n\n    assert result == sum(todo)\n\n\nasync def callbacks_usage():\n\n    async def wrk(n):  # custom dummy worker\n        await aio.sleep(1 / n)\n        return n\n\n    async def cb(res, err, ctx):  # callback\n        if err:  # error handling\n            exc, tb = err\n            assert tb  # the only purpose of this is logging\n            return exc\n\n        pool, n = ctx  # context can be anything you like\n        await aio.sleep(1 / (n-1))\n        return res + n\n\n    todo = range(5)\n    futures = []\n\n    async with AioPool(size=2) as pool:\n        for i in todo:\n            fut = pool.spawn_n(wrk(i), cb, (pool, i))\n            futures.append(fut)\n\n    results = []\n    for fut in futures:\n        # there are helpers for result extraction. `flat` one will do\n        # exactly what's written below\n        #   from asyncio_pool import getres\n        #   results.append(getres.flat(fut))\n        try:\n            results.append(fut.result())\n        except Exception as e:\n            results.append(e)\n\n    # First error happens for n == 0 in wrk, exception of it is passed to\n    # callback, callback returns it to us. Second one happens in callback itself\n    # and is passed to us by pool.\n    assert all(isinstance(e, ZeroDivisionError) for e in results[:2])\n\n    # All n's in `todo` are passed through `wrk` and `cb` (cb adds wrk result\n    # and # number, passed inside context), except for n == 0 and n == 1.\n    assert sum(results[2:]) == 2 * (sum(todo) - 0 - 1)\n\n\nasync def exec_usage(todo=range(1,11)):\n    async with AioPool(size=4) as pool:\n        futures = pool.map_n(worker, todo)\n\n        # While other workers are waiting or active, you can \"synchronously\"\n        # execute one task. It does not interrupt  others, just waits for pool\n        # space, then waits for task to finish and then returns it's result.\n        important_res = await pool.exec(worker(2))\n        assert 2 == important_res\n\n        # You can continue working as usual:\n        moar = await pool.spawn(worker(10))\n\n    assert sum(todo) == sum(f.result() for f in futures)\n\n\nasync def cancel_usage():\n\n    async def wrk(*arg, **kw):\n        await aio.sleep(0.5)\n        return 1\n\n    pool = AioPool(size=2)\n\n    f_quick = pool.spawn_n(aio.sleep(0.1))\n    f12 = await pool.spawn(wrk()), pool.spawn_n(wrk())\n    f35 = pool.map_n(wrk, range(3))\n\n    # At this point, if you cancel futures, returned by pool methods,\n    # you just won't be able to retrieve spawned task results, task\n    # themselves will continue working. Don't do this:\n    #   f_quick.cancel()\n    # use `pool.cancel` instead:\n\n    # cancel some\n    await aio.sleep(0.1)\n    cancelled, results = await pool.cancel(f12[0], f35[2])  # running and waiting\n    assert 2 == cancelled  # none of them had time to finish\n    assert 2 == len(results) and \\\n        all(isinstance(res, aio.CancelledError) for res in results)\n\n    # cancel all others\n    await aio.sleep(0.1)\n\n    # not interrupted and finished successfully\n    assert f_quick.done() and f_quick.result() is None\n\n    cancelled, results = await pool.cancel()  # all\n    assert 3 == cancelled\n    assert len(results) == 3 and \\\n        all(isinstance(res, aio.CancelledError) for res in results)\n\n    assert await pool.join()  # joins successfully\n\n\nasync def details(todo=range(1,11)):\n    pool = AioPool(size=5)\n\n    # This code:\n    f1 = []\n    for i in todo:\n        f1.append(pool.spawn_n(worker(i)))\n    # is equivalent to one call of `map_n`:\n    f2 = pool.map_n(worker, todo)\n\n    # Afterwards you can await for any given future:\n    try:\n        assert 3 == await f1[2]  # result of spawn_n(worker(3))\n    except Exception as e:\n        # exception happened in worker (or CancelledError) will be re-raised\n        pass\n\n    # Or use `asyncio.wait` to handle results in batches (see `iterwait` also):\n    important_res = 0\n    more_important = [f1[1], f2[1], f2[2]]\n    while more_important:\n        done, more_important = await aio.wait(more_important, timeout=0.5)\n        # handle result, note it will re-raise exceptions\n        important_res += sum(f.result() for f in done)\n\n    assert important_res == 2 + 2 + 3\n\n    # But you need to join, to allow all spawned workers to finish\n    # (of course you can `asyncio.wait` all of the futures if you want to)\n    await pool.join()\n\n    assert all(f.done() for f in itertools.chain(f1,f2))  # this is guaranteed\n    assert 2 * sum(todo) == sum(f.result() for f in itertools.chain(f1,f2))\n\n\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/smithk86/asyncio-pool-ng",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "asyncio-pool-ng",
+            "package_url": "https://pypi.org/project/asyncio-pool-ng/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/asyncio-pool-ng/",
+            "project_urls": {
+                "Homepage": "https://github.com/smithk86/asyncio-pool-ng",
+                "Repository": "https://github.com/smithk86/asyncio-pool-ng"
+            },
+            "release_url": "https://pypi.org/project/asyncio-pool-ng/0.6.1/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "Pool of asyncio coroutines with familiar interface",
+            "version": "0.6.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15104535,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ad84ccf36c2e1802628b2af7f0fc38d3",
+                    "sha256": "cf66d978f580ed43c809ca80da77eefb85a6f23abb4506efdcf5137e42422230"
+                },
+                "downloads": -1,
+                "filename": "asyncio_pool_ng-0.6.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "ad84ccf36c2e1802628b2af7f0fc38d3",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 11569,
+                "upload_time": "2022-09-15T12:19:46",
+                "upload_time_iso_8601": "2022-09-15T12:19:46.587845Z",
+                "url": "https://files.pythonhosted.org/packages/80/2e/6f196b9a23b1e93a2357fc63af72fc01814195a1ef0029f92ae60af202ce/asyncio_pool_ng-0.6.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "815a0b265718d00e6542a2ec3e52deff",
+                    "sha256": "b2160b2b91ba1df995db5e245f339ba7037d91df3cc9c186ed3a3c7d0ec66e25"
+                },
+                "downloads": -1,
+                "filename": "asyncio-pool-ng-0.6.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "815a0b265718d00e6542a2ec3e52deff",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 13414,
+                "upload_time": "2022-09-15T12:19:44",
+                "upload_time_iso_8601": "2022-09-15T12:19:44.583413Z",
+                "url": "https://files.pythonhosted.org/packages/6a/f7/2cdd27b6af2da81698f7e685e94efd25a6b909fb0e2cc9c3effd26d1b632/asyncio-pool-ng-0.6.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

@@ -1,0 +1,85 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "Facebook",
+            "author_email": "threatexchange@fb.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# Summary\nvPDQ (Video PDQ) is a video-similarity-detection algorithm, which uses the PDQ image similarity algorithm on video frames to measure the similarity of videos.\nFull details of PDQ are located in the [hashing.pdf](https://github.com/facebook/ThreatExchange/blob/main/hashing/hashing.pdf) document.\nIt allows for matching individual frames against known bad images, as well as which segments of a video are matching.\n## Compared to TMK+PDQF\nCompared to TMK+PDQF (TMK), which also relies on the PDQ image hashing algorithm:\nTMK optimizes for identical videos (same length), vPDQ can match subsequences or clips within videos.\nTMK has a fixed-length hash, which simplifies matching lookup, and can be near constant time with the help of FAISS. vPDQ produces a variable length hash, and requires a linear comparison of candidates. This requires either an O(n*F<sub>c</sub>*F<sub>q</sub>) lookup where n is the number of videos being compared, and F<sub>c</sub> is the average number of frames per compared video and F<sub>q</sub> is the number of frames in the source video, or an initial filtering pass to reduce the candidates, which can potentially discard matching videos.\nBoth TMK and vPDQ are backed by PDQ, and so inherit both PDQ\u2019s strengths and weaknesses.\n\n# Description of Algorithm\n## Producing a Hash\nThe algorithm for producing the \u201chash\u201d is simple: given a video, convert it into a sequence of frame images at some interval (for example, 1 frame/second). For each frame image, use the PDQ hashing algorithm on each.\n\nWe can annotate these hashes with their frame number, quality(0-100 which measures gradients/features,from least featureful to most featureful) and timestamp(sec). So for a 5 minute video at 1 frame/sec, we might have:\n| Frame | Quality | PDQ Hash | Timestamp(sec) |\n| ------------- | ------------- | ------------- | ------------- |\n| 1  | 100 | face000...  | 0.000  |\n| 2  | 99  | face000...  | 0.033  |\n| 3  | 94  | face011...  | 0.067  |\n| 4  | 97  | face111...  | 1.000  |\n| ... | ...  |...  |...  |\n| 29999 | 89  | 88784444... | 989.933 |\n| 30000 | 92  | 88884444... | 989.967 |\n\nFor the matching algorithm, the frame numbers are not used, but they can still be useful for identifying matching segments when comparing videos.\n\n### Pruning Frames\nOften, many frames are repeated in a video, or frames are very close to each other in PDQ distance. It is possible to reduce the number of frames in a hash by omitting subsequent frames that are within a distance D<sub>prune</sub> of the last retained frame.\n\nIn the previous example, with D<sub>prune</sub> of 2 we might instead end up with:\n| Frame | PDQ Hash | Distance from last retained frame| Result |\n| ------------- | ------------- | ------------- |------------- |\n| 1  | face000...  | N/A | Retain\n| 2  | face000...  | 0 | Prune\n| 3  | face011...  | 2 | Prune\n| 4  | face111...  | 3 | Retain\n| 5  | face111...  | 0 | Prune\n| ... | ...  | ... | ... |\n\nAfterwards, what is left is:\n| Frame | PDQ Hash\n| ------------- | ------------- |\n| 1  | face000...  |\n| 4  | face111...  |\n| ... | ...  |\n\n## Comparison (Matching) Algorithm\nThere are four inputs to the comparison algorithm, which determines if two videos are considered similar by vPDQ:\nThe query video\u2019s frame PDQ hashes Q\nThe comparison video\u2019s frame PDQ hashes C\nThe PDQ match distance D (example: 31)\nThe PDQ quality filter tolerance F (example: 50), if either hash is below this quality level then they will not be compared\nThe comparison match percentage threshold P<sub>c</sub> (example: 80%)\nHow much of the comparison video must be matched to consider a match\nThe query match percentage threshold P<sub>q</sub> (example: 0%)\nUsing a higher threshold will exclude videos with \u201cextra\u201d frames or content. 0% means don\u2019t exclude matches based on padding in the uploaded video.\nUsing P<sub>c</sub> = 100% and P<sub>q</sub> = 100% will attempt to find only videos with the exact same frame content\n\nHere is the algorithm, in pseudocode:\n```\nq_unique_frames  = set(Q)\nc_unique_frames  = set(C)\nq_unique_frames_matched_count = 0\nc_unique_frames_matched_count = 0\nq_unique_filtered_frames = filter(q_unique_frames, quality >= F)\nc_unique_filtered_frames = filter(c_unique_frames, quality >= F)\nfor q_frame in q_unique_filtered_frames :\n  for c_frame in c_unique_filtered_frames :\n    if pdq_dist(q_frame, c_frame) <= D:\n      q_unique_frames_matched_count++\n      break\n\nfor c_frame in c_unique_filtered_frames :\n  for q_frame in q_unique_filtered_frames :\n    if pdq_dist(q_frame, c_frame) <= D:\n      c_unique_frames_matched_count++\n      break\n\nq_pct_matched = q_unique_frames_matched_count * 100 / len(q_unique_filtered_frames)\nc_pct_matched = c_unique_frames_matched_count * 100 / len(c_unique_filtered_frames)\n\nis_match = c_pct_matched >= P_c and q_pct_matched >= P_q\n```\n\nAs you can see, the frame number / ordering is not used at all in this comparison, and the frames are treated as an unordered \u201cbag of hashes\u201d.\n\n\n### Pruning Candidates\nWhen the number of potential candidates is high, the n*F<sub>c</sub>*F<sub>q</sub> algorithm might be too expensive to run. One potential solution for filtering is indexing frames from candidate videos into an index like FAISS, keyed to the video to compare. Our lookup algorithm then becomes:\n\n```\ncandidate_video_ids = set()\n\nfor q_frame in Q:\n  video_candidate_ids_with_frame = faiss_query(q_frame, D)\n  for c_id in video_candidate_ids_with_frame:\n    candidate_video_ids.add(c_id)\n\nmatching_candidates = []\nfor c_id in candidate_video_ids:\n  C = lookup(c_id)\n  is_match = vpdq_comparison(Q, C, D, P_c, P_q)\n  if is_match:\n    matching_candidates.add(C)\n\n```\n\nBeyond pruning frames from candidates, it may be desirable to further prune to just sampled or key frames in candidate videos to control index size, but this may result in videos being incorrectly pruned.\n\n## CPP Implmentation\nThis implementation does not have Pruning Frames and Pruning Candidates.\n### Getting started\n\n#### Compile the code\n\n```\n$ cd cpp\n$ mkdir build\n$ cd build\n$ cmake ..\n$ make\n```\nThen you will have executable \"vpdq-hash-video\", \"match-hashes-byline\" and \"match-hashes-brute\". And two python scripts \"vpdq_match.py\" and \"regtest.py\" to run the executables. Please run executable with \"-h\" for more detailed reference information and usages.\n\n#### Install FFmpeg\n\nBefore using VPDQ to create hashes, FFmpeg must be installed. (Easier to use if Accessible via the `$PATH` environment variable)\n\nThere are a variety of ways to install FFmpeg, such as the [official download links](https://ffmpeg.org/download.html), or using your package manager of choice (e.g. `sudo apt install ffmpeg` on Debian/Ubuntu, `brew install ffmpeg` on OS X, etc.).\n\nRegardless of how FFmpeg is installed, you can check if your environment path is set correctly by running the `ffmpeg` command from the terminal, as in the following example (truncated for brevity):\n\n```\n$ ffmpeg\nffmpeg version 4.4.2 Copyright (c) 2000-2021 the FFmpeg developers\n```\n\n> **Note**: The actual version information displayed here may vary from one system to another; but if a message such as `ffmpeg: command not found` appears instead of the version information, FFmpeg is not properly installed.\n\n#### Compute hashes of sample videos and compare to previous outputs\nHash the provided sample videos and compare the output hashes with sample hashes line by line.\n\n```\ncd cpp\npython3 regtest.py -i ../ThreatExchange/tmk/sample-videos -d ../ThreatExchange/vpdq/output-hashes\nMatching File pattern-sd-with-small-logo-bar.txt\n100.000000 Percentage  matches\n\nMatching File chair-20-sd-bar.txt\n100.000000 Percentage  matches\n\nMatching File doorknob-hd-no-bar.txt\n100.000000 Percentage  matches\n\nMatching File pattern-sd-with-large-logo-bar.txt\n100.000000 Percentage  matches\n...\nMatching File chair-22-with-small-logo-bar.txt\n100.000000 Percentage  matches\n```\n\n#### Look for matches between provided hashes and your own hashes\nThis demo shows how to use vpdq_match to compare one target hash with all the queried hashes in a folder.\n\n#### Brute-force matching\n```\ncd cpp\npython3 vpdq_match.py -f ../ThreatExchange/vpdq/sample-hashes -i ../ThreatExchange/vpdq/output-hashes/chair-19-sd-bar.txt\n```\nSample Output:\n\n```\nMatching Target ../ThreatExchange/vpdq/cpp/sampletest/chair-19-sd-bar.txt with ../chair-22-with-large-logo-bar.txt\n10.55 Percentage Query Video match\n12.59 Percentage Target Video match\n\nMatching Target ../ThreatExchange/vpdq/cpp/sampletest/chair-19-sd-bar.txt with ../chair-22-sd-sepia-bar.txt\n67.76 Percentage Query Video match\n80.85 Percentage Target Video match\n\nMatching Target ../ThreatExchange/vpdq/cpp/sampletest/chair-19-sd-bar.txt with ../chair-19-sd-bar.txt\n100.00 Percentage Query Video match\n100.00 Percentage Target Video match\n...\n\n```\n\n#### Faiss matching (Work in Progress)\n\n\n## Contact\n\nthreatexchange@fb.com\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "vpdq",
+            "package_url": "https://pypi.org/project/vpdq/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/vpdq/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/vpdq/0.0.1/",
+            "requires_dist": [
+                "opencv-python-headless",
+                "opencv-python",
+                "cython",
+                "numpy"
+            ],
+            "requires_python": "",
+            "summary": "Python bindings for Facebook VPDQ hash",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 14527673,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d0ebc07e5df90cbc77d54e3ee4dacab5",
+                    "sha256": "f22775cf21a35280f75711d749fafe83b9848d911cc3e87dd23e4d9e82522729"
+                },
+                "downloads": -1,
+                "filename": "vpdq-0.0.1-cp39-cp39-macosx_12_0_arm64.whl",
+                "has_sig": false,
+                "md5_digest": "d0ebc07e5df90cbc77d54e3ee4dacab5",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 48174,
+                "upload_time": "2022-07-20T19:37:11",
+                "upload_time_iso_8601": "2022-07-20T19:37:11.684330Z",
+                "url": "https://files.pythonhosted.org/packages/a1/77/2ad6a606d50fbe6814fa8585c0d8cdaff7cbb84a1210953e453b608685bf/vpdq-0.0.1-cp39-cp39-macosx_12_0_arm64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a3af6d57c40025779a7f48d8afaf5f9a",
+                    "sha256": "bdb61dd9dc30ee0726023e9370c95731c2b10f79430a170f9f6606f84b6bc164"
+                },
+                "downloads": -1,
+                "filename": "vpdq-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a3af6d57c40025779a7f48d8afaf5f9a",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 92064,
+                "upload_time": "2022-07-20T19:37:13",
+                "upload_time_iso_8601": "2022-07-20T19:37:13.161956Z",
+                "url": "https://files.pythonhosted.org/packages/f6/4d/c841ac0a4562fdd9446c39db6492e9474bd5966b259f9f046fc303a3eb61/vpdq-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

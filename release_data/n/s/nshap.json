@@ -1,0 +1,90 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "Sebastian Bordt",
+            "author_email": "sbordt@posteo.de",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# Welcome to the nshap Package!\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?color=g&style=plastic)](https://opensource.org/licenses/MIT)\n![tests](https://github.com/tml-tuebingen/nshap/workflows/pytesting/badge.svg)\n\nThis is a python package to compute $n$-Shapley Values. \n\n$n$-Shapley Values are a natural extension of [Shapley Values](https://proceedings.neurips.cc/paper/2017/file/8a20a8621978632d76c43dfd28b67767-Paper.pdf) and [Shapley Interaction Values](https://www.nature.com/articles/s42256-019-0138-9) and were introduced in the paper [From Shapley Values to Generalized Additive Models and back](http://arxiv.org/abs/2209.04012).\n\nThe package  works with arbitrary user-defined value functions. It also provides a model-agnostic implementation of the interventional SHAP value function. \n\nThe computed $n$-Shapley Values are an estimate [that can be inaccurate](#estimation).\n\n\u26a0\ufe0f Disclaimer\n\nThis package does not provide an efficient way to compute Shapley Values. For this you should refer to the [shap](https://github.com/slundberg/shap/) package. In practice, the current implementation works for arbitrary functions of up to ~10 variables. This package should be used for research purposes only.\n\n## Setup\n\nTo install the package run\n\n```\npip install nshap\n```\n\n## A Simple Example\n\nLet's assume that we have trained a Gradient Boosted Tree on the [Folktables](https://github.com/zykls/folktables) Income data set.\n\n```python\ngbtree = xgboost.XGBClassifier()\ngbtree.fit(X_train, Y_train)\nprint(f'Accuracy: {accuracy_score(Y_test, gbtree.predict(X_test)):0.3f}')\n```\n```Accuracy: 0.829```\n\nIn order to compute $n$-Shapley Values, we need to define a value function. The function ```nshap.vfunc.interventional_shap``` approximates the interventional SHAP value function.\n\n```python\nimport nshap\n\nvfunc = nshap.vfunc.interventional_shap(gbtree.predict_proba, X_train, target=0, num_samples=1000)\n```\nThe function takes 4 arguments\n\n- The function that we want to explain\n- The training data or another sample from the data distribution\n- The target class (required here since 'predict_proba' has 2 outputs).\n- The number of samples that should be used to estimate the conditional expectation (Default: 1000)\n\nEquipped with a value function, we can compute $n$-Shapley Values.\n\n```python\nn_shapley_values = nshap.n_shapley_values(X_test[0, :], vfunc, n=10)\n```\n\nThe function returns an object of type ```nShapleyValues```. It is a python ```dict``` with some added functionallity. \n\nTo get the interaction effect between features 2 and 3, simply call\n\n```python\nn_shapley_values[(2,3)]\n```\n\n``` 0.0074```\n\nTo generate the plots in the paper, call\n\n```python\nn_shapley_values.plot(feature_names = feature_names)\n```\n\n<p align=\"left\">\n  <img src=\"images/img1.png\" width=\"500\" alt=\"10-Shapley Values\" />\n</p>\n\nand to compute 2-Shapley Values and generate a plot, use\n\n```python\nn_shapley_values.k_shapley_values(2).plot(feature_names = feature_names)\n```\n\n<p align=\"left\">\n  <img src=\"images/img2.png\" width=\"500\" alt=\"2-Shapley Values\"/>\n</p>\n\nWe can also compare these results with the Shapley Values returned by the [shap](https://github.com/slundberg/shap/) package.\n\nFor this, we approximate the Shapley Values with Kernel SHAP\n\n```python\nimport shap\n\nexplainer = shap.KernelExplainer(gbtree.predict_proba, shap.kmeans(X_train, 25))\nshap.force_plot(explainer.expected_value[0], shap_values[0])\n```\n\n<p align=\"left\">\n  <img src=\"images/img3.png\" width=\"800\" alt=\"Shapley Values\"/>\n</p>\n\nand then generate the same plot for the Shapley Values that we just computed with the ```nshap``` package.\n\n```python\nshap.force_plot(vfunc(X_test[0,:], []), n_shapley_values.shapley_values())\n```\n\n<p align=\"left\">\n  <img src=\"images/img4.png\" width=\"880\" alt=\"Shapley Values\"/>\n</p>\n\nThere are slight differences which is not surprising since we used two very different methods to compute the Shapley Values.\n\n## Overview of the package\n\n### Computing $n$-Shapley Values\n\nThe most important function in the package is ```n_shapley_values(X, v_func, n=-1)``` which computes $n$-Shapley Values. It takes 3 arguments\n\n- ```X```: A data set or a single data point for which to compute the $n$-Shapley Values ([numpy.ndarray](https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html))\n\n- ```v_func```: A value function, the basic primitive in the computation of all Shapley Values (see below)\n\n- The 'n' of the $n$-Shapley Values. Defaults to the number of features (complete functional decomposition or Shapley-GAM).\n\nThe function returns a list of ```nShapleyValues``` for each data point, or a single object of type ```nShapleyValues``` if there is only a single data point.\n\n### The ```nShapleyValues``` class\n\nThe ```nShapleyValues``` class is a python ```dict``` with some added functionallity. It supports the following operations. \n\n-  The individual attributions can be indexed with tuples of integers. For example, indexing with ```(0,)``` returns the main effect of the first feature.\n\n- ```plot()``` generates the plots described in the paper.\n\n- ```k_shapley_values(k)``` computes the $k$-Shapley Values using the recursive relationship among $n$-Shapley Values of different order (requires $k\\leq n$).\n\n- ```shapley_values()``` returns the associated original Shapley Values as a list. Useful for compatiblity with the [shap](https://github.com/slundberg/shap/) package.\n\n- ```save(fname)``` serializes the object to json. Can be loaded from there with ```nshap.load(fname)```. This can be useful since computing $n$-Shapley Values takes time, so you might want to compute them in parallel in the cloud, then aggregate the results for analysis.\n\n### Definig Value Functions\n\nA value function has to follow the interface ```v_func(x, S)``` where ```x``` is a single data point (a [numpy.ndarray](https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html)) and ```S``` is a python ```list``` with the indices the the coordinates that belong to the coaltion.\n\nIn the introductory example with the Gradient Boosted Tree,\n\n```python\nvfunc(x, [])\n```\n\nreturns the expected predicted probability that an observation belongs to class 0, and\n\n```python\nvfunc(x, [0,1,2,3,4,5,6,7,8,9])\n```\n\nreturns the predicted probability that the observation ```x``` belongs to class 0 (note that the problem is 10-dimensional).\n\n## Implementation Details\n\nThe function ```nshap.n_shapley_values``` computes $n$-Shapley Values simply via their definition. Independent of the order ```n``` of the $n$-Shapley Values, this requires to call the value function ```v_func``` once for all $2^d$ subsets of coordinates. Thus, the current implementation provides no essential speedup for the computation of $n$-Shapley Values of lower order.\n\nThe function ```nshap.vfunc.interventional_shap``` approximates the interventional SHAP value function by intervening on the coordinates of randomly sampled points from the data distributions.\n\n## <a name=\"estimation\"></a> Notes on Estimation\n\nThe computed $n$-Shapley Values are an estimate which can be inaccurate.\n\nThe estimation error depends on the precision of the value function. With the provided implementation of the interventional SHAP value function, the precision depends on the number of samples used to estimate the expectation.\n\nA simple way to test whether your result is precisely estimated to increase the number of samples (the ```num_samples``` parameter of ```nshap.vfunc.interventional_shap```) and see if the result changes.\n\nFor more details, check out the discussion in [Section 8 of our paper](http://arxiv.org/abs/2209.04012).\n\n## Replicating the Results in our Paper\n\nThe folder ```notebooks\\replicate-paper``` contains Jupyter Notebooks that allow to replicated the results in our [paper](http://arxiv.org/abs/2209.04012).\n\n- The notebooks ```figures.ipynb``` and  ```checkerboard-figures.ipynb``` generate all the figures in the paper.\n- The notebook ```estimation.ipynb ``` provides the estimation example with the kNN classifier on the Folktables Travel data set that we discuss in Appendix Section B.\n- The notebook ```hyperparameters.ipynb``` cross-validates the parameter $k$ of the kNN classifier.\n- The notebooks ```compute.ipynb```,  ```compute-vfunc.ipynb```, ```checkerboard-compute.ipynb``` and ```checkerboard-compute-million.ipynb``` compute the different $n$-Shapley Values. You do not have to run these notebooks, the pre-computed results can be downloaded [here](https://nextcloud.tuebingen.mpg.de/index.php/s/SsowoR7SAibQYE7).\n\n\n## Citing nshap\n\nIf you use this software in your research, we encourage you to cite our paper.\n\n```bib\n@article{bordtlux2022,\n  title={From Shapley Values to Generalized Additive Models and back},\n  author={Bordt, Sebastian and von Luxburg, Ulrike},\n  url = {https://arxiv.org/abs/2209.04012},\n  publisher = {arXiv},\n  year = {2022},\n}\n```\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/tml-tuebingen/nshap",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "nshap",
+            "package_url": "https://pypi.org/project/nshap/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/nshap/",
+            "project_urls": {
+                "Homepage": "https://github.com/tml-tuebingen/nshap"
+            },
+            "release_url": "https://pypi.org/project/nshap/0.1.0/",
+            "requires_dist": [
+                "numpy",
+                "matplotlib",
+                "seaborn"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "Python package to compute n-Shapley Values.",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15595707,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1e63aaba0bd792aff6d3d8705238dee6",
+                    "sha256": "811d2fd9d21378521e92efba67af47cc826aa926ae48a2e6bb211f2dc6adf9a8"
+                },
+                "downloads": -1,
+                "filename": "nshap-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "1e63aaba0bd792aff6d3d8705238dee6",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 13187,
+                "upload_time": "2022-10-31T12:20:12",
+                "upload_time_iso_8601": "2022-10-31T12:20:12.312398Z",
+                "url": "https://files.pythonhosted.org/packages/1c/19/f5639fb81ff16bb671d9a4d5c9e7e626761a6ce06e29ac49c9115add8fdd/nshap-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3c0d0b4f0326eec239e532194b2345f8",
+                    "sha256": "de6c58e97afaedf82aceb8123e568a5f7e7d2eb6f7376af0dcd03c6124a3f43c"
+                },
+                "downloads": -1,
+                "filename": "nshap-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "3c0d0b4f0326eec239e532194b2345f8",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 14942,
+                "upload_time": "2022-10-31T12:20:13",
+                "upload_time_iso_8601": "2022-10-31T12:20:13.988797Z",
+                "url": "https://files.pythonhosted.org/packages/43/15/772847d698fd0f522df13b78ac0fefce41fd544a74f35fdb83807256e365/nshap-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

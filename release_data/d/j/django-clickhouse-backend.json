@@ -1,0 +1,86 @@
+{
+    "0.2.1": {
+        "info": {
+            "author": "Lin Zhiwen",
+            "author_email": "zhiwenlin1116@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "Django ClickHouse Database Backend\n===\n\n[\u4e2d\u6587\u6587\u6863](https://github.com/jayvynl/django-clickhouse-backend/README_cn.md)\n\nDjango clickhouse backend is a [django database backend](https://docs.djangoproject.com/en/4.1/ref/databases/) for \n[clickhouse](https://clickhouse.com/docs/en/home/) database. This project allows using django ORM to interact with \nclickhouse.\n\nThanks to [clickhouse driver](https://github.com/mymarilyn/clickhouse-driver), django clickhouse backend use it as [DBAPI](https://peps.python.org/pep-0249/).\nThanks to [clickhouse pool](https://github.com/ericmccarthy7/clickhouse-pool), it makes clickhouse connection pool.\n\n\n**features:**\n\n- Support [Clickhouse native interface](https://clickhouse.com/docs/en/interfaces/tcp/) and connection pool.\n- Define clickhouse specific schema features such as [Engine](https://clickhouse.com/docs/en/engines/table-engines/) and [Index](https://clickhouse.com/docs/en/guides/improving-query-performance/skipping-indexes) in django ORM.\n- Support table migrations.\n- Support creating test database and table, working with django TestCase and pytest-django.\n- Support most types of query and data types, full feature is under developing.\n- Support [SETTINGS in SELECT Query](https://clickhouse.com/docs/en/sql-reference/statements/select/#settings-in-select-query).\n\nGet started\n---\n\n### Installation\n\n```shell\npip install django-clickhouse-backend\n```\n\nor\n\n```shell\ngit clone https://github.com/jayvynl/django-clickhouse-backend\ncd django-clickhouse-backend\npython setup.py install\n```\n\n### Configuration\n\nOnly `ENGINE` is required, other options have default values.\n\n- ENGINE: required, set to `clickhouse_backend.backend`.\n- NAME: database name, default `default`.\n- HOST: database host, default `localhost`.\n- PORT: database port, default `9000`.\n- USER: database user, default `default`.\n- PASSWORD: database password, default empty.\n\n  ```python\n  DATABASES = {\n      'default': {\n          'ENGINE': 'clickhouse_backend.backend',\n          'NAME': 'default',\n          'HOST': 'localhost',\n          'USER': 'DB_USER',\n          'PASSWORD': 'DB_PASSWORD',\n          'TEST': {\n              'fake_transaction': True\n          }\n      }\n  }\n  DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'\n  ```\n\n`DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'` IS REQUIRED TO WORKING WITH DJANGO MIGRATION.\nMore details will be covered in [Primary key](#Primary key).\n\n### Model\n\n```python\nfrom django.db import models\nfrom django.utils import timezone\n\nfrom clickhouse_backend import models as chm\nfrom clickhouse_backend.models import indexes, engines\n\n\nclass Event(chm.ClickhouseModel):\n    src_ip = chm.GenericIPAddressField(default='::')\n    sport = chm.PositiveSmallIntegerField(default=0)\n    dst_ip = chm.GenericIPAddressField(default='::')\n    dport = chm.PositiveSmallIntegerField(default=0)\n    transport = models.CharField(max_length=3, default='')\n    protocol = models.TextField(default='')\n    content = models.TextField(default='')\n    timestamp = models.DateTimeField(default=timezone.now)\n    created_at = models.DateTimeField(auto_now_add=True)\n    length = chm.PositiveIntegerField(default=0)\n    count = chm.PositiveIntegerField(default=1)\n\n    class Meta:\n        verbose_name = 'Network event'\n        ordering = ['-id']\n        db_table = 'event'\n        engine = engines.ReplacingMergeTree(\n            order_by=('dst_ip', 'timestamp'),\n            partition_by=models.Func('timestamp', function='toYYYYMMDD')\n        )\n        indexes = [\n            indexes.Index(\n                fields=('src_ip', 'dst_ip'),\n                type=indexes.Set(1000),\n                granularity=4\n            )\n        ]\n        constraints = (\n            models.CheckConstraint(\n                name='sport_range',\n                check=models.Q(sport__gte=0, dport__lte=65535),\n            ),\n        )\n```\n\n### Migration\n\n```shell\npython manage.py makemigrations\n```\n\n### Testing\n\nWriting testcase is all the same as normal django project. You can use django TestCase or pytest-django.\n**Notice:** clickhouse use mutations for [deleting or updating](https://clickhouse.com/docs/en/guides/developer/mutations).\nBy default, data mutations is processed asynchronously, so you should change this default behavior in testing for deleting or updating.\nThere are 2 ways to do that:\n\n- Config database engine as follows, this sets [`mutations_sync=1`](https://clickhouse.com/docs/en/operations/settings/settings#mutations_sync) at session scope.\n  ```python\n  DATABASES = {\n      'default': {\n          'ENGINE': 'clickhouse_backend.backend',\n          'OPTIONS': {\n              'settings': {\n                  'mutations_sync': 1,\n              }\n          }\n      }\n  }\n  ```\n- Use [SETTINGS in SELECT Query](https://clickhouse.com/docs/en/sql-reference/statements/select/#settings-in-select-query).\n  ```python\n  Event.objects.filter(transport='UDP').settings(mutations_sync=1).delete()\n  ```\n\nSample test case.\n\n```python\nfrom django.test import TestCase\n\nclass TestEvent(TestCase):\n    def test_spam(self):\n        assert Event.objects.count() == 0\n```\n\nTopics\n---\n\n### Primary key\n\nDjango ORM depends heavily on single column primary key, this primary key is a unique identifier of an ORM object.\nAll `get` `save` `delete` actions depend on primary key.\n\nBut in ClickHouse [primary key](https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree#primary-keys-and-indexes-in-queries) has different meaning with django primary key. ClickHouse does not require a unique primary key. You can insert multiple rows with the same primary key.\n\nThere is [no unique constraint](https://github.com/ClickHouse/ClickHouse/issues/3386#issuecomment-429874647) or auto increasing column in clickhouse.\n\nBy default, django will add a field named `id` as auto increasing primary key.\n\n- AutoField\n\n  Mapped to clickhouse Int32 data type. You should generate this unique id yourself\n\n- BigAutoField\n\n  Mapped to clickhouse Int64 data type. If primary key is not specified when insert data, then `clickhouse_driver.idworker.id_worker` is used to generate this unique key.\n\n  Default id_worker is an instance of `clickhouse.idworker.snowflake.SnowflakeIDWorker` which implement [twitter snowflake id](https://en.wikipedia.org/wiki/Snowflake_ID).\n  If data insertions happen on multiple datacenter, server, process or thread, you should ensure uniqueness of (CLICKHOUSE_WORKER_ID, CLICKHOUSE_DATACENTER_ID) environment variable.\n  Because work_id and datacenter_id are 5 bits, they should be an integer between 0 and 31. CLICKHOUSE_WORKER_ID default to 0, CLICKHOUSE_DATACENTER_ID will be generated randomly if not provided.\n\n  `clickhouse.idworker.snowflake.SnowflakeIDWorker` is not thread safe. You could inherit `clickhouse.idworker.base.BaseIDWorker` and implement one, and set `CLICKHOUSE_ID_WORKER` to doted import path of your IDWorker instance.\n\nDjango use a table named `django_migrations` to track migration files. ID field should be BigAutoField, so that IDWorker can generate unique id for you.\nAfter Django 3.2\uff0ca new [config `DEFAULT_AUTO_FIELD`](https://docs.djangoproject.com/en/4.1/releases/3.2/#customizing-type-of-auto-created-primary-keys) is introduced to control field type of default primary key.\nSo `DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'` is required if you want to use migrations with django clickhouse backend.\n\n\n### Fields\n\n#### Nullable\n\n`null=True` will make [Nullable](https://clickhouse.com/docs/en/sql-reference/data-types/nullable/) type in clickhouse database.\n\n**Note** Using Nullable almost always negatively affects performance, keep this in mind when designing your databases.\n\n#### GenericIPAddressField\n\nClickhouse backend has its own implementation in `clickhouse_backend.models.fields.GenericIPAddressField`.\nIf `protocol='ipv4'`, a column of [IPv4](https://clickhouse.com/docs/en/sql-reference/data-types/domains/ipv4) is generated, else [IPv6](https://clickhouse.com/docs/en/sql-reference/data-types/domains/ipv6) is generated.\n\n#### PositiveSmallIntegerField\n#### PositiveIntegerField\n#### PositiveBigIntegerField\n\n`clickhouse_backend.models.fields.PositiveSmallIntegerField` maps to [UInt16](https://clickhouse.com/docs/en/sql-reference/data-types/int-uint).\n`clickhouse_backend.models.fields.PositiveIntegerField` maps to [UInt32](https://clickhouse.com/docs/en/sql-reference/data-types/int-uint).\n`clickhouse_backend.models.fields.PositiveBigIntegerField` maps to [UInt64](https://clickhouse.com/docs/en/sql-reference/data-types/int-uint).\nClickhouse have unsigned integer type, these fields will have right integer range validators.\n\n\n### Engines\n\nLays in `clickhouse_backend.models.engines`.\n\n### Indexes\n\nLays in `clickouse_backend.models.indexes`.\n\nTest\n---\n\nTo run test for this project:\n\n```shell\ngit clone https://github.com/jayvynl/django-clickhouse-backend\ncd django-clickhouse-backend\n# docker and docker-compose are required.\ndocker-compose up -d\npython tests/runtests.py\n```\n\n**Note** This project is not fully tested yet and should be used with caution in production.\n\nLicense\n---\n\nDjango clickhouse backend is distributed under the [MIT license](http://www.opensource.org/licenses/mit-license.php).\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/jayvynl/django-clickhouse-backend",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "django-clickhouse-backend",
+            "package_url": "https://pypi.org/project/django-clickhouse-backend/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/django-clickhouse-backend/",
+            "project_urls": {
+                "Homepage": "https://github.com/jayvynl/django-clickhouse-backend"
+            },
+            "release_url": "https://pypi.org/project/django-clickhouse-backend/0.2.1/",
+            "requires_dist": [
+                "django (>=3.2)",
+                "clickhouse-driver (==0.2.4)",
+                "clickhouse-pool (==0.5.3)"
+            ],
+            "requires_python": "",
+            "summary": "Django clickHouse database backend.",
+            "version": "0.2.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15586726,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "93823e5974151a55880793dfda67fbc9",
+                    "sha256": "9f679fcc87aeadda8e6fb1b2699f8af818d7ceb6d173eb50a33859824d47f9d3"
+                },
+                "downloads": -1,
+                "filename": "django_clickhouse_backend-0.2.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "93823e5974151a55880793dfda67fbc9",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 38361,
+                "upload_time": "2022-10-30T13:31:51",
+                "upload_time_iso_8601": "2022-10-30T13:31:51.185143Z",
+                "url": "https://files.pythonhosted.org/packages/03/bc/901c4675c658ff8b8edffc59deff7007698148fcb7e94970618722167756/django_clickhouse_backend-0.2.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6a79164c15ffaef1b9138c6e8eb18592",
+                    "sha256": "5afc7d7e96b4d3c8f7b226c1d0714243da0cc9178296114106b824aec9c3e519"
+                },
+                "downloads": -1,
+                "filename": "django-clickhouse-backend-0.2.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6a79164c15ffaef1b9138c6e8eb18592",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 33767,
+                "upload_time": "2022-10-30T13:31:53",
+                "upload_time_iso_8601": "2022-10-30T13:31:53.684473Z",
+                "url": "https://files.pythonhosted.org/packages/76/51/e7feafc74e6b6c12762404c22d828220cd0d3fad157fecd12a4820ac131b/django-clickhouse-backend-0.2.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
