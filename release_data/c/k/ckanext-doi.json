@@ -1,0 +1,114 @@
+{
+    "3.0.7": {
+        "info": {
+            "author": "Natural History Museum",
+            "author_email": "data@nhm.ac.uk",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8"
+            ],
+            "description": "<img src=\".github/nhm-logo.svg\" align=\"left\" width=\"150px\" height=\"100px\" hspace=\"40\"/>\n\n# ckanext-doi\n\n[![Tests](https://github.com/NaturalHistoryMuseum/ckanext-doi/actions/workflows/main.yml/badge.svg)](https://github.com/NaturalHistoryMuseum/ckanext-doi/actions/workflows/main.yml)\n[![Coveralls](https://img.shields.io/coveralls/github/NaturalHistoryMuseum/ckanext-doi/master.svg?style=flat-square)](https://coveralls.io/github/NaturalHistoryMuseum/ckanext-doi)\n[![CKAN](https://img.shields.io/badge/ckan-2.9.1-orange.svg?style=flat-square)](https://github.com/ckan/ckan)\n[![Python](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-blue.svg?style=flat-square)](https://www.python.org/)\n\n_A CKAN extension for assigning a digital object identifier (DOI) to datasets, using the DataCite DOI service._\n\n\n# Overview\n\nThis extension assigns a digital object identifier (DOI) to datasets, using the DataCite DOI service.\n\nWhen a new dataset is created it is assigned a new DOI. This DOI will be in the format:\n\n`https://doi.org/[prefix]/[8 random alphanumeric characters]`\n\nIf the new dataset is active and public, the DOI and metadata will be registered with DataCite.\n\nIf the dataset is draft or private, the DOI will not be registered with DataCite.  When the dataset is made active & public, the DOI will be submitted.\nThis allows datasets to be embargoed, but still provides a DOI to be referenced in publications.\n\nYou will need an account with a DataCite DOI service provider to use this extension.\n\n## DOI Metadata\nUses [DataCite Metadata Schema v4.2](https://schema.datacite.org/meta/kernel-4.2/index.html).\n\nDataset package fields and CKAN config settings are mapped to the DataCite Schema with default values, but these can be overwritten by implementing `IDoi` interface methods.\n\n### Required fields\n\n|CKAN Field                         |DataCite Schema\n|---                                | ---\n|dataset:title                      |title\n|dataset:author                     |creator\n|config:ckanext.doi.publisher       |publisher\n|dataset:metadata_created.year      |publicationYear\n|dataset:type                       |resourceType\n\nSee [`metadata.py`](./ckanext/doi/lib/metadata.py) for full mapping details.\n\n# Installation\n\nPath variables used below:\n- `$INSTALL_FOLDER` (i.e. where CKAN is installed), e.g. `/usr/lib/ckan/default`\n- `$CONFIG_FILE`, e.g. `/etc/ckan/default/development.ini`\n\n1. Clone the repository into the `src` folder:\n\n  ```bash\n  cd $INSTALL_FOLDER/src\n  git clone https://github.com/NaturalHistoryMuseum/ckanext-doi.git\n  ```\n\n2. Activate the virtual env:\n\n  ```bash\n  . $INSTALL_FOLDER/bin/activate\n  ```\n\n3. Install the requirements from requirements.txt:\n\n  ```bash\n  cd $INSTALL_FOLDER/src/ckanext-doi\n  pip install -r requirements.txt\n  ```\n\n4. Run setup.py:\n\n  ```bash\n  cd $INSTALL_FOLDER/src/ckanext-doi\n  python setup.py develop\n  ```\n\n5. Add 'doi' to the list of plugins in your `$CONFIG_FILE`:\n\n  ```ini\n  ckan.plugins = ... doi\n  ```\n\n6. Initialize the database\n\n ```bash\n ckan -c $CONFIG_FILE doi initdb\n ```\n\n\n# Configuration\n\nThere are a number of options that can be specified in your .ini config file.\n\n## DateCite Credentials **[REQUIRED]**\n\nThese will be given to you by your DataCite provider.\n\n```ini\nckanext.doi.account_name = DATACITE-ACCOUNT-NAME\nckanext.doi.account_password = DATACITE-ACCOUNT-PASSWORD\nckanext.doi.prefix = DATACITE-PREFIX\n```\n\n## Institution Name **[REQUIRED]**\n\nYou also need to provide the name of the institution publishing the DOIs (e.g. Natural History Museum).\n\n```ini\nckanext.doi.publisher = PUBLISHING-INSTITUTION\n```\n\n## Test/Debug Mode **[REQUIRED]**\n\nIf test mode is set to true, the DOIs will use the DataCite test prefix 10.5072.\n\n```ini\nckanext.doi.test_mode = True or False\n```\n\n## Other options\n\nName|Description|Default\n--|---|--\n`ckanext.doi.site_url`|Used to build the link back to the dataset|`ckan.site_url`\n`ckanext.doi.site_title`|Site title to use in the citation|\n\n\n# Further Setup\n\nThis extension will only work if you have signed up for an account with [DataCite](https://datacite.org).\n\nYou will need a development/test account to use this plugin in test mode, and a live account to mint active DOIs.\n\n\n# Usage\n\n## Commands\n\n### `doi`\n\n1. `delete-dois`: delete all DOIs from the database (_not_ datacite).\n    ```bash\n    ckan -c $CONFIG_FILE doi delete-dois\n    ```\n\n2. `update-doi`: update the datacite metadata for one or all packages.\n    ```bash\n    ckan -c $CONFIG_FILE doi update-doi [PACKAGE_ID]\n    ```\n\n## Interfaces\n\nThe `IDoi` interface allows plugins to extend the `build_metadata_dict` and `build_xml_dict` methods.\n\n### `build_metadata_dict(pkg_dict, metadata_dict, errors)`\n**Breaking changes from v1:**\n1. previously called `build_metadata`\n2. new parameter: `errors`\n3. new return value: tuple of `metadata_dict`, `errors`\n\nExtracts metadata from a pkg_dict for use in generating datacite DOIs. The base method from this extension is run first, then the metadata dict is passed through all the implementations of this method. After running these, if any of the required values (see above) are still in the `errors` dict (i.e. they still could not be handled by any other extension), a `DOIMetadataException` will be thrown.\n\nParameter|Description\n---------|-----------\n`pkg_dict`|The original package dictionary from which the metadata were extracted.\n`metadata_dict`|The current metadata dict, created by the ckanext-doi extension and any previous plugins implementing IDoi.\n`errors`|A dictionary of metadata keys and errors generated by previous plugins; this method should remove any keys that it successfully processes and overwrites.\n\n\n### `build_xml_dict(metadata_dict, xml_dict)`\n**Breaking changes from v1:**\n1. previously called `metadata_to_xml`\n2. parameters rearranged (previously `xml_dict`, `metadata`)\n\nConverts the metadata_dict into an xml_dict that can be passed to the datacite library's schema42.tostring() and schema42.validate() methods. The base method from this extension is run first, then the xml dict is passed through all the implementations of this method.\n\nParameter|Description\n---------|-----------\n`metadata_dict`|The original metadata dictionary from which the xml attributes are extracted.\n`xml_dict`|The current xml dict, created by the ckanext-doi extension and any previous plugins implementing IDoi.\n\n\n## Templates\n\n### Package citation snippet\n```html+jinja\n{% snippet \"doi/snippets/package_citation.html\", pkg_dict=g.pkg_dict %}\n```\n\n### Resource citation snippet\n```html+jinja\n{% snippet \"doi/snippets/resource_citation.html\", pkg_dict=g.pkg_dict, res=res %}\n```\n\n\n# Testing\n_Test coverage is currently extremely limited._\n\nTo run the tests in this extension, there is a Docker compose configuration available in this\nrepository to make it easy.\n\nTo run the tests against ckan 2.9.x on Python3:\n\n1. Build the required images\n```bash\n# first build the containers\ndocker-compose build\n```\n\n2. Then run the tests.\n   The root of the repository is mounted into the ckan container as a volume by the Docker compose\n   configuration, so you should only need to rebuild the ckan image if you change the extension's\n   dependencies.\n```bash\ndocker-compose run ckan\n```\n\nThe ckan image uses the Dockerfile in the `docker/` folder which is based on `openknowledge/ckan-dev:2.9`.\n\nNote that currently the tests mock the Datacite API and therefore don't require an internet\nconnection nor your Datacite credentials to run.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/NaturalHistoryMuseum/ckanext-doi",
+            "keywords": "CKAN data doi",
+            "license": "GNU GPLv3",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "ckanext-doi",
+            "package_url": "https://pypi.org/project/ckanext-doi/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/ckanext-doi/",
+            "project_urls": {
+                "Homepage": "https://github.com/NaturalHistoryMuseum/ckanext-doi"
+            },
+            "release_url": "https://pypi.org/project/ckanext-doi/3.0.7/",
+            "requires_dist": [
+                "datacite (==1.1.2)",
+                "xmltodict (==0.12.0)",
+                "jsonschema (==3.0.0)"
+            ],
+            "requires_python": "",
+            "summary": "A CKAN extension for assigning a digital object identifier (DOI) to datasets, using the DataCite DOI service.",
+            "version": "3.0.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15777413,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "067df469e9c6fa52214cee44eca9373b",
+                    "sha256": "d15f113adeacfe0539b3720cbe3368a293a07b68d7da0022715cec8741628a1e"
+                },
+                "downloads": -1,
+                "filename": "ckanext_doi-3.0.7-py3.10.egg",
+                "has_sig": false,
+                "md5_digest": "067df469e9c6fa52214cee44eca9373b",
+                "packagetype": "bdist_egg",
+                "python_version": "3.0.7",
+                "requires_python": null,
+                "size": 21589,
+                "upload_time": "2022-11-15T15:30:35",
+                "upload_time_iso_8601": "2022-11-15T15:30:35.297641Z",
+                "url": "https://files.pythonhosted.org/packages/da/4d/87f7408240f445126b067039f2e277bf658921b22b029e798a9bcaf2e36a/ckanext_doi-3.0.7-py3.10.egg",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3c667d3cc1167f6bb7a8a606198a8f2b",
+                    "sha256": "f7e719fa6402049366450db4a0869c48be3600cb668f147676801a40dcc2e99a"
+                },
+                "downloads": -1,
+                "filename": "ckanext_doi-3.0.7-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "3c667d3cc1167f6bb7a8a606198a8f2b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 23696,
+                "upload_time": "2022-11-15T15:30:33",
+                "upload_time_iso_8601": "2022-11-15T15:30:33.396428Z",
+                "url": "https://files.pythonhosted.org/packages/c9/73/fee1fed2fba59253cf4242a254409749d69733018a138c98fdbffd497bec/ckanext_doi-3.0.7-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8c5bb6185941c957f8b16ac3a92f6fa1",
+                    "sha256": "426328c40fcbf4bacd8efecc9fd30719ff366751f30b24a085d5f7cb707bc37b"
+                },
+                "downloads": -1,
+                "filename": "ckanext-doi-3.0.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "8c5bb6185941c957f8b16ac3a92f6fa1",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 31531,
+                "upload_time": "2022-11-15T15:30:37",
+                "upload_time_iso_8601": "2022-11-15T15:30:37.191525Z",
+                "url": "https://files.pythonhosted.org/packages/68/ef/20f7f6152c08a81c2bfa6f7f1ecc4979a98da3605b6b9f87c6bdcff852d8/ckanext-doi-3.0.7.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

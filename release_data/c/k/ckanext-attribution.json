@@ -1,0 +1,123 @@
+{
+    "1.1.6": {
+        "info": {
+            "author": "Natural History Museum",
+            "author_email": "data@nhm.ac.uk",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8"
+            ],
+            "description": "<img src=\".github/nhm-logo.svg\" align=\"left\" width=\"150px\" height=\"100px\" hspace=\"40\"/>\n\n# ckanext-attribution\n\n[![Tests](https://github.com/NaturalHistoryMuseum/ckanext-attribution/actions/workflows/main.yml/badge.svg)](https://github.com/NaturalHistoryMuseum/ckanext-attribution/actions/workflows/main.yml)\n[![Coveralls](https://img.shields.io/coveralls/github/NaturalHistoryMuseum/ckanext-attribution/master.svg?style=flat-square)](https://coveralls.io/github/NaturalHistoryMuseum/ckanext-attribution)\n[![CKAN](https://img.shields.io/badge/ckan-2.9.1-orange.svg?style=flat-square)](https://github.com/ckan/ckan)\n\n_A CKAN extension that adds support for complex attribution._\n\n# Overview\n\nThis extension standardises author/contributor attribution for datasets, enabling enhanced metadata\nand greater linkage between datasets. It currently integrates with the [ORCID](https://orcid.org)\nand [ROR](https://ror.org) APIs; contributors ('agents') can be added directly from these databases,\nor manually.\n\nContributors can be added and edited via actions or via a Vue app that can be inserted into\nthe `package_metadata_fields.html` template snippet.\n\n![A screenshot of the form for adding contributors when editing a package. At the top is a preview of the citation in APA format, then there are three example agents with their affiliations and contribution activities.](.github/screenshots/form-overview.png)\n\n## Schema\n\nThe schema is (partially) based on\nthe [RDA/TDWG recommendations](https://github.com/tdwg/attribution). Three new models are\nadded: `Agent` (contributors), `ContributionActivity`, and `Affiliation` (plus small linking models\nbetween these and `Package` records).\n\n### `Agent`\n\nDefines _one_ agent.\n\nField|Type|Values|Notes\n-----|----|------|-----\n`agent_type`|string|'person', 'org', 'other'|\n`family_name`|string||only used for 'person' records\n`given_names`|string||only used for 'person' records\n`given_names_first`|bool|True, False|only used for 'person' records; if the given names should be displayed first according to the person's culture/language (default True)\n`name`|string||used for non-'person' records\n`location`|string||used for non-person records, optional; a location to display for the organisation to help differentiate between similar names (e.g. 'Natural History Museum (_\nLondon_)' and 'Natural History Museum (_Dublin_)')\n`external_id`|string||an identifier from an external service like ORCID or ROR\n`external_id_scheme`|string|'orcid', 'ror', other|the scheme for the `external_id`; currently only 'orcid' and 'ror' are fully supported, though basic support for others can be implemented by adding to the `attribution_controlled_lists` [action](ckanext/attribution/logic/actions/extra.py#L14)\n`user_id`|string|`User.id` foreign key|link to a user account on the CKAN instance\n\n### `ContributionActivity`\n\nDefines _one_ activity performed by _one_ agent on _one_ specific dataset.\n\nField|Type|Values|Notes\n-----|----|------|-----\n`activity`|string|[controlled vocabulary]|the activity/role the agent is associated with, e.g. 'Editor', 'Methodology'; roles are defined in the `attribution_controlled_lists` [action](ckanext/attribution/logic/actions/extra.py#L14), which currently lists the [Datacite](https://datacite.org) and [CRediT](https://credit.niso.org) role taxonomies (but can be expanded)\n`scheme`|string|[controlled vocabulary]|name of the defined scheme from [`attribution_controlled_lists`](ckanext/attribution/logic/actions/extra.py#L14)\n`level`|string|'Lead', 'Equal', 'Supporting'|optional degree of contribution (from [CRediT](http://credit.niso.org/implementing-credit))\n`time`|datetime||optional date/time of the activity\n`order`|integer||order of the agent within all who are associated with the same activity, e.g. 1st Editor, 3rd DataCollector (optional)\n\nA specialised `ContributionActivity` entry with a '[citation]' activity is used to define the order\nin which contributors should be cited (and/or if they should be cited at all).\n\n### `Affiliation`\n\nDefines a relationship between _two_ agents, either as a 'universal' (persistent) affiliation or for\na single package (e.g. a project affiliation).\n\nField|Type|Values|Notes\n-----|----|------|-----\n`agent_a_id`|string|`Agent.id` foreign key|one of the two agents (a/b order does not matter)\n`agent_b_id`|string|`Agent.id` foreign key|one of the two agents (a/b order does not matter)\n`affiliation_type`|string||very short description (1 or 2 words) of affiliation, e.g. 'employment' (optional)\n`description`|string||longer description of affiliation (optional)\n`start_date`|date||date at which the relationship began, e.g. employment start date (optional)\n`end_date`|date||date at which the relationship ended (optional)\n`package_id`|string|`Package.id` foreign key|links affiliation to a specific package/dataset (optional)\n\n# Installation\n\nPath variables used below:\n\n- `$INSTALL_FOLDER` (i.e. where CKAN is installed), e.g. `/usr/lib/ckan/default`\n- `$CONFIG_FILE`, e.g. `/etc/ckan/default/development.ini`\n\n1. Clone the repository into the `src` folder:\n\n  ```bash\n  cd $INSTALL_FOLDER/src\n  git clone https://github.com/NaturalHistoryMuseum/ckanext-attribution.git\n  ```\n\n2. Activate the virtual env:\n\n  ```bash\n  . $INSTALL_FOLDER/bin/activate\n  ```\n\n3. Install the requirements from requirements.txt:\n\n  ```bash\n  cd $INSTALL_FOLDER/src/ckanext-attribution\n  pip install -r requirements.txt\n  ```\n\n4. Run setup.py:\n\n  ```bash\n  cd $INSTALL_FOLDER/src/ckanext-attribution\n  python setup.py develop\n  ```\n\n5. Add 'attribution' to the list of plugins in your `$CONFIG_FILE`:\n\n  ```ini\n  ckan.plugins = ... attribution\n  ```\n\n6. Add this block to `package_metadata_fields.html` to show the Vue app:\n\n  ```jinja2\n  {% block package_custom_fields_agent %}\n      {{ super() }}\n  {% endblock %}\n  ```\n\n## Additional steps\n\n### SOLR Faceting\n\nYou will need to change the `authors` field in your `schema.xml` for faceting to work.\n\n```xml\n\n<schema>\n    <fields>\n        <...>\n        <field name=\"author\" type=\"string\" indexed=\"true\" stored=\"true\" multiValued=\"true\"/>\n        <...>\n    </fields>\n    <...>\n    <copyField source=\"author\" dest=\"text\"/>\n</schema>\n```\n\nAfter making the changes, restart SOLR and\nreindex (`ckan -c $CONFIG_FILE search-index rebuild-fast`). You will also have to enable the config\noption to see this in the UI (see below).\n\n# Configuration\n\nThese are the options that can be specified in your .ini config file. NB:\nsetting `ckanext.attribution.debug` to `True` means that the API\naccesses [sandbox.orcid.org](https://sandbox.orcid.org) instead of [orcid.org](https://orcid.org).\nAlthough both run by the ORCID organisation, these are _different websites_ and you will need a\nseparate account/set of credentials for each. It is also worth noting that you will not have access\nto the full set of authors on the sandbox.\n\n## API credentials [REQUIRED]\n\nName|Description|Options\n----|-----------|-------\n`ckanext.attribution.orcid_key`|Your ORCID API client ID/key|\n`ckanext.attribution.orcid_secret`|Your ORCID API client secret|\n\n## Optional\n\nName|Description|Options|Default\n----|-----------|-------|-------\n`ckanext.attribution.debug`|If true, use sandbox.orcid.org (for testing)|True/False|True\n`ckanext.attribution.enable_faceting`|Enable filtering by contributor name (requires change to SOLR schema)|True/False|False\n\n# Usage\n\n## Actions\n\nThis extension adds numerous new actions. These are primarily CRUD actions for managing models, with\ninline documentation and predictable interactions. It's probably more helpful to only go over the\nmore \"unusual\" new actions here.\n\n### `agent_list`\n\nSearch for agents by name or external ID, or just list all agents.\n\n```python\ndata_dict = {\n    'q': 'QUERY',  # optional; searches in name, family_name, given_names, and external_id\n}\n\ntoolkit.get_action('agent_list')({}, data_dict)\n```\n\n### `package_contributions_show`\n\nShow all contribution records for a package, grouped by agent. Optionally provide a limit and offset\nfor pagination.\n\n```python\ndata_dict = {\n    'id': 'PACKAGE_ID',\n    'limit': 'PAGE_SIZE',\n    'offset': 'OFFSET'\n}\n\ntoolkit.get_action('package_contributions_show')({}, data_dict)\n```\n\nReturns a dict:\n\n```python\n{\n    'contributions': [\n        {\n            'agent': {\n                # Agent.as_dict()\n            },\n            'activities': [\n                # list of Activity.as_dict()\n            ],\n            'affiliations': [\n                {\n                    'affiliation': {\n                        # Affiliation.as_dict()\n                    },\n                    'other_agent': {\n                        # Agent.as_dict()\n                    }\n                },\n                # ...\n            ]\n        },\n        # ...\n    ],\n    'total': total,\n    'offset': offset,\n    'page_size': limit or total\n}\n```\n\n### `agent_affiliations`\n\nShow all affiliations for a given agent, optionally limited to a specific dataset/package (plus '\nglobal' affiliations).\n\n```python\ndata_dict = {\n    'agent_id': 'AGENT_ID',\n    'package_id': 'PACKAGE_ID'  # optional\n}\n\ntoolkit.get_action('agent_affiliations')({}, data_dict)\n```\n\nReturns a list of records formatted as such:\n\n```python\n{\n    'affiliation': {\n        # Affiliation.as_dict()\n    },\n    'other_agent': {\n        # Agent.as_dict()\n    }\n}\n```\n\n### `attribution_controlled_lists`\n\nReturns collections of defined values (which can be modified by using `@toolkit.chained_action`).\n\n```python\ndata_dict = {\n    'lists': ['NAME1', 'NAME2']  # optional; only return these lists\n}\n\ntoolkit.get_action('attribution_controlled_lists')({}, data_dict)\n```\n\nThere are four collections:\n\n1. `agent_types` describes valid types for agents and adds additional detail;\n2. `contribution_activity_types` contains role/activity taxonomies (i.e. Datacite and CRediT) and\n   lists the available activity values;\n3. `contribution_activity_levels` is a list of contribution levels (i.e. 'lead', 'equal', and '\n   supporting', from CRediT);\n4. `agent_external_id_schemes` describes valid schemes for external IDs (currently, ORCID and ROR).\n\nThese collections are useful for validation and frontend connectivity/standardisation. They are\ncontained within an action to _a._ enable frontend access via AJAX requests, and _b._ allow users to\noverride values as needed.\n\n### `agent_external_search`\n\nSearch external sources (ORCID and ROR) for agent data. Ignores records that already exist in the\ndatabase.\n\n```python\ndata_dict = {\n    'q': 'QUERY_STRING',\n    'sources': ['SOURCE1', 'SOURCE2']  # optional; only search these sources\n}\n\ntoolkit.get_action('agent_external_search')({}, data_dict)\n```\n\nResults are returned formatted as such:\n\n```python\n{\n    'SCHEME_NAME': {\n        'records': [\n            # list of agent dicts\n        ]\n        'remaining': 10000  # number of other records found\n    }\n}\n```\n\n### `agent_external_read`\n\nRead data from an external source like ORCID or ROR, either from an existing record or a new\nexternal ID.\n\n```python\n# EITHER\ndata_dict_existing = {\n    'id': 'AGENT_ID',\n    'diff': False\n    # optional; only show values that differ from the record's current values (default False)\n}\n\n# OR\ndata_dict_new = {\n    'external_id': 'EXTERNAL_ID',\n    'external_id_scheme': 'orcid'  # or 'ror', etc.\n}\n\ntoolkit.get_action('agent_external_read')({}, data_dict)\n```\n\n## Commands\n\n### `initdb`\n```shell\nckan -c $CONFIG_FILE attribution initdb\n```\nInitialise database tables.\n\n### `sync`\n```shell\nckan -c $CONFIG_FILE attribution sync $OPTIONAL_ID $ANOTHER_OPTIONAL_ID\n```\nRetrieve up-to-date information from external APIs for contributors with an external ID set.\n\n### `refresh-packages`\n```shell\nckan -c $CONFIG_FILE attribution refresh-packages $OPTIONAL_ID $ANOTHER_OPTIONAL_ID\n```\nUpdate the author string for all (or the specified) packages.\n\n### `agent-external-search`\n```shell\nckan -c $CONFIG_FILE attribution agent-external-search --limit 10 $OPTIONAL_ID $ANOTHER_OPTIONAL_ID\n```\nSearch external APIs for contributors without an external ID set. Run `refresh-packages` and rebuild the search index after this command.\n\n### `merge-agents`\n```shell\nckan -c $CONFIG_FILE attribution merge-agents --q $SEARCH_QUERY --match-threshold 75\n```\nFind agents with similar names (optionally matching the search query) and merge them. Run `refresh-packages` and rebuild the search index after this command.\n\n### `migratedb`\n```shell\nckan -c $CONFIG_FILE attribution migratedb --limit 10 --dry-run --no-search-api\n```\nAttempt to extract names of contributors from author fields and convert them to the new format.\n- `--limit` will only convert a certain number of packages at a time.\n- `--dry-run` prevents saving to the database.\n- `--no-search-api` just extracts the names, without searching external APIs for contributors after.\n\nIt is recommended to run `merge-agents`, `refresh-packages`, and rebuild the search index after running this command.\n\n# Testing\n\nThere is a Docker compose configuration available in this repository to make it easy to run tests.\n\nTo run the tests against ckan 2.9.x on Python3:\n\n1. Build the required images\n\n```bash\ndocker-compose build\n```\n\n2. Then run the tests. The root of the repository is mounted into the ckan container as a volume by\n   the Docker compose configuration, so you should only need to rebuild the ckan image if you change\n   the extension's dependencies.\n\n```bash\ndocker-compose run ckan\n```\n\nThe ckan image uses the Dockerfile in the `docker/` folder which is based\non `openknowledge/ckan-dev:2.9-py2`.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/NaturalHistoryMuseum/ckanext-attribution",
+            "keywords": "CKAN data attribution",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "ckanext-attribution",
+            "package_url": "https://pypi.org/project/ckanext-attribution/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/ckanext-attribution/",
+            "project_urls": {
+                "Homepage": "https://github.com/NaturalHistoryMuseum/ckanext-attribution"
+            },
+            "release_url": "https://pypi.org/project/ckanext-attribution/1.1.6/",
+            "requires_dist": [
+                "orcid",
+                "sqlalchemy",
+                "requests",
+                "beautifulsoup4 (>=4.4.0)",
+                "spacy[transformers]",
+                "unidecode",
+                "nameparser",
+                "prompt-toolkit",
+                "fuzzywuzzy[speedup]",
+                "pytest (>=4.6.5) ; extra == 'test'",
+                "pytest-cov (>=2.7.1) ; extra == 'test'",
+                "coveralls ; extra == 'test'"
+            ],
+            "requires_python": "",
+            "summary": "A CKAN extension that adds support for complex attribution",
+            "version": "1.1.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15777329,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f45823f33247c04561276e656d5e5279",
+                    "sha256": "0d878b2349bc4b605f6e330e96463a539b7fae5a7769d17e7022e71871751c6c"
+                },
+                "downloads": -1,
+                "filename": "ckanext_attribution-1.1.6-py3.10.egg",
+                "has_sig": false,
+                "md5_digest": "f45823f33247c04561276e656d5e5279",
+                "packagetype": "bdist_egg",
+                "python_version": "1.1.6",
+                "requires_python": null,
+                "size": 550681,
+                "upload_time": "2022-11-15T15:25:28",
+                "upload_time_iso_8601": "2022-11-15T15:25:28.397562Z",
+                "url": "https://files.pythonhosted.org/packages/ab/d4/d8e76b9a2861156af743d1d4c76aaccc8e9f39c4fca308c02fd4e1be68c1/ckanext_attribution-1.1.6-py3.10.egg",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7d714f931ed837dd6c58cd3717a0f63e",
+                    "sha256": "ae2261e343a399e90418cb692766f3ddf3ae9906707c7f64e6cc513ecbf028d3"
+                },
+                "downloads": -1,
+                "filename": "ckanext_attribution-1.1.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "7d714f931ed837dd6c58cd3717a0f63e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 566957,
+                "upload_time": "2022-11-15T15:25:25",
+                "upload_time_iso_8601": "2022-11-15T15:25:25.212103Z",
+                "url": "https://files.pythonhosted.org/packages/05/ec/164dc80a1953d7e12843902c00012256008a8190f1dc445d36ddac2b314b/ckanext_attribution-1.1.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "dc74971e2307e66bee42cd1d31e49817",
+                    "sha256": "f260b7893b7e9a8a2027e6a65f5cd915e7d60f2889ca94fd0c6ee15b35eccb1a"
+                },
+                "downloads": -1,
+                "filename": "ckanext-attribution-1.1.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "dc74971e2307e66bee42cd1d31e49817",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 592068,
+                "upload_time": "2022-11-15T15:25:31",
+                "upload_time_iso_8601": "2022-11-15T15:25:31.000723Z",
+                "url": "https://files.pythonhosted.org/packages/8e/9f/f1f6d4eebe8242884c6f18eb62feb8f5a61abec898b48cf0937045ae446c/ckanext-attribution-1.1.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

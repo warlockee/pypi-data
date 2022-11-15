@@ -1,0 +1,112 @@
+{
+    "2.1.0": {
+        "info": {
+            "author": "Natural History Museum",
+            "author_email": "data@nhm.ac.uk",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8"
+            ],
+            "description": "<img src=\".github/nhm-logo.svg\" align=\"left\" width=\"150px\" height=\"100px\" hspace=\"40\"/>\n\n# ckanext-twitter\n\n[![Travis](https://img.shields.io/travis/NaturalHistoryMuseum/ckanext-twitter/main.svg?style=flat-square)](https://travis-ci.com/NaturalHistoryMuseum/ckanext-twitter)\n[![Coveralls](https://img.shields.io/coveralls/github/NaturalHistoryMuseum/ckanext-twitter/main.svg?style=flat-square)](https://coveralls.io/github/NaturalHistoryMuseum/ckanext-twitter)\n[![CKAN](https://img.shields.io/badge/ckan-2.9.1-orange.svg?style=flat-square)](https://github.com/ckan/ckan)\n[![Python](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8-blue.svg?style=flat-square)](https://www.python.org/)\n\n_A CKAN extension that enables users to post a tweet every time a dataset is created or updated._\n\n\n# Overview\n\nThis extension connects a CKAN instance to a Twitter account so that when a dataset is updated or created (i.e. the `after_update` hook is called), the user has the option to post a tweet about the activity.\n\n\n# Installation\n\nPath variables used below:\n- `$INSTALL_FOLDER` (i.e. where CKAN is installed), e.g. `/usr/lib/ckan/default`\n- `$CONFIG_FILE`, e.g. `/etc/ckan/default/development.ini`\n\n1. Clone the repository into the `src` folder:\n\n  ```bash\n  cd $INSTALL_FOLDER/src\n  git clone https://github.com/NaturalHistoryMuseum/ckanext-twitter.git\n  ```\n\n2. Activate the virtual env:\n\n  ```bash\n  . $INSTALL_FOLDER/bin/activate\n  ```\n\n3. Install the requirements from requirements.txt:\n\n  ```bash\n  cd $INSTALL_FOLDER/src/ckanext-twitter\n  pip install -r requirements.txt\n  ```\n\n4. Run setup.py:\n\n  ```bash\n  cd $INSTALL_FOLDER/src/ckanext-twitter\n  python setup.py develop\n  ```\n\n5. Add 'twitter' to the list of plugins in your `$CONFIG_FILE`:\n\n  ```ini\n  ckan.plugins = ... twitter\n  ```\n\n6. Add a `tweet` block to `read_base.html`:\n\n   ```jinja2\n   {% block tweet %}\n   {{ super() }}\n   {% endblock %}\n   ```\n\n7. Optionally, override the styling of the block by creating an `ajax_snippets/edit_tweet.html` file.\n\n# Configuration\n\nThese are the options that can be specified in your .ini config file. The only _required_ options are the twitter credentials. Everything else has a sensible default set.\n\n## **[REQUIRED]**\n\nName|Description|Options\n--|--|--\n`ckanext.twitter.consumer_key`|Your Twitter consumer key|\n`ckanext.twitter.consumer_secret`|Your Twitter consumer secret|\n`ckanext.twitter.token_key`|Your Twitter token key|\n`ckanext.twitter.token_secret`|Your Twitter token secret|\n\nAll of these can be obtained by creating a single-user app at [apps.twitter.com](https://apps.twitter.com). They can be found on the \"keys and access tokens\" tab when viewing your app.\n\n## Tweet Templates\n\nTweets are generated using [Jinja2](http://jinja.pocoo.org) and use tokens derived from the package dictionary. See [Usage](#usage) for more detail.\n\nName|Description|Default\n--|--|--\n`ckanext.twitter.new`|Template for tweets about new datasets|`New dataset: \"{{ title }}\" by {{ author }} ({%- if records != 0 -%} {{ records }} records {%- else -%} {{ resources }} resource {%- endif -%}).`\n`ckanext.twitter.updated`|Template for tweets about updated datasets|`Updated dataset: \"{{ title }}\" by {{ author }} ({%- if records != 0 -%} {{ records }} records {%- else -%} {{ resources }} resource {%- endif -%}).`\n\nIf your config is created dynamically using Jinja2, you will have to wrap any custom template in `{% raw %}{% endraw %}` tags and **add a newline after it**, e.g.:\n```ini\nckanext.twitter.new = {% raw %}{{ title }} by {{ author }} ({{ records }} records) has just been published!{% endraw %}\n\nckanext.twitter.consumer_key = {{ twitter.consumer_key }}\nckanext.twitter...\n```\n\n## Other options\n\nName|Description|Options|Default\n--|--|--|--\n`ckanext.twitter.debug`|Is in debug mode; overrides global debug flag if specified|True, False|False\n`ckanext.twitter.hours_between_tweets`|Number of hours between tweets about the _same dataset_ (to prevent spamming)||24\n`ckanext.twitter.disable_edit`|If true, users will not be able to edit the tweet about their dataset before it is posted (though they can still decide not to post it)|True, False|False\n\n\n# Usage\n\n## Tweet Templates\n\nToken values for the tweet templates will come from a simplified package dictionary. In these, any collection values (i.e. lists and dictionaries) have been replaced with the number of items, the author list has been significantly shortened, and any long strings will be shortened to fit into the tweet character limit (currently set at 140).\n\nFor example, if the package dictionary is:\n```python\n{\n  'author': 'Dippy Diplodocus, Sophie Stegosaurus',\n  'author_email': None,\n  'dataset_category': ['Citizen Science'],\n  'doi': 'DOI_VALUE',\n  'license_title': 'Creative Commons Attribution',\n  'organization': {'description': '', 'name': 'nhm', 'is_organization': True, 'state': 'active'},\n  'resources': [\n                  {'mimetype': 'image/jpeg', 'name': 'resource_1.jpg', 'format': 'JPEG'},\n                  {'mimetype': 'image/jpeg', 'name': 'resource_2.jpg', 'format': 'JPEG'}\n               ],\n  'title': 'Dataset Name'\n}\n```\n\nThen the tokenised dictionary would be:\n\n```python\n{\n  'author': 'Diplodocus et al.',  # just the surname of the first author\n  # author_email was None so it's excluded\n  'dataset_category': 1,  # lists are counted\n  'doi': 'DOI_VALUE',  # simple string values stay the same\n  'license_title': 'Creative Commons Attribution',\n  'organization': 4,  # dicts are also counted\n  'resources': 2,\n  'title': 'Dataset Name'\n}\n```\n\nAnd if you had defined the tweet template as:\n```html+jinja\nNew dataset: \"{{ title }}\" by {{ author }} ({{ resources }} resources).\n```\n\nYour tweet would then read:\n\n> New dataset: \"Dataset Name\" by Diplodocus et al. (2 resources)\n\n\n# Testing\n_Note that the tests shouldn't make any calls to Twitter's API and won't post any tweets!_\n\nTo run the tests in this extension, there is a Docker compose configuration available in this\nrepository to make it easy.\n\nTo run the tests against ckan 2.9.x on Python3:\n\n1. Build the required images\n```bash\ndocker-compose build\n```\n\n2. Then run the tests.\n   The root of the repository is mounted into the ckan container as a volume by the Docker compose\n   configuration, so you should only need to rebuild the ckan image if you change the extension's\n   dependencies.\n```bash\ndocker-compose run ckan\n```\n\nThe ckan image uses the Dockerfile in the `docker/` folder which is based on `openknowledge/ckan-dev:2.9`.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/NaturalHistoryMuseum/ckanext-twitter",
+            "keywords": "CKAN data twitter",
+            "license": "GNU GPLv3",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "ckanext-twitter",
+            "package_url": "https://pypi.org/project/ckanext-twitter/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/ckanext-twitter/",
+            "project_urls": {
+                "Homepage": "https://github.com/NaturalHistoryMuseum/ckanext-twitter"
+            },
+            "release_url": "https://pypi.org/project/ckanext-twitter/2.1.0/",
+            "requires_dist": [
+                "oauth2 (==1.9.0.post1)"
+            ],
+            "requires_python": "",
+            "summary": "A CKAN extension that enables users to post a tweet every time a dataset is created or updated.",
+            "version": "2.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15777661,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e3407cc61ec9b072d92b3d41ab5190ce",
+                    "sha256": "0691b29c4ef81022b6036fd9effd3c0ddfd5f130c9c70c958f1570c0cbd5f5f8"
+                },
+                "downloads": -1,
+                "filename": "ckanext_twitter-2.1.0-py3.10.egg",
+                "has_sig": false,
+                "md5_digest": "e3407cc61ec9b072d92b3d41ab5190ce",
+                "packagetype": "bdist_egg",
+                "python_version": "2.1.0",
+                "requires_python": null,
+                "size": 15670,
+                "upload_time": "2022-11-15T15:42:24",
+                "upload_time_iso_8601": "2022-11-15T15:42:24.690307Z",
+                "url": "https://files.pythonhosted.org/packages/7b/ae/6be1ccdf443af9292633964cf44006aaefcfd5100444b05b795c59c2a635/ckanext_twitter-2.1.0-py3.10.egg",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "deef670954c86e2cccf22e65a2d7d6e7",
+                    "sha256": "b002476c99f5b848721c6fa305881aa6d3735f2083a9e139aa97c2e109b2b059"
+                },
+                "downloads": -1,
+                "filename": "ckanext_twitter-2.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "deef670954c86e2cccf22e65a2d7d6e7",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 29177,
+                "upload_time": "2022-11-15T15:42:22",
+                "upload_time_iso_8601": "2022-11-15T15:42:22.755282Z",
+                "url": "https://files.pythonhosted.org/packages/97/1d/5145d1847d8d42992054f4fcd9953c6bb15a6b0b5e6bcbeb7bfc058dd3d8/ckanext_twitter-2.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0de510692d98fb582ac289b601b78009",
+                    "sha256": "dd728595130de912a2d12af0811ad148463557ec64342326879b6533e2340db4"
+                },
+                "downloads": -1,
+                "filename": "ckanext-twitter-2.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "0de510692d98fb582ac289b601b78009",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 37182,
+                "upload_time": "2022-11-15T15:42:26",
+                "upload_time_iso_8601": "2022-11-15T15:42:26.135374Z",
+                "url": "https://files.pythonhosted.org/packages/d0/16/cef9a1ef2fba2f3c74f83ecb79af75278bf4f55e447e77fdd8bb64f9df1a/ckanext-twitter-2.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
