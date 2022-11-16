@@ -246,7 +246,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15134955,
+        "last_serial": 15785565,
         "urls": [
             {
                 "comment_text": "",
@@ -608,7 +608,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Adaptive Technologies"
             ],
-            "description": "# Description\n\nAnalogue of the [tonweb js](https://github.com/toncenter/tonweb) library. Feel free to use their docs and examples.\n\n# Notes\n\n- tonsdk/provider part is dirty.\n\n# Installation\n\n```code\n$ pip install tonsdk\n```\n\n# Usage examples\n\n### Create mnemonic, init wallet class, create external message to deploy the wallet\n\n```python\nfrom tonsdk.contract.wallet import WalletVersionEnum, Wallets\nfrom tonsdk.utils import bytes_to_b64str\nfrom tonsdk.crypto import mnemonic_new\n\n\nwallet_workchain = 0\nwallet_version = WalletVersionEnum.v3r2\nwallet_mnemonics = mnemonic_new()\n\n_mnemonics, _pub_k, _priv_k, wallet = Wallets.from_mnemonics(\n    wallet_mnemonics, wallet_version, wallet_workchain)\nquery = wallet.create_init_external_message()\nbase64_boc = bytes_to_b64str(query[\"message\"].to_boc(False))\n\nprint(\"\"\"\nMnemonic: {}\n\nRaw address: {}\n\nBounceable, url safe, user friendly address: {}\n\nBase64boc to deploy the wallet: {}\n\"\"\".format(wallet_mnemonics,\n           wallet.address.to_string(),\n           wallet.address.to_string(True, True, True),\n           base64_boc))\n```\n\n### Transfer NFT & Jettons by creating a transfer message from an owner wallet\n```python\nfrom tonsdk.contract.token.nft import NFTItem\nfrom tonsdk.contract.token.ft import JettonWallet\nfrom tonsdk.utils import Address, to_nano\n\nbody = NFTItem().create_transfer_body(\n    Address(\"New Owner Address\")\n)\nquery = wallet.create_transfer_message(\n    \"NFT Item Address\",\n    to_nano(0.05, \"ton\"),\n    0,  # owner wallet seqno\n    payload=body\n)\nnft_boc = bytes_to_b64str(query[\"message\"].to_boc(False))\n\nbody = JettonWallet().create_transfer_body(\n    Address(\"Destination address\"),\n    to_nano(40000, \"ton\")  # jettons amount\n)\nquery = wallet.create_transfer_message(\n    \"Jetton Wallet Address\",\n    to_nano(0.05, \"ton\"),\n    0,  # owner wallet seqno\n    payload=body\n)\njettons_boc = bytes_to_b64str(query[\"message\"].to_boc(False))\n\nprint(\"\"\"\nBase64boc to transfer the NFT item: {}\n\nBase64boc to transfer the jettons: {}\n\"\"\".format(nft_boc, jettons_boc))\n```\n\n### Clients usage example (dirty)\n\n*Note - to use these clients you should install tvm_valuetypes and aiohttp packages*\n\n```python\nfrom abc import ABC, abstractmethod\nimport asyncio\nimport aiohttp\nfrom tvm_valuetypes import serialize_tvm_stack\n\nfrom tonsdk.provider import ToncenterClient, SyncTonlibClient, prepare_address, address_state\nfrom tonsdk.utils import TonCurrencyEnum, from_nano\nfrom tonsdk.boc import Cell\n\n\nclass AbstractTonClient(ABC):\n    @abstractmethod\n    def _run(self, to_run, *, single_query=True):\n        raise NotImplemented\n\n    def get_address_information(self, address: str,\n                                currency_to_show: TonCurrencyEnum = TonCurrencyEnum.ton):\n        return self.get_addresses_information([address], currency_to_show)[0]\n\n    def get_addresses_information(self, addresses,\n                                  currency_to_show: TonCurrencyEnum = TonCurrencyEnum.ton):\n        if not addresses:\n            return []\n\n        tasks = []\n        for address in addresses:\n            address = prepare_address(address)\n            tasks.append(self.provider.raw_get_account_state(address))\n\n        results = self._run(tasks, single_query=False)\n\n        for result in results:\n            result[\"state\"] = address_state(result)\n            if \"balance\" in result:\n                if int(result[\"balance\"]) < 0:\n                    result[\"balance\"] = 0\n                else:\n                    result[\"balance\"] = from_nano(\n                        int(result[\"balance\"]), currency_to_show)\n\n        return results\n    \n    def seqno(self, addr: str):\n        addr = prepare_address(addr)\n        result = self._run(self.provider.raw_run_method(addr, \"seqno\", []))\n\n        if 'stack' in result and ('@type' in result and result['@type'] == 'smc.runResult'):\n            result['stack'] = serialize_tvm_stack(result['stack'])\n\n        return result\n\n    def send_boc(self, boc: Cell):\n        return self._run(self.provider.raw_send_message(boc))\n\n\nclass TonCenterTonClient(AbstractTonClient):\n    def __init__(self):\n        self.loop = asyncio.get_event_loop()\n        self.provider = ToncenterClient(base_url=\"https://testnet.toncenter.com/api/v2/\",\n                                        api_key=\"eb542b65e88d2da318fb7c163b9245e4edccb2eb8ba11cabda092cdb6fbc3395\")\n\n    def _run(self, to_run, *, single_query=True):\n        try:\n            return self.loop.run_until_complete(\n                self.__execute(to_run, single_query))\n\n        except Exception:  # ToncenterWrongResult, asyncio.exceptions.TimeoutError, aiohttp.client_exceptions.ClientConnectorError\n            raise\n\n    async def __execute(self, to_run, single_query):\n        timeout = aiohttp.ClientTimeout(total=5)\n\n        async with aiohttp.ClientSession(timeout=timeout) as session:\n            if single_query:\n                to_run = [to_run]\n\n            tasks = []\n            for task in to_run:\n                tasks.append(task[\"func\"](\n                    session, *task[\"args\"], **task[\"kwargs\"]))\n\n            return await asyncio.gather(*tasks)\n\n\nclass TonLibJsonTonClient(AbstractTonClient):\n    def __init__(self):\n        self.loop = asyncio.get_event_loop()\n        self.provider = SyncTonlibClient(config=\"./.tonlibjson/testnet.json\",\n                                         keystore=\"./.tonlibjson/keystore\",\n                                         cdll_path=\"./.tonlibjson/linux_libtonlibjson.so\")  # or macos_libtonlibjson.dylib\n        self.provider.init()\n\n    def _run(self, to_read, *, single_query=True):\n        try:\n            if not single_query:\n                queries_order = {query_id: i for i,\n                                 query_id in enumerate(to_read)}\n                return self.provider.read_results(queries_order)\n\n            else:\n                return self.provider.read_result(to_read)\n\n        except Exception:  # TonLibWrongResult, TimeoutError\n            raise\n\n\n# create a client instance\nclient = TonCenterTonClient()\n\n# use client to get any addr information\naddr_info = client.get_address_information(\n    \"EQAhE3sLxHZpsyZ_HecMuwzvXHKLjYx4kEUehhOy2JmCcHCT\")\n\n# get your wallet seqno\nseqno = client.seqno(wallet.address.to_string())\n\n# send any boc\nclient.send_boc(nft_boc)\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -678,6 +677,105 @@
                 "upload_time": "2022-09-18T15:48:39",
                 "upload_time_iso_8601": "2022-09-18T15:48:39.600932Z",
                 "url": "https://files.pythonhosted.org/packages/c5/66/1a1dd8a0c4e69fb3feb47244b63b07a4bd9931500d6fbcc826f4310d8c41/tonsdk-1.0.7.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.9": {
+        "info": {
+            "author": "tonfactory.org",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Environment :: Console",
+                "Environment :: Web Environment",
+                "Intended Audience :: Developers",
+                "Intended Audience :: End Users/Desktop",
+                "License :: OSI Approved :: Apache Software License",
+                "Natural Language :: English",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Adaptive Technologies"
+            ],
+            "description": "# Description\n\nAnalogue of the [tonweb js](https://github.com/toncenter/tonweb) library. Feel free to use their docs and examples.\n\n# Notes\n\n- tonsdk/provider part is dirty.\n\n# Installation\n\n```code\n$ pip install tonsdk\n```\n\n# Usage examples\n\n### Create mnemonic, init wallet class, create external message to deploy the wallet\n\n```python\nfrom tonsdk.contract.wallet import WalletVersionEnum, Wallets\nfrom tonsdk.utils import bytes_to_b64str\nfrom tonsdk.crypto import mnemonic_new\n\n\nwallet_workchain = 0\nwallet_version = WalletVersionEnum.v3r2\nwallet_mnemonics = mnemonic_new()\n\n_mnemonics, _pub_k, _priv_k, wallet = Wallets.from_mnemonics(\n    wallet_mnemonics, wallet_version, wallet_workchain)\nquery = wallet.create_init_external_message()\nbase64_boc = bytes_to_b64str(query[\"message\"].to_boc(False))\n\nprint(\"\"\"\nMnemonic: {}\n\nRaw address: {}\n\nBounceable, url safe, user friendly address: {}\n\nBase64boc to deploy the wallet: {}\n\"\"\".format(wallet_mnemonics,\n           wallet.address.to_string(),\n           wallet.address.to_string(True, True, True),\n           base64_boc))\n```\n\n### Transfer NFT & Jettons by creating a transfer message from an owner wallet\n```python\nfrom tonsdk.contract.token.nft import NFTItem\nfrom tonsdk.contract.token.ft import JettonWallet\nfrom tonsdk.utils import Address, to_nano\n\nbody = NFTItem().create_transfer_body(\n    Address(\"New Owner Address\")\n)\nquery = wallet.create_transfer_message(\n    \"NFT Item Address\",\n    to_nano(0.05, \"ton\"),\n    0,  # owner wallet seqno\n    payload=body\n)\nnft_boc = bytes_to_b64str(query[\"message\"].to_boc(False))\n\nbody = JettonWallet().create_transfer_body(\n    Address(\"Destination address\"),\n    to_nano(40000, \"ton\")  # jettons amount\n)\nquery = wallet.create_transfer_message(\n    \"Jetton Wallet Address\",\n    to_nano(0.05, \"ton\"),\n    0,  # owner wallet seqno\n    payload=body\n)\njettons_boc = bytes_to_b64str(query[\"message\"].to_boc(False))\n\nprint(\"\"\"\nBase64boc to transfer the NFT item: {}\n\nBase64boc to transfer the jettons: {}\n\"\"\".format(nft_boc, jettons_boc))\n```\n\n### Clients usage example (dirty)\n\n*Note - to use these clients you should install tvm_valuetypes and aiohttp packages*\n\n```python\nfrom abc import ABC, abstractmethod\nimport asyncio\nimport aiohttp\nfrom tvm_valuetypes import serialize_tvm_stack\n\nfrom tonsdk.provider import ToncenterClient, SyncTonlibClient, prepare_address, address_state\nfrom tonsdk.utils import TonCurrencyEnum, from_nano\nfrom tonsdk.boc import Cell\n\n\nclass AbstractTonClient(ABC):\n    @abstractmethod\n    def _run(self, to_run, *, single_query=True):\n        raise NotImplemented\n\n    def get_address_information(self, address: str,\n                                currency_to_show: TonCurrencyEnum = TonCurrencyEnum.ton):\n        return self.get_addresses_information([address], currency_to_show)[0]\n\n    def get_addresses_information(self, addresses,\n                                  currency_to_show: TonCurrencyEnum = TonCurrencyEnum.ton):\n        if not addresses:\n            return []\n\n        tasks = []\n        for address in addresses:\n            address = prepare_address(address)\n            tasks.append(self.provider.raw_get_account_state(address))\n\n        results = self._run(tasks, single_query=False)\n\n        for result in results:\n            result[\"state\"] = address_state(result)\n            if \"balance\" in result:\n                if int(result[\"balance\"]) < 0:\n                    result[\"balance\"] = 0\n                else:\n                    result[\"balance\"] = from_nano(\n                        int(result[\"balance\"]), currency_to_show)\n\n        return results\n    \n    def seqno(self, addr: str):\n        addr = prepare_address(addr)\n        result = self._run(self.provider.raw_run_method(addr, \"seqno\", []))\n\n        if 'stack' in result and ('@type' in result and result['@type'] == 'smc.runResult'):\n            result['stack'] = serialize_tvm_stack(result['stack'])\n\n        return result\n\n    def send_boc(self, boc: Cell):\n        return self._run(self.provider.raw_send_message(boc))\n\n\nclass TonCenterTonClient(AbstractTonClient):\n    def __init__(self):\n        self.loop = asyncio.get_event_loop()\n        self.provider = ToncenterClient(base_url=\"https://testnet.toncenter.com/api/v2/\",\n                                        api_key=\"eb542b65e88d2da318fb7c163b9245e4edccb2eb8ba11cabda092cdb6fbc3395\")\n\n    def _run(self, to_run, *, single_query=True):\n        try:\n            return self.loop.run_until_complete(\n                self.__execute(to_run, single_query))\n\n        except Exception:  # ToncenterWrongResult, asyncio.exceptions.TimeoutError, aiohttp.client_exceptions.ClientConnectorError\n            raise\n\n    async def __execute(self, to_run, single_query):\n        timeout = aiohttp.ClientTimeout(total=5)\n\n        async with aiohttp.ClientSession(timeout=timeout) as session:\n            if single_query:\n                to_run = [to_run]\n\n            tasks = []\n            for task in to_run:\n                tasks.append(task[\"func\"](\n                    session, *task[\"args\"], **task[\"kwargs\"]))\n\n            return await asyncio.gather(*tasks)\n\n\nclass TonLibJsonTonClient(AbstractTonClient):\n    def __init__(self):\n        self.loop = asyncio.get_event_loop()\n        self.provider = SyncTonlibClient(config=\"./.tonlibjson/testnet.json\",\n                                         keystore=\"./.tonlibjson/keystore\",\n                                         cdll_path=\"./.tonlibjson/linux_libtonlibjson.so\")  # or macos_libtonlibjson.dylib\n        self.provider.init()\n\n    def _run(self, to_read, *, single_query=True):\n        try:\n            if not single_query:\n                queries_order = {query_id: i for i,\n                                 query_id in enumerate(to_read)}\n                return self.provider.read_results(queries_order)\n\n            else:\n                return self.provider.read_result(to_read)\n\n        except Exception:  # TonLibWrongResult, TimeoutError\n            raise\n\n\n# create a client instance\nclient = TonCenterTonClient()\n\n# use client to get any addr information\naddr_info = client.get_address_information(\n    \"EQAhE3sLxHZpsyZ_HecMuwzvXHKLjYx4kEUehhOy2JmCcHCT\")\n\n# get your wallet seqno\nseqno = client.seqno(wallet.address.to_string())\n\n# send any boc\nclient.send_boc(nft_boc)\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "TON,TON SDK,TON utils,TON tools",
+            "license": "Apache 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "tonsdk",
+            "package_url": "https://pypi.org/project/tonsdk/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/tonsdk/",
+            "project_urls": {
+                "Github": "https://github.com/tonfactory/tonsdk"
+            },
+            "release_url": "https://pypi.org/project/tonsdk/1.0.9/",
+            "requires_dist": [
+                "pynacl (>=1.4.0)"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Python SDK for TON",
+            "version": "1.0.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15785565,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "850d60ac59ff41031584c8a19a2011f3",
+                    "sha256": "1ad1a5e3994f0ca38d840e6c8e40da1458e7c1b8cde2c3df3f46f9ef7f7d739e"
+                },
+                "downloads": -1,
+                "filename": "tonsdk-1.0.9-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "850d60ac59ff41031584c8a19a2011f3",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 65369,
+                "upload_time": "2022-11-16T07:39:50",
+                "upload_time_iso_8601": "2022-11-16T07:39:50.999507Z",
+                "url": "https://files.pythonhosted.org/packages/94/db/d9ae199cd676f3a4045d5f1b0907d33eb416c851d5144dfdee99d8948420/tonsdk-1.0.9-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6b5c842af01a91cf2f63a23b6c16013b",
+                    "sha256": "0e0ba36456ca8915a5f7a80e4a618884c2485f5264aa15722736cfe7ea99e26c"
+                },
+                "downloads": -1,
+                "filename": "tonsdk-1.0.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6b5c842af01a91cf2f63a23b6c16013b",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 54585,
+                "upload_time": "2022-11-16T07:39:54",
+                "upload_time_iso_8601": "2022-11-16T07:39:54.821564Z",
+                "url": "https://files.pythonhosted.org/packages/75/1d/803c17603df443b7203a36418975fe213d165a4c2dad2caeaa582fd80904/tonsdk-1.0.9.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
