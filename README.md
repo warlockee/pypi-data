@@ -1,6 +1,6 @@
 # PyPi Data
 
-The contents of the PyPi JSON API for all packages, updated every 20 minutes
+The contents of the PyPi JSON API for all packages, updated every 12 hours
 
 ## Why?
 
