@@ -9,7 +9,7 @@ Fetching bulk data from the PyPi API in bulk is non-trivial, and using the [BigQ
 ## Release data
 
 Each package has a unique directory within [release_data/](release_data/), prefixed with the first two
-*lowercased* characters of the package name. Each package has a unique JSON compressed file containing the full API response for *all package releases* within it. 
+*lowercased* characters of the package name. Each package has a unique JSON file containing the full API response for *all package releases* within it. 
 
 For example: [release_data/d/j/django.json](release_data/d/j/django.json) contains:
 
