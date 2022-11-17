@@ -50,7 +50,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14339838,
+        "last_serial": 15799661,
         "urls": [
             {
                 "comment_text": "",
@@ -146,7 +146,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14339838,
+        "last_serial": 15799661,
         "urls": [
             {
                 "comment_text": "",
@@ -242,7 +242,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14339838,
+        "last_serial": 15799661,
         "urls": [
             {
                 "comment_text": "",
@@ -338,7 +338,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14339838,
+        "last_serial": 15799661,
         "urls": [
             {
                 "comment_text": "",
@@ -404,7 +404,6 @@
                 "Topic :: Software Development :: Libraries :: Python Modules",
                 "Topic :: Utilities"
             ],
-            "description": "# retrie\n\n[![build](https://img.shields.io/github/workflow/status/ddelange/retrie/GH/master?logo=github&cacheSeconds=86400)](https://github.com/ddelange/retrie/actions?query=branch%3Amaster)\n[![codecov](https://img.shields.io/codecov/c/github/ddelange/retrie/master?logo=codecov&logoColor=white)](https://codecov.io/gh/ddelange/retrie)\n[![pypi Version](https://img.shields.io/pypi/v/retrie.svg?logo=pypi&logoColor=white)](https://pypi.org/project/retrie/)\n[![python](https://img.shields.io/pypi/pyversions/retrie.svg?logo=python&logoColor=white)](https://pypi.org/project/retrie/)\n[![downloads](https://pepy.tech/badge/retrie)](https://pypistats.org/packages/retrie)\n[![black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)\n\n\n[retrie](https://github.com/ddelange/retrie) offers fast methods to match and replace (sequences of) strings based on efficient Trie-based regex unions.\n\n#### Trie\n\nInstead of matching against a simple regex union, which becomes slow for large sets of words, a more efficient regex pattern can be compiled using a [Trie](https://en.wikipedia.org/wiki/Trie) structure:\n\n```py\nfrom retrie.trie import Trie\n\n\ntrie = Trie()\n\ntrie.add(\"abc\", \"foo\", \"abs\")\nassert trie.pattern() == \"(?:ab[cs]|foo)\"  # equivalent to but faster than \"(?:abc|abs|foo)\"\n\ntrie.add(\"absolute\")\nassert trie.pattern() == \"(?:ab(?:c|s(?:olute)?)|foo)\"\n\ntrie.add(\"abx\")\nassert trie.pattern() == \"(?:ab(?:[cx]|s(?:olute)?)|foo)\"\n\ntrie.add(\"abxy\")\nassert trie.pattern() == \"(?:ab(?:c|s(?:olute)?|xy?)|foo)\"\n```\n\n\n## Installation\n\nThis pure-Python, OS independent package is available on [PyPI](https://pypi.org/project/retrie):\n\n```sh\n$ pip install retrie\n```\n\n\n## Usage\n\nThe following objects are all subclasses of [`retrie.retrie.Retrie`](src/retrie/retrie.py), which handles filling the Trie and compiling the corresponding regex pattern.\n\n\n#### Blacklist\n\nThe `Blacklist` object can be used to filter out bad occurences in a text or a sequence of strings:\n```py\nfrom retrie.retrie import Blacklist\n\n# check out docstrings and methods\nhelp(Blacklist)\n\nblacklist = Blacklist([\"abc\", \"foo\", \"abs\"], match_substrings=False)\nblacklist.compiled\n# re.compile(r'(?<=\\b)(?:ab[cs]|foo)(?=\\b)', re.IGNORECASE|re.UNICODE)\nassert not blacklist.is_blacklisted(\"a foobar\")\nassert tuple(blacklist.filter((\"good\", \"abc\", \"foobar\"))) == (\"good\", \"foobar\")\nassert blacklist.cleanse_text((\"good abc foobar\")) == \"good  foobar\"\n\nblacklist = Blacklist([\"abc\", \"foo\", \"abs\"], match_substrings=True)\nblacklist.compiled\n# re.compile(r'(?:ab[cs]|foo)', re.IGNORECASE|re.UNICODE)\nassert blacklist.is_blacklisted(\"a foobar\")\nassert tuple(blacklist.filter((\"good\", \"abc\", \"foobar\"))) == (\"good\",)\nassert blacklist.cleanse_text((\"good abc foobar\")) == \"good  bar\"\n```\n\n\n#### Whitelist\n\nSimilar methods are available for the `Whitelist` object:\n```py\nfrom retrie.retrie import Whitelist\n\n# check out docstrings and methods\nhelp(Whitelist)\n\nwhitelist = Whitelist([\"abc\", \"foo\", \"abs\"], match_substrings=False)\nwhitelist.compiled\n# re.compile(r'(?<=\\b)(?:ab[cs]|foo)(?=\\b)', re.IGNORECASE|re.UNICODE)\nassert not whitelist.is_whitelisted(\"a foobar\")\nassert tuple(whitelist.filter((\"bad\", \"abc\", \"foobar\"))) == (\"abc\",)\nassert whitelist.cleanse_text((\"bad abc foobar\")) == \"abc\"\n\nwhitelist = Whitelist([\"abc\", \"foo\", \"abs\"], match_substrings=True)\nwhitelist.compiled\n# re.compile(r'(?:ab[cs]|foo)', re.IGNORECASE|re.UNICODE)\nassert whitelist.is_whitelisted(\"a foobar\")\nassert tuple(whitelist.filter((\"bad\", \"abc\", \"foobar\"))) == (\"abc\", \"foobar\")\nassert whitelist.cleanse_text((\"bad abc foobar\")) == \"abcfoo\"\n```\n\n\n#### Replacer\n\nThe `Replacer` object does a fast single-pass search & replace for occurrences of `replacement_mapping.keys()` with corresponding values.\n```py\nfrom retrie.retrie import Replacer\n\n# check out docstrings and methods\nhelp(Replacer)\n\nreplacement_mapping = dict(zip([\"abc\", \"foo\", \"abs\"], [\"new1\", \"new2\", \"new3\"]))\n\nreplacer = Replacer(replacement_mapping, match_substrings=True)\nreplacer.compiled\n# re.compile(r'(?:ab[cs]|foo)', re.IGNORECASE|re.UNICODE)\nassert replacer.replace(\"ABS ...foo... foobar\") == \"new3 ...new2... new2bar\"\n\nreplacer = Replacer(replacement_mapping, match_substrings=False)\nreplacer.compiled\n# re.compile(r'\\b(?:ab[cs]|foo)\\b', re.IGNORECASE|re.UNICODE)\nassert replacer.replace(\"ABS ...foo... foobar\") == \"new3 ...new2... foobar\"\n\nreplacer = Replacer(replacement_mapping, match_substrings=False, re_flags=None)\nreplacer.compiled  # on py3, re.UNICODE is always enabled\n# re.compile(r'\\b(?:ab[cs]|foo)\\b')\nassert replacer.replace(\"ABS ...foo... foobar\") == \"ABS ...new2... foobar\"\n\nreplacer = Replacer(replacement_mapping, match_substrings=False, word_boundary=\" \")\nreplacer.compiled\n# re.compile(r'(?<= )(?:ab[cs]|foo)(?= )', re.IGNORECASE|re.UNICODE)\nassert replacer.replace(\". ABS ...foo... foobar\") == \". new3 ...foo... foobar\"\n```\n\n\n## Development\n\n[![gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-ffdd67)](https://github.com/carloscuesta/gitmoji-cli)\n[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)\n\nRun `make help` for options like installing for development, linting and testing.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -436,7 +435,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14339838,
+        "last_serial": 15799661,
         "urls": [
             {
                 "comment_text": "",
@@ -475,6 +474,104 @@
                 "upload_time": "2022-07-05T12:17:11",
                 "upload_time_iso_8601": "2022-07-05T12:17:11.266698Z",
                 "url": "https://files.pythonhosted.org/packages/35/7d/da07761a0145301ecc61236d1a3edc46a210493909c0fc42f8ea2a6472ba/retrie-0.2.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.1": {
+        "info": {
+            "author": "ddelange",
+            "author_email": "ddelange@delange.dev",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 2",
+                "Programming Language :: Python :: 2.7",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.5",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Topic :: Software Development :: Libraries :: Python Modules",
+                "Topic :: Utilities"
+            ],
+            "description": "# retrie\n\n[![build](https://img.shields.io/github/workflow/status/ddelange/retrie/GH/master?logo=github&cacheSeconds=86400)](https://github.com/ddelange/retrie/actions?query=branch%3Amaster)\n[![codecov](https://img.shields.io/codecov/c/github/ddelange/retrie/master?logo=codecov&logoColor=white)](https://codecov.io/gh/ddelange/retrie)\n[![pypi Version](https://img.shields.io/pypi/v/retrie.svg?logo=pypi&logoColor=white)](https://pypi.org/project/retrie/)\n[![python](https://img.shields.io/pypi/pyversions/retrie.svg?logo=python&logoColor=white)](https://pypi.org/project/retrie/)\n[![downloads](https://pepy.tech/badge/retrie)](https://pypistats.org/packages/retrie)\n[![black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)\n\n\n[retrie](https://github.com/ddelange/retrie) offers fast methods to match and replace (sequences of) strings based on efficient Trie-based regex unions.\n\n#### Trie\n\nInstead of matching against a simple regex union, which becomes slow for large sets of words, a more efficient regex pattern can be compiled using a [Trie](https://en.wikipedia.org/wiki/Trie) structure:\n\n```py\nfrom retrie.trie import Trie\n\n\ntrie = Trie()\n\ntrie.add(\"abc\", \"foo\", \"abs\")\nassert trie.pattern() == \"(?:ab[cs]|foo)\"  # equivalent to but faster than \"(?:abc|abs|foo)\"\n\ntrie.add(\"absolute\")\nassert trie.pattern() == \"(?:ab(?:c|s(?:olute)?)|foo)\"\n\ntrie.add(\"abx\")\nassert trie.pattern() == \"(?:ab(?:[cx]|s(?:olute)?)|foo)\"\n\ntrie.add(\"abxy\")\nassert trie.pattern() == \"(?:ab(?:c|s(?:olute)?|xy?)|foo)\"\n```\n\n\n## Installation\n\nThis pure-Python, OS independent package is available on [PyPI](https://pypi.org/project/retrie):\n\n```sh\n$ pip install retrie\n```\n\n\n## Usage\n\nThe following objects are all subclasses of [`retrie.retrie.Retrie`](src/retrie/retrie.py), which handles filling the Trie and compiling the corresponding regex pattern.\n\n\n#### Blacklist\n\nThe `Blacklist` object can be used to filter out bad occurences in a text or a sequence of strings:\n```py\nfrom retrie.retrie import Blacklist\n\n# check out docstrings and methods\nhelp(Blacklist)\n\nblacklist = Blacklist([\"abc\", \"foo\", \"abs\"], match_substrings=False)\nblacklist.compiled\n# re.compile(r'(?<=\\b)(?:ab[cs]|foo)(?=\\b)', re.IGNORECASE|re.UNICODE)\nassert not blacklist.is_blacklisted(\"a foobar\")\nassert tuple(blacklist.filter((\"good\", \"abc\", \"foobar\"))) == (\"good\", \"foobar\")\nassert blacklist.cleanse_text((\"good abc foobar\")) == \"good  foobar\"\n\nblacklist = Blacklist([\"abc\", \"foo\", \"abs\"], match_substrings=True)\nblacklist.compiled\n# re.compile(r'(?:ab[cs]|foo)', re.IGNORECASE|re.UNICODE)\nassert blacklist.is_blacklisted(\"a foobar\")\nassert tuple(blacklist.filter((\"good\", \"abc\", \"foobar\"))) == (\"good\",)\nassert blacklist.cleanse_text((\"good abc foobar\")) == \"good  bar\"\n```\n\n\n#### Whitelist\n\nSimilar methods are available for the `Whitelist` object:\n```py\nfrom retrie.retrie import Whitelist\n\n# check out docstrings and methods\nhelp(Whitelist)\n\nwhitelist = Whitelist([\"abc\", \"foo\", \"abs\"], match_substrings=False)\nwhitelist.compiled\n# re.compile(r'(?<=\\b)(?:ab[cs]|foo)(?=\\b)', re.IGNORECASE|re.UNICODE)\nassert not whitelist.is_whitelisted(\"a foobar\")\nassert tuple(whitelist.filter((\"bad\", \"abc\", \"foobar\"))) == (\"abc\",)\nassert whitelist.cleanse_text((\"bad abc foobar\")) == \"abc\"\n\nwhitelist = Whitelist([\"abc\", \"foo\", \"abs\"], match_substrings=True)\nwhitelist.compiled\n# re.compile(r'(?:ab[cs]|foo)', re.IGNORECASE|re.UNICODE)\nassert whitelist.is_whitelisted(\"a foobar\")\nassert tuple(whitelist.filter((\"bad\", \"abc\", \"foobar\"))) == (\"abc\", \"foobar\")\nassert whitelist.cleanse_text((\"bad abc foobar\")) == \"abcfoo\"\n```\n\n\n#### Replacer\n\nThe `Replacer` object does a fast single-pass search & replace for occurrences of `replacement_mapping.keys()` with corresponding values.\n```py\nfrom retrie.retrie import Replacer\n\n# check out docstrings and methods\nhelp(Replacer)\n\nreplacement_mapping = dict(zip([\"abc\", \"foo\", \"abs\"], [\"new1\", \"new2\", \"new3\"]))\n\nreplacer = Replacer(replacement_mapping, match_substrings=True)\nreplacer.compiled\n# re.compile(r'(?:ab[cs]|foo)', re.IGNORECASE|re.UNICODE)\nassert replacer.replace(\"ABS ...foo... foobar\") == \"new3 ...new2... new2bar\"\n\nreplacer = Replacer(replacement_mapping, match_substrings=False)\nreplacer.compiled\n# re.compile(r'\\b(?:ab[cs]|foo)\\b', re.IGNORECASE|re.UNICODE)\nassert replacer.replace(\"ABS ...foo... foobar\") == \"new3 ...new2... foobar\"\n\nreplacer = Replacer(replacement_mapping, match_substrings=False, re_flags=None)\nreplacer.compiled  # on py3, re.UNICODE is always enabled\n# re.compile(r'\\b(?:ab[cs]|foo)\\b')\nassert replacer.replace(\"ABS ...foo... foobar\") == \"ABS ...new2... foobar\"\n\nreplacer = Replacer(replacement_mapping, match_substrings=False, word_boundary=\" \")\nreplacer.compiled\n# re.compile(r'(?<= )(?:ab[cs]|foo)(?= )', re.IGNORECASE|re.UNICODE)\nassert replacer.replace(\". ABS ...foo... foobar\") == \". new3 ...foo... foobar\"\n```\n\n\n## Development\n\n[![gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-ffdd67)](https://github.com/carloscuesta/gitmoji-cli)\n[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)\n\nRun `make help` for options like installing for development, linting and testing.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/ddelange/retrie",
+            "keywords": "pure-Python regex trie regex-trie blacklist whitelist re search replace",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "retrie",
+            "package_url": "https://pypi.org/project/retrie/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/retrie/",
+            "project_urls": {
+                "Homepage": "https://github.com/ddelange/retrie"
+            },
+            "release_url": "https://pypi.org/project/retrie/0.2.1/",
+            "requires_dist": [
+                "typing ; python_version < \"3.5\"",
+                "cached-property ; python_version < \"3.8\""
+            ],
+            "requires_python": ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*",
+            "summary": "Efficient Trie-based regex unions for blacklist/whitelist filtering and one-pass mapping-based string replacing",
+            "version": "0.2.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15799661,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bf9f870c36ca79e5bf33d71c968b56f6",
+                    "sha256": "a39413223e167eed19aa582b6bc43c6804d7a2d6db519b6bf380064046f68b3e"
+                },
+                "downloads": -1,
+                "filename": "retrie-0.2.1-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "bf9f870c36ca79e5bf33d71c968b56f6",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*",
+                "size": 7306,
+                "upload_time": "2022-11-17T10:24:16",
+                "upload_time_iso_8601": "2022-11-17T10:24:16.524736Z",
+                "url": "https://files.pythonhosted.org/packages/72/56/22aa46cf9a85b9cab6b60bb2984c56c7d818d29d7e7dd42c22938645aee4/retrie-0.2.1-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "01812766133b196e50eb5b8323641a12",
+                    "sha256": "d578288cb73242a83342517264d97a51020d3f3a7c57fc606fb55353752a4b83"
+                },
+                "downloads": -1,
+                "filename": "retrie-0.2.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "01812766133b196e50eb5b8323641a12",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*",
+                "size": 8504,
+                "upload_time": "2022-11-17T10:24:17",
+                "upload_time_iso_8601": "2022-11-17T10:24:17.758231Z",
+                "url": "https://files.pythonhosted.org/packages/b0/f6/c80dcaad39ff2c757f917450c597991e7bb42af3828e968773defb9ee171/retrie-0.2.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

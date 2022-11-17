@@ -55,7 +55,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15694562,
+        "last_serial": 15797432,
         "urls": [
             {
                 "comment_text": "",
@@ -156,7 +156,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15694562,
+        "last_serial": 15797432,
         "urls": [
             {
                 "comment_text": "",
@@ -257,7 +257,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15694562,
+        "last_serial": 15797432,
         "urls": [
             {
                 "comment_text": "",
@@ -358,7 +358,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15694562,
+        "last_serial": 15797432,
         "urls": [
             {
                 "comment_text": "",
@@ -459,7 +459,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15694562,
+        "last_serial": 15797432,
         "urls": [
             {
                 "comment_text": "",
@@ -560,7 +560,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15694562,
+        "last_serial": 15797432,
         "urls": [
             {
                 "comment_text": "",
@@ -661,7 +661,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15694562,
+        "last_serial": 15797432,
         "urls": [
             {
                 "comment_text": "",
@@ -717,7 +717,6 @@
                 "Programming Language :: Python :: 3.10",
                 "Programming Language :: Python :: 3.11"
             ],
-            "description": "# aws-cidr-finder ![master](https://github.com/cooperwalbrun/aws-cidr-finder/workflows/master/badge.svg) ![PyPI](https://img.shields.io/pypi/v/aws-cidr-finder) [![codecov](https://codecov.io/gh/cooperwalbrun/aws-cidr-finder/branch/master/graph/badge.svg?token=DRVM149OYQ)](https://codecov.io/gh/cooperwalbrun/aws-cidr-finder)\n\n1. [Overview](#overview)\n   1. [An Example](#an-example)\n2. [Installation](#installation)\n3. [Configuration](#configuration)\n4. [Contributing](#contributing)\n\n## Overview\n\n`aws-cidr-finder` is a Python CLI tool which finds unused CIDR blocks (supports both IPv4 and IPv6)\nin your AWS VPCs and outputs them to STDOUT. It is very simple, but can be quite useful for users\nwho manage many subnets across one or more VPCs.\n\nUse `aws-cidr-finder -h` to see command options.\n\n### An Example\n\nIt is easiest to see the value of this tool through an example. Pretend that we have the following\nVPC setup in AWS:\n\n* A VPC whose CIDR is `172.31.0.0/16`, with a `Name` tag of `Hello World`\n* Six subnets in that VPC whose CIDRs are:\n  * `172.31.0.0/20`\n  * `172.31.16.0/20`\n  * `172.31.32.0/20`\n  * `172.31.48.0/20`\n  * `172.31.64.0/20`\n  * `172.31.80.0/20`\n* An [AWS CLI profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)\n  named `myprofile`\n\n`aws-cidr-finder` allows you to quickly compute the CIDRs that you still have available in the VPC\nwithout having to do a lot of annoying/tedious octet math. If we issue this command:\n\n```bash\naws-cidr-finder --profile myprofile\n```\n\nWe should see this output:\n\n```\nHere are the available CIDR blocks in the 'Hello World' VPC (VPC CIDR block '172.31.0.0/16'):\nCIDR               IP Count\n---------------  ----------\n172.31.96.0/19         8192\n172.31.128.0/17       32768\nTotal                 40960\n```\n\nYou should notice that by default, `aws-cidr-finder` will automatically \"simplify\" the CIDRs\nby merging adjacent free CIDR blocks so that the resulting table shows the maximum contiguous space\nper CIDR (in other words, the resulting table has the fewest number of rows possible). This is why\nthe result of the command displayed only two CIDRs: a `/19` and a `/17`.\n\n>Note that the first CIDR is `/19` instead of, for example, `/18`, because the `/18` CIDR would \n>mathematically have to begin at IP address `172.31.64.0`, and that IP address is already taken by a\n>subnet!\n\nHowever, we can change this \"simplification\" behavior by specifying the `--prefix` CLI flag:\n\n```bash\naws-cidr-finder --profile myprofile --prefix 20\n```\n\nNow, the expected output should look something like this:\n\n```\nHere are the available CIDR blocks in the 'Hello World' VPC (VPC CIDR block '172.31.0.0/16'):\nCIDR               IP Count\n---------------  ----------\n172.31.96.0/20         4096\n172.31.112.0/20        4096\n172.31.128.0/20        4096\n172.31.144.0/20        4096\n172.31.160.0/20        4096\n172.31.176.0/20        4096\n172.31.192.0/20        4096\n172.31.208.0/20        4096\n172.31.224.0/20        4096\n172.31.240.0/20        4096\nTotal                 40960\n```\n\nWith the `--prefix` argument, we can now query our available network space to our desired level of\ndetail. Note that if we specify a `--prefix` with a value lower than any of the prefixes in the\noriginally-returned list, those CIDRs will be skipped. For example, if we run the following:\n\n```bash\naws-cidr-finder --profile myprofile --prefix 18\n```\n\nWe should see this output:\n\n```\nNote: skipping CIDR '172.31.96.0/19' because its prefix (19) is larger than the requested prefix (18)\n\nHere are the available CIDR blocks in the 'Hello World' VPC (VPC CIDR block '172.31.0.0/16'):\nCIDR               IP Count\n---------------  ----------\n172.31.128.0/18       16384\n172.31.192.0/18       16384\nTotal                 32768\n```\n\nThe CIDR that was skipped was the `172.31.96.0/19` CIDR because it is impossible to convert a `/19`\nCIDR into one or more `/18` CIDRs.\n\n## Installation\n\nIf you have Python >=3.10 and <4.0 installed, `aws-cidr-finder` can be installed from PyPI using\nsomething like\n\n```bash\npip install aws-cidr-finder\n```\n\n## Configuration\n\nAll that needs to be configured in order to use this CLI is an\n[AWS CLI profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) or\na keypair. The former may be specified using the `--profile` argument on the CLI, while the keypair\nmust be specified in environment variables. If both are available simultaneously, `aws-cidr-finder`\nwill prefer the profile.\n\nThe environment variables for the keypair approach are `AWS_ACCESS_KEY_ID` and\n`AWS_SECRET_ACCESS_KEY` (the same values Boto uses).\n\nYou should also ensure that the profile/keypair you are using has the AWS IAM access needed to make\nthe underlying API calls via Boto. Here is a minimal IAM policy document that fills this\nrequirement:\n\n```json\n{\n  \"Effect\": \"Allow\",\n  \"Action\": [\n    \"ec2:DescribeVpcs\",\n    \"ec2:DescribeSubnets\"\n  ],\n  \"Resource\": \"*\"\n}\n```\n\nRead more about the actions shown above\n[here](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html).\n\n## Contributing\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md) for developer-oriented information.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -764,7 +763,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15694562,
+        "last_serial": 15797432,
         "urls": [
             {
                 "comment_text": "",
@@ -803,6 +802,114 @@
                 "upload_time": "2022-11-08T06:20:51",
                 "upload_time_iso_8601": "2022-11-08T06:20:51.623375Z",
                 "url": "https://files.pythonhosted.org/packages/5c/ee/cb20097377e395349d7eaebc51f94c62b97073b2e64b47f909833b8dcad8/aws-cidr-finder-0.2.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.0": {
+        "info": {
+            "author": "cooperwalbrun",
+            "author_email": "mail@cooperwalbrun.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11"
+            ],
+            "description": "# aws-cidr-finder ![master](https://github.com/cooperwalbrun/aws-cidr-finder/workflows/master/badge.svg) ![PyPI](https://img.shields.io/pypi/v/aws-cidr-finder) [![codecov](https://codecov.io/gh/cooperwalbrun/aws-cidr-finder/branch/master/graph/badge.svg?token=DRVM149OYQ)](https://codecov.io/gh/cooperwalbrun/aws-cidr-finder)\n\n1. [Overview](#overview)\n   1. [An Example](#an-example)\n2. [Installation](#installation)\n3. [Configuration](#configuration)\n4. [Contributing](#contributing)\n\n## Overview\n\n`aws-cidr-finder` is a Python CLI tool which finds unused CIDR blocks (supports both IPv4 and IPv6)\nin your AWS VPCs and outputs them to STDOUT. It is very simple, but can be quite useful for users\nwho manage many subnets across one or more VPCs.\n\nUse `aws-cidr-finder -h` to see command options.\n\n### An Example\n\nIt is easiest to see the value of this tool through an example. Pretend that we have the following\nVPC setup in AWS:\n\n* A VPC whose CIDR is `172.31.0.0/16`, with a `Name` tag of `Hello World`\n* Six subnets in that VPC whose CIDRs are:\n  * `172.31.0.0/20`\n  * `172.31.16.0/20`\n  * `172.31.32.0/20`\n  * `172.31.48.0/20`\n  * `172.31.64.0/20`\n  * `172.31.80.0/20`\n* An [AWS CLI profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html)\n  named `myprofile`\n\n`aws-cidr-finder` allows you to quickly compute the CIDRs that you still have available in the VPC\nwithout having to do a lot of annoying/tedious octet math. If we issue this command:\n\n```bash\naws-cidr-finder --profile myprofile\n```\n\nWe should see this output:\n\n```\nHere are the available CIDR blocks in the 'Hello World' VPC (VPC CIDR block '172.31.0.0/16'):\nCIDR               IP Count\n---------------  ----------\n172.31.96.0/19         8192\n172.31.128.0/17       32768\nTotal                 40960\n```\n\nYou should notice that by default, `aws-cidr-finder` will automatically \"simplify\" the CIDRs\nby merging adjacent free CIDR blocks so that the resulting table shows the maximum contiguous space\nper CIDR (in other words, the resulting table has the fewest number of rows possible). This is why\nthe result of the command displayed only two CIDRs: a `/19` and a `/17`.\n\n>Note that the first CIDR is `/19` instead of, for example, `/18`, because the `/18` CIDR would \n>mathematically have to begin at IP address `172.31.64.0`, and that IP address is already taken by a\n>subnet!\n\nHowever, we can change this \"simplification\" behavior by specifying the `--prefix` CLI flag:\n\n```bash\naws-cidr-finder --profile myprofile --prefix 20\n```\n\nNow, the expected output should look something like this:\n\n```\nHere are the available CIDR blocks in the 'Hello World' VPC (VPC CIDR block '172.31.0.0/16'):\nCIDR               IP Count\n---------------  ----------\n172.31.96.0/20         4096\n172.31.112.0/20        4096\n172.31.128.0/20        4096\n172.31.144.0/20        4096\n172.31.160.0/20        4096\n172.31.176.0/20        4096\n172.31.192.0/20        4096\n172.31.208.0/20        4096\n172.31.224.0/20        4096\n172.31.240.0/20        4096\nTotal                 40960\n```\n\nWith the `--prefix` argument, we can now query our available network space to our desired level of\ndetail. Note that if we specify a `--prefix` with a value lower than any of the prefixes in the\noriginally-returned list, those CIDRs will be skipped. For example, if we run the following:\n\n```bash\naws-cidr-finder --profile myprofile --prefix 18\n```\n\nWe should see this output:\n\n```\nNote: skipping CIDR '172.31.96.0/19' because its prefix (19) is larger than the requested prefix (18)\n\nHere are the available CIDR blocks in the 'Hello World' VPC (VPC CIDR block '172.31.0.0/16'):\nCIDR               IP Count\n---------------  ----------\n172.31.128.0/18       16384\n172.31.192.0/18       16384\nTotal                 32768\n```\n\nThe CIDR that was skipped was the `172.31.96.0/19` CIDR because it is impossible to convert a `/19`\nCIDR into one or more `/18` CIDRs.\n\n## Installation\n\nIf you have Python >=3.10 and <4.0 installed, `aws-cidr-finder` can be installed from PyPI using\nsomething like\n\n```bash\npip install aws-cidr-finder\n```\n\n## Configuration\n\nAll that needs to be configured in order to use this CLI is an\n[AWS CLI profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) or\na keypair. The former may be specified using the `--profile` argument on the CLI, while the keypair\nmust be specified in environment variables. If both are available simultaneously, `aws-cidr-finder`\nwill prefer the profile.\n\nThe environment variables for the keypair approach are `AWS_ACCESS_KEY_ID` and\n`AWS_SECRET_ACCESS_KEY` (the same values Boto uses).\n\nYou should also ensure that the profile/keypair you are using has the AWS IAM access needed to make\nthe underlying API calls via Boto. Here is a minimal IAM policy document that fills this\nrequirement:\n\n```json\n{\n  \"Effect\": \"Allow\",\n  \"Action\": [\n    \"ec2:DescribeVpcs\",\n    \"ec2:DescribeSubnets\"\n  ],\n  \"Resource\": \"*\"\n}\n```\n\nRead more about the actions shown above\n[here](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html).\n\n## Contributing\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md) for developer-oriented information.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/cooperwalbrun/aws-cidr-finder",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "aws-cidr-finder",
+            "package_url": "https://pypi.org/project/aws-cidr-finder/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/aws-cidr-finder/",
+            "project_urls": {
+                "Homepage": "https://github.com/cooperwalbrun/aws-cidr-finder"
+            },
+            "release_url": "https://pypi.org/project/aws-cidr-finder/0.3.0/",
+            "requires_dist": [
+                "boto3 (<2,>=1.21)",
+                "boto3-stubs[essential] (<2,>=1.21)",
+                "importlib-metadata",
+                "tabulate (<1,>=0.8.9)",
+                "types-tabulate (<1,>=0.8.9)",
+                "mypy ; extra == 'development'",
+                "pytest ; extra == 'development'",
+                "pytest-cov ; extra == 'development'",
+                "pytest-mock ; extra == 'development'",
+                "tox ; extra == 'development'",
+                "yapf ; extra == 'development'",
+                "mypy ; extra == 'github_actions'",
+                "pytest ; extra == 'github_actions'",
+                "pytest-cov ; extra == 'github_actions'",
+                "pytest-mock ; extra == 'github_actions'",
+                "tox ; extra == 'github_actions'",
+                "tox-gh-actions ; extra == 'github_actions'",
+                "mypy ; extra == 'testing'",
+                "pytest ; extra == 'testing'",
+                "pytest-cov ; extra == 'testing'",
+                "pytest-mock ; extra == 'testing'",
+                "tox ; extra == 'testing'"
+            ],
+            "requires_python": "<4,>=3.10",
+            "summary": "A CLI tool for finding unused CIDR blocks in AWS VPCs.",
+            "version": "0.3.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15797432,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "16efc8d4501bcf71feada37d9f66483b",
+                    "sha256": "e7d6843d4b7f45e861ffafa4cad6b40364cf650ca8b07cfe4fc3540b63160c5b"
+                },
+                "downloads": -1,
+                "filename": "aws_cidr_finder-0.3.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "16efc8d4501bcf71feada37d9f66483b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": "<4,>=3.10",
+                "size": 21684,
+                "upload_time": "2022-11-17T04:53:29",
+                "upload_time_iso_8601": "2022-11-17T04:53:29.973928Z",
+                "url": "https://files.pythonhosted.org/packages/7a/57/1d3488c32b875f0a2cba39d711eaf9c1e37788c11922a15f7cd18237d5b9/aws_cidr_finder-0.3.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fb65dade3837ec4aed231bf1cd31a6dd",
+                    "sha256": "266baaac43eebb0d3e1af411702b47412d7cf5ea221ffdd925d1b75d1e9104b3"
+                },
+                "downloads": -1,
+                "filename": "aws-cidr-finder-0.3.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "fb65dade3837ec4aed231bf1cd31a6dd",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": "<4,>=3.10",
+                "size": 30874,
+                "upload_time": "2022-11-17T04:53:31",
+                "upload_time_iso_8601": "2022-11-17T04:53:31.493752Z",
+                "url": "https://files.pythonhosted.org/packages/7d/4e/fbc393b31c4b3133f3eb9f8d6325a781524c55af2bc2ba55a293eeb14a53/aws-cidr-finder-0.3.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

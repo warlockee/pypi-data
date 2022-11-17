@@ -37,7 +37,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15679922,
+        "last_serial": 15797868,
         "urls": [
             {
                 "comment_text": "",
@@ -100,7 +100,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15679922,
+        "last_serial": 15797868,
         "urls": [
             {
                 "comment_text": "",
@@ -163,7 +163,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15679922,
+        "last_serial": 15797868,
         "urls": [
             {
                 "comment_text": "",
@@ -226,7 +226,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15679922,
+        "last_serial": 15797868,
         "urls": [
             {
                 "comment_text": "",
@@ -261,7 +261,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# SUNSETTING torcnaudio-contrib\n\nWe made some progress in this repo and contributed to the original repo [pytorch/audio](https://github.com/pytorch/audio) which satisfied us. We happily stopped working here :) Please visit [pytorch/audio](https://github.com/pytorch/audio) for any issue/request!\n\n.\n\n.\n\n.\n\n.\n\n.\n\n.\n\n.\n\n.\n\n.\n\n.\n\n\n(We keep the existing content as below \u2b07)\n\n\n# torchaudio-contrib\n\n\nGoal: To propose audio processing Pytorch codes with nice and easy-to-use APIs and functionality.\n\n:open_hands: This should be seen as a community based proposal and the basis for a discussion we should have inside the pytorch audio user community. Everyone should be welcome to join and discuss.\n\nOur motivation is:\n\n  - API design: Clear, readible names for class/functions/arguments, sensible default values, and shapes.\n      - Reference: [librosa](http://librosa.github.io/librosa/) (audio and MIR on Numpy), [kapre](https://github.com/keunwoochoi/kapre) (audio on Keras), [pytorch/audio](https://github.com/pytorch/audio) (audio on Pytorch)\n  - Fast processing on GPU\n  - Methodology: Both layer and functional\n    - Layers (`nn.Module`) for reusability and easier use\n    - and identical implementation with `Functionals`\n- Simple installation\n- Multi-channel support\n\n## Contribution\n\nMaking things quicker and open! We're `-contrib` repo, hence it's *easy to enter but hard to graduate*. \n\n 1. Make a new [Issue](https://github.com/keunwoochoi/torchaudio-contrib/issues) for a potential PR\n 2. Until it's in a good shape,\n    1. Make a PR with following the current conventions and unittest\n    2. Review-merge.\n 3. Based on it, make a PR to [torch/audio](https://github.com/pytorch/audio)  \n \n \n Discussion on how to contribute - https://github.com/keunwoochoi/torchaudio-contrib/issues/37\n\n## Current issues/future work\n- Better module/sub-module hierarchy\n- Complex number support\n- More time-frequency representations\n- Signal processing modules, e.g., vocoder\n- Augmentation\n\n# API suggestions\n\n## Notes\n  * Audio signals can be multi-channel\n  * `STFT`: short-time Fourier transform, outputing a complex-numbered representation\n  * `Spectrogram`: magnitudes of STFT\n  * `Melspectrogram`: mel-filterbank applied to `spectrogram`\n\n## Shapes\n  * audio signals: `(batch, channel, time)`\n      * E.g., `STFT` input shape\n      * Based on `torch.stft` input shape\n  * 2D representations: `(batch, channel, freq, time)`\n      * E.g., `STFT` output shape\n      * Channel-first, following torch convention.\n      * Then, `(freq, time)`, following `torch.stft`\n\n\n## Overview\n### `STFT`\n```python\nclass STFT(fft_len=2048, hop_len=None, frame_len=None, window=None, pad=0, pad_mode=\"reflect\", **kwargs)\ndef stft(signal, fft_len, hop_len, window, pad=0, pad_mode=\"reflect\", **kwargs)\n```\n\n### `MelFilterbank`\n```python\nclass MelFilterbank(num_bands=128, sample_rate=16000, min_freq=0.0, max_freq=None, num_bins=1025, htk=False)\ndef create_mel_filter(num_bands, sample_rate, min_freq, max_freq, num_bins, to_hertz, from_hertz)\n```\n\n### `Spectrogram`\n```python\ndef Spectrogram(fft_len=2048, hop_len=None, frame_len=None, window=None, pad=0, pad_mode=\"reflect\", power=1., **kwargs)\n```\nCreates an `nn.Sequential`:\n```\n>>> Sequential(\n>>>  (0): STFT(fft_len=2048, hop_len=512, frame_len=2048)\n>>>  (1): ComplexNorm(power=1.0)\n)\n```\n\n### `Melspectrogram`\n```python\ndef Melspectrogram(num_bands=128, sample_rate=16000, min_freq=0.0, max_freq=None, num_bins=None, htk=False, mel_filterbank=None, **kwargs)\n```\nCreates an `nn.Sequential`:\n```\n>>> Sequential(\n>>>  (0): STFT(fft_len=2048, hop_len=512, frame_len=2048)\n>>>  (1): ComplexNorm(power=2.0)\n>>>  (2): ApplyFilterbank()\n)\n```\n\n### `AmplitudeToDb`/`amplitude_to_db`\n```python\nclass AmplitudeToDb(ref=1.0, amin=1e-7)\ndef amplitude_to_db(x, ref=1.0, amin=1e-7)\n```\nArguments names and the default value of `ref` follow librosa. The default value of `amin` however follows Keras's float32 Epsilon, which seems making sense.\n\n### `DbToAmplitude`/`db_to_amplitude`\n```python\nclass DbToAmplitude(ref=1.0)\ndef db_to_amplitude(x, ref=1.0)\n```\n\n### `MuLawEncoding`/`mu_law_encoding`\n```python\nclass MuLawEncoding(n_quantize=256)\ndef mu_law_encoding(x, n_quantize=256)\n```\n\n### `MuLawDecoding`/`mu_law_decoding`\n```python\nclass MuLawDecoding(n_quantize=256)\ndef mu_law_decoding(x_mu, n_quantize=256)\n```\n\n----------\n\n# A Big Issue - Remove SoX Dependency\n\nWe propose to remove the SoX dependency because:\n\n* Many audio ML tasks don\u2019t require the functionality included in Sox (filtering, cutting, effects)\n* Many issues in torchaudio are related to the installation with respect to Sox. While this could be simplified by a [conda build or a wheel](https://github.com/pytorch/builder/issues/279), it will continue being difficult to maintain the repo.\n* SOX doesn\u2019t support MP4 containers, which makes it unusable for multi-stream audio\n* Loading speed is good with torchaudio but e.g. for __wav__, its not faster than other libraries (including cast to torch tensor) -- as in the graph below. See more detailed benchmarks [here](https://github.com/faroit/python_audio_loading_benchmark).\n\n![](https://raw.githubusercontent.com/faroit/python_audio_loading_benchmark/master/results/benchmark_pytorch.png)\n\n## Proposal\n\nIntroduce I/O backends and move the functions that depend on `_torch_sox` to a `backend_sox.py`, which is *not* required to install. Additionally, we could then introduce more backends like scipy.io or pysoundfile. Each backend then imports the (optional) lib within the backend file and each backend includes a minimum spec such as:\n\n```python\nimport _torch_sox\n\ndef load(...)\n    # returns audio, rate\ndef save(...)\n    # write file\ndef info(...)\n    # returns metadata without reading the full file  \n```\n\n### Backend proposals\n\n* `scipy.io` or `soundfile` as default for __wav__ files\n* `aubio` or `audioread` for __mp3__ and __mp4__\n\n\n### Installation\n\n```bash\npip install -e .\n```\n\n\n### Importing\n\nimport torchaudio_contrib\n\n\n## Authors\nKeunwoo Choi, Faro St\u00f6ter, Kiran Sanjeevan,  Jan Schl\u00fcter",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -290,7 +289,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15679922,
+        "last_serial": 15797868,
         "urls": [
             {
                 "comment_text": "",
@@ -309,6 +308,70 @@
                 "upload_time": "2022-11-07T03:12:07",
                 "upload_time_iso_8601": "2022-11-07T03:12:07.047692Z",
                 "url": "https://files.pythonhosted.org/packages/61/2a/553a81ded1669f1ab8749b66576c7d3c7ee4627b5857c51719e921afad7b/torchphm-1.1.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.1.9": {
+        "info": {
+            "author": "police",
+            "author_email": "criminal@qq.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# phm-feature\n\n#### \u4ecb\u7ecd\n\u4f7f\u7528torch torchaudio \u6784\u5efaPHM\u7279\u5f81\u62bd\u53d6\u529f\u80fd\u5c42\n\n##### \u529f\u80fd\u5c42\u4ecb\u7ecd\ntorchphm.layers \u5c06phm\u56fa\u5b9a\u4f7f\u7528\u7684\u6570\u636e\u64cd\u4f5c\uff0c\u56fa\u5316\u4e3a\u5982\u4e0b\u5c42\uff1a\n\n1. STFT \u79bb\u6563\u5085\u7acb\u53f6\u53d8\u6362\n2. Spectrogram \u8c31\u56fe\n3. MelFilterbank mel\u8b5c\u8fc7\u6ee4\n4. AmplitudeToDb \u5e45\u5ea6\u53d6\u5206\u8d1d\n5. TimeStretch \u53d8\u901f\u4e0d\u53d8\u8c03\n6. ComplexNorm \u590d\u6570\u8f93\u51fa\u53d6\u6a21'\u8303\u6570'\n7. ApplyFilterbank \u8fc7\u6ee4\u5668\u5e94\u7528\n\n##### \u5e94\u7528\u573a\u666f\n\n\u7ec4\u5408\u4e0a\u8ff0\u529f\u80fd\u5c42\uff0c\u5b9e\u73b0\u4e0d\u540c\u573a\u666f:\n\n1. STFT\n    \u5206\u5e27==>\u52a0\u7a97==>\u77ed\u65f6\u79bb\u6563\u5085\u7acb\u53f6\u53d8\u6362\n\n2. \"\u53d8\u901f\u4e0d\u53d8\u8c03\" Time scale modification\n    \u8be6\u7ec6\u89c1 https://zhuanlan.zhihu.com/p/337193578\n    \u7528\u4e8e\u58f0\u8c31\u56fe\u538b\u7f29\u3001\u6269\u5f20\u5904\u7406\uff0c\u4f9b\u540e\u7eed\u5206\u6790\n\n3. \u6885\u5c14mel\u8c31\u8f6c\u6362\n   \u5bf9\u4e8e\u8bed\u8c31\u56fe\u8fdb\u884cmel\u8c31\u8f6c\u6362\n\n4. HPSS\n    \u4e2d\u503c\u6ee4\u6ce2\uff0c\u8fc7\u6ee4\u51fa\u9891\u7387\u7684\u8c10\u6ce2\u5206\u91cf\u4e0e\u51b2\u51fb\u5206\u91cf\n    \u4e3a\u4ec0\u4e48\u4e2d\u503c\u6ee4\u6ce2\uff0c\u53ef\u4ee5\u8fc7\u6ee4\u51fa\"\u6570\u636e\u8f6e\u5ed3\"\u53ca\u53d1\u73b0\"\u8c10\u6ce2\u5206\u91cf\u548c\u51b2\u51fb\u5206\u91cf\"\uff0c\u53c2\u89c1\n    https://blog.csdn.net/qq_38131594/article/details/80758567\n\n#### \u8f6f\u4ef6\u67b6\u6784\n\u8f6f\u4ef6\u7ed3\u6784\u8bf4\u660e\n```\n.\n\u251c\u2500\u2500 dist\n\u2502\u00a0\u00a0 \u251c\u2500\u2500 torchphm-1.1.7.tar.gz\n\u2502\u00a0\u00a0 \u2514\u2500\u2500 torchphm-1.1.8.tar.gz\n\u251c\u2500\u2500 draw\n\u2502\u00a0\u00a0 \u251c\u2500\u2500 draw_functional.py\n\u2502\u00a0\u00a0 \u251c\u2500\u2500 draw_layers.py\n\u2502\u00a0\u00a0 \u251c\u2500\u2500 draw_torchphm_layers.ipynb\n\u2502\u00a0\u00a0 \u251c\u2500\u2500 torchphm -> ../torchphm\n\u2502\u00a0\u00a0 \u2514\u2500\u2500 Untitled.ipynb\n\u251c\u2500\u2500 examples_torchphm.ipynb\n\u251c\u2500\u2500 README.md\n\u251c\u2500\u2500 setup.cfg\n\u251c\u2500\u2500 setup.py\n\u251c\u2500\u2500 tests\n\u2502\u00a0\u00a0 \u251c\u2500\u2500 test_functional.py\n\u2502\u00a0\u00a0 \u2514\u2500\u2500 test_layers.py\n\u251c\u2500\u2500 torchphm\n\u2502\u00a0\u00a0 \u251c\u2500\u2500 beta_hpss.py\n\u2502\u00a0\u00a0 \u251c\u2500\u2500 functional.py\n\u2502\u00a0\u00a0 \u251c\u2500\u2500 __init__.py\n\u2502\u00a0\u00a0 \u251c\u2500\u2500 layers.py\n\u2514\u2500\u2500 torchphm.egg-info\n    \u251c\u2500\u2500 PKG-INFO\n\n```\ndist pypi\u4e0a\u4f20\u5305\ndraw \u753b\u56fe\nexamples_torchphm.ipynb \u5e94\u7528\u4f8b\u7a0b\ntests \u6d4b\u8bd5\u6587\u4ef6\ntorchphm \u5b9e\u73b0\u6e90\u7801\n\n#### \u5b89\u88c5\u6559\u7a0b\n\n> \u4f7f\u7528pip\u8fdb\u884c\u5b89\u88c5\n```\n\n#### \u53c2\u4e0e\u8d21\u732e\n\n#### \u7279\u6280",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://gitee.com/ultrapower_cd_2364839934_admin/phm_feature_torch",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "torchphm",
+            "package_url": "https://pypi.org/project/torchphm/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/torchphm/",
+            "project_urls": {
+                "Homepage": "https://gitee.com/ultrapower_cd_2364839934_admin/phm_feature_torch"
+            },
+            "release_url": "https://pypi.org/project/torchphm/1.1.9/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "pick feature for phm",
+            "version": "1.1.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15797868,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4f538e5b654ea734206292409fecd26d",
+                    "sha256": "c3cc2eebed823ee7e2d4e22bd9c11c0e6fd02b173b2950f76fb97ddf2dafddef"
+                },
+                "downloads": -1,
+                "filename": "torchphm-1.1.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "4f538e5b654ea734206292409fecd26d",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 11859,
+                "upload_time": "2022-11-17T06:17:14",
+                "upload_time_iso_8601": "2022-11-17T06:17:14.094184Z",
+                "url": "https://files.pythonhosted.org/packages/2c/c4/143a417c00cf3a4ee266bb27dd37d8f46b301a732dab5c6f9796182846be/torchphm-1.1.9.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
