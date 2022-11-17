@@ -40,7 +40,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10594669,
+        "last_serial": 15789812,
         "urls": [
             {
                 "comment_text": "",
@@ -128,7 +128,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10594669,
+        "last_serial": 15789812,
         "urls": [
             {
                 "comment_text": "",
@@ -216,7 +216,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10594669,
+        "last_serial": 15789812,
         "urls": [
             {
                 "comment_text": "",
@@ -304,7 +304,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10594669,
+        "last_serial": 15789812,
         "urls": [
             {
                 "comment_text": "",
@@ -393,7 +393,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10594669,
+        "last_serial": 15789812,
         "urls": [
             {
                 "comment_text": "",
@@ -482,7 +482,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10594669,
+        "last_serial": 15789812,
         "urls": [
             {
                 "comment_text": "",
@@ -540,7 +540,6 @@
                 "Programming Language :: Python",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "Frontera scheduler for Scrapy\n=============================\n\nMore flexible and featured `Frontera <https://github.com/scrapinghub/frontera>`_ scheduler for scrapy, which don't force to reimplement\ncapabilities already present in scrapy, so it provides:\n\n- Scrapy handled request dupefilter\n- Scrapy handled disk and memory request queues\n- Only send to frontera requests marked to be processed by it (using request meta attribute ``cf_store`` to True), thus avoiding lot of conflicts.\n- Allows to set frontera settings from spider constructor, by loading frontera manager after spider instantiation.\n- Allows frontera components to access scrapy stat manager instance by adding STATS_MANAGER frontera setting\n- Better request/response converters, fully compatible with ScrapyCloud and Scrapy\n- Emulates dont_filter=True scrapy Request flag\n- Frontier fingerprint is same as scrapy request fingerprint (can be overriden by passing 'frontier_fingerprint' to request meta)\n- allow custom preprocessing or ignoring of request from frontier before actually being enqueued\n- Thoroughly tested, used and featured\n\nThe result is that crawler using this scheduler will not work differently than a crawler that doesn't use frontier, and\nreingeneering of a spider in order to be adapted to work with frontier is minimal. \n\n\nVersions:\n---------\n\nUp to version 0.1.8, frontera==0.3.3 and python2 are required. Version 0.2.x requires frontera==0.7.1 and is compatible with python3.\n\nInstallation:\n-------------\n\npip install scrapy-frontera\n\n\nUsage and features:\n-------------------\n\nNote: In the context of this doc, a producer spider is the spider that writes requests to the frontier, and the consumer is the one that reads\nthem from the frontier. They can be either the same spider or separated ones.\n\nIn your project settings.py::\n\n    SCHEDULER = 'scrapy_frontera.scheduler.FronteraScheduler'\n\n    DOWNLOADER_MIDDLEWARES = {\n        'scrapy_frontera.middlewares.SchedulerDownloaderMiddleware': 0,\n    }\n\n    SPIDER_MIDDLEWARES = {\n        'scrapy_frontera.middlewares.SchedulerSpiderMiddleware': 0,\n    }\n\n    # Set to True if you want start requests to be redirected to frontier\n    # By default they go directly to scrapy downloader\n    # FRONTERA_SCHEDULER_START_REQUESTS_TO_FRONTIER = False\n\n    # Allows to redirect to frontier, the requests with the given callback names\n    # Important: this setting doesn't affect start requests.\n    # FRONTERA_SCHEDULER_REQUEST_CALLBACKS_TO_FRONTIER = []\n\n    # Spider attributes that need to be passed to the requests redirected to frontier\n    # Some previous callbacks may have generated some state needed for following ones.\n    # This setting allows to transmit that state between different jobs\n    # FRONTERA_SCHEDULER_STATE_ATTRIBUTES = []\n\n    # map specific requests to specific slot prefix by its callback name.\n    # FRONTERA_SCHEDULER_CALLBACK_SLOT_PREFIX_MAP = {}\n\n\nPlus the usual Frontera setup. For instance, for `hcf-backend <https://github.com/scrapinghub/hcf-backend>`_::\n\n    BACKEND = 'hcf_backend.HCFBackend'\n    HCF_PROJECT_ID = 11111\n\n    (etc...)\n\nYou can also set up spider specific frontera settings via the spider class attribute dict ``frontera_settings``. Example\nwith `hcf backend`::\n\n    class MySpider(Spider):\n\n        name = 'my-producer'\n\n        frontera_settings = {\n            'HCF_AUTH': 'xxxxxxxxxx',\n            'HCF_PROJECT_ID': 11111,\n            'HCF_PRODUCER_FRONTIER': 'myfrontier',\n            'HCF_PRODUCER_NUMBER_OF_SLOTS': 8,\n        }\n\nScrapy-frontera also accepts the spider attribute ``frontera_settings_json``. This is specially useful for consumers, which need per job\nsetup of reading slot.For example, you can configure a consumer spider in this way, for usage with `hcf backend <https://github.com/scrapinghub/hcf-backend>`_::\n\n    class MySpider(Spider):\n\n        name = 'my-consumer'\n\n        frontera_settings = {\n            'HCF_AUTH': 'xxxxxxxxxx',\n            'HCF_PROJECT_ID': 11111,\n            'HCF_CONSUMER_FRONTIER': 'myfrontier',\n        }\n\n\nand invoke it via::\n\n        scrapy crawl my-consumer -a frontera_settings_json='{\"HCF_CONSUMER_SLOT\": \"0\"}'\n\nSettings provided through ``frontera_settings_json`` overrides those provided using ``frontera_settings``, which in turn overrides those provided in the\nproject settings.py file.\n\nRequests will go through the Frontera pipeline only if the flag ``cf_store`` with value True is included in the request meta. If ``cf_store`` is not present\nor is False, requests will be processed as normal scrapy request. An alternative to ``cf_store`` flag are the scrapy settings ``FRONTERA_SCHEDULER_START_REQUESTS_TO_FRONTIER`` and ``FRONTERA_SCHEDULER_REQUEST_CALLBACKS_TO_FRONTIER`` (see above about usage of these settings)\n\nRequests read from the frontier are directly enqueued by the scheduler. This means that they are not processed by spider middleware. Their\nprocessing entrypoint is downloader middleware ``process_request()`` pipeline. But if you need to preprocess requests incoming from the frontier\nin the spider, you can define the spider method ``preprocess_request_from_frontier(request: scrapy.Request)``. If defined, the scheduler will invoke\nit before actually enqueuing it. This method must returns either None or a request (same from the call, or another). This return value is what\nwill be actually enqueued, so if it is None, request is skipped (not enqueued).\n\nIf requests read from frontier doesn't already have an errback defined, the scheduler will automatically assign the consumer spider ``errback`` method,\nif it exists, to them. This is specially useful when consumer spider is not the same as the producer one.\n\nAnother useful setting is ``FRONTERA_SCHEDULER_CALLBACK_SLOT_PREFIX_MAP``. This is a dict which allows to map requests with a specific callback, to a specific slot prefix, and optionally a number of slots, different than the default one assigned by frontera backend (this feature has to be supported by the specific frontera backend you will use, last versions of hcf-backend does supports it). For example::\n\n    class MySpider(Spider):\n\n        name = 'my-producer'\n\n        frontera_settings = {\n            'HCF_AUTH': 'xxxxxxxxxx',\n            'HCF_PROJECT_ID': 11111,\n            'HCF_PRODUCER_FRONTIER': 'myfrontier',\n            'HCF_PRODUCER_SLOT_PREFIX': 'my-consumer'\n            'HCF_PRODUCER_NUMBER_OF_SLOTS': 8,\n        }\n\n        custom_settings = {\n            'FRONTERA_SCHEDULER_CALLBACK_SLOT_PREFIX_MAP': {'parse': 'my-producer/4'},\n            'FRONTERA_SCHEDULER_REQUEST_CALLBACKS_TO_FRONTIER': ['parse', 'parse_consumer']\n        }\n\n        def parse_consumer(self, response):\n            assert False\n\n        def parse(self, response):\n            (...)\n\nUnder this configuration, requests with callback ``parse()`` will be saved on 4 slots with prefix ``my-producer``, while requests with callback ``parse_consumer()`` will use the configuration from hcf settings, that is, 8 slot with prefix ``my-consumer``.\n\nAn integrated tutorial is available at `shub-workflow Tutorial <https://github.com/scrapinghub/shub-workflow/wiki/Basic-Tutorial>`_\n\n\n",
             "description_content_type": "",
             "docs_url": null,
             "download_url": "",
@@ -572,7 +571,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10594669,
+        "last_serial": 15789812,
         "urls": [
             {
                 "comment_text": "",
@@ -611,6 +610,96 @@
                 "upload_time": "2021-06-08T22:33:33",
                 "upload_time_iso_8601": "2021-06-08T22:33:33.474332Z",
                 "url": "https://files.pythonhosted.org/packages/3f/07/50cbc51bdaa8b38f7754c7a855be016cd94d9d6e874e3ff8885fd4f86b27/scrapy-frontera-0.2.9.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.9.1": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "Frontera scheduler for Scrapy\n=============================\n\nMore flexible and featured `Frontera <https://github.com/scrapinghub/frontera>`_ scheduler for scrapy, which don't force to reimplement\ncapabilities already present in scrapy, so it provides:\n\n- Scrapy handled request dupefilter\n- Scrapy handled disk and memory request queues\n- Only send to frontera requests marked to be processed by it (using request meta attribute ``cf_store`` to True), thus avoiding lot of conflicts.\n- Allows to set frontera settings from spider constructor, by loading frontera manager after spider instantiation.\n- Allows frontera components to access scrapy stat manager instance by adding STATS_MANAGER frontera setting\n- Better request/response converters, fully compatible with ScrapyCloud and Scrapy\n- Emulates dont_filter=True scrapy Request flag\n- Frontier fingerprint is same as scrapy request fingerprint (can be overriden by passing 'frontier_fingerprint' to request meta)\n- allow custom preprocessing or ignoring of request from frontier before actually being enqueued\n- Thoroughly tested, used and featured\n\nThe result is that crawler using this scheduler will not work differently than a crawler that doesn't use frontier, and\nreingeneering of a spider in order to be adapted to work with frontier is minimal. \n\n\nVersions:\n---------\n\nUp to version 0.1.8, frontera==0.3.3 and python2 are required. Version 0.2.x requires frontera==0.7.1 and is compatible with python3.\n\nInstallation:\n-------------\n\npip install scrapy-frontera\n\n\nUsage and features:\n-------------------\n\nNote: In the context of this doc, a producer spider is the spider that writes requests to the frontier, and the consumer is the one that reads\nthem from the frontier. They can be either the same spider or separated ones.\n\nIn your project settings.py::\n\n    SCHEDULER = 'scrapy_frontera.scheduler.FronteraScheduler'\n\n    DOWNLOADER_MIDDLEWARES = {\n        'scrapy_frontera.middlewares.SchedulerDownloaderMiddleware': 0,\n    }\n\n    SPIDER_MIDDLEWARES = {\n        'scrapy_frontera.middlewares.SchedulerSpiderMiddleware': 0,\n    }\n\n    # Set to True if you want start requests to be redirected to frontier\n    # By default they go directly to scrapy downloader\n    # FRONTERA_SCHEDULER_START_REQUESTS_TO_FRONTIER = False\n\n    # Allows to redirect to frontier, the requests with the given callback names\n    # Important: this setting doesn't affect start requests.\n    # FRONTERA_SCHEDULER_REQUEST_CALLBACKS_TO_FRONTIER = []\n\n    # Spider attributes that need to be passed to the requests redirected to frontier\n    # Some previous callbacks may have generated some state needed for following ones.\n    # This setting allows to transmit that state between different jobs\n    # FRONTERA_SCHEDULER_STATE_ATTRIBUTES = []\n\n    # map specific requests to specific slot prefix by its callback name.\n    # FRONTERA_SCHEDULER_CALLBACK_SLOT_PREFIX_MAP = {}\n\n\nPlus the usual Frontera setup. For instance, for `hcf-backend <https://github.com/scrapinghub/hcf-backend>`_::\n\n    BACKEND = 'hcf_backend.HCFBackend'\n    HCF_PROJECT_ID = 11111\n\n    (etc...)\n\nYou can also set up spider specific frontera settings via the spider class attribute dict ``frontera_settings``. Example\nwith `hcf backend`::\n\n    class MySpider(Spider):\n\n        name = 'my-producer'\n\n        frontera_settings = {\n            'HCF_AUTH': 'xxxxxxxxxx',\n            'HCF_PROJECT_ID': 11111,\n            'HCF_PRODUCER_FRONTIER': 'myfrontier',\n            'HCF_PRODUCER_NUMBER_OF_SLOTS': 8,\n        }\n\nScrapy-frontera also accepts the spider attribute ``frontera_settings_json``. This is specially useful for consumers, which need per job\nsetup of reading slot.For example, you can configure a consumer spider in this way, for usage with `hcf backend <https://github.com/scrapinghub/hcf-backend>`_::\n\n    class MySpider(Spider):\n\n        name = 'my-consumer'\n\n        frontera_settings = {\n            'HCF_AUTH': 'xxxxxxxxxx',\n            'HCF_PROJECT_ID': 11111,\n            'HCF_CONSUMER_FRONTIER': 'myfrontier',\n        }\n\n\nand invoke it via::\n\n        scrapy crawl my-consumer -a frontera_settings_json='{\"HCF_CONSUMER_SLOT\": \"0\"}'\n\nSettings provided through ``frontera_settings_json`` overrides those provided using ``frontera_settings``, which in turn overrides those provided in the\nproject settings.py file.\n\nRequests will go through the Frontera pipeline only if the flag ``cf_store`` with value True is included in the request meta. If ``cf_store`` is not present\nor is False, requests will be processed as normal scrapy request. An alternative to ``cf_store`` flag are the scrapy settings ``FRONTERA_SCHEDULER_START_REQUESTS_TO_FRONTIER`` and ``FRONTERA_SCHEDULER_REQUEST_CALLBACKS_TO_FRONTIER`` (see above about usage of these settings)\n\nRequests read from the frontier are directly enqueued by the scheduler. This means that they are not processed by spider middleware. Their\nprocessing entrypoint is downloader middleware ``process_request()`` pipeline. But if you need to preprocess requests incoming from the frontier\nin the spider, you can define the spider method ``preprocess_request_from_frontier(request: scrapy.Request)``. If defined, the scheduler will invoke\nit before actually enqueuing it. This method must returns either None or a request (same from the call, or another). This return value is what\nwill be actually enqueued, so if it is None, request is skipped (not enqueued).\n\nIf requests read from frontier doesn't already have an errback defined, the scheduler will automatically assign the consumer spider ``errback`` method,\nif it exists, to them. This is specially useful when consumer spider is not the same as the producer one.\n\nAnother useful setting is ``FRONTERA_SCHEDULER_CALLBACK_SLOT_PREFIX_MAP``. This is a dict which allows to map requests with a specific callback, to a specific slot prefix, and optionally a number of slots, different than the default one assigned by frontera backend (this feature has to be supported by the specific frontera backend you will use, last versions of hcf-backend does supports it). For example::\n\n    class MySpider(Spider):\n\n        name = 'my-producer'\n\n        frontera_settings = {\n            'HCF_AUTH': 'xxxxxxxxxx',\n            'HCF_PROJECT_ID': 11111,\n            'HCF_PRODUCER_FRONTIER': 'myfrontier',\n            'HCF_PRODUCER_SLOT_PREFIX': 'my-consumer'\n            'HCF_PRODUCER_NUMBER_OF_SLOTS': 8,\n        }\n\n        custom_settings = {\n            'FRONTERA_SCHEDULER_CALLBACK_SLOT_PREFIX_MAP': {'parse': 'my-producer/4'},\n            'FRONTERA_SCHEDULER_REQUEST_CALLBACKS_TO_FRONTIER': ['parse', 'parse_consumer']\n        }\n\n        def parse_consumer(self, response):\n            assert False\n\n        def parse(self, response):\n            (...)\n\nUnder this configuration, requests with callback ``parse()`` will be saved on 4 slots with prefix ``my-producer``, while requests with callback ``parse_consumer()`` will use the configuration from hcf settings, that is, 8 slot with prefix ``my-consumer``.\n\nAn integrated tutorial is available at `shub-workflow Tutorial <https://github.com/scrapinghub/shub-workflow/wiki/Basic-Tutorial>`_\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/scrapinghub/scrapy-frontera",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "Scrapinghub",
+            "maintainer_email": "",
+            "name": "scrapy-frontera",
+            "package_url": "https://pypi.org/project/scrapy-frontera/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/scrapy-frontera/",
+            "project_urls": {
+                "Homepage": "https://github.com/scrapinghub/scrapy-frontera"
+            },
+            "release_url": "https://pypi.org/project/scrapy-frontera/0.2.9.1/",
+            "requires_dist": [
+                "frontera (==0.7.1)",
+                "scrapy"
+            ],
+            "requires_python": "",
+            "summary": "Featured Frontera scheduler for Scrapy",
+            "version": "0.2.9.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15789812,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "50ae60625839459fdf6fe5189693dd8a",
+                    "sha256": "77352f80a236edd3aec1b517c005c7429308441e776a6dbf85c3e654f73ff124"
+                },
+                "downloads": -1,
+                "filename": "scrapy_frontera-0.2.9.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "50ae60625839459fdf6fe5189693dd8a",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 11307,
+                "upload_time": "2022-11-16T14:59:16",
+                "upload_time_iso_8601": "2022-11-16T14:59:16.327353Z",
+                "url": "https://files.pythonhosted.org/packages/51/72/9f83cf66758add9609c86fee1064f7f4075c455dfb621e2058d9da51a6c2/scrapy_frontera-0.2.9.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "86b8cfa4783ff1fe76c2b98760999d84",
+                    "sha256": "a238012f0d5a4acd0e91368e963aaa6ee5770d1102a23193a0437bbc359c3f20"
+                },
+                "downloads": -1,
+                "filename": "scrapy-frontera-0.2.9.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "86b8cfa4783ff1fe76c2b98760999d84",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 11600,
+                "upload_time": "2022-11-16T14:59:18",
+                "upload_time_iso_8601": "2022-11-16T14:59:18.128905Z",
+                "url": "https://files.pythonhosted.org/packages/aa/a7/baf520a90c6678011b39d522eb85d0e14f5418eb952e5551c9ae44fb6967/scrapy-frontera-0.2.9.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

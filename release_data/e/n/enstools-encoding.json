@@ -33,7 +33,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15686436,
+        "last_serial": 15791215,
         "urls": [
             {
                 "comment_text": "",
@@ -92,7 +92,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15686436,
+        "last_serial": 15791215,
         "urls": [
             {
                 "comment_text": "",
@@ -151,7 +151,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15686436,
+        "last_serial": 15791215,
         "urls": [
             {
                 "comment_text": "",
@@ -210,7 +210,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15686436,
+        "last_serial": 15791215,
         "urls": [
             {
                 "comment_text": "",
@@ -269,7 +269,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15686436,
+        "last_serial": 15791215,
         "urls": [
             {
                 "comment_text": "",
@@ -300,7 +300,6 @@
             "author_email": "oriol.tinto@lmu.de",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# [Ensemble Tools - Encoding](https://github.com/wavestoweather/enstools-encoding)\n\nLibrary to generate the encodings to write compressed files as easily as possible with **xarray** using **hdf5 filters**.\n\nIts only capability is to provide the encodings that **xarray** and **h5py** need in order to write files using filters.\n\nThe package doesn't provide the filters, need to be installed separately.\n\nThis package was originally inside [Ensemble Tools](https://github.com/wavestoweather/enstools) but can be used standalone.\n\nIt is also a building block for [Ensemble Tools - Compression](https://github.com/wavestoweather/enstools-compression),\nwhich includes a command line tool to make compression even easier, along with other useful tools to find proper compression parameters.\n\n## Compressors\nAt the current stage it is possible to generate encodings for three compressors:\n- [BLOSC](https://github.com/Blosc/hdf5-blosc)\n- [SZ](https://github.com/szcompressor/SZ)\n- [ZFP](https://github.com/LLNL/H5Z-ZFP)\n\n\n## Quickstart\nUsing lossy compression with xarray can be as easy as adding a single line and an argument in the call to **.to_netcdf()** :\n\n```python\nfrom enstools.encoding import FilterEncodingForXarray\n\n...\nencoding = FilterEncodingForXarray(dataset, \"lossy,sz,rel,1.e-4\")\ndataset.to_netcdf(dummy_output_file, encoding=encoding, engine=\"h5netcdf\")\n...\n```\n\nCheck below for more details on how to do it.\n\n## Installation using pip\n\n`pip` is the easiest way to install `enstools-encoding` along with all dependencies:\n\n```\npip install enstools-encoding \n```\n\n\n\n## Compression Specification Format\n\nWe defined our own specification format to represent the compression parameters that we want to apply to the data.\nOne example looks like this:\n\n```\nlossy,zfp,rate,4.0\n```\n\nIts purpose is to represent the specifications in a way that is easy to understand and use.\n\nThe currently implemented compressors include Blosc, for lossless compression, and ZFP and SZ for lossy compression.\nFor lossless compression, one can simply use:\n\n```\nlossless\n```\n\nThis will use the default backend **lz4** with compression level 9.\nIt is also possible to select a different backend (blosclz, lz4, lz4hc,snappy,zlib or zstd) or compression level (1 to\n9):\n\n```\nlossless,snappy,9\n```\n\nFor lossy compression, it is mandatory to include the compressor, the mode and the parameter. Few examples:\n\n```\nlossy,sz,abs,0.01\nlossy,zfp,rate,4.0\nlossy,sz,rel,1e-3\nlossy,zfp,precision,10\nlossy,sz,pw_rel,0.05\nlossy,zfp,accuracy,0.01\n```\n\nThere are also few features that target datasets with multiple variables.\nOne can write a different specification for different variables by using a list of space separated specifications:\n\n```\nvar1:lossy,zfp,rate,4.0 var2:lossy,sz,abs,0.1\n```\n\nIt is possible too to specify the default value for the variables that are not explicitly mentioned:\n\n```\nvar1:lossy,zfp,rate,4.0 default:lossy,sz,abs,0.1\n```\n\nIn case a specification doesn't have a variable name, it will be considered the default. i.e:\n\n`var1:lossy,zfp,rate,4.0 lossy,sz,abs,0.1` -> `var1:lossy,zfp,rate,4.0 default:lossy,sz,abs,0.1`\n\nIf no default value is provided, lossless compression will be applied:\n\n`var1:lossy,zfp,rate,4.0` ->  `var1:lossy,zfp,rate,4.0 default:lossless`\n\nCoordinates are treated separately, by default are compressed using `lossless`, although it is possible to change that:\n\n`coordinates:lossy,zfp,rate,6`\n\n## Examples\n\nSave an **xarray** dataset using losslessly compression:\n\n```python\nfrom enstools.encoding import FilterEncodingForXarray\n\n...\nencoding = FilterEncodingForXarray(dataset, \"lossless\")\ndataset.to_netcdf(dummy_output_file, encoding=encoding, engine=\"h5netcdf\")\n```\n\nAlso **xarray** but with multiple variables and lossy compression:\n\n```python\nfrom enstools.encoding import FilterEncodingForXarray\n\n...\nspecification_string = \"temperature:lossy,sz,abs,0.1 precipitation:lossy,sz,pw_rel,0.001 default:lossless\"\nencoding = FilterEncodingForXarray(dataset, specification_string)\ndataset.to_netcdf(dummy_output_file, encoding=encoding, engine=\"h5netcdf\")\n```\n\nIf we want to directly use **h5py** we can do the following:\n\n```python\nfrom enstools.encoding import FilterEncodingForH5py\n\n...\n\nencoding = FilterEncodingForH5py.from_string(\"lossless\")\nf = h5py.File('test.h5', 'w')\nf.create_dataset('lossless_compression_using_blosc',\n                 data=numpy.arange(100),\n                 **encoding)\nf.close()\n\n```\n\nOr without using specification strings:\n\n```python\nfrom enstools.encoding import FilterEncodingForH5py, Compressors, CompressionModes\n\n...\n\nencoding = FilterEncodingForH5py(Compressors.ZFP, CompressionModes.RATE, 4.0)\n\nf = h5py.File('test.h5', 'w')\nf.create_dataset('lossy_compression_with_zfp_rate_4.0',\n                 data=numpy.arange(100),\n                 **encoding)\nf.close()\n\n```\n\n\n# Acknowledgment and license\n\nEnsemble Tools - Encoding (`enstools-encoding`) is a collaborative development within\nWaves to Weather (SFB/TRR165) coordinated by the subproject \n[Z2](https://www.wavestoweather.de/research_areas/phase2/z2) and funded by the\nGerman Research Foundation (DFG).\n\nA full list of code contributors can [CONTRIBUTORS.md](./CONTRIBUTORS.md).\n\nThe code is released under an [Apache-2.0 licence](./LICENSE).\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -329,7 +328,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15686436,
+        "last_serial": 15791215,
         "urls": [
             {
                 "comment_text": "",
@@ -348,6 +347,66 @@
                 "upload_time": "2022-09-29T08:06:55",
                 "upload_time_iso_8601": "2022-09-29T08:06:55.935295Z",
                 "url": "https://files.pythonhosted.org/packages/d5/78/627891b91511a8d33a2f9665568dad871ba4eba6c71baa17d378b8ced7b2/enstools-encoding-0.1.9.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2022.11": {
+        "info": {
+            "author": "Oriol Tint\u00f3",
+            "author_email": "oriol.tinto@lmu.de",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# [Ensemble Tools - Encoding](https://github.com/wavestoweather/enstools-encoding)\n\nLibrary to generate the encodings to write compressed files as easily as possible with **xarray** using **hdf5 filters**.\n\nIts only capability is to provide the encodings that **xarray** and **h5py** need in order to write files using filters.\n\nThe package doesn't provide the filters, need to be installed separately.\n\nThis package was originally inside [Ensemble Tools](https://github.com/wavestoweather/enstools) but can be used standalone.\n\nIt is also a building block for [Ensemble Tools - Compression](https://github.com/wavestoweather/enstools-compression),\nwhich includes a command line tool to make compression even easier, along with other useful tools to find proper compression parameters.\n\n## Compressors\nAt the current stage it is possible to generate encodings for three compressors:\n- [BLOSC](https://github.com/Blosc/hdf5-blosc)\n- [SZ](https://github.com/szcompressor/SZ)\n- [ZFP](https://github.com/LLNL/H5Z-ZFP)\n\n\n## Quickstart\nUsing lossy compression with xarray can be as easy as adding a single line and an argument in the call to **.to_netcdf()** :\n\n```python\nfrom enstools.encoding.api import FilterEncodingForXarray\n\n...\nencoding = FilterEncodingForXarray(dataset, \"lossy,sz,rel,1.e-4\")\ndataset.to_netcdf(dummy_output_file, encoding=encoding, engine=\"h5netcdf\")\n...\n```\n\nCheck below for more details on how to do it.\n\n## Installation using pip\n\n`pip` is the easiest way to install `enstools-encoding` along with all dependencies:\n\n```\npip install enstools-encoding \n```\n\n\n\n## Compression Specification Format\n\nWe defined our own specification format to represent the compression parameters that we want to apply to the data.\nOne example looks like this:\n\n```\nlossy,zfp,rate,4.0\n```\n\nIts purpose is to represent the specifications in a way that is easy to understand and use.\n\nThe currently implemented compressors include Blosc, for lossless compression, and ZFP and SZ for lossy compression.\nFor lossless compression, one can simply use:\n\n```\nlossless\n```\n\nThis will use the default backend **lz4** with compression level 9.\nIt is also possible to select a different backend (blosclz, lz4, lz4hc,snappy,zlib or zstd) or compression level (1 to\n9):\n\n```\nlossless,snappy,9\n```\n\nFor lossy compression, it is mandatory to include the compressor, the mode and the parameter. Few examples:\n\n```\nlossy,sz,abs,0.01\nlossy,zfp,rate,4.0\nlossy,sz,rel,1e-3\nlossy,zfp,precision,10\nlossy,sz,pw_rel,0.05\nlossy,zfp,accuracy,0.01\n```\n\nThere are also few features that target datasets with multiple variables.\nOne can write a different specification for different variables by using a list of space separated specifications:\n\n```\nvar1:lossy,zfp,rate,4.0 var2:lossy,sz,abs,0.1\n```\n\nIt is possible too to specify the default value for the variables that are not explicitly mentioned:\n\n```\nvar1:lossy,zfp,rate,4.0 default:lossy,sz,abs,0.1\n```\n\nIn case a specification doesn't have a variable name, it will be considered the default. i.e:\n\n`var1:lossy,zfp,rate,4.0 lossy,sz,abs,0.1` -> `var1:lossy,zfp,rate,4.0 default:lossy,sz,abs,0.1`\n\nIf no default value is provided, lossless compression will be applied:\n\n`var1:lossy,zfp,rate,4.0` ->  `var1:lossy,zfp,rate,4.0 default:lossless`\n\nCoordinates are treated separately, by default are compressed using `lossless`, although it is possible to change that:\n\n`coordinates:lossy,zfp,rate,6`\n\n## Examples\n\nSave an **xarray** dataset using losslessly compression:\n\n```python\nfrom enstools.encoding.api import FilterEncodingForXarray\n\n...\nencoding = FilterEncodingForXarray(dataset, \"lossless\")\ndataset.to_netcdf(dummy_output_file, encoding=encoding, engine=\"h5netcdf\")\n```\n\nAlso **xarray** but with multiple variables and lossy compression:\n\n```python\nfrom enstools.encoding.api import FilterEncodingForXarray\n\n...\nspecification_string = \"temperature:lossy,sz,abs,0.1 precipitation:lossy,sz,pw_rel,0.001 default:lossless\"\nencoding = FilterEncodingForXarray(dataset, specification_string)\ndataset.to_netcdf(dummy_output_file, encoding=encoding, engine=\"h5netcdf\")\n```\n\nIf we want to directly use **h5py** we can do the following:\n\n```python\nfrom enstools.encoding.api import FilterEncodingForH5py\n\n...\n\nencoding = FilterEncodingForH5py.from_string(\"lossless\")\nf = h5py.File('test.h5', 'w')\nf.create_dataset('lossless_compression_using_blosc',\n                 data=numpy.arange(100),\n                 **encoding)\nf.close()\n\n```\n\nOr without using specification strings:\n\n```python\nfrom enstools.encoding.api import FilterEncodingForH5py, Compressors, CompressionModes\n\n...\n\nencoding = FilterEncodingForH5py(Compressors.ZFP, CompressionModes.RATE, 4.0)\n\nf = h5py.File('test.h5', 'w')\nf.create_dataset('lossy_compression_with_zfp_rate_4.0',\n                 data=numpy.arange(100),\n                 **encoding)\nf.close()\n\n```\n\n\n# Acknowledgment and license\n\nEnsemble Tools - Encoding (`enstools-encoding`) is a collaborative development within\nWaves to Weather (SFB/TRR165) coordinated by the subproject \n[Z2](https://www.wavestoweather.de/research_areas/phase2/z2) and funded by the\nGerman Research Foundation (DFG).\n\nA full list of code contributors can [CONTRIBUTORS.md](./CONTRIBUTORS.md).\n\nThe code is released under an [Apache-2.0 licence](./LICENSE).\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/wavestoweather/enstools-encoding",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "enstools-encoding",
+            "package_url": "https://pypi.org/project/enstools-encoding/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/enstools-encoding/",
+            "project_urls": {
+                "Homepage": "https://github.com/wavestoweather/enstools-encoding"
+            },
+            "release_url": "https://pypi.org/project/enstools-encoding/2022.11/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "",
+            "version": "2022.11",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15791215,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6ea0afa29a41664415cc238f13120bbf",
+                    "sha256": "2a84076c76add3d75f687db364e7025cb4ad382f381a7588a0eb862de61fbb94"
+                },
+                "downloads": -1,
+                "filename": "enstools-encoding-2022.11.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6ea0afa29a41664415cc238f13120bbf",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 16346,
+                "upload_time": "2022-11-16T16:46:32",
+                "upload_time_iso_8601": "2022-11-16T16:46:32.267226Z",
+                "url": "https://files.pythonhosted.org/packages/f4/df/b8296e72fab58b536a8d1d8c90f5400defa70512e26051b42378dc943a34/enstools-encoding-2022.11.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

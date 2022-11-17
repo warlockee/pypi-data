@@ -49,7 +49,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15764123,
+        "last_serial": 15793631,
         "urls": [
             {
                 "comment_text": "",
@@ -144,7 +144,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15764123,
+        "last_serial": 15793631,
         "urls": [
             {
                 "comment_text": "",
@@ -239,7 +239,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15764123,
+        "last_serial": 15793631,
         "urls": [
             {
                 "comment_text": "",
@@ -336,7 +336,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15764123,
+        "last_serial": 15793631,
         "urls": [
             {
                 "comment_text": "",
@@ -433,7 +433,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15764123,
+        "last_serial": 15793631,
         "urls": [
             {
                 "comment_text": "",
@@ -530,7 +530,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15764123,
+        "last_serial": 15793631,
         "urls": [
             {
                 "comment_text": "",
@@ -627,7 +627,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15764123,
+        "last_serial": 15793631,
         "urls": [
             {
                 "comment_text": "",
@@ -691,7 +691,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "pyastgrep\n=========\n\n\n.. image:: https://badge.fury.io/py/pyastgrep.svg\n     :target: https://badge.fury.io/py/pyastgrep\n\n.. image:: https://github.com/spookylukey/pyastgrep/actions/workflows/tests.yml/badge.svg\n     :target: https://github.com/spookylukey/pyastgrep/actions/workflows/tests.yml\n\nA command-line utility for grepping Python files using XPath syntax (or CSS\nselectors) against the Python AST (Abstract Syntax Tree).\n\nIn other words, this allows you to search Python code against specific syntax\nelements (function definitions, arguments, assignments, variables etc), instead\nof grepping for string matches.\n\nThe interface and behaviour is designed to match grep and ripgrep as far as it\nmakes sense to do so.\n\n\nInstallation\n------------\n\nPython 3.7+ required.\n\nWe recommend `pipx <https://pipxproject.github.io/pipx/>`_ to install it\nconveniently in an isolated environment:\n\n::\n\n   pipx install pyastgrep\n\n\nYou can also use pip:\n\n::\n\n   pip install pyastgrep\n\nUnderstanding the XML structure\n-------------------------------\n\nTo get started, you\u2019ll need some understanding of how Python AST is structured,\nand how that is mapped to XML. Some methods for doing that are below:\n\n1. Use `Python AST Explorer <https://python-ast-explorer.com/>`_ to play around\n   with what AST looks like.\n\n2. Dump out the AST and/or XML structure of the top-level statements in a Python file. The\n   top-level XML elements are ``<Module><body>``, and don\u2019t correspond to actual\n   source lines. To get the statements within the body, you can use an XPath\n   expression ``/Module/body/*`` or ``./*/*``:\n\n   .. code:: bash\n\n      $ pyastgrep --xml --ast './*/*' myfile.py\n      myfile.py:1:1:import os\n      Import(\n          lineno=1,\n          col_offset=0,\n          end_lineno=1,\n          end_col_offset=9,\n          names=[alias(lineno=1, col_offset=7, end_lineno=1, end_col_offset=9, name='os', asname=None)],\n      )\n      ...\n      <Import lineno=\"1\" col_offset=\"0\">\n        <names>\n          <alias lineno=\"1\" col_offset=\"7\" type=\"str\" name=\"os\"/>\n        </names>\n      </Import>\n      ...\n\n\nNote that the XML format is a very direct translation of the Python AST as\nproduced by the `ast module <https://docs.python.org/3/library/ast.html>`_ (with\nsome small additions made to improve usability for a few cases). This AST is not\nstable across Python versions, so the XML is not stable either. Normally changes\nin the AST correspond to new syntax that is added to Python, but in some cases a\nnew Python version will make significant changes made to the AST generated for\nthe same code.\n\nYou can also pipe specific Python fragments using ``-`` to specify stdin as the\ninput file:\n\n.. code:: bash\n\n   $ echo 'a + b' | pyastgrep --xml './*/*' -\n   <stdin>:1:1:a + b\n   <Expr lineno=\"1\" col_offset=\"0\">\n     <value>\n       <BinOp lineno=\"1\" col_offset=\"0\">\n         <left>\n           <Name lineno=\"1\" col_offset=\"0\" type=\"str\" id=\"a\">\n             <ctx>\n               <Load/>\n             </ctx>\n           </Name>\n         </left>\n         <op>\n           <Add/>\n         </op>\n     ...\n\nYou\u2019ll also need some understanding of how to write XPath expressions (see links\nat the bottom), but the examples below should get you started.\n\nExamples\n--------\n\nUsages of a function called ``open``:\n\n.. code:: bash\n\n   $ pyastgrep './/Call/func/Name[@id=\"open\"]'\n   src/pyastgrep/search.py:88:18:            with open(path) as f:\n\nLiteral numbers (Python 3.8+):\n\n.. code:: bash\n\n   $ pyastgrep './/Constant[@type=\"int\" or @type=\"float\"]'\n   tests/examples/test_xml/everything.py:5:20:    assigned_int = 123\n   tests/examples/test_xml/everything.py:6:22:    assigned_float = 3.14\n\nFunction calls where:\n\n* the function is named ``open``:\n* the second positional argument is a string literal containing the character ``r``:\n\n.. code:: bash\n\n   pyastgrep './/Call[./func/Name[@id=\"open\"]][./args/Constant[position()=1][contains(@value, \"r\")]]'\n\nNames longer than 42 characters:\n\n.. code:: bash\n\n   $ pyastgrep './/Name[string-length(@id) > 42]'\n\n``except`` clauses that raise a different exception class than they catch:\n\n.. code:: bash\n\n   $ pyastgrep \"//ExceptHandler[body//Raise/exc//Name and not(contains(body//Raise/exc//Name/@id, type/Name/@id))]\"\n\nFunctions whose name contain a certain substring:\n\n.. code:: bash\n\n   $ pyastgrep './/FunctionDef[contains(@name, \"something\")]'\n\nClasses whose name matches a regular expression:\n\n.. code:: bash\n\n   $ pyastgrep \".//ClassDef[re:match('M.*', @name)]\"\n\n\nThe above uses the Python `re.match\n<https://docs.python.org/3/library/re.html#re.match>`_ method. You can also use\n``re:search`` to use the Python `re.search\n<https://docs.python.org/3/library/re.html#re.search>`_ method.\n\nCase-insensitive match of names on the left hand side of an assignment\ncontaining a certain string. This can be achieved using the ``lower-case``\nfunction from XPath2:\n\n.. code:: bash\n\n   $ pyastgrep './/Assign/targets//Name[contains(lower-case(@id), \"something\")]' --xpath2\n\n\nYou can also use regexes, passing the ``i`` (case-insensitive flag) as below, as\ndescribed in the Python `Regular Expression Syntax docs\n<https://docs.python.org/3/library/re.html#regular-expression-syntax>`_\n\n.. code:: bash\n\n   $ pyastgrep './/Assign/targets//Name[re:search(\"(?i)something\", @id)]'\n\n\nAssignments to the name ``foo``, including type annotated assignments, which\nuse ``AnnAssign``, and tuple unpacking assignments (while avoiding things like\n``foo.bar = ...``). Note the use of the ``|`` operator to do a union.\n\n.. code:: bash\n\n   $ pyastgrep '(.//AnnAssign/target|.//Assign/targets|.//Assign/targets/Tuple/elts)/Name[@id=\"foo\"]'\n\nDocstrings of functions/methods whose value contains \u201chello\u201d:\n\n.. code:: bash\n\n   $ pyastgrep './/FunctionDef/body/Expr[1]/value/Constant[@type=\"str\"][contains(@value, \"hello\")]'\n\nFor-loop variables called ``i`` or ``j`` (including those created by tuple unpacking):\n\n.. code:: bash\n\n   $ pyastgrep './/For/target//Name[@id=\"i\" or @id=\"j\"]'\n\n\nMethod calls: These are actually \u201ccalls\u201d on objects that are attributes of other\nobjects. This will match the top-level object:\n\n.. code:: bash\n\n   $ pyastgrep './/Call/func/Attribute'\n\n\nThe following will match individual positional arguments to a method call named\n``encode``, where the arguments are literal strings or numbers. Note the use of\n``Call[\u2026]`` to match \u201cCall nodes that have descendants that match \u2026\u201d, rather\nthan matching those descendant nodes themselves.\n\n.. code:: bash\n\n   $ pyastgrep './/Call[./func/Attribute[@attr=\"encode\"]]/args/Constant'\n\nIgnoring files\n--------------\n\nFiles/directories matching ``.gitignore`` entries (global and local) are\nautomatically ignored, unless specified as paths on the command line.\n\nCurrently there are no other methods to add or remove this ignoring logic.\nPlease open a ticket if you want this feature. Most likely we should try to make\nit work like `ripgrep filtering\n<https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#manual-filtering-globs>`_\nif that makes sense.\n\nCSS selectors\n-------------\n\nIn general, XPath expressions are more powerful than CSS selectors, and CSS\nselectors have some things that are specific to HTML (such as specific selectors\nfor ``id`` and ``class``). However, it may be easier to get started using CSS\nselectors, and for some things CSS selectors are easier. In that case, just pass\n``--css`` and the expression will be interpreted as a CSS selector instead.\n\nFor example, to get the first statement in each ``for`` statement body:\n\n.. code:: bash\n\n   $ pyastgrep --css 'For > body > *:first-child'\n\nThe CSS selector will converted to an XPath expression with a prefix of ``.//``\n\u2014 that is, it will be interpreted as a query over all the document.\n\nNote that unlike CSS selectors in HTML, the expression will be interpreted\ncase-sensitively.\n\nYou can also use the online tool `css2xpath <https://css2xpath.github.io/>`_ to\ndo translations before passing to ``pyastgrep``. This tool also supports some\nthings that our `cssselect (our dependency) does not yet support\n<https://github.com/scrapy/cssselect/issues>`_.\n\nTips\n----\n\nAbsolute paths\n~~~~~~~~~~~~~~\nTo get pyastgrep to print absolute paths in results, pass the current absolute\npath as the directory to search::\n\n  pyastgrep \"...\" $(pwd)\n\n\nDebugging XPath expressions\n~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nUse the ``--xml`` option to see the XML for matches. If you need to see more\ncontext, you can use things like the ``parent`` or ``ancestor`` selector. For\nexample, you might do the following but get back more results than you want:\n\n.. code:: bash\n\n   $ pyastgrep './/Assign/targets//Name[@id=\"foo\"]\n   example.py:1:1:foo = 1\n   example.py:2:2:(foo, bar) = (3, 4)\n   example.py:3:1:foo.bar = 2\n\nHere you might be interested in the first two results, which both assign to\nthe name ``foo``, but not the last one since it does not. You can get the XML for the\nwhole matching assignment expressions like this:\n\n.. code:: bash\n\n   $ pyastgrep './/Assign/targets//Name[@id=\"foo\"]/ancestor::Assign' --xml\n   example.py:1:1:foo = 1\n   <Assign lineno=\"1\" col_offset=\"0\">\n     <targets>\n       <Name lineno=\"1\" col_offset=\"0\" type=\"str\" id=\"foo\">\n         <ctx>\n           <Store/>\n         </ctx>\n       </Name>\n     </targets>\n     <value>\n       <Constant lineno=\"1\" col_offset=\"6\" type=\"int\" value=\"1\"/>\n     </value>\n   </Assign>\n   ...\n\n\nYou could also go the other way and change the XPath expression to match on the\nparent ``Assign`` node \u2014 this matches \u201call ``Assign`` nodes that are parents of\na ``target`` node that is a parent of a ``Name`` node with attribute ``id``\nequal to ``\"foo\"``:\n\n.. code:: bash\n\n   $ pyastgrep './/Assign[./targets//Name[@id=\"foo\"]]' --xml\n\nLimitations\n-----------\n\npyastgrep is useful for grepping Python code at a fairly low level. It can be\nused for various refactoring or linting tasks. Some linting tasks require higher\nlevel understanding of a code base. For example, to detect use of a certain\nfunction, you need to cope with various ways that the function may be imported\nand used, and avoid detecting a function with the same name but from a different\nmodule. For these kinds of tasks, you might be interested in:\n\n* `Semgrep <https://semgrep.dev/>`_\n* `Fixit <https://github.com/Instagram/Fixit>`_\n\nIf you are using this as a library, you should note that while AST works well\nfor linting, it\u2019s not as good for rewriting code, because AST does not contain\nor preserve things like formatting and comments. For a better approach, have a\nlook at `libCST <https://github.com/Instagram/LibCST>`_.\n\n\nUse as a library\n----------------\n\npyastgrep is structured internally to make it easy to use a library as well as\na CLI. However, while we will try not to break things without good reason, at this\npoint we are not documenting or guaranteeing API stability for these functions.\n\n\nContributing\n------------\n\nGet test suite running::\n\n  pip install -r requirements-test.txt\n  pytest\n\nRun tests against all versions::\n\n  pip install tox\n  tox\n\nPlease install `pre-commit <https://pre-commit.com/>`_ in the repo::\n\n  pre-commit install\n\nThis will add Git hooks to run linters when committing, which ensures our style\n(black) and other things.\n\nYou can manually run these linters using::\n\n  pre-commit run --all --all-files\n\nRun mypy (we only expect it to pass on Python 3.10)::\n\n  mypy .\n\nBug fixes and other changes can be submitted using pull requests on GitHub. For\nlarge changes, it\u2019s worth opening an issue first to discuss the approach.\n\nLinks\n-----\n\n- `Green tree snakes <https://greentreesnakes.readthedocs.io/en/latest/>`__ - a very readable overview of Python ASTs.\n- `ast module documentation <https://docs.python.org/3/library/ast.html>`__.\n- `Python AST Explorer <https://python-ast-explorer.com/>`__ for worked  examples of ASTs.\n- A `brief guide to XPath <http://www.w3schools.com/xml/xpath_syntax.asp>`__.\n  See also the `XPath Axes <https://www.w3schools.com/xml/xpath_axes.asp>`_ guide\n  which can be very helpful for matching related AST nodes.\n- `Online XPath Tester <https://extendsclass.com/xpath-tester.html>`_\n\nHistory\n-------\n\nThis project was forked from https://github.com/hchasestevens/astpath by `H.\nChase Stevens <http://www.chasestevens.com>`__. Main changes:\n\n* Added a test suite\n* Many bugs fixed\n* Significant rewrite of parts of code\n* Changes to match grep/ripgrep, including formatting and automatic filtering.\n",
             "description_content_type": "text/x-rst",
             "docs_url": null,
             "download_url": "",
@@ -726,7 +725,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15764123,
+        "last_serial": 15793631,
         "urls": [
             {
                 "comment_text": "",
@@ -765,6 +764,105 @@
                 "upload_time": "2022-11-14T15:57:37",
                 "upload_time_iso_8601": "2022-11-14T15:57:37.655572Z",
                 "url": "https://files.pythonhosted.org/packages/df/6e/8514cfb2fbdfcab326cc75b06b0b78b037b0690071be2e10ad299b9da1e6/pyastgrep-0.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.9": {
+        "info": {
+            "author": "Luke Plant",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Natural Language :: English",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "pyastgrep\n=========\n\n\n.. image:: https://badge.fury.io/py/pyastgrep.svg\n     :target: https://badge.fury.io/py/pyastgrep\n\n.. image:: https://github.com/spookylukey/pyastgrep/actions/workflows/tests.yml/badge.svg\n     :target: https://github.com/spookylukey/pyastgrep/actions/workflows/tests.yml\n\nA command-line utility for grepping Python files using XPath syntax (or CSS\nselectors) against the Python AST (Abstract Syntax Tree).\n\nIn other words, this allows you to search Python code against specific syntax\nelements (function definitions, arguments, assignments, variables etc), instead\nof grepping for string matches.\n\nThe interface and behaviour is designed to match grep and ripgrep as far as it\nmakes sense to do so.\n\n\nInstallation\n------------\n\nPython 3.7+ required.\n\nWe recommend `pipx <https://pipxproject.github.io/pipx/>`_ to install it\nconveniently in an isolated environment:\n\n::\n\n   pipx install pyastgrep\n\n\nYou can also use pip:\n\n::\n\n   pip install pyastgrep\n\nUnderstanding the XML structure\n-------------------------------\n\nTo get started, you\u2019ll need some understanding of how Python AST is structured,\nand how that is mapped to XML. Some methods for doing that are below:\n\n1. Use `Python AST Explorer <https://python-ast-explorer.com/>`_ to play around\n   with what AST looks like.\n\n2. Dump out the AST and/or XML structure of the top-level statements in a Python\n   file. The easiest way to do this is to use the provided ``pyastdump``\n   command, passing in either a Python filename, ``pyastdump yourfile.py``, or\n   piping in Python fragments as below:\n\n   .. code:: bash\n\n      $ echo 'x = 1' | pyastdump -\n      <Module>\n        <body>\n          <Assign lineno=\"1\" col_offset=\"0\">\n            <targets>\n              <Name lineno=\"1\" col_offset=\"0\" type=\"str\" id=\"x\">\n                <ctx>\n                  <Store/>\n                </ctx>\n              </Name>\n            </targets>\n            <value>\n              <Constant lineno=\"1\" col_offset=\"4\" type=\"int\" value=\"1\"/>\n            </value>\n          </Assign>\n        </body>\n        <type_ignores/>\n      </Module>\n\n\n   You can also use the ``pyastgrep`` command, but since the top-level XML\n   elements are ``<Module><body>``, and don\u2019t correspond to actual source lines,\n   you\u2019ll need to use an XPath expression ``./*/*`` to get a match for each\n   statement within the body, and pass ``--xml`` and/or ``--ast`` to dump the\n   XML/AST structure:\n\n   .. code:: bash\n\n      $ pyastgrep --xml --ast './*/*' myfile.py\n      myfile.py:1:1:import os\n      Import(\n          lineno=1,\n          col_offset=0,\n          end_lineno=1,\n          end_col_offset=9,\n          names=[alias(lineno=1, col_offset=7, end_lineno=1, end_col_offset=9, name='os', asname=None)],\n      )\n      <Import lineno=\"1\" col_offset=\"0\">\n        <names>\n          <alias lineno=\"1\" col_offset=\"7\" type=\"str\" name=\"os\"/>\n        </names>\n      </Import>\n      ...\n\n\nNote that the XML format is a very direct translation of the Python AST as\nproduced by the `ast module <https://docs.python.org/3/library/ast.html>`_ (with\nsome small additions made to improve usability for a few cases). This AST is not\nstable across Python versions, so the XML is not stable either. Normally changes\nin the AST correspond to new syntax that is added to Python, but in some cases a\nnew Python version will make significant changes made to the AST generated for\nthe same code.\n\nYou\u2019ll also need some understanding of how to write XPath expressions (see links\nat the bottom), but the examples below should get you started.\n\nExamples\n--------\n\nUsages of a function called ``open``:\n\n.. code:: bash\n\n   $ pyastgrep './/Call/func/Name[@id=\"open\"]'\n   src/pyastgrep/search.py:88:18:            with open(path) as f:\n\nLiteral numbers (Python 3.8+):\n\n.. code:: bash\n\n   $ pyastgrep './/Constant[@type=\"int\" or @type=\"float\"]'\n   tests/examples/test_xml/everything.py:5:20:    assigned_int = 123\n   tests/examples/test_xml/everything.py:6:22:    assigned_float = 3.14\n\nFunction calls where:\n\n* the function is named ``open``:\n* the second positional argument is a string literal containing the character ``b``:\n\n.. code:: bash\n\n   pyastgrep './/Call[./func/Name[@id=\"open\"]][./args/Constant[position()=1][contains(@value, \"b\")]]'\n\nUsages of ``open`` that are **not** in a ``with`` item expression:\n\n.. code:: bash\n\n   pyastgrep './/Call[not(ancestor::withitem)]/func/Name[@id=\"open\"]'\n\nNames longer than 42 characters:\n\n.. code:: bash\n\n   $ pyastgrep './/Name[string-length(@id) > 42]'\n\n``except`` clauses that raise a different exception class than they catch:\n\n.. code:: bash\n\n   $ pyastgrep \"//ExceptHandler[body//Raise/exc//Name and not(contains(body//Raise/exc//Name/@id, type/Name/@id))]\"\n\nFunctions whose name contain a certain substring:\n\n.. code:: bash\n\n   $ pyastgrep './/FunctionDef[contains(@name, \"something\")]'\n\nClasses whose name matches a regular expression:\n\n.. code:: bash\n\n   $ pyastgrep \".//ClassDef[re:match('M.*', @name)]\"\n\n\nThe above uses the Python `re.match\n<https://docs.python.org/3/library/re.html#re.match>`_ method. You can also use\n``re:search`` to use the Python `re.search\n<https://docs.python.org/3/library/re.html#re.search>`_ method.\n\nCase-insensitive match of names on the left hand side of an assignment\ncontaining a certain string. This can be achieved using the ``lower-case``\nfunction from XPath2:\n\n.. code:: bash\n\n   $ pyastgrep './/Assign/targets//Name[contains(lower-case(@id), \"something\")]' --xpath2\n\n\nYou can also use regexes, passing the ``i`` (case-insensitive flag) as below, as\ndescribed in the Python `Regular Expression Syntax docs\n<https://docs.python.org/3/library/re.html#regular-expression-syntax>`_\n\n.. code:: bash\n\n   $ pyastgrep './/Assign/targets//Name[re:search(\"(?i)something\", @id)]'\n\n\nAssignments to the name ``foo``, including type annotated assignments, which\nuse ``AnnAssign``, and tuple unpacking assignments (while avoiding things like\n``foo.bar = ...``). Note the use of the ``|`` operator to do a union.\n\n.. code:: bash\n\n   $ pyastgrep '(.//AnnAssign/target|.//Assign/targets|.//Assign/targets/Tuple/elts)/Name[@id=\"foo\"]'\n\nDocstrings of functions/methods whose value contains \u201chello\u201d:\n\n.. code:: bash\n\n   $ pyastgrep './/FunctionDef/body/Expr[1]/value/Constant[@type=\"str\"][contains(@value, \"hello\")]'\n\nFor-loop variables called ``i`` or ``j`` (including those created by tuple unpacking):\n\n.. code:: bash\n\n   $ pyastgrep './/For/target//Name[@id=\"i\" or @id=\"j\"]'\n\n\nMethod calls: These are actually \u201ccalls\u201d on objects that are attributes of other\nobjects. This will match the top-level object:\n\n.. code:: bash\n\n   $ pyastgrep './/Call/func/Attribute'\n\n\nIndividual positional arguments to a method call named ``encode``, where the\narguments are literal strings or numbers. Note the use of ``Call[\u2026]`` to match\n\u201cCall nodes that have descendants that match \u2026\u201d, rather than matching those\ndescendant nodes themselves.\n\n.. code:: bash\n\n   $ pyastgrep './/Call[./func/Attribute[@attr=\"encode\"]]/args/Constant'\n\nIgnoring files\n--------------\n\nFiles/directories matching ``.gitignore`` entries (global and local) are\nautomatically ignored, unless specified as paths on the command line.\n\nCurrently there are no other methods to add or remove this ignoring logic.\nPlease open a ticket if you want this feature. Most likely we should try to make\nit work like `ripgrep filtering\n<https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#manual-filtering-globs>`_\nif that makes sense.\n\nCSS selectors\n-------------\n\nIn general, XPath expressions are more powerful than CSS selectors, and CSS\nselectors have some things that are specific to HTML (such as specific selectors\nfor ``id`` and ``class``). However, it may be easier to get started using CSS\nselectors, and for some things CSS selectors are easier. In that case, just pass\n``--css`` and the expression will be interpreted as a CSS selector instead.\n\nFor example, to get the first statement in each ``for`` statement body:\n\n.. code:: bash\n\n   $ pyastgrep --css 'For > body > *:first-child'\n\nThe CSS selector will converted to an XPath expression with a prefix of ``.//``\n\u2014 that is, it will be interpreted as a query over all the document.\n\nNote that unlike CSS selectors in HTML, the expression will be interpreted\ncase-sensitively.\n\nYou can also use the online tool `css2xpath <https://css2xpath.github.io/>`_ to\ndo translations before passing to ``pyastgrep``. This tool also supports some\nthings that our `cssselect (our dependency) does not yet support\n<https://github.com/scrapy/cssselect/issues>`_.\n\nTips\n----\n\nAbsolute paths\n~~~~~~~~~~~~~~\nTo get pyastgrep to print absolute paths in results, pass the current absolute\npath as the directory to search::\n\n  pyastgrep \"...\" $(pwd)\n\n\nDebugging XPath expressions\n~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nUse the ``--xml`` option to see the XML for matches. If you need to see more\ncontext, you can use things like the ``parent`` or ``ancestor`` selector. For\nexample, you might do the following but get back more results than you want:\n\n.. code:: bash\n\n   $ pyastgrep './/Assign/targets//Name[@id=\"foo\"]\n   example.py:1:1:foo = 1\n   example.py:2:2:(foo, bar) = (3, 4)\n   example.py:3:1:foo.bar = 2\n\nHere you might be interested in the first two results, which both assign to\nthe name ``foo``, but not the last one since it does not. You can get the XML for the\nwhole matching assignment expressions like this:\n\n.. code:: bash\n\n   $ pyastgrep './/Assign/targets//Name[@id=\"foo\"]/ancestor::Assign' --xml\n   example.py:1:1:foo = 1\n   <Assign lineno=\"1\" col_offset=\"0\">\n     <targets>\n       <Name lineno=\"1\" col_offset=\"0\" type=\"str\" id=\"foo\">\n         <ctx>\n           <Store/>\n         </ctx>\n       </Name>\n     </targets>\n     <value>\n       <Constant lineno=\"1\" col_offset=\"6\" type=\"int\" value=\"1\"/>\n     </value>\n   </Assign>\n   ...\n\n\nYou could also go the other way and change the XPath expression to match on the\nparent ``Assign`` node \u2014 this matches \u201call ``Assign`` nodes that are parents of\na ``target`` node that is a parent of a ``Name`` node with attribute ``id``\nequal to ``\"foo\"``:\n\n.. code:: bash\n\n   $ pyastgrep './/Assign[./targets//Name[@id=\"foo\"]]' --xml\n\nLimitations\n-----------\n\npyastgrep is useful for grepping Python code at a fairly low level. It can be\nused for various refactoring or linting tasks. Some linting tasks require higher\nlevel understanding of a code base. For example, to detect use of a certain\nfunction, you need to cope with various ways that the function may be imported\nand used, and avoid detecting a function with the same name but from a different\nmodule. For these kinds of tasks, you might be interested in:\n\n* `Semgrep <https://semgrep.dev/>`_\n* `Fixit <https://github.com/Instagram/Fixit>`_\n\nIf you are using this as a library, you should note that while AST works well\nfor linting, it\u2019s not as good for rewriting code, because AST does not contain\nor preserve things like formatting and comments. For a better approach, have a\nlook at `libCST <https://github.com/Instagram/LibCST>`_.\n\n\nUse as a library\n----------------\n\npyastgrep is structured internally to make it easy to use a library as well as\na CLI. However, while we will try not to break things without good reason, at this\npoint we are not documenting or guaranteeing API stability for these functions.\n\n\nContributing\n------------\n\nGet test suite running::\n\n  pip install -r requirements-test.txt\n  pytest\n\nRun tests against all versions::\n\n  pip install tox\n  tox\n\nPlease install `pre-commit <https://pre-commit.com/>`_ in the repo::\n\n  pre-commit install\n\nThis will add Git hooks to run linters when committing, which ensures our style\n(black) and other things.\n\nYou can manually run these linters using::\n\n  pre-commit run --all --all-files\n\nRun mypy (we only expect it to pass on Python 3.10)::\n\n  mypy .\n\nBug fixes and other changes can be submitted using pull requests on GitHub. For\nlarge changes, it\u2019s worth opening an issue first to discuss the approach.\n\nLinks\n-----\n\n- `Green tree snakes <https://greentreesnakes.readthedocs.io/en/latest/>`__ - a very readable overview of Python ASTs.\n- `ast module documentation <https://docs.python.org/3/library/ast.html>`__.\n- `Python AST Explorer <https://python-ast-explorer.com/>`__ for worked  examples of ASTs.\n- A `brief guide to XPath <http://www.w3schools.com/xml/xpath_syntax.asp>`__.\n  See also the `XPath Axes <https://www.w3schools.com/xml/xpath_axes.asp>`_ guide\n  which can be very helpful for matching related AST nodes.\n- `Online XPath Tester <https://extendsclass.com/xpath-tester.html>`_\n\nHistory\n-------\n\nThis project was forked from https://github.com/hchasestevens/astpath by `H.\nChase Stevens <http://www.chasestevens.com>`__. Main changes:\n\n* Added a test suite\n* Many bugs fixed\n* Significant rewrite of parts of code\n* Changes to match grep/ripgrep, including formatting and automatic filtering.\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/spookylukey/pyastgrep",
+            "keywords": "xpath xml ast asts syntax query css grep",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pyastgrep",
+            "package_url": "https://pypi.org/project/pyastgrep/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pyastgrep/",
+            "project_urls": {
+                "Homepage": "https://github.com/spookylukey/pyastgrep"
+            },
+            "release_url": "https://pypi.org/project/pyastgrep/0.9/",
+            "requires_dist": [
+                "lxml (>=3.3.5)",
+                "elementpath",
+                "astpretty",
+                "pathspec",
+                "cssselect (>=1.2)"
+            ],
+            "requires_python": "",
+            "summary": "A query tool for Python abstract syntax trees",
+            "version": "0.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15793631,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "771293c22133e2e45f7e2f2f7025ac93",
+                    "sha256": "ce784562bf65d20797e0840570222c0e484d5864af7d0eb663dbc0fae903cf4d"
+                },
+                "downloads": -1,
+                "filename": "pyastgrep-0.9-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "771293c22133e2e45f7e2f2f7025ac93",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 17320,
+                "upload_time": "2022-11-16T20:47:54",
+                "upload_time_iso_8601": "2022-11-16T20:47:54.988264Z",
+                "url": "https://files.pythonhosted.org/packages/3e/d7/999dbf1760d781acb67461bc40ba8e601bdc5d1ca9367e023b8b69a020e9/pyastgrep-0.9-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f996d7000e5e395247e7459113757870",
+                    "sha256": "cf142acf90c5aa81b797fcf0dd31e45a229b40f3d4362e7d9f6b867fa038e8a9"
+                },
+                "downloads": -1,
+                "filename": "pyastgrep-0.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "f996d7000e5e395247e7459113757870",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 21299,
+                "upload_time": "2022-11-16T20:47:57",
+                "upload_time_iso_8601": "2022-11-16T20:47:57.641314Z",
+                "url": "https://files.pythonhosted.org/packages/66/00/414e399f532fa8eebaa99bb80011847f23481bae2ffc24793c53fa4e0489/pyastgrep-0.9.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
