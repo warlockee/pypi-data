@@ -59,7 +59,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -164,7 +164,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -269,7 +269,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -374,7 +374,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -479,7 +479,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -584,7 +584,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -689,7 +689,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -794,7 +794,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -899,7 +899,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -1005,7 +1005,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -1111,7 +1111,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -1218,7 +1218,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -1275,7 +1275,6 @@
                 "Programming Language :: Python :: 3.11",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# pychan ![master](https://github.com/cooperwalbrun/pychan/workflows/master/badge.svg) ![PyPI](https://img.shields.io/pypi/v/pychan) [![codecov](https://codecov.io/gh/cooperwalbrun/pychan/branch/master/graph/badge.svg?token=BJEJOMIYWY)](https://codecov.io/gh/cooperwalbrun/pychan)\n\n1. [Overview](#overview)\n2. [Installation](#installation)\n3. [Usage](#usage)\n   1. [General Notes](#general-notes)\n   2. [Setup](#setup)\n   3. [Fetch Board Names](#fetch-board-names)\n   4. [Fetch Threads](#fetch-threads)\n   5. [Fetch Archived Threads](#fetch-archived-threads)\n   6. [Search 4chan](#search-4chan)\n   7. [Fetch Posts for a Specific Thread](#fetch-posts-for-a-specific-thread)\n4. [pychan Models](#pychan-models)\n   1. [Threads](#threads)\n   2. [Posts](#posts)\n      1. [A Note About Replies](#a-note-about-replies)\n   3. [Posters](#posters)\n   4. [Files](#files)\n5. [Contributing](#contributing)\n\n## Overview\n\n`pychan` is a Python client for interacting with 4chan. 4chan does not have an official API, and\nattempts to implement one by third parties have tended to languish, so instead, this library\nprovides abstractions over interacting with (scraping) 4chan directly. `pychan` is object-oriented\nand its implementation is lazy where reasonable (using Python Generators) in order to optimize\nperformance and minimize superfluous blocking I/O operations.\n\n## Installation\n\nIf you have Python >=3.9 and <4.0 installed, `pychan` can be installed from PyPI using\nsomething like\n\n```bash\npip install pychan\n```\n\n## Usage\n\n### General Notes\n\nAll 4chan interactions are throttled internally by sleeping the executing thread. If you execute\n`pychan` in a multithreaded way, you will not get the benefits of this throttling. `pychan` does not\ntake responsibility for the consequences of excessive HTTP requests in such cases.\n\nFor all thread-level iteration shown below, the generators returned  will maintain internal state\nabout which page of 4chan you are currently on. Threads are fetched one page at a time up to page 10\n(which is the highest page at which 4chan renders threads for any given board). Once page 11 is\nreached internally by the generator, it stops returning threads.\n\n### Setup\n\n```python\nfrom pychan import FourChan, LogLevel, PychanLogger\n\n# With all logging disabled (default)\nfourchan = FourChan()\n\n# Tell pychan to gracefully ignore HTTP exceptions from its internal logic if an error occurs\nfourchan = FourChan(raise_http_exceptions=False)\n\n# Tell pychan to gracefully ignore parsing exceptions from its internal logic if an error occurs\nfourchan = FourChan(raise_parsing_exceptions=False)\n\n# Configure logging explicitly\nlogger = PychanLogger(LogLevel.INFO)\nfourchan = FourChan(logger)\n\n# Use all of the above settings at once\nlogger = PychanLogger(LogLevel.INFO)\nfourchan = FourChan(logger=logger, raise_http_exceptions=True, raise_parsing_exceptions=True)\n```\n\nThe rest of the examples in this `README` assume that you have already created an instance of the\n`FourChan` class as shown above.\n\n### Fetch Board Names\n\nThis function dynamically fetches boards from 4chan at call time.\n\n>Note: boards which are not compatible with `pychan` are not returned in this list.\n\n```python\nboards = fourchan.get_boards()\n# Sample return value:\n# ['a', 'b', 'c', 'd', 'e', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vm', 'vmg', 'vr', 'vrpg', 'vst', 'w', 'wg', 'i', 'ic', 'r9k', 's4s', 'vip', 'qa', 'cm', 'hm', 'lgbt', 'y', '3', 'aco', 'adv', 'an', 'bant', 'biz', 'cgl', 'ck', 'co', 'diy', 'fa', 'fit', 'gd', 'hc', 'his', 'int', 'jp', 'lit', 'mlp', 'mu', 'n', 'news', 'out', 'po', 'pol', 'pw', 'qst', 'sci', 'soc', 'sp', 'tg', 'toy', 'trv', 'tv', 'vp', 'vt', 'wsg', 'wsr', 'x', 'xs']\n```\n\n### Fetch Threads\n\n```python\n# Iterate over all threads in /b/ lazily (Python Generator)\nfor thread in fourchan.get_threads(\"b\"):\n    # Iterate over all posts in each thread\n    for post in fourchan.get_posts(thread):\n        # Do stuff with the post - refer to the model documentation in pychan's README for details\n        print(post.text)\n```\n\n### Fetch Archived Threads\n\n>Note: some boards do not have an archive (e.g. /b/). Such boards will either return an empty list\n>or raise an exception, depending on how you have configured your `FourChan` instance.\n\nThe threads returned by this function will always have a `title` field containing the text shown in\n4chan's interface under the \"Excerpt\" column header. This text can be either the thread's real title\nor a preview of the original post's text. Passing any of the threads returned by this method to the\n`get_posts()` method will automatically correct the `title` field (if necessary) on the thread that\ngets attached to the returned posts. See\n[Fetch Posts for a Specific Thread](#fetch-posts-for-a-specific-thread) for more details.\n\n>Technically, `pychan` could address the `title` behavior described above by issuing an additional\n>HTTP request for each thread to get its real title, but in the spirit of making the smallest number\n>of HTTP requests possible, `pychan` directly uses the excerpt instead.\n\n```python\n# Unlike get_threads(), the get_archived_threads() method returns a list instead of a Python Generator\nfor thread in fourchan.get_archived_threads(\"pol\"):\n    # Iterate over all posts in each thread\n    for post in fourchan.get_posts(thread):\n        # Do stuff with the post - refer to the model documentation in pychan's README for details\n        print(post.text)\n```\n\n### Search 4chan\n\n>Note: closed/stickied/archived threads are never returned in search results.\n\n```python\n# Iterate over all threads returned in the search results lazily (Python Generator)\nfor thread in fourchan.search(board=\"b\", text=\"ylyl\"):\n    # The thread object is the same class as the one returned by get_threads()\n    for post in fourchan.get_posts(thread):\n       # Do stuff with the post - refer to the model documentation in pychan's README for details\n       print(post.text)\n```\n\n### Fetch Posts for a Specific Thread\n\n```python\nfrom pychan.models import Thread\n\n# Instantiate a Thread instance with which to query for posts\nthread = Thread(\"int\", 168484869)\n\n# Note: the thread contained within the returned posts will have all applicable metadata (such as\n# title and sticky status), regardless of whether you provided such data above - pychan will\n# \"auto-discover\" all metadata and include it in the post models' copy of the thread\nposts = fourchan.get_posts(thread)\n```\n\n## pychan Models\n\nThe following tables summarize all the kinds of data that are available on the various models used\nby this library.\n\nAlso note that all model classes in `pychan` implement the following methods:\n\n* `__repr__`\n* `__str__`\n* `__hash__`\n* `__eq__`\n* `__copy__`\n* `__deepcopy__`\n\n### Threads\n\nThe table below corresponds to the `pychan.models.Thread` class.\n\n| Field | Type | Example Value(s) |\n| ----- | ---- | ---------------- |\n| `thread.board` | `str` | `\"b\"`, `\"int\"`\n| `thread.number` | `int` | `882774935`, `168484869`\n| `thread.title` | `Optional[str]` | `None`, `\"YLYL thread\"`\n| `thread.is_stickied` | `bool` | `True`, `False`\n| `thread.is_closed` | `bool` | `True`, `False`\n| `thread.is_archived` | `bool` | `True`, `False`\n\n### Posts\n\nThe table below corresponds to the `pychan.models.Post` class.\n\n| Field | Type | Example Value(s) |\n| ----- | ---- | ---------------- |\n`post.thread` | `Thread` | `pychan.models.Thread`\n`post.number` | `int` | `882774935`, `882774974`\n`post.timestamp` | [datetime.datetime](https://docs.python.org/3/library/datetime.html#datetime.datetime) | [datetime.datetime](https://docs.python.org/3/library/datetime.html#datetime.datetime)\n`post.poster` | `Poster` | `pychan.models.Poster`\n`post.text` | `str` | `\">be me\\n>be bored\\n>write pychan\\n>somehow it works\"`\n`post.is_original_post` | `bool` | `True`, `False`\n`post.file` | `Optional[File]` | `None`, `pychan.models.File`\n`post.replies` | `list[Post]` | `[]`, `[pychan.models.Post, pychan.models.Post]`\n\n#### A Note About Replies\n\nThe `replies` field shown above is purely a convenience feature `pychan` provides for accessing all\nposts within a thread that use the `>>` operator to \"reply\" to a post earlier in the thread. If you\nwere to iterate over all posts in a thread via `get_posts()`, you would obtain all posts and their\nreplies (in the order they were posted) as a single list. You do *not* have to access the `replies`\nfield to access all the posts in a given thread.\n\n### Posters\n\nThe table below corresponds to the `pychan.models.Poster` class.\n\n| Field | Type | Example Value(s) |\n| ----- | ---- | ---------------- |\n| `poster.name` | `str` | `\"Anonymous\"`\n| `poster.is_moderator` | `bool` | `True`, `False`\n| `poster.id` | `Optional[str]` | `None`, `\"BYagKQXI\"`\n| `poster.flag` | `Optional[str]` | `None`, `\"United States\"`, `\"Canada\"`\n\n### Files\n\nThe table below corresponds to the `pychan.models.File` class.\n\n| Field | Type | Example Value(s) |\n| ----- | ---- | ---------------- |\n| `file.url` | `str` | `\"https://i.4cdn.org/pol/1658892700380132.jpg\"`\n| `file.name` | `str` | `\"wojak.jpg\"`, `\"i feel alone.jpg\"`\n| `file.size` | `str` | `\"601 KB\"`\n| `file.dimensions` | `tuple[int, int]` | `(1920, 1080)`, `(800, 600)`\n\n## Contributing\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md) for developer-oriented information.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -1331,7 +1330,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785532,
+        "last_serial": 15811869,
         "urls": [
             {
                 "comment_text": "",
@@ -1370,6 +1369,119 @@
                 "upload_time": "2022-11-16T07:36:04",
                 "upload_time_iso_8601": "2022-11-16T07:36:04.642673Z",
                 "url": "https://files.pythonhosted.org/packages/28/b1/684d8edfe988f1bc6b31c7a36bd727560d09fa1f9862dea78857a5f77a37/pychan-0.4.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.1": {
+        "info": {
+            "author": "cooperwalbrun",
+            "author_email": "mail@cooperwalbrun.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# pychan ![master](https://github.com/cooperwalbrun/pychan/workflows/master/badge.svg) ![PyPI](https://img.shields.io/pypi/v/pychan) [![codecov](https://codecov.io/gh/cooperwalbrun/pychan/branch/master/graph/badge.svg?token=BJEJOMIYWY)](https://codecov.io/gh/cooperwalbrun/pychan)\n\n1. [Overview](#overview)\n2. [Installation](#installation)\n3. [Usage](#usage)\n   1. [General Notes](#general-notes)\n   2. [Setup](#setup)\n   3. [Fetch Board Names](#fetch-board-names)\n   4. [Fetch Threads](#fetch-threads)\n   5. [Fetch Archived Threads](#fetch-archived-threads)\n   6. [Search 4chan](#search-4chan)\n   7. [Fetch Posts for a Specific Thread](#fetch-posts-for-a-specific-thread)\n4. [pychan Models](#pychan-models)\n   1. [Threads](#threads)\n   2. [Posts](#posts)\n      1. [A Note About Replies](#a-note-about-replies)\n   3. [Posters](#posters)\n   4. [Files](#files)\n5. [Contributing](#contributing)\n\n## Overview\n\n`pychan` is a Python client for interacting with 4chan. 4chan does not have an official API, and\nattempts to implement one by third parties have tended to languish, so instead, this library\nprovides abstractions over interacting with (scraping) 4chan directly. `pychan` is object-oriented\nand its implementation is lazy where reasonable (using Python Generators) in order to optimize\nperformance and minimize superfluous blocking I/O operations.\n\n## Installation\n\nIf you have Python >=3.9 and <4.0 installed, `pychan` can be installed from PyPI using\nsomething like\n\n```bash\npip install pychan\n```\n\n## Usage\n\n### General Notes\n\nAll 4chan interactions are throttled internally by sleeping the executing thread. If you execute\n`pychan` in a multithreaded way, you will not get the benefits of this throttling. `pychan` does not\ntake responsibility for the consequences of excessive HTTP requests in such cases.\n\nFor all thread-level iteration shown below, the generators returned  will maintain internal state\nabout which page of 4chan you are currently on. Threads are fetched one page at a time up to page 10\n(which is the highest page at which 4chan renders threads for any given board). Once page 11 is\nreached internally by the generator, it stops returning threads.\n\n### Setup\n\n```python\nfrom pychan import FourChan, LogLevel, PychanLogger\n\n# With all logging disabled (default)\nfourchan = FourChan()\n\n# Tell pychan to gracefully ignore HTTP exceptions, if any, within its internal logic\nfourchan = FourChan(raise_http_exceptions=False)\n\n# Tell pychan to gracefully ignore parsing exceptions, if any, within its internal logic\nfourchan = FourChan(raise_parsing_exceptions=False)\n\n# Configure logging explicitly\nlogger = PychanLogger(LogLevel.INFO)\nfourchan = FourChan(logger=logger)\n\n# Use all of the above settings at once\nlogger = PychanLogger(LogLevel.INFO)\nfourchan = FourChan(logger=logger, raise_http_exceptions=True, raise_parsing_exceptions=True)\n```\n\nThe rest of the examples in this `README` assume that you have already created an instance of the\n`FourChan` class as shown above.\n\n### Fetch Board Names\n\nThis function dynamically fetches boards from 4chan at call time.\n\n>Note: boards which are not compatible with `pychan` are not returned in this list.\n\n```python\nboards = fourchan.get_boards()\n# Sample return value:\n# ['a', 'b', 'c', 'd', 'e', 'g', 'gif', 'h', 'hr', 'k', 'm', 'o', 'p', 'r', 's', 't', 'u', 'v', 'vg', 'vm', 'vmg', 'vr', 'vrpg', 'vst', 'w', 'wg', 'i', 'ic', 'r9k', 's4s', 'vip', 'qa', 'cm', 'hm', 'lgbt', 'y', '3', 'aco', 'adv', 'an', 'bant', 'biz', 'cgl', 'ck', 'co', 'diy', 'fa', 'fit', 'gd', 'hc', 'his', 'int', 'jp', 'lit', 'mlp', 'mu', 'n', 'news', 'out', 'po', 'pol', 'pw', 'qst', 'sci', 'soc', 'sp', 'tg', 'toy', 'trv', 'tv', 'vp', 'vt', 'wsg', 'wsr', 'x', 'xs']\n```\n\n### Fetch Threads\n\n```python\n# Iterate over all threads in /b/ lazily (Python Generator)\nfor thread in fourchan.get_threads(\"b\"):\n    # Do stuff with the thread\n    print(thread.title)\n    # You can also iterate over all the posts in the thread\n    for post in fourchan.get_posts(thread):\n        # Do stuff with the post - refer to the model documentation in pychan's README for details\n        print(post.text)\n```\n\n### Fetch Archived Threads\n\n>Note: some boards do not have an archive (e.g. /b/). Such boards will either return an empty list\n>or raise an exception depending on how you have configured your `FourChan` instance.\n\nThe threads returned by this function will always have a `title` field containing the text shown in\n4chan's interface under the \"Excerpt\" column header. This text can be either the thread's real title\nor a preview of the original post's text. Passing any of the threads returned by this method to the\n`get_posts()` method will automatically correct the `title` field (if necessary) on the thread that\ngets attached to the returned posts. See\n[Fetch Posts for a Specific Thread](#fetch-posts-for-a-specific-thread) for more details.\n\n>Technically, `pychan` could address the `title` behavior described above by issuing an additional\n>HTTP request for each thread to get its real title, but in the spirit of making the smallest number\n>of HTTP requests possible, `pychan` directly uses the excerpt instead.\n\n```python\n# Unlike get_threads(), the get_archived_threads() method returns a list instead of a Python Generator\nfor thread in fourchan.get_archived_threads(\"pol\"):\n    # Do stuff with the thread\n    print(thread.title)\n    # You can also iterate over all the posts in the thread\n    for post in fourchan.get_posts(thread):\n        # Do stuff with the post - refer to the model documentation in pychan's README for details\n        print(post.text)\n```\n\n### Search 4chan\n\n>Note: closed/stickied/archived threads are never returned in search results.\n\n```python\n# Iterate over all threads returned in the search results lazily (Python Generator)\nfor thread in fourchan.search(board=\"b\", text=\"ylyl\"):\n    # The thread object is the same class as the one returned by get_threads()\n    for post in fourchan.get_posts(thread):\n       # Do stuff with the post - refer to the model documentation in pychan's README for details\n       print(post.text)\n```\n\n### Fetch Posts for a Specific Thread\n\n```python\nfrom pychan.models import Thread\n\n# Instantiate a Thread instance with which to query for posts\nthread = Thread(\"int\", 168484869)\n\n# Note: the thread contained within the returned posts will have all applicable metadata (such as\n# title and sticky status), regardless of whether you provided such data above - pychan will\n# \"auto-discover\" all metadata and include it in the post models' copy of the thread\nposts = fourchan.get_posts(thread)\n```\n\n## pychan Models\n\nThe following tables summarize all the kinds of data that are available on the various models used\nby this library.\n\nAlso note that all model classes in `pychan` implement the following methods:\n\n* `__repr__`\n* `__str__`\n* `__hash__`\n* `__eq__`\n* `__copy__`\n* `__deepcopy__`\n\n### Threads\n\nThe table below corresponds to the `pychan.models.Thread` class.\n\n| Field | Type | Example Value(s) |\n| ----- | ---- | ---------------- |\n| `thread.board` | `str` | `\"b\"`, `\"int\"`\n| `thread.number` | `int` | `882774935`, `168484869`\n| `thread.title` | `Optional[str]` | `None`, `\"YLYL thread\"`\n| `thread.is_stickied` | `bool` | `True`, `False`\n| `thread.is_closed` | `bool` | `True`, `False`\n| `thread.is_archived` | `bool` | `True`, `False`\n\n### Posts\n\nThe table below corresponds to the `pychan.models.Post` class.\n\n| Field | Type | Example Value(s) |\n| ----- | ---- | ---------------- |\n`post.thread` | `Thread` | `pychan.models.Thread`\n`post.number` | `int` | `882774935`, `882774974`\n`post.timestamp` | [datetime.datetime](https://docs.python.org/3/library/datetime.html#datetime.datetime) | [datetime.datetime](https://docs.python.org/3/library/datetime.html#datetime.datetime)\n`post.poster` | `Poster` | `pychan.models.Poster`\n`post.text` | `str` | `\">be me\\n>be bored\\n>write pychan\\n>somehow it works\"`\n`post.is_original_post` | `bool` | `True`, `False`\n`post.file` | `Optional[File]` | `None`, `pychan.models.File`\n`post.replies` | `list[Post]` | `[]`, `[pychan.models.Post, pychan.models.Post]`\n\n#### A Note About Replies\n\nThe `replies` field shown above is purely a convenience feature `pychan` provides for accessing all\nposts within a thread that use the `>>` operator to \"reply\" to a post earlier in the thread. If you\nwere to iterate over all posts in a thread via `get_posts()`, you would obtain all posts and their\nreplies (in the order they were posted) as a single list. You do *not* have to access the `replies`\nfield to access all the posts in a given thread.\n\n### Posters\n\nThe table below corresponds to the `pychan.models.Poster` class.\n\n| Field | Type | Example Value(s) |\n| ----- | ---- | ---------------- |\n| `poster.name` | `str` | `\"Anonymous\"`\n| `poster.is_moderator` | `bool` | `True`, `False`\n| `poster.id` | `Optional[str]` | `None`, `\"BYagKQXI\"`\n| `poster.flag` | `Optional[str]` | `None`, `\"United States\"`, `\"Canada\"`\n\n### Files\n\nThe table below corresponds to the `pychan.models.File` class.\n\n| Field | Type | Example Value(s) |\n| ----- | ---- | ---------------- |\n| `file.url` | `str` | `\"https://i.4cdn.org/pol/1658892700380132.jpg\"`\n| `file.name` | `str` | `\"wojak.jpg\"`, `\"i feel alone.jpg\"`\n| `file.size` | `str` | `\"601 KB\"`\n| `file.dimensions` | `tuple[int, int]` | `(1920, 1080)`, `(800, 600)`\n\n## Contributing\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md) for developer-oriented information.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/cooperwalbrun/pychan",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pychan",
+            "package_url": "https://pypi.org/project/pychan/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/pychan/",
+            "project_urls": {
+                "Homepage": "https://github.com/cooperwalbrun/pychan"
+            },
+            "release_url": "https://pypi.org/project/pychan/0.4.1/",
+            "requires_dist": [
+                "beautifulsoup4 (<5,>=4.11.1)",
+                "importlib-metadata",
+                "pyrate-limiter (<3,>=2.8)",
+                "requests (<3,>=2.28)",
+                "types-beautifulsoup4 (<5,>=4.11)",
+                "types-requests (<3,>=2.28)",
+                "mypy ; extra == 'development'",
+                "pytest ; extra == 'development'",
+                "pytest-cov ; extra == 'development'",
+                "pytest-mock ; extra == 'development'",
+                "responses ; extra == 'development'",
+                "tox ; extra == 'development'",
+                "yapf ; extra == 'development'",
+                "mypy ; extra == 'github_actions'",
+                "pytest ; extra == 'github_actions'",
+                "pytest-cov ; extra == 'github_actions'",
+                "pytest-mock ; extra == 'github_actions'",
+                "responses ; extra == 'github_actions'",
+                "tox ; extra == 'github_actions'",
+                "tox-gh-actions ; extra == 'github_actions'",
+                "mypy ; extra == 'testing'",
+                "pytest ; extra == 'testing'",
+                "pytest-cov ; extra == 'testing'",
+                "pytest-mock ; extra == 'testing'",
+                "responses ; extra == 'testing'",
+                "tox ; extra == 'testing'"
+            ],
+            "requires_python": "<4,>=3.9",
+            "summary": "A Python library for interacting with 4chan in a programmatically-friendly way.",
+            "version": "0.4.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15811869,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "05ce8f8a92fe85f7ac7358c5599fbf55",
+                    "sha256": "648e99c9e098499cb97cd86b90b5e284f6f49815f3d87a6f65949ef25db38888"
+                },
+                "downloads": -1,
+                "filename": "pychan-0.4.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "05ce8f8a92fe85f7ac7358c5599fbf55",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": "<4,>=3.9",
+                "size": 25107,
+                "upload_time": "2022-11-18T07:05:37",
+                "upload_time_iso_8601": "2022-11-18T07:05:37.253699Z",
+                "url": "https://files.pythonhosted.org/packages/96/ea/538afffa110bb201ab722005282314c4eb6e86547bb2d6c7195f22905aea/pychan-0.4.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1fbceee32ee3d4b0495b045d50cebeed",
+                    "sha256": "68fca9c30a9b9bd87335e8d437edc698c5d924845c380948b130ba563d096283"
+                },
+                "downloads": -1,
+                "filename": "pychan-0.4.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "1fbceee32ee3d4b0495b045d50cebeed",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": "<4,>=3.9",
+                "size": 284042,
+                "upload_time": "2022-11-18T07:05:38",
+                "upload_time_iso_8601": "2022-11-18T07:05:38.786502Z",
+                "url": "https://files.pythonhosted.org/packages/c0/58/aacfddf8a1d675300e03d1fa401d35c5b567798d71c1f3b662f996f35790/pychan-0.4.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

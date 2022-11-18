@@ -75,7 +75,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15379397,
+        "last_serial": 15810174,
         "urls": [
             {
                 "comment_text": "",
@@ -197,7 +197,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15379397,
+        "last_serial": 15810174,
         "urls": [
             {
                 "comment_text": "",
@@ -260,7 +260,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Scientific/Engineering :: Artificial Intelligence"
             ],
-            "description": "<p align=\"center\">\n    <br>\n    <img src=\"docs/source/assets/simulate_library.png\" width=\"400\"/>\n    <br>\n</p>\n<p align=\"center\">\n    <a href=\"https://github.com/huggingface/simulate/blob/main/LICENSE\">\n        <img alt=\"GitHub\" src=\"https://img.shields.io/github/license/huggingface/datasets.svg?color=blue\">\n    </a>\n    <a href=\"https://github.com/huggingface/simulate/releases\">\n        <img alt=\"GitHub release\" src=\"https://img.shields.io/github/release/huggingface/diffusers.svg\">\n    </a>\n    <a href=\"CODE_OF_CONDUCT.md\"> \n        <img alt=\"Contributor Covenant\" src=\"https://img.shields.io/badge/Contributor%20Covenant-2.0-4baaaa.svg\">\n    </a>\n</p>\n\n# Simulate\n\nSimulate is a library for easily creating and sharing simulation environments for intelligent agents (e.g. reinforcement learning) or synthetic data generation.\n\n## Install\n\nInstall Simulate (preferentially in a virtual environment) with a simple `pip install simulate`\n\n### Install for contribution (from [CONTRIBUTING.md](CONTRIBUTING.md))\n\nCreate a virtual env and then install the code style/quality tools as well as the code base locally\n```\npip install --upgrade simulate\n```\nBefore you merge a PR, fix the style (we use `isort` + `black`)\n```\nmake style\n```\n\n## Quick tour\n\nSimulate's API is inspired by the great [Kubric's API](https://github.com/google-research/kubric).\nThe user create a `Scene` and add `Assets` in it (objects, cameras, lights etc).\n\nOnce the scene is created, you can save and share it as a file. This is a gIFT file, aka a JSON file with associated resources.\n\nYou can also render the scene or do simulations using one of the backend rendering/simulation engines (at the moment Unity, Blender and Godot).\n\nThe saving/sharing format is engine agnostic and using a graphic industry standard.\n\nLet's do a quick exploration together.  \n\n```\nimport simulate as sm\n\nscene = sm.Scene()\n```\n\n### Project Structure\n\nThe Python API is located in src/simulate. It allows creation and loading of scenes, and sending commands to the backend.\n\nWe provide several backends to render and/or run the scene.\nThe default backend requires no specific installation and is based on [pyvista](https://docs.pyvista.org/user-guide/index.html). It allows one to quick render/explored scene but doesn't handle physics simulation.\nTo allow physic simulations, the Unity backend can for instance be used by setting `engine=\"unity\"` (and soon the Godot and Blender Engines backend as well). A Unity build will be automatically downloaded (if not already) and spawed to run simulations. Alternatively, one can download and use the Unity editor themself, which must then be opened with Unity version 2021.3.2f1.\n\n### Loading a scene from the Hub or a local file\n\nLoading a scene from a local file or the Hub is done with `Scene.create_from()`, saving locally or pushing to the Hub with `scene.save()` or `scene.push_to_hub()`:\n\n```\nfrom simulate import Scene\n\nscene = Scene.create_from('tests/test_assets/fixtures/Box.gltf')  # either local (priority) or on the Hub with full path to file\nscene = Scene.create_from('simulate-tests/Box/glTF/Box.gltf', is_local=False)  # Set priority to the Hub file\n\nscene.save('local_dir/file.gltf')  # Save to a local file\nscene.push_to_hub('simulate-tests/Debug/glTF/Box.gltf')  # Save to the Hub - use a token if necessary\n```\n<p align=\"center\">\n    <br>\n    <img src=\"https://user-images.githubusercontent.com/10695622/191554717-acba4764-a4f4-4609-834a-39ddb50b844a.png\" width=\"400\"/>\n    <br>\n<p>\n\n### Creating a Scene and adding/managing Objects in the scene\n\nBasic example of creating a scene with a plane and a sphere above it:\n```\nimport simulate as sm\n\nscene = sm.Scene()\nscene += sm.Plane() + sm.Sphere(position=[0, 1, 0], radius=0.2)\n\n>>> scene\n>>> Scene(dimensionality=3, engine='PyVistaEngine')\n>>> \u2514\u2500\u2500 plane_01 (Plane - Mesh: 121 points, 100 cells)\n>>>     \u2514\u2500\u2500 sphere_02 (Sphere - Mesh: 842 points, 870 cells)\n\nscene.show()\n```\n\nAn object (as well as the Scene) is just a node in a tree provided with optional mesh (under the hood created/stored/edited as a [`pyvista.PolyData`](https://docs.pyvista.org/api/core/_autosummary/pyvista.PolyData.html#pyvista-polydata) or [`pyvista.MultiBlock`](https://docs.pyvista.org/api/core/_autosummary/pyvista.MultiBlock.html#pyvista-multiblock) objects) and material and/or light, camera, agents special objects.\n\nThe following objects creation helpers are currently provided:\n- `Object3D` any object with a mesh and/or material\n- `Plane`\n- `Sphere`\n- `Capsule`\n- `Cylinder`\n- `Box`\n- `Cone`\n- `Line`\n- `MultipleLines`\n- `Tube`\n- `Polygon`\n- `Ring`\n- `Text3D`\n- `Triangle`\n- `Rectangle`\n- `Circle`\n- `StructuredGrid`\n- ... (see the doc)\n\nMany of these objects can be visualized by running the following [example](https://github.com/huggingface/simulate/tree/main/examples/objects.py):\n```\npython examples/basic/objects.py\n```\n<p align=\"center\">\n    <br>\n    <img src=\"https://user-images.githubusercontent.com/10695622/191562825-49d4c692-a1ed-44e9-bdb9-da5f0bfb9828.png\" width=\"400\"/>\n    <br>\n<p>\n\n### Objects are organized in a tree structure\n\nAdding/removing objects:\n- Using the addition (`+`) operator (or alternatively the method `.add(object)`) will add an object as a child of a previous object.\n- Objects can be removed with the subtraction (`-`) operator or the `.remove(object)` command.\n- Several objects can be added at once by adding a list/tuple to the scene.\n- The whole scene can be cleared with `.clear()`.\n- To add a nested object, just add it to the object under which it should be nested, e.g. `scene.sphere += sphere_child`.\n\nAccessing objects:\n- Objects can be directly accessed as attributes of their parents using their names (given with  `name` attribute at creation or automatically generated from the class name + creation counter).\n- Objects can also be accessed from their names with `.get_node(name)`.\n- The names of the object are enforced to be unique (on save/show).\n- Various `tree_*` attributes are available on any node to quickly navegate or list part of the tree of nodes.\n\nHere are a couple of examples of manipulations:\n\n```\n# Add two copy of the sphere to the scene as children of the root node (using list will add all objects on the same level)\n# Using `.copy()` will create a copy of an object (the copy doesn't have any parent or children)\nscene += [scene.plane_01.sphere_02.copy(), scene.plane_01.sphere_02.copy()]\n\n>>> scene\n>>> Scene(dimensionality=3, engine='pyvista')\n>>> \u251c\u2500\u2500 plane_01 (Plane - Mesh: 121 points, 100 cells)\n>>> \u2502   \u2514\u2500\u2500 sphere_02 (Sphere - Mesh: 842 points, 870 cells)\n>>> \u251c\u2500\u2500 sphere_03 (Sphere - Mesh: 842 points, 870 cells)\n>>> \u2514\u2500\u2500 sphere_04 (Sphere - Mesh: 842 points, 870 cells)\n\n# Remove the last added sphere\n>>> scene.remove(scene.sphere_04)\n>>> Scene(dimensionality=3, engine='pyvista')\n>>> \u251c\u2500\u2500 plane_01 (Plane - Mesh: 121 points, 100 cells)\n>>> \u2502   \u2514\u2500\u2500 sphere_02 (Sphere - Mesh: 842 points, 870 cells)\n>>> \u2514\u2500\u2500 sphere_03 (Sphere - Mesh: 842 points, 870 cells)\n```\n\n### Editing and moving objects\n\nObjects can be easily translated, rotated, scaled\n\nHere are a couple of examples:\n```\n# Let's translate our floor (with the first sphere, it's child)\nscene.plane_01.translate_x(1)\n\n# Let's scale the second sphere uniformly\nscene.sphere_03.scale(0.1)\n\n# Inspect the current position and scaling values\nprint(scene.plane_01.position)\n>>> array([1., 0., 0.])\nprint(scene.sphere_03.scaling)\n>>> array([0.1, 0.1, 0.1])\n\n# We can also translate from a vector and rotate from a quaternion or along the various axis\n```\n\nEditing objects:\n- mesh of the object can be edited with all the manipulation operator provided by [pyvista](https://docs.pyvista.org/user-guide/index.html)\n\n## Visualization engine\n\nA default visualization engine is provided with the vtk backend of [`pyvista`](https://docs.pyvista.org/user-guide/index.html).\n\nStarting the visualization engine can be done simply with `.show()`.\n```\nscene.show()\n```\n\nYou can find bridges to other rendering/simulation engines in the `integrations` directory.\n\n## Tips\n\nIf you are running on GCP, remember not to install `pyvistaqt`, and if you did so, uninstall it in your environment, since QT doesn't work well on GCP.\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "https://github.com/huggingface/simulate/tags",
@@ -320,7 +319,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15379397,
+        "last_serial": 15810174,
         "urls": [
             {
                 "comment_text": "",
@@ -359,6 +358,596 @@
                 "upload_time": "2022-10-11T21:36:33",
                 "upload_time_iso_8601": "2022-10-11T21:36:33.205378Z",
                 "url": "https://files.pythonhosted.org/packages/8f/5e/1dc2f55b675e7dcda86c024e0c760884ed803bc4b77d44ac2e59849e1932/simulate-0.0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.3.dev0": {
+        "info": {
+            "author": "HuggingFace Inc.",
+            "author_email": "thomas@huggingface.co",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Education",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://github.com/huggingface/simulate/tags",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/huggingface/simulate",
+            "keywords": "simulation environments synthetic data datasets machine learning",
+            "license": "Apache 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "simulate",
+            "package_url": "https://pypi.org/project/simulate/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/simulate/",
+            "project_urls": {
+                "Download": "https://github.com/huggingface/simulate/tags",
+                "Homepage": "https://github.com/huggingface/simulate"
+            },
+            "release_url": "https://pypi.org/project/simulate/0.0.3.dev0/",
+            "requires_dist": [
+                "dataclasses-json",
+                "numpy (>=1.18)",
+                "vtk (>=9.0)",
+                "pyvista (>=0.35)",
+                "huggingface-hub (>=0.10)",
+                "pybind11 (>=2.10.0)",
+                "scikit-build (>=0.5)",
+                "gym (==0.21.0) ; extra == 'dev'",
+                "stable-baselines3 ; extra == 'dev'",
+                "pyvistaqt ; extra == 'dev'",
+                "pyqt5 ; extra == 'dev'",
+                "pytest ; extra == 'dev'",
+                "pytest-xdist ; extra == 'dev'",
+                "gym ; extra == 'dev'",
+                "black[jupyter] (~=22.0) ; extra == 'dev'",
+                "flake8 (>=3.8.3) ; extra == 'dev'",
+                "isort (>=5.0.0) ; extra == 'dev'",
+                "pyyaml (>=5.3.1) ; extra == 'dev'",
+                "s3fs ; extra == 'docs'",
+                "black[jupyter] (~=22.0) ; extra == 'quality'",
+                "flake8 (>=3.8.3) ; extra == 'quality'",
+                "isort (>=5.0.0) ; extra == 'quality'",
+                "pyyaml (>=5.3.1) ; extra == 'quality'",
+                "gym (==0.21.0) ; extra == 'rl'",
+                "gym (==0.21.0) ; extra == 'sb3'",
+                "stable-baselines3 ; extra == 'sb3'",
+                "pytest ; extra == 'test'",
+                "pytest-xdist ; extra == 'test'",
+                "gym ; extra == 'test'",
+                "stable-baselines3 ; extra == 'test'"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "HuggingFace community-driven open-source library of simulation environments",
+            "version": "0.0.3.dev0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15810174,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "db4d4af09f921e1ba91a401410530797",
+                    "sha256": "27d761778a660654242144fa03cdf9ebad4ba840d96262d01b53f531e207d7b1"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp310-cp310-macosx_10_13_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "db4d4af09f921e1ba91a401410530797",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.8",
+                "size": 811108,
+                "upload_time": "2022-11-18T03:46:21",
+                "upload_time_iso_8601": "2022-11-18T03:46:21.697421Z",
+                "url": "https://files.pythonhosted.org/packages/6d/14/1f5835a06c6425b17c16673fc330cee3733e7942ce33a205d4153b0dff96/simulate-0.0.3.dev0-cp310-cp310-macosx_10_13_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "acbea076ef660302834c207eefcd5ab9",
+                    "sha256": "7fb07b9875af7bdad475e9e65a5d94c67df1c451cbe0237ded5b73735b59fa64"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp310-cp310-macosx_10_13_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "acbea076ef660302834c207eefcd5ab9",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.8",
+                "size": 571389,
+                "upload_time": "2022-11-18T03:46:23",
+                "upload_time_iso_8601": "2022-11-18T03:46:23.897473Z",
+                "url": "https://files.pythonhosted.org/packages/e9/a3/930c72e1fcc807edd2db37f27970151956d560e95ce3594711cf5da15a35/simulate-0.0.3.dev0-cp310-cp310-macosx_10_13_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f1d02f271600ce3c91319baed88b8725",
+                    "sha256": "446aa224248d1e30190f6c1e243df1a69303ddd829a5f66a1107c805458ba566"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "f1d02f271600ce3c91319baed88b8725",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.8",
+                "size": 641534,
+                "upload_time": "2022-11-18T03:46:25",
+                "upload_time_iso_8601": "2022-11-18T03:46:25.819894Z",
+                "url": "https://files.pythonhosted.org/packages/13/e5/3c753707dfeadea62c266f1cc4ae921b3d57d98a5420f971edc61750bd03/simulate-0.0.3.dev0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bfac412955c29c0c94aebf2a49b0923e",
+                    "sha256": "da5ba388c898084ca76c7886794d1ebdf783e02fadf0383b7abad7587123302d"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp310-cp310-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "bfac412955c29c0c94aebf2a49b0923e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.8",
+                "size": 801926,
+                "upload_time": "2022-11-18T03:46:27",
+                "upload_time_iso_8601": "2022-11-18T03:46:27.540648Z",
+                "url": "https://files.pythonhosted.org/packages/4e/15/d2c1809ea20b1669620ccd98aa804ba600c4687e6a447d3595cad39a4cdd/simulate-0.0.3.dev0-cp310-cp310-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "519f700722e5379c41ad846d6358679e",
+                    "sha256": "19b517eda0f2b31f0f63b59eb2fb703cfee6b7c21e5971df73cee2e52f633a49"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp38-cp38-macosx_10_13_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "519f700722e5379c41ad846d6358679e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 811204,
+                "upload_time": "2022-11-18T03:46:29",
+                "upload_time_iso_8601": "2022-11-18T03:46:29.565407Z",
+                "url": "https://files.pythonhosted.org/packages/59/95/e508a6efbde725ad587d9ec41c7eeae412d63d3cbbfed97c3ade6fdf6e19/simulate-0.0.3.dev0-cp38-cp38-macosx_10_13_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e98adf96a8992cb58057414c57c0c4b8",
+                    "sha256": "aa0d34504847fe324ced5eb7f2d446e6469433c3cb728f60a8d1b26543682204"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp38-cp38-macosx_10_13_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "e98adf96a8992cb58057414c57c0c4b8",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 571439,
+                "upload_time": "2022-11-18T03:46:31",
+                "upload_time_iso_8601": "2022-11-18T03:46:31.520746Z",
+                "url": "https://files.pythonhosted.org/packages/45/6e/cdd0e68b320d8ef06211e9b887b42ec34ac272e33113013dc2cfb19c7a43/simulate-0.0.3.dev0-cp38-cp38-macosx_10_13_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7d1a3b225f578b8f1db9f1f38dbb4b0a",
+                    "sha256": "190ded207710e30f042c10c2427e79ce8ffc5d4eb3ee683f1c6f149541e65645"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "7d1a3b225f578b8f1db9f1f38dbb4b0a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 641580,
+                "upload_time": "2022-11-18T03:46:33",
+                "upload_time_iso_8601": "2022-11-18T03:46:33.206032Z",
+                "url": "https://files.pythonhosted.org/packages/3b/b6/21186038d8d102a516b528b53e8ffc7730050a9b3854e5617a82b8b72f30/simulate-0.0.3.dev0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8179d22cf10f850b44483605c7d26c5f",
+                    "sha256": "e8c4f57c0290742dfb748a7e1bbf14b43c49b062dd6d44fcc329e4e311248a63"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp38-cp38-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "8179d22cf10f850b44483605c7d26c5f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 801079,
+                "upload_time": "2022-11-18T03:46:35",
+                "upload_time_iso_8601": "2022-11-18T03:46:35.874469Z",
+                "url": "https://files.pythonhosted.org/packages/a6/d7/78e863ffeed492c9e4f2cdfd02a4def2b2ff1761e540c92cc4dc07826119/simulate-0.0.3.dev0-cp38-cp38-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2cf24110e28362bad3372ec5c9553901",
+                    "sha256": "b946530e5bbfe4480ada5b0dfd145afd5b34349ac3197d4a855903c833354c7c"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp39-cp39-macosx_10_13_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "2cf24110e28362bad3372ec5c9553901",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8",
+                "size": 811422,
+                "upload_time": "2022-11-18T03:46:38",
+                "upload_time_iso_8601": "2022-11-18T03:46:38.147136Z",
+                "url": "https://files.pythonhosted.org/packages/9e/c7/39b881dbccb8a2d6e9f272e9b9ce0ef898a5eaed0f73a461aab76fafab32/simulate-0.0.3.dev0-cp39-cp39-macosx_10_13_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0c9ac0bc8b37509a21a8642c8c297a74",
+                    "sha256": "5f57e1b8b060b76fc68edb36aacfa250b06a8c70ffd7fba82b5382866f4a1a0c"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp39-cp39-macosx_10_13_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "0c9ac0bc8b37509a21a8642c8c297a74",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8",
+                "size": 571629,
+                "upload_time": "2022-11-18T03:46:40",
+                "upload_time_iso_8601": "2022-11-18T03:46:40.198962Z",
+                "url": "https://files.pythonhosted.org/packages/7f/66/0c055a74f5302edc6685204fff6e8117b7b22e7df7aaf87436006b2838d3/simulate-0.0.3.dev0-cp39-cp39-macosx_10_13_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "690eb7b725b0e76bdeb8af3893e03f9d",
+                    "sha256": "b62c219a8eb963a1d657ea371036b81cceb1b4c88133a3377c5439424d8ab474"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "690eb7b725b0e76bdeb8af3893e03f9d",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8",
+                "size": 641981,
+                "upload_time": "2022-11-18T03:46:42",
+                "upload_time_iso_8601": "2022-11-18T03:46:42.585269Z",
+                "url": "https://files.pythonhosted.org/packages/61/61/81e8871d6066ff2c9cce09dcde0898177ee35021af07fb9265540cf546bf/simulate-0.0.3.dev0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9951b6cb7e1dbbefb3587e85ece530b5",
+                    "sha256": "8986b8f998e70998a6193a6d32860be733b1e141b119691299612111a8c46279"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0-cp39-cp39-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "9951b6cb7e1dbbefb3587e85ece530b5",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8",
+                "size": 801010,
+                "upload_time": "2022-11-18T03:46:44",
+                "upload_time_iso_8601": "2022-11-18T03:46:44.439866Z",
+                "url": "https://files.pythonhosted.org/packages/9f/90/fb849a66431f61c23329ac8781f74a5f3b685b2f080111b8cab09649a49f/simulate-0.0.3.dev0-cp39-cp39-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "20fed11074a6a04e56e847476a82940a",
+                    "sha256": "5b4717a58ecf94957dde9fc5c9293ccfff4b3d2e3c459aa9925d7ac56438026d"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.0.3.dev0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "20fed11074a6a04e56e847476a82940a",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 137766,
+                "upload_time": "2022-11-18T03:46:46",
+                "upload_time_iso_8601": "2022-11-18T03:46:46.804882Z",
+                "url": "https://files.pythonhosted.org/packages/8a/c4/203a622350e43a315e53ebe4d1f03575950973de5ab8dd7ff85c5ee48cfa/simulate-0.0.3.dev0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.0": {
+        "info": {
+            "author": "HuggingFace Inc.",
+            "author_email": "thomas@huggingface.co",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Education",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://github.com/huggingface/simulate/tags",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/huggingface/simulate",
+            "keywords": "simulation environments synthetic data datasets machine learning",
+            "license": "Apache 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "simulate",
+            "package_url": "https://pypi.org/project/simulate/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/simulate/",
+            "project_urls": {
+                "Download": "https://github.com/huggingface/simulate/tags",
+                "Homepage": "https://github.com/huggingface/simulate"
+            },
+            "release_url": "https://pypi.org/project/simulate/0.1.0/",
+            "requires_dist": [
+                "dataclasses-json",
+                "numpy (>=1.18)",
+                "vtk (>=9.0)",
+                "pyvista (>=0.35)",
+                "huggingface-hub (>=0.10)",
+                "pybind11 (>=2.10.0)",
+                "scikit-build (>=0.5)",
+                "gym (==0.21.0) ; extra == 'dev'",
+                "stable-baselines3 ; extra == 'dev'",
+                "pyvistaqt ; extra == 'dev'",
+                "pyqt5 ; extra == 'dev'",
+                "pytest ; extra == 'dev'",
+                "pytest-xdist ; extra == 'dev'",
+                "gym ; extra == 'dev'",
+                "black[jupyter] (~=22.0) ; extra == 'dev'",
+                "flake8 (>=3.8.3) ; extra == 'dev'",
+                "isort (>=5.0.0) ; extra == 'dev'",
+                "pyyaml (>=5.3.1) ; extra == 'dev'",
+                "s3fs ; extra == 'docs'",
+                "black[jupyter] (~=22.0) ; extra == 'quality'",
+                "flake8 (>=3.8.3) ; extra == 'quality'",
+                "isort (>=5.0.0) ; extra == 'quality'",
+                "pyyaml (>=5.3.1) ; extra == 'quality'",
+                "gym (==0.21.0) ; extra == 'rl'",
+                "gym (==0.21.0) ; extra == 'sb3'",
+                "stable-baselines3 ; extra == 'sb3'",
+                "pytest ; extra == 'test'",
+                "pytest-xdist ; extra == 'test'",
+                "gym ; extra == 'test'",
+                "stable-baselines3 ; extra == 'test'"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "HuggingFace community-driven open-source library of simulation environments",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15810174,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b404c6734708a7d23cda12fe21374a85",
+                    "sha256": "97d27dda0cb61aff1500a33c9ac73d6224e218ce506c650944faf9be6018dd9d"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.1.0-cp310-cp310-macosx_12_0_arm64.whl",
+                "has_sig": false,
+                "md5_digest": "b404c6734708a7d23cda12fe21374a85",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.8",
+                "size": 542231,
+                "upload_time": "2022-11-18T03:17:38",
+                "upload_time_iso_8601": "2022-11-18T03:17:38.031228Z",
+                "url": "https://files.pythonhosted.org/packages/fb/03/5121b5f6d24065c15a97320c8116a884f9aef60df470e358fa0453010efe/simulate-0.1.0-cp310-cp310-macosx_12_0_arm64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0ab63d232e7917e16f0a3dfa76872a8e",
+                    "sha256": "45bae9a4ff6c7bd18d7116d4b69f82a8004281ec94a68ed0244952968b4d4d53"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "0ab63d232e7917e16f0a3dfa76872a8e",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 139120,
+                "upload_time": "2022-11-18T03:17:40",
+                "upload_time_iso_8601": "2022-11-18T03:17:40.913556Z",
+                "url": "https://files.pythonhosted.org/packages/ae/6e/920d73bd782bcefd4d8f30509221de44650382bbaf94427e061eac96e6ca/simulate-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.1": {
+        "info": {
+            "author": "HuggingFace Inc.",
+            "author_email": "thomas@huggingface.co",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Education",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence"
+            ],
+            "description": "<p align=\"center\">\n    <br>\n    <img src=\"docs/source/assets/simulate_library.png\" width=\"400\"/>\n    <br>\n</p>\n<p align=\"center\">\n    <a href=\"https://github.com/huggingface/simulate/blob/main/LICENSE\">\n        <img alt=\"GitHub\" src=\"https://img.shields.io/github/license/huggingface/datasets.svg?color=blue\">\n    </a>\n    <a href=\"https://github.com/huggingface/simulate/releases\">\n        <img alt=\"GitHub release\" src=\"https://img.shields.io/github/release/huggingface/diffusers.svg\">\n    </a>\n    <a href=\"CODE_OF_CONDUCT.md\"> \n        <img alt=\"Contributor Covenant\" src=\"https://img.shields.io/badge/Contributor%20Covenant-2.0-4baaaa.svg\">\n    </a>\n</p>\n\n# Simulate\n\nSimulate is a library for easily creating and sharing simulation environments for intelligent agents (e.g. reinforcement learning) or synthetic data generation.\n\n## Install\n\nInstall Simulate (preferentially in a virtual environment) with a simple `pip install simulate`\n\n### Install for contribution (from [CONTRIBUTING.md](CONTRIBUTING.md))\n\nCreate a virtual env and then install the code style/quality tools as well as the code base locally\n```\npip install --upgrade simulate\n```\nBefore you merge a PR, fix the style (we use `isort` + `black`)\n```\nmake style\n```\n\n## Quick tour\n\nSimulate's API is inspired by the great [Kubric's API](https://github.com/google-research/kubric).\nThe user create a `Scene` and add `Assets` in it (objects, cameras, lights etc).\n\nOnce the scene is created, you can save and share it as a file. This is a gIFT file, aka a JSON file with associated resources.\n\nYou can also render the scene or do simulations using one of the backend rendering/simulation engines (at the moment Unity, Blender and Godot).\n\nThe saving/sharing format is engine agnostic and using a graphic industry standard.\n\nLet's do a quick exploration together.  \n\n```\nimport simulate as sm\n\nscene = sm.Scene()\n```\n\n### Project Structure\n\nThe Python API is located in src/simulate. It allows creation and loading of scenes, and sending commands to the backend.\n\nWe provide several backends to render and/or run the scene.\nThe default backend requires no specific installation and is based on [pyvista](https://docs.pyvista.org/user-guide/index.html). It allows one to quick render/explored scene but doesn't handle physics simulation.\nTo allow physic simulations, the Unity backend can for instance be used by setting `engine=\"unity\"` (and soon the Godot and Blender Engines backend as well). A Unity build will be automatically downloaded (if not already) and spawed to run simulations. Alternatively, one can download and use the Unity editor themself, which must then be opened with Unity version 2021.3.2f1.\n\n### Loading a scene from the Hub or a local file\n\nLoading a scene from a local file or the Hub is done with `Scene.create_from()`, saving locally or pushing to the Hub with `scene.save()` or `scene.push_to_hub()`:\n\n```\nfrom simulate import Scene\n\nscene = Scene.create_from('tests/test_assets/fixtures/Box.gltf')  # either local (priority) or on the Hub with full path to file\nscene = Scene.create_from('simulate-tests/Box/glTF/Box.gltf', is_local=False)  # Set priority to the Hub file\n\nscene.save('local_dir/file.gltf')  # Save to a local file\nscene.push_to_hub('simulate-tests/Debug/glTF/Box.gltf')  # Save to the Hub - use a token if necessary\n\nscene.show()\n```\n<p align=\"center\">\n    <br>\n    <img src=\"https://user-images.githubusercontent.com/10695622/191554717-acba4764-a4f4-4609-834a-39ddb50b844a.png\" width=\"400\"/>\n    <br>\n<p>\n\n### Creating a Scene and adding/managing Objects in the scene\n\nBasic example of creating a scene with a plane and a sphere above it:\n```\nimport simulate as sm\n\nscene = sm.Scene()\nscene += sm.Plane() + sm.Sphere(position=[0, 1, 0], radius=0.2)\n\n>>> scene\n>>> Scene(dimensionality=3, engine='PyVistaEngine')\n>>> \u2514\u2500\u2500 plane_01 (Plane - Mesh: 121 points, 100 cells)\n>>>     \u2514\u2500\u2500 sphere_02 (Sphere - Mesh: 842 points, 870 cells)\n\nscene.show()\n```\n\nAn object (as well as the Scene) is just a node in a tree provided with optional mesh (under the hood created/stored/edited as a [`pyvista.PolyData`](https://docs.pyvista.org/api/core/_autosummary/pyvista.PolyData.html#pyvista-polydata) or [`pyvista.MultiBlock`](https://docs.pyvista.org/api/core/_autosummary/pyvista.MultiBlock.html#pyvista-multiblock) objects) and material and/or light, camera, agents special objects.\n\nThe following objects creation helpers are currently provided:\n- `Object3D` any object with a mesh and/or material\n- `Plane`\n- `Sphere`\n- `Capsule`\n- `Cylinder`\n- `Box`\n- `Cone`\n- `Line`\n- `MultipleLines`\n- `Tube`\n- `Polygon`\n- `Ring`\n- `Text3D`\n- `Triangle`\n- `Rectangle`\n- `Circle`\n- `StructuredGrid`\n- ... (see the doc)\n\nMany of these objects can be visualized by running the following [example](https://github.com/huggingface/simulate/tree/main/examples/objects.py):\n```\npython examples/basic/objects.py\n```\n<p align=\"center\">\n    <br>\n    <img src=\"https://user-images.githubusercontent.com/10695622/191562825-49d4c692-a1ed-44e9-bdb9-da5f0bfb9828.png\" width=\"400\"/>\n    <br>\n<p>\n\n### Objects are organized in a tree structure\n\nAdding/removing objects:\n- Using the addition (`+`) operator (or alternatively the method `.add(object)`) will add an object as a child of a previous object.\n- Objects can be removed with the subtraction (`-`) operator or the `.remove(object)` command.\n- Several objects can be added at once by adding a list/tuple to the scene.\n- The whole scene can be cleared with `.clear()`.\n- To add a nested object, just add it to the object under which it should be nested, e.g. `scene.sphere += sphere_child`.\n\nAccessing objects:\n- Objects can be directly accessed as attributes of their parents using their names (given with  `name` attribute at creation or automatically generated from the class name + creation counter).\n- Objects can also be accessed from their names with `.get_node(name)`.\n- The names of the object are enforced to be unique (on save/show).\n- Various `tree_*` attributes are available on any node to quickly navegate or list part of the tree of nodes.\n\nHere are a couple of examples of manipulations:\n\n```\n# Add two copy of the sphere to the scene as children of the root node (using list will add all objects on the same level)\n# Using `.copy()` will create a copy of an object (the copy doesn't have any parent or children)\nscene += [scene.plane_01.sphere_02.copy(), scene.plane_01.sphere_02.copy()]\n\n>>> scene\n>>> Scene(dimensionality=3, engine='pyvista')\n>>> \u251c\u2500\u2500 plane_01 (Plane - Mesh: 121 points, 100 cells)\n>>> \u2502   \u2514\u2500\u2500 sphere_02 (Sphere - Mesh: 842 points, 870 cells)\n>>> \u251c\u2500\u2500 sphere_03 (Sphere - Mesh: 842 points, 870 cells)\n>>> \u2514\u2500\u2500 sphere_04 (Sphere - Mesh: 842 points, 870 cells)\n\n# Remove the last added sphere\n>>> scene.remove(scene.sphere_04)\n>>> Scene(dimensionality=3, engine='pyvista')\n>>> \u251c\u2500\u2500 plane_01 (Plane - Mesh: 121 points, 100 cells)\n>>> \u2502   \u2514\u2500\u2500 sphere_02 (Sphere - Mesh: 842 points, 870 cells)\n>>> \u2514\u2500\u2500 sphere_03 (Sphere - Mesh: 842 points, 870 cells)\n```\n\n### Editing and moving objects\n\nObjects can be easily translated, rotated, scaled\n\nHere are a couple of examples:\n```\n# Let's translate our floor (with the first sphere, it's child)\nscene.plane_01.translate_x(1)\n\n# Let's scale the second sphere uniformly\nscene.sphere_03.scale(0.1)\n\n# Inspect the current position and scaling values\nprint(scene.plane_01.position)\n>>> array([1., 0., 0.])\nprint(scene.sphere_03.scaling)\n>>> array([0.1, 0.1, 0.1])\n\n# We can also translate from a vector and rotate from a quaternion or along the various axis\n```\n\nEditing objects:\n- mesh of the object can be edited with all the manipulation operator provided by [pyvista](https://docs.pyvista.org/user-guide/index.html)\n\n## Visualization engine\n\nA default visualization engine is provided with the vtk backend of [`pyvista`](https://docs.pyvista.org/user-guide/index.html).\n\nStarting the visualization engine can be done simply with `.show()`.\n```\nscene.show()\n```\n\nYou can find bridges to other rendering/simulation engines in the `integrations` directory.\n\n## Tips\n\nIf you are running on GCP, remember not to install `pyvistaqt`, and if you did so, uninstall it in your environment, since QT doesn't work well on GCP.\n\n## Citation\n```bibtex\n@misc{simulate,\n  author = {Thomas Wolf, Edward Beeching, Carl Cochet, Dylan Ebert, Alicia Machado, Nathan Lambert, Cl\u00e9ment Romac},\n  title = {Simulate},\n  year = {2022},\n  publisher = {GitHub},\n  journal = {GitHub repository},\n  howpublished = {\\url{https://github.com/huggingface/simulate}}\n}\n```\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://github.com/huggingface/simulate/tags",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/huggingface/simulate",
+            "keywords": "simulation environments synthetic data datasets machine learning",
+            "license": "Apache 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "simulate",
+            "package_url": "https://pypi.org/project/simulate/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/simulate/",
+            "project_urls": {
+                "Download": "https://github.com/huggingface/simulate/tags",
+                "Homepage": "https://github.com/huggingface/simulate"
+            },
+            "release_url": "https://pypi.org/project/simulate/0.1.1/",
+            "requires_dist": [
+                "dataclasses-json",
+                "numpy (>=1.18)",
+                "vtk (>=9.0)",
+                "pyvista (>=0.35)",
+                "huggingface-hub (>=0.10)",
+                "pybind11 (>=2.10.0)",
+                "scikit-build (>=0.5)",
+                "gym (==0.21.0) ; extra == 'dev'",
+                "stable-baselines3 ; extra == 'dev'",
+                "pyvistaqt ; extra == 'dev'",
+                "pyqt5 ; extra == 'dev'",
+                "pytest ; extra == 'dev'",
+                "pytest-xdist ; extra == 'dev'",
+                "gym ; extra == 'dev'",
+                "black[jupyter] (~=22.0) ; extra == 'dev'",
+                "flake8 (>=3.8.3) ; extra == 'dev'",
+                "isort (>=5.0.0) ; extra == 'dev'",
+                "pyyaml (>=5.3.1) ; extra == 'dev'",
+                "s3fs ; extra == 'docs'",
+                "black[jupyter] (~=22.0) ; extra == 'quality'",
+                "flake8 (>=3.8.3) ; extra == 'quality'",
+                "isort (>=5.0.0) ; extra == 'quality'",
+                "pyyaml (>=5.3.1) ; extra == 'quality'",
+                "gym (==0.21.0) ; extra == 'rl'",
+                "gym (==0.21.0) ; extra == 'sb3'",
+                "stable-baselines3 ; extra == 'sb3'",
+                "pytest ; extra == 'test'",
+                "pytest-xdist ; extra == 'test'",
+                "gym ; extra == 'test'",
+                "stable-baselines3 ; extra == 'test'"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "HuggingFace community-driven open-source library of simulation environments",
+            "version": "0.1.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15810174,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c66560c967b40578e570f64991f7ad26",
+                    "sha256": "af9a6983e5c91ae88f992b104bf0dc7f84d143ed842dd85c8fb68df53762b304"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.1.1-cp310-cp310-macosx_12_0_arm64.whl",
+                "has_sig": false,
+                "md5_digest": "c66560c967b40578e570f64991f7ad26",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.8",
+                "size": 542228,
+                "upload_time": "2022-11-18T03:46:56",
+                "upload_time_iso_8601": "2022-11-18T03:46:56.703064Z",
+                "url": "https://files.pythonhosted.org/packages/58/1b/57b58c94937de84a3dc30b94a5265d315608d7ab0cd977ff62947c69e9f6/simulate-0.1.1-cp310-cp310-macosx_12_0_arm64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9b514632c089754077b9c9399a732e10",
+                    "sha256": "9f779f696668a07e9d61157e4d99d44d2b62c1af58a2753af344af10b653ab7f"
+                },
+                "downloads": -1,
+                "filename": "simulate-0.1.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "9b514632c089754077b9c9399a732e10",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 139060,
+                "upload_time": "2022-11-18T03:46:58",
+                "upload_time_iso_8601": "2022-11-18T03:46:58.820178Z",
+                "url": "https://files.pythonhosted.org/packages/67/aa/14cbabb9997327c566c12c97fe9cd752943c0d2b9f030d39044e8a7191ac/simulate-0.1.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
