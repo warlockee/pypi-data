@@ -33,7 +33,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14805077,
+        "last_serial": 15806748,
         "urls": [
             {
                 "comment_text": "",
@@ -90,7 +90,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# Coiled Runtime\n\n[![Tests](https://github.com/coiled/coiled-runtime/actions/workflows/tests.yml/badge.svg)](https://github.com/coiled/coiled-runtime/actions/workflows/tests.yml)\n[![Linting](https://github.com/coiled/coiled-runtime/actions/workflows/lint.yml/badge.svg)](https://github.com/coiled/coiled-runtime/actions/workflows/lint.yml)\n[![Benchmarks](https://shields.io/badge/-Benchmarks-blue)](https://coiled.github.io/coiled-runtime/index.html)\n\nThe Coiled Runtime is a conda metapackage which makes it easy to get started with Dask.\n\n## Install\n\n`coiled-runtime` can be installed with:\n\n```bash\nconda install -c conda-forge coiled-runtime\n```\n\n**Nightly builds**\n  \n`coiled-runtime` has nightly conda packages for testing purposes.\nYou can install a nightly version of `coiled-runtime` with:\n\n```bash\nconda install -c coiled/label/dev -c dask/label/dev coiled-runtime \n```\n\n## Build\n\nTo build and install `coiled-runtime` locally, use the following steps:\n\n```bash\n# Have a local copy of the `coiled-runtime` repository\ngit clone https://github.com/coiled/coiled-runtime\ncd coiled-runtime\n\n# Make sure conda-build is installed\nconda install -c conda-forge conda-build\n\n# Build the metapackage\nconda build recipe -c conda-forge --output-folder dist/conda --no-anaconda-upload\n\n# Install the built `coiled-runtime` metapackage\nconda install -c ./dist/conda/ -c conda-forge coiled-runtime\n```\n\n## Test\n\nThe `coiled-runtime` test suite can be run locally with the following steps:\n\n1. Ensure your local machine is authenticated to use the `dask-engineering` Coiled account and\n   the Coiled Dask Engineering AWS S3 account.\n2. Create a Python environment and install development dependencies as\n   specified in `ci/environment.yml`.\n3. (Optional) If testing against an unreleased version of `coiled-runtime`,\n   create a Coiled software environment with the unreleased `coiled-runtime` installed\n   and set a local `COILED_SOFTWARE_NAME` environment variable to the name\n   of the software environment (e.g. `export COILED_SOFTWARE_NAME=\"account/software-name\"`)\n4. Run tests with `python -m pytest tests`\n\nAdditionally, tests are automatically run on pull requests to this repository.\nSee the section below on creating pull requests.\n\n## Benchmarking\n\nThe `coiled-runtime` test suite contains a series of pytest fixtures which enable\nbenchmarking metrics to be collected and stored for historical and regression analysis.\nBy default, these metrics are not collected and stored, but they can be enabled\nby including the `--benchmark` flag in your pytest invocation.\n\nFrom a high level, here is how the benchmarking works:\n\n* Data from individual test runs are collected and stored in a local sqlite database.\n  The schema for this database is stored in `benchmark_schema.py`\n* The local sqlite databases are appended to a global historical record, stored in S3.\n* The historical data can be analyzed using any of a number of tools.\n  `dashboard.py` creates a set of static HTML documents showing historical data for the tests.\n\n### Running the benchmarks locally\n\nYou can collect benchmarking data by running pytest with the `--benchmark` flag.\nThis will create a local `benchmark.db` sqlite file in the root of the repository.\nIf you run a test suite multiple times with benchmarking,\nthe data will be appended to the database.\n\nYou can compare with historical data by downloading the global database from S3 first:\n\n```bash\naws s3 cp s3://coiled-runtime-ci/benchmarks/benchmark.db ./benchmark.db\npytest --benchmark\n```\n\n### Changing the benchmark schema\n\nYou can add, remove, or modify columns by editing the SQLAlchemy schema in `benchmark_schema.py`.\nHowever, if you have a database of historical data, then the schemas of the new and old data will not match.\nIn order to account for this, you must provide a migration for the data and commit it to the repository.\nWe use `alembic` to manage SQLAlchemy migrations.\nIn the simple case of simply adding or removing a column to the schema, you can do the following:\n\n```bash\n# First, edit the `benchmark_schema.py`\n\nalembic revision --autogenerate -m \"Description of migration\"\ngit add alembic/versions/name_of_new_migration.py\ngit commit -m \"Added a new migration\"\n```\n\nMigrations are automatically applied in the pytest runs, so you needn't run them yourself.\n\n### Using the benchmark fixtures\n\nWe have a number of pytest fixtures defined which can be used to automatically track certain metrics in the benchmark database.\nThey are summarized here:\n\n**`benchmark_db_engine`**: The SQLAlchemy engine for the benchmark sqlite database. You can control the database name with the environment variable `DB_NAME`, which defaults to `benchmark.db`. Most tests shouldn't need to include this fixture directly.\n\n**`benchmark_db_session`**: The SQLAlchemy session for a given test. Most tests shouldn't need to include this fixture directly.\n\n**`test_run_benchmark`**: The SQLAlchemy ORM object for a given test. By including this fixutre in a test (or another fixture that includes it) you trigger the test being written to the benchmark database. This fixture includes data common to all tests, including python version, test name, and the test outcome.\n\n**`benchmark_time`**: Include this fixture to measure the wall clock time.\n\n**`sample_memory`**: This fixture yields a context manager which takes a distributed `Client` object, and records peak and average memory usage for the cluster within the context:\n```python\ndef test_something(sample_memory):\n    with Client() as client:\n        with sample_memory(client):\n            client.submit(expensive_function)\n```\n\nWriting a new benchmark fixture would generally look like:\n1. Requesting the `test_run_benchmark` fixture, which yields an ORM object.\n1. Doing whatever setup work you need.\n1. `yield`ing to the test\n1. Collecting whatever information you need after the test is done.\n1. Setting the appropriate attributes on the ORM object.\n\nThe `benchmark_time` fixture provides a fairly simple example.\n\n## Contribute\n\nThis repository uses GitHub Actions secrets for managing authentication tokens used\nto access resources like Coiled clusters, S3 buckets, etc. However, because GitHub Actions [doesn't\ngrant access to secrets for forked repositories](https://docs.github.com/en/actions/security-guides/encrypted-secrets#using-encrypted-secrets-in-a-workflow),\n**please submit pull requests directly from the `coiled/coiled-runtime` repository,\nnot a personal fork**.\n\n## Release\n\nTo issue a new `coiled-runtime` release:\n\n1. Locally update the `coiled-runtime` version and package pinnings specified in `recipe/meta.yaml`.\n    - When updating package version pinnings (in particular `dask` and `distributed`)\n      confirm there are no reported large scale stability issues (e.g. deadlocks) or\n      performance regressions on the `dask` / `distributed` issue trackers or offline\n      reports.\n2. Open a pull request to the `coiled-runtime` repository titled \"Release X.Y.Z\" with these changes\n   (where `X.Y.Z` is replaced with the actual version for the release).\n3. After all CI builds have passed the release pull request can be merged.\n4. Add a new git tag for the release by following the steps below on your local machine:\n\n```bash\n# Pull in changes from the Release X.Y.Z PR\ngit checkout main\ngit pull origin main\n\n# Set release version number\nexport RELEASE=X.Y.Z\n# Create and push release tag\ngit tag -a $RELEASE -m \"Version $RELEASE\"\ngit push origin main --tags\n```\n\n5. Update the `coiled-runtime` package on conda-forge by opening a pull request to the\n   [`coiled-runtime` conda-forge feedstock](https://github.com/conda-forge/coiled-runtime-feedstock)\n   which updates the `coiled-runtime` version and package version pinnings.\n    - Note that pull requests to conda-forge feedstocks must come from a fork.\n    - Reset the build number back to `0` if it isn't already.\n    - For more information on updating conda-forge packages, see the\n      [conda-forge docs](https://conda-forge.org/docs/maintainer/updating_pkgs.html).\n\n## License\n\n[BSD-3](LICENSE)\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -148,7 +147,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14805077,
+        "last_serial": 15806748,
         "urls": [
             {
                 "comment_text": "",
@@ -187,6 +186,123 @@
                 "upload_time": "2022-08-18T19:49:23",
                 "upload_time_iso_8601": "2022-08-18T19:49:23.839014Z",
                 "url": "https://files.pythonhosted.org/packages/bb/ff/2e3a8093074f2aaa962a7d8bfed6a2f0b33210e037915269932e3e2a3461/coiled-runtime-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.1": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: BSD License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# Coiled Runtime\n\n[![Tests](https://github.com/coiled/coiled-runtime/actions/workflows/tests.yml/badge.svg)](https://github.com/coiled/coiled-runtime/actions/workflows/tests.yml)\n[![Linting](https://github.com/coiled/coiled-runtime/actions/workflows/lint.yml/badge.svg)](https://github.com/coiled/coiled-runtime/actions/workflows/lint.yml)\n[![Benchmarks](https://shields.io/badge/-Benchmarks-blue)](https://coiled.github.io/coiled-runtime/index.html)\n\nThe Coiled Runtime is a conda metapackage which makes it easy to get started with Dask.\n\n## Install\n\n`coiled-runtime` can be installed with `conda`:\n\n```bash\nconda install -c conda-forge coiled-runtime\n```\n\nor with `pip`:\n\n```bash\npip install coiled-runtime\n```\n\n\n**Nightly builds**\n  \n`coiled-runtime` has nightly conda packages for testing purposes.\nYou can install a nightly version of `coiled-runtime` with:\n\n```bash\nconda install -c coiled/label/dev -c dask/label/dev coiled-runtime \n```\n\n## Build\n\nTo build and install `coiled-runtime` locally, use the following steps:\n\n```bash\n# Have a local copy of the `coiled-runtime` repository\ngit clone https://github.com/coiled/coiled-runtime\ncd coiled-runtime\n\n# Make sure conda-build is installed\nconda install -c conda-forge conda-build\n\n# Build the metapackage\nconda build recipe -c conda-forge --output-folder dist/conda --no-anaconda-upload\n\n# Install the built `coiled-runtime` metapackage\nconda install -c ./dist/conda/ -c conda-forge coiled-runtime\n```\n\n## Test\n\nThe `coiled-runtime` test suite can be run locally with the following steps:\n\n1. Ensure your local machine is authenticated to use the `dask-engineering` Coiled account and\n   the Coiled Dask Engineering AWS S3 account.\n2. Create a Python environment and install development dependencies as\n   specified in `ci/environment.yml`.\n3. Install a coiled runtime environment. This might be from one of the environments\n   listed in ``environments/``, or it could be a development environment if you are\n   testing feature branches of dask or distributed. This test suite is configured\n   to run Coiled's ``package_sync`` feature, so your local environment should be copied\n   to the cluster.\n4. Run tests with `python -m pytest tests`\n\nAdditionally, tests are automatically run on pull requests to this repository.\nSee the section below on creating pull requests.\n\n## Benchmarking\n\nThe `coiled-runtime` test suite contains a series of pytest fixtures which enable\nbenchmarking metrics to be collected and stored for historical and regression analysis.\nBy default, these metrics are not collected and stored, but they can be enabled\nby including the `--benchmark` flag in your pytest invocation.\n\nFrom a high level, here is how the benchmarking works:\n\n* Data from individual test runs are collected and stored in a local sqlite database.\n  The schema for this database is stored in `benchmark_schema.py`\n* The local sqlite databases are appended to a global historical record, stored in S3.\n* The historical data can be analyzed using any of a number of tools.\n  `dashboard.py` creates a set of static HTML documents showing historical data for the tests.\n\n### Running the benchmarks locally\n\nYou can collect benchmarking data by running pytest with the `--benchmark` flag.\nThis will create a local `benchmark.db` sqlite file in the root of the repository.\nIf you run a test suite multiple times with benchmarking,\nthe data will be appended to the database.\n\nYou can compare with historical data by downloading the global database from S3 first:\n\n```bash\naws s3 cp s3://coiled-runtime-ci/benchmarks/benchmark.db ./benchmark.db\npytest --benchmark\n```\n\n### Changing the benchmark schema\n\nYou can add, remove, or modify columns by editing the SQLAlchemy schema in `benchmark_schema.py`.\nHowever, if you have a database of historical data, then the schemas of the new and old data will not match.\nIn order to account for this, you must provide a migration for the data and commit it to the repository.\nWe use `alembic` to manage SQLAlchemy migrations.\nIn the simple case of simply adding or removing a column to the schema, you can do the following:\n\n```bash\n# First, edit the `benchmark_schema.py` and commit the changes.\n\nalembic revision --autogenerate -m \"Description of migration\"\ngit add alembic/versions/name_of_new_migration.py\ngit commit -m \"Added a new migration\"\n```\n\nMigrations are automatically applied in the pytest runs, so you needn't run them yourself.\n\n### Deleting old test data\n\nAt times you might change a specific test that makes older benchmarking data irrelevant.\nIn that case, you can discard old benchmarking data for that test by applying a data migration\nremoving that data:\n\n```bash\nalembic revision -m \"Declare bankruptcy for <test-name>\"\n# Edit the migration here to do what you want.\ngit add alembic/versions/name_of_new_migration.py\ngit commit -m \"Bankruptcy migration for <test-name>\"\n```\n\nAn example of a migration that does this is [here](./alembic/versions/924e9b1430e1_spark_test_bankruptcy.py).\n\n### Using the benchmark fixtures\n\nWe have a number of pytest fixtures defined which can be used to automatically track certain metrics in the benchmark database.\nThe most relevant ones are summarized here:\n\n**`benchmark_time`**: Record wall clock time duration.\n\n**`benchmark_memory`**: Record memory usage.\n\n**`benchmark_task_durations`**: Record time spent computing, transferring data, spilling to disk, and deserializing data.\n\n**`auto_benchmark_time`**: Include this fixture to measure the wall clock time of the whole test automatically.\n\n**`benchmark_all`**: Record all available metrics.\n\nFor more information on all available fixtures and examples on how to use them, please refer to their documentation.\n\nWriting a new benchmark fixture would generally look like:\n1. Requesting the `test_run_benchmark` fixture, which yields an ORM object.\n1. Doing whatever setup work you need.\n1. `yield`ing to the test\n1. Collecting whatever information you need after the test is done.\n1. Setting the appropriate attributes on the ORM object.\n\nThe `benchmark_time` fixture provides a fairly simple example.\n\n## Investigating performance regressions\n\nIt is not always obvious what the cause of a seeming performance regression is.\nIt could be due to a new version of a direct or transitive dependency,\nand it could be due to a change in the Coiled platform.\nBut often it is due to a change in `dask` or `distributed`.\nIf you suspect that is the case, Coiled's `package_sync` feature combines well with the benchmarking infrastructure here and `git bisect`.\n\nThe following is an example workflow which could be used to identify a specific commit in `dask` which introduced a performance regression.\nThis workflow presumes you have two terminal windows open, one with the `coiled-runtime` test suite,\nand one with a `dask` repository with which to drive bisecting.\n\n#### Create your software environment\n\nYou should create a software environment which can run this test suite, but with an editable install of `dask`.\nYou can do this in any of a number of ways, but one approach coule be\n```bash\nconda env create -n test-env --file ci/environment.yml  # Create a test environment\nconda activate test-env  # Activate your test environment\npip install .  # Install the `coiled-runtime` metapackage dependencies.\n(cd <your-dask-dir> && pip install -e .)  # Do an editable install for dask\n```\n\n#### Start bisecting\n\nLet's say the current `HEAD` of `dask` is known to be bad, and `$REF` is known to be good. If you are looking at an upstream run where you have access to the static page, you can check the dates reported for each run and do a `git log` with the corresponding dates to get a list of commits to use in the bisecting process.\n\n`git log --since='2022-08-15 14:15' --until='2022-08-18 14:15' --pretty=oneline`\nIn the terminal opened to your dask repository you can initialize a bisect workflow with\n\n```bash\ncd <your-dask-dir>\ngit bisect start\ngit bisect bad\ngit bisect good $REF\n```\n\n#### Test for regressions\n\nNow that your editable install is bisecting, run a test or subset of tests which demonstrate the regression in your `coiled-runtime` terminal.\nPresume that `tests/benchmarks/test_parquet.py::test_write_wide_data` is such a test:\n\n```bash\npytest tests/benchmarks/test_parquet.py::test_write_wide_data --benchmark\n```\n\nOnce the test is done, it will have written a new entry to a local sqlite file `benchmark.db`.\nYou will want to check whether that entry displays the regression.\nExactly what that check will look like will depend on the test and the regression.\nYou might have a script that builds a chart from `benchmark.db` similar to `dashboard.py`,\nor a script that performs some kind of statistical analysis.\nBut let's assume a simpler case where you can recognize it from the `average_memory`.\nYou can query that with\n\n```bash\nsqlite3 benchmark.db \"select dask_version, average_memory from test_run where name = 'test_write_wide_data';\"\n```\n\nIf the last entry displays the regression, mark the commit in your dask terminal as `bad`:\n\n```bash\ngit bisect bad\n```\n\nIf the last entry doesn't display the regression, mark the commit in your dask terminal as `good`:\n\n```bash\ngit bisect good\n```\n\nProceed with this process until you have narrowed it down to a single commit.\nCongratulations! You've identified the source of your regression.\n\n## A/B testing\n\nIt's possible to run the Coiled Runtime benchmarks for A/B comparisons.\n[Read full documentation](AB_environments/README.md).\n\n\n## Contribute\n\nThis repository uses GitHub Actions secrets for managing authentication tokens used\nto access resources like Coiled clusters, S3 buckets, etc. However, because GitHub Actions [doesn't\ngrant access to secrets for forked repositories](https://docs.github.com/en/actions/security-guides/encrypted-secrets#using-encrypted-secrets-in-a-workflow),\n**please submit pull requests directly from the `coiled/coiled-runtime` repository,\nnot a personal fork**.\n\n## Release\n\nTo issue a new `coiled-runtime` release:\n\n1. Locally update the `coiled-runtime` version and package pinnings specified in `recipe/meta.yaml`.\n    - When updating package version pinnings (in particular `dask` and `distributed`)\n      confirm there are no reported large scale stability issues (e.g. deadlocks) or\n      performance regressions on the `dask` / `distributed` issue trackers or offline\n      reports.\n2. Open a pull request to the `coiled-runtime` repository titled \"Release X.Y.Z\" with these changes\n   (where `X.Y.Z` is replaced with the actual version for the release).\n3. After all CI builds have passed the release pull request can be merged.\n4. Add a new git tag for the release by following the steps below on your local machine:\n\n```bash\n# Pull in changes from the Release X.Y.Z PR\ngit checkout main\ngit pull origin main\n\n# Set release version number\nexport RELEASE=X.Y.Z\n# Create and push release tag\ngit tag -a $RELEASE -m \"Version $RELEASE\"\ngit push origin main --tags\n```\n\n5. Update the `coiled-runtime` package on conda-forge by opening a pull request to the\n   [`coiled-runtime` conda-forge feedstock](https://github.com/conda-forge/coiled-runtime-feedstock)\n   which updates the `coiled-runtime` version and package version pinnings.\n    - Note that pull requests to conda-forge feedstocks must come from a fork.\n    - Reset the build number back to `0` if it isn't already.\n    - For more information on updating conda-forge packages, see the\n      [conda-forge docs](https://conda-forge.org/docs/maintainer/updating_pkgs.html).\n\n## License\n\n[BSD-3](LICENSE)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/coiled/coiled-runtime",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "coiled-runtime",
+            "package_url": "https://pypi.org/project/coiled-runtime/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/coiled-runtime/",
+            "project_urls": {
+                "Homepage": "https://github.com/coiled/coiled-runtime"
+            },
+            "release_url": "https://pypi.org/project/coiled-runtime/0.1.1/",
+            "requires_dist": [
+                "pip",
+                "coiled (>=0.2.41)",
+                "numpy (==1.21.6)",
+                "pandas (==1.4.2)",
+                "dask (==2022.6.0)",
+                "distributed (==2022.6.0)",
+                "fsspec (==2022.5.0)",
+                "s3fs (==2022.5.0)",
+                "gcsfs (==2022.5.0)",
+                "pyarrow (==8.0.0)",
+                "jupyterlab (==3.4.2)",
+                "dask-labextension (==5.2.0)",
+                "lz4 (==4.0.0)",
+                "ipywidgets (==7.7.0)",
+                "numba (==0.56.3)",
+                "scikit-learn (==1.1.1)",
+                "ipycytoscape (==1.3.3)",
+                "click (==8.1.3)",
+                "xarray (==2022.3.0)",
+                "zarr (==2.11.3)",
+                "cloudpickle (==2.1.0)",
+                "tornado (==6.1)",
+                "toolz (==0.12.0)",
+                "zict (==2.2.0)",
+                "xgboost (==1.6.1)",
+                "dask-ml (==2022.5.27)",
+                "pynvml (==11.4.1)",
+                "bokeh (==2.4.3)",
+                "blosc (==1.10.2)",
+                "msgpack (==1.0.3)"
+            ],
+            "requires_python": "<3.11,>=3.8",
+            "summary": "Simple and fast way to get started with Dask",
+            "version": "0.1.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15806748,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f135a7667a4fae55cd9c1089f3e3280e",
+                    "sha256": "84a3136dd45d81b77f7c5209a504bcf0861df879cac0fb6b87bdce74d728cc25"
+                },
+                "downloads": -1,
+                "filename": "coiled_runtime-0.1.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f135a7667a4fae55cd9c1089f3e3280e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": "<3.11,>=3.8",
+                "size": 6989,
+                "upload_time": "2022-11-17T21:25:20",
+                "upload_time_iso_8601": "2022-11-17T21:25:20.875982Z",
+                "url": "https://files.pythonhosted.org/packages/c7/01/3ed47d0bfe0a8347ed7f1a90a3289f3c2c4a4cba9fd6e10dd74101ede7ba/coiled_runtime-0.1.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "427644927b8b0df8dc0202c990bfd7dd",
+                    "sha256": "0956cbcee4418f9012e590bfe1824d6d99f63b000e424abae4f341bb2a85bc45"
+                },
+                "downloads": -1,
+                "filename": "coiled-runtime-0.1.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "427644927b8b0df8dc0202c990bfd7dd",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": "<3.11,>=3.8",
+                "size": 7828,
+                "upload_time": "2022-11-17T21:25:23",
+                "upload_time_iso_8601": "2022-11-17T21:25:23.300422Z",
+                "url": "https://files.pythonhosted.org/packages/43/37/6f89bc0d87fc3f106047741fc548689f5924dbde2e4dbfc920d72fb570b0/coiled-runtime-0.1.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

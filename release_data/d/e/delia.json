@@ -47,7 +47,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15780294,
+        "last_serial": 15806584,
         "urls": [
             {
                 "comment_text": "",
@@ -140,7 +140,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15780294,
+        "last_serial": 15806584,
         "urls": [
             {
                 "comment_text": "",
@@ -195,7 +195,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "<p align=\"center\" width=\"100%\">\r\n    <img width=\"100%\" src=\"https://github.com/MaxenceLarose/delia/raw/main/images/delia.svg\">\r\n</p>\r\n<p align=\"center\"><i>DELIA facilitates data extraction from DICOM files to support large-scale image analysis workflows.</i></p>\r\n\r\n# Notable features\r\n\r\n- Bulk extraction of images and segmentations from multiple patients' DICOM files. Segmentations must be in [DICOM-SEG](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.20.html) or [RTStruct](https://dicom.nema.org/dicom/2013/output/chtml/part03/sect_A.19.html) format.\r\n- Creation of an [HDF5](https://github.com/h5py/h5py) database containing multiple patients' medical images as well as binary label maps (segmentations). The database is then easier to use than DICOMs to perform tasks on medical data, such as training deep neural networks. \r\n- Bulk extraction of radiomics features from multiple patients' DICOM files using [pyradiomics](https://github.com/AIM-Harvard/pyradiomics).\r\n\r\n# Quick usage preview\r\n\r\n## Extract images\r\n\r\n```python\r\nfrom delia.extractors import PatientsDataExtractor\r\n\r\npatients_data_extractor = PatientsDataExtractor(path_to_patients_folder=\"patients\")\r\n\r\nfor patient in patients_data_extractor:\r\n    for image_data in patient.data:\r\n        array = image_data.image.numpy_array\r\n        \r\n        \"\"\"Perform any tasks on images on-the-fly.\"\"\"\r\n        print(array)\r\n```\r\n\r\n## Create patients database (HDF5)\r\n\r\n```python\r\nfrom delia.databases import PatientsDatabase\r\nfrom delia.extractors import PatientsDataExtractor\r\n\r\npatients_data_extractor = PatientsDataExtractor(path_to_patients_folder=\"patients\")\r\n\r\ndatabase = PatientsDatabase(path_to_database=\"patients_database.h5\")\r\n\r\ndatabase.create(patients_data_extractor=patients_data_extractor)\r\n\r\n```\r\n\r\n## Create radiomics dataset (CSV)\r\n\r\n```python\r\nfrom delia.extractors import PatientsDataExtractor\r\nfrom delia.radiomics import RadiomicsDataset, RadiomicsFeatureExtractor\r\n\r\npatients_data_extractor = PatientsDataExtractor(path_to_patients_folder=\"patients\")\r\n\r\nradiomics_dataset = RadiomicsDataset(path_to_dataset=\"radiomics.csv\")\r\nradiomics_dataset.extractor = RadiomicsFeatureExtractor(path_to_params=\"features_extractor_params.yaml\")\r\n\r\nradiomics_dataset.create(patients_data_extractor=patients_data_extractor, organ=\"Heart\", image_name=\"CT\")\r\n\r\n```\r\n\r\n# Motivation\r\n\r\n**Digital Imaging and Communications in Medicine** ([**DICOM**](https://www.dicomstandard.org/)) is *the* international standard for medical images and related information. The working group [DICOM WG-23](https://www.dicomstandard.org/activity/wgs/wg-23/) on Artificial Intelligence / Application Hosting is currently working to identify or develop the DICOM mechanisms to support AI workflows, concentrating on the clinical context. Moreover, their future *roadmap and objectives* includes working on the concern that current DICOM mechanisms might not be adequate to cover some use cases, particularly bulk analysis of large repository data, e.g. for training deep learning neural networks. **However, no tool has been developed to achieve this goal at present.**\r\n\r\nThe main **purpose** of this module is therefore to provide the necessary tools to facilitate the use of medical images in an AI workflow.  This goal is accomplished by using the [HDF file format](https://www.hdfgroup.org/) to create a database containing patients' medical images as well as binary label maps obtained from the segmentation of these images.\r\n\r\n# Installation\r\n\r\n## Latest stable version :\r\n\r\n```\r\npip install delia\r\n```\r\n\r\n## Latest (possibly unstable) version :\r\n\r\n```\r\npip install git+https://github.com/MaxenceLarose/delia\r\n```\r\n\r\n# How it works\r\n\r\n## Main concepts\r\n\r\nThere are 5 main concepts :\r\n\r\n1. `PatientDataModel` : It is the primary `delia` data structure. It is a named tuple gathering the image and segmentation data available in a patient record. \r\n2. `PatientsDataExtractor` : A Python [Generator](https://docs.python.org/3/library/collections.abc.html#collections.abc.Generator) that allows to iterate over several patients and create a `PatientDataModel` object for each of them. A sequence of `delia` or `monai` transformations to apply to specific images or segmentations can be specified (see [MONAI](https://docs.monai.io/en/stable/transforms.html)).\r\n3. `PatientsDatabase` : An object that is used to create/interact with an HDF5 file (a database!) containing all patients information (images + label maps). The `PatientsDataExtractor` is used to populate this database. \r\n4. `RadiomicsDataset` : An object that is used to create/interact with a csv file (a dataset!) containing radiomics features extracted from images. The `PatientsDataExtractor` is used to populate this dataset. \r\n\r\n## Organize your data\r\n\r\nSince this module requires the use of data, it is important to properly configure the data-related elements before using it.\r\n\r\n### File format\r\n\r\nImages files must be in standard [**DICOM**](https://www.dicomstandard.org/) format and segmentation files must be in [DICOM-SEG](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.20.html) or [RTStruct](https://dicom.nema.org/dicom/2013/output/chtml/part03/sect_A.19.html) format.\r\n\r\nIf your segmentation files are in a research file format (`.nrrd`, `.nii`, etc.), you need to convert them into the standardized [DICOM-SEG](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.20.html) or [RTStruct](https://dicom.nema.org/dicom/2013/output/chtml/part03/sect_A.19.html) format. You can use the [pydicom-seg](https://pypi.org/project/pydicom-seg/) library to create the DICOM-SEG files OR use the [itkimage2dicomSEG](https://github.com/MaxenceLarose/itkimage2dicomSEG) python module, which provide a complete pipeline to perform this conversion. Also, you can use the [RT-Utils](https://github.com/qurit/rt-utils) library to create the RTStruct files.\r\n\r\n### Series descriptions (Optional)\r\n\r\n*This dictionary is **not** mandatory for the code to work and therefore its default value is `None`. Note that if no `series_descriptions` dictionary is given, i.e. `series_descriptions = None`, then all images associated with at least one segmentation will be added to the database.*\r\n\r\nThe series descriptions are specified as a **dictionary** that contains the series descriptions of the images that needs to be extracted from the patients' files. Keys are arbitrary names given to the images we want to add and values are lists of series descriptions. The images associated with these series descriptions do not need to have a corresponding segmentation volume. If none of the descriptions match the series in a patient's files, a warning is raised and the patient is added to the list of patients for whom the pipeline has failed.\r\n\r\nNote that the series descriptions can be specified as a classic dictionary or as a path to a **json file** that contains the series descriptions. Both methods are presented below.\r\n\r\n<details>\r\n  <summary>Using a json file</summary>\r\n\r\nCreate a json file containing only the dictionary of the names given to the images we want to add (keys) and lists of series descriptions (values). Place this file in your data folder.\r\n\r\nHere is an example of a json file configured as expected :\r\n\r\n```json\r\n{\r\n    \"TEP\": [\r\n        \"TEP WB CORR (AC)\",\r\n        \"TEP WB XL CORR (AC)\"\r\n    ],\r\n    \"CT\": [\r\n        \"CT 2.5 WB\",\r\n        \"AC CT 2.5 WB\"\r\n    ]\r\n}\r\n```\r\n</details>\r\n\r\n<details>\r\n  <summary>Using a Python dictionary</summary>\r\n\r\nCreate the organs dictionary in your main.py python file.\r\n\r\nHere is an example of a python dictionary instanced as expected :\r\n\r\n```python\r\nseries_descriptions = {\r\n    \"TEP\": [\r\n        \"TEP WB CORR (AC)\",\r\n        \"TEP WB XL CORR (AC)\"\r\n    ],\r\n    \"CT\": [\r\n        \"CT 2.5 WB\",\r\n        \"AC CT 2.5 WB\"\r\n    ]\r\n}\r\n```\r\n</details>\r\n\r\n## Structure your patients directory\r\n\r\nIt is important to configure the directory structure correctly to ensure that the module interacts correctly with the data files. The `patients` folder, must be structured as follows. *Note that all DICOM files in the patients' folder will be read.*\r\n\r\n```\r\n|_\ud83d\udcc2 Project directory/\r\n  |_\ud83d\udcc4 main.py\r\n  |_\ud83d\udcc2 data/\r\n    |_\ud83d\udcc4 series_descriptions.json\r\n    |_\ud83d\udcc2 patients/\r\n      |_\ud83d\udcc2 patient1/\r\n       \t|_\ud83d\udcc4 ...\r\n       \t|_\ud83d\udcc2 ...\r\n      |_\ud83d\udcc2 patient2/\r\n       \t|_\ud83d\udcc4 ...\r\n       \t|_\ud83d\udcc2 ...\r\n      |_\ud83d\udcc2 ...\r\n```\r\n\r\n# Import the package\r\n\r\nThe easiest way to import the package is to use :\r\n\r\n```python\r\nimport delia\r\n```\r\n\r\nYou can explicitly use the objects sub-modules :\r\n\r\n```python\r\nfrom delia.databases import PatientsDatabase\r\nfrom delia.extractors import PatientsDataExtractor\r\nfrom delia.radiomics import RadiomicsDataset, RadiomicsFeatureExtractor\r\n```\r\n\r\n# Use the package\r\n\r\n## Example using the `PatientsDatabase` class\r\n\r\nThis file can then be executed to obtain an hdf5 database.\r\n\r\n```python\r\nfrom delia.databases import PatientsDatabase\r\nfrom delia.extractors import PatientsDataExtractor\r\nfrom delia.transforms import (\r\n    PETtoSUVD,\r\n    ResampleD\r\n)\r\nfrom monai.transforms import (\r\n    CenterSpatialCropD,\r\n    Compose,\r\n    ScaleIntensityD,\r\n    ThresholdIntensityD\r\n)\r\n\r\npatients_data_extractor = PatientsDataExtractor(\r\n    path_to_patients_folder=\"data/patients\",\r\n    series_descriptions=\"data/series_descriptions.json\",\r\n    transforms=Compose(\r\n        [\r\n            ResampleD(keys=[\"CT_THORAX\", \"TEP\", \"Heart\"], out_spacing=(1.5, 1.5, 1.5)),\r\n            CenterSpatialCropD(keys=[\"CT_THORAX\", \"TEP\", \"Heart\"], roi_size=(1000, 160, 160)),\r\n            ThresholdIntensityD(keys=[\"CT_THORAX\"], threshold=-250, above=True, cval=-250),\r\n            ThresholdIntensityD(keys=[\"CT_THORAX\"], threshold=500, above=False, cval=500),\r\n            ScaleIntensityD(keys=[\"CT_THORAX\"], minv=0, maxv=1),\r\n            PETtoSUVD(keys=[\"TEP\"])\r\n        ]\r\n    )\r\n)\r\n\r\ndatabase = PatientsDatabase(path_to_database=\"data/patients_database.h5\")\r\n\r\ndatabase.create(\r\n    patients_data_extractor=patients_data_extractor,\r\n    tags_to_use_as_attributes=[(0x0008, 0x103E), (0x0020, 0x000E), (0x0008, 0x0060)],\r\n    overwrite_database=True\r\n)\r\n\r\n```\r\n\r\nThe created HDF5 database will then look something like :\r\n\r\n![patient_dataset](https://github.com/MaxenceLarose/delia/raw/main/images/patient_dataset.png)\r\n\r\n## Example using the `PatientsDataExtractor`class\r\n\r\nThis file can then be executed to perform on-the-fly tasks on images.\r\n\r\n```python\r\nfrom delia.extractors import PatientsDataExtractor\r\nfrom delia.transforms import Compose, CopySegmentationsD, PETtoSUVD, ResampleD\r\nimport SimpleITK as sitk\r\n\r\npatients_data_extractor = PatientsDataExtractor(\r\n    path_to_patients_folder=\"data/patients\",\r\n    series_descriptions=\"data/series_descriptions.json\",\r\n    transforms=Compose(\r\n        [\r\n            ResampleD(keys=[\"CT_THORAX\", \"Heart\"], out_spacing=(1.5, 1.5, 1.5)),\r\n            PETtoSUVD(keys=[\"TEP\"]),\r\n            CopySegmentationsD(segmented_image_key=\"CT_THORAX\", unsegmented_image_key=\"TEP\")\r\n        ]\r\n    )\r\n)\r\n\r\nfor patient_dataset in patients_data_extractor:\r\n\tprint(f\"Patient ID: {patient_data.patient_id}\")\r\n\r\n    for patient_image_data in patient_dataset.data:\r\n        dicom_header = patient_image_data.image.dicom_header\r\n        simple_itk_image = patient_image_data.image.simple_itk_image\r\n        numpy_array_image = sitk.GetArrayFromImage(simple_itk_image)\r\n\r\n        \"\"\"Perform any tasks on images on-the-fly.\"\"\"\r\n        print(numpy_array_image.shape)\r\n```\r\n\r\n## Need more examples?\r\n\r\nYou can find more in the [examples folder](https://github.com/MaxenceLarose/delia/tree/main/examples).\r\n\r\n# A deeper look into the `PatientsDataExtractor` object\r\n\r\nThe `PatientsDataExtractor` has 3 important variables:  a `path_to_patients_folder` (which dictates the path to the folder that contains all patient records), a `series_descriptions` (which dictates the images that needs to be extracted from the patient records) and `transforms` that defines a sequence of transformations to apply on images or segmentations. For each patient/folder available in the `path_to_patients_folder`, all DICOM files in their folder are read. If the series descriptions of a certain volume match one of the descriptions present in the given `series_descriptions` dictionary, this volume and its segmentation (if available) are automatically added to the `PatientDataModel`. Note that if no `series_descriptions` dictionary is given (`series_descriptions = None`), then all images (and associated segmentations) will be added to the database. \r\n\r\nThe `PatientsDataExtractor` can therefore be used to iteratively perform tasks on each of the patients, such as displaying certain images, transforming images into numpy arrays, or creating an HDF5 database using the `PatientsDatabase`. It is this last task that is highlighted in this package, but it must be understood that the data extraction is performed in a very general manner by the `PatientsDataExtractor` and is therefore not limited to this single application. For example, someone could easily develop a `Numpydatabase` whose creation would be ensured by the `PatientsDataExtractor`, similar to the current `PatientsDatabase` based on the HDF5 format.\r\n\r\n# TODO\r\n\r\n- [ ] Generalize the use of arbitrary tags to choose images to extract. At the moment, the only tag available is `series_descriptions`.\r\n\r\n# License\r\n\r\nThis code is provided under the [Apache License 2.0](https://github.com/MaxenceLarose/delia/blob/main/LICENSE).\r\n\r\n# Citation\r\n\r\n```\r\n@misc{delia,\r\n  title={DELIA: DICOM Extraction for Large-scale Image Analysis},\r\n  author={Maxence Larose},\r\n  year={2022},\r\n  publisher={Universit\u00e9 Laval},\r\n  url={https://github.com/MaxenceLarose/delia},\r\n}\r\n```\r\n\r\n# Contact\r\n\r\nMaxence Larose, B. Ing., [maxence.larose.1@ulaval.ca](mailto:maxence.larose.1@ulaval.ca)\r\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -234,7 +233,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15780294,
+        "last_serial": 15806584,
         "urls": [
             {
                 "comment_text": "",
@@ -273,6 +272,472 @@
                 "upload_time": "2022-11-15T20:08:23",
                 "upload_time_iso_8601": "2022-11-15T20:08:23.215873Z",
                 "url": "https://files.pythonhosted.org/packages/8d/ce/a497d828ee7703893b0a7efa86e822e95dfb1ed0889af72d5bfe9ff93881/delia-1.0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.3": {
+        "info": {
+            "author": "Maxence Larose",
+            "author_email": "maxence.larose.1@ulaval.ca",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/MaxenceLarose/delia",
+            "keywords": "dicom hdf5 medical image segmentation pre-processing python3 radiomics deep-learning dicom-seg rt-struct",
+            "license": "Apache License 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "delia",
+            "package_url": "https://pypi.org/project/delia/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/delia/",
+            "project_urls": {
+                "Homepage": "https://github.com/MaxenceLarose/delia"
+            },
+            "release_url": "https://pypi.org/project/delia/1.0.3/",
+            "requires_dist": [
+                "h5py",
+                "monai",
+                "numpy",
+                "pandas",
+                "pydicom",
+                "pydicom-seg",
+                "pyradiomics",
+                "rt-utils",
+                "SimpleITK"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "DICOM Extraction for Large-scale Image Analysis (DELIA).",
+            "version": "1.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15806584,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e8e8054c28c71a07adb51ef552ec60a5",
+                    "sha256": "42054afe70c096313ccd9fad5fe2a819174189d72799a6092040acb681ef7901"
+                },
+                "downloads": -1,
+                "filename": "delia-1.0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e8e8054c28c71a07adb51ef552ec60a5",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 59959,
+                "upload_time": "2022-11-17T18:08:01",
+                "upload_time_iso_8601": "2022-11-17T18:08:01.288440Z",
+                "url": "https://files.pythonhosted.org/packages/7f/47/02b9d53ebfeb52c78d9e3dc02096236c9f0cb422a8d6234c16264e1bd5b3/delia-1.0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f8962955e2d59e9a7244ba27f79fc5f5",
+                    "sha256": "89d620518bfc597966177c292e642c0189ca7debc47f07ca98cff5be70843953"
+                },
+                "downloads": -1,
+                "filename": "delia-1.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "f8962955e2d59e9a7244ba27f79fc5f5",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 43935,
+                "upload_time": "2022-11-17T18:08:04",
+                "upload_time_iso_8601": "2022-11-17T18:08:04.121563Z",
+                "url": "https://files.pythonhosted.org/packages/8b/ce/b3b9736662ae41fdb13f02b90b4b823722adad4c01efca27f91a7c677e75/delia-1.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.4": {
+        "info": {
+            "author": "Maxence Larose",
+            "author_email": "maxence.larose.1@ulaval.ca",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/MaxenceLarose/delia",
+            "keywords": "dicom hdf5 medical image segmentation pre-processing python3 radiomics deep-learning dicom-seg rt-struct",
+            "license": "Apache License 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "delia",
+            "package_url": "https://pypi.org/project/delia/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/delia/",
+            "project_urls": {
+                "Homepage": "https://github.com/MaxenceLarose/delia"
+            },
+            "release_url": "https://pypi.org/project/delia/1.0.4/",
+            "requires_dist": [
+                "h5py",
+                "monai",
+                "numpy",
+                "pandas",
+                "pydicom",
+                "pydicom-seg",
+                "pyradiomics",
+                "rt-utils",
+                "SimpleITK"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "DICOM Extraction for Large-scale Image Analysis (DELIA).",
+            "version": "1.0.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15806584,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "53cf2c75efc1a279e7b7ad0dd2ae6e14",
+                    "sha256": "193e442092c1806fe5ef02c4583279a6359a8df15bc6abd9e855330a47086a9c"
+                },
+                "downloads": -1,
+                "filename": "delia-1.0.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "53cf2c75efc1a279e7b7ad0dd2ae6e14",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 60034,
+                "upload_time": "2022-11-17T19:12:14",
+                "upload_time_iso_8601": "2022-11-17T19:12:14.376579Z",
+                "url": "https://files.pythonhosted.org/packages/38/7e/e0958578ae61421a46c57ea0a8168839b2f78648e1ebde4eb4a4395cce33/delia-1.0.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "41a15c9057aadb346df2b427a7de32c6",
+                    "sha256": "7b480796519105adf5a977c1d862b37fd82529acfbfb5cca25b9b3d256a011da"
+                },
+                "downloads": -1,
+                "filename": "delia-1.0.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "41a15c9057aadb346df2b427a7de32c6",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 43990,
+                "upload_time": "2022-11-17T19:12:16",
+                "upload_time_iso_8601": "2022-11-17T19:12:16.362908Z",
+                "url": "https://files.pythonhosted.org/packages/9b/0b/7d38892099d19ba79da29059a18ef9ebb9984b170bf7a7999486ea56eeaf/delia-1.0.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.5": {
+        "info": {
+            "author": "Maxence Larose",
+            "author_email": "maxence.larose.1@ulaval.ca",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/MaxenceLarose/delia",
+            "keywords": "dicom hdf5 medical image segmentation pre-processing python3 radiomics deep-learning dicom-seg rt-struct",
+            "license": "Apache License 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "delia",
+            "package_url": "https://pypi.org/project/delia/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/delia/",
+            "project_urls": {
+                "Homepage": "https://github.com/MaxenceLarose/delia"
+            },
+            "release_url": "https://pypi.org/project/delia/1.0.5/",
+            "requires_dist": [
+                "h5py",
+                "monai",
+                "numpy",
+                "pandas",
+                "pydicom",
+                "pydicom-seg",
+                "pyradiomics",
+                "rt-utils",
+                "SimpleITK"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "DICOM Extraction for Large-scale Image Analysis (DELIA).",
+            "version": "1.0.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15806584,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "672d305dd6855d5e518a64104be16834",
+                    "sha256": "e3d3186c22069ff851d3ed21d2332116f7be1f9abe07ea6ca4f667da7e8a6d65"
+                },
+                "downloads": -1,
+                "filename": "delia-1.0.5-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "672d305dd6855d5e518a64104be16834",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 60057,
+                "upload_time": "2022-11-17T19:17:49",
+                "upload_time_iso_8601": "2022-11-17T19:17:49.154704Z",
+                "url": "https://files.pythonhosted.org/packages/25/09/2ccd932b0b76ae53731652c845eef7d49749807991ce31a4d3f9167f508d/delia-1.0.5-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7b99e180d7aeb71c523dae623f7541bb",
+                    "sha256": "d3ebd9d6a9a13ce9741eee95e47d1e842b3e6b6992abd35bd0af3256e0918a80"
+                },
+                "downloads": -1,
+                "filename": "delia-1.0.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7b99e180d7aeb71c523dae623f7541bb",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 43980,
+                "upload_time": "2022-11-17T19:17:51",
+                "upload_time_iso_8601": "2022-11-17T19:17:51.302968Z",
+                "url": "https://files.pythonhosted.org/packages/08/ae/c18a862a715f13f50adb20cde3180e841278ef5df0ecd5011efa03c13d00/delia-1.0.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.6": {
+        "info": {
+            "author": "Maxence Larose",
+            "author_email": "maxence.larose.1@ulaval.ca",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/MaxenceLarose/delia",
+            "keywords": "dicom hdf5 medical image segmentation pre-processing python3 radiomics deep-learning dicom-seg rt-struct",
+            "license": "Apache License 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "delia",
+            "package_url": "https://pypi.org/project/delia/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/delia/",
+            "project_urls": {
+                "Homepage": "https://github.com/MaxenceLarose/delia"
+            },
+            "release_url": "https://pypi.org/project/delia/1.0.6/",
+            "requires_dist": [
+                "h5py",
+                "monai",
+                "numpy",
+                "pandas",
+                "pydicom",
+                "pydicom-seg",
+                "pyradiomics",
+                "rt-utils",
+                "SimpleITK"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "DICOM Extraction for Large-scale Image Analysis (DELIA).",
+            "version": "1.0.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15806584,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a3be981c63715fa0ad249164b690fe0d",
+                    "sha256": "85327ed6620128260f260a50c3fb3d470ca8f826ad5e3b489ffb0cec447aef7c"
+                },
+                "downloads": -1,
+                "filename": "delia-1.0.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "a3be981c63715fa0ad249164b690fe0d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 60130,
+                "upload_time": "2022-11-17T19:54:59",
+                "upload_time_iso_8601": "2022-11-17T19:54:59.908042Z",
+                "url": "https://files.pythonhosted.org/packages/6c/9e/fe352859b62d095c96c914d59bc5d028c7b3bbdabe419590b90352e9bd98/delia-1.0.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8b336c6d8c4fc601576e55f1f4366600",
+                    "sha256": "8fb3d4bf8e77ae858cb7928a219c076d412e68763801040c81653647ff40e0e8"
+                },
+                "downloads": -1,
+                "filename": "delia-1.0.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "8b336c6d8c4fc601576e55f1f4366600",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 44101,
+                "upload_time": "2022-11-17T19:55:01",
+                "upload_time_iso_8601": "2022-11-17T19:55:01.822875Z",
+                "url": "https://files.pythonhosted.org/packages/c5/17/3384757bd0e11498a6a9076fd56e7e6efe7e0a4d843b6ec50b7b92a11e2a/delia-1.0.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.7": {
+        "info": {
+            "author": "Maxence Larose",
+            "author_email": "maxence.larose.1@ulaval.ca",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "<p align=\"center\" width=\"100%\">\r\n    <img width=\"100%\" src=\"https://github.com/MaxenceLarose/delia/raw/main/images/logo/delia_banner.svg\">\r\n</p>\r\n<p align=\"center\"><i>DELIA facilitates data extraction from DICOM files to support large-scale image analysis workflows.</i></p>\r\n\r\n# Notable features\r\n\r\n- Bulk extraction of images and segmentations from multiple patients' DICOM files. Segmentations must be in [DICOM-SEG](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.20.html) or [RTStruct](https://dicom.nema.org/dicom/2013/output/chtml/part03/sect_A.19.html) format.\r\n- Creation of an [HDF5](https://github.com/h5py/h5py) database containing multiple patients' medical images as well as binary label maps (segmentations). The database is then easier to use than DICOMs to perform tasks on medical data, such as training deep neural networks. \r\n- Bulk extraction of radiomics features from multiple patients' DICOM files using [pyradiomics](https://github.com/AIM-Harvard/pyradiomics).\r\n\r\n# Installation\r\n\r\n## Latest stable version :\r\n\r\n```\r\npip install delia\r\n```\r\n\r\n## Latest (possibly unstable) version :\r\n\r\n```\r\npip install git+https://github.com/MaxenceLarose/delia\r\n```\r\n\r\n# Quick usage preview\r\n\r\n## Extract images as `numpy` arrays\r\n\r\n```python\r\nfrom delia.extractors import PatientsDataExtractor\r\n\r\npatients_data_extractor = PatientsDataExtractor(path_to_patients_folder=\"patients\")\r\n\r\nfor patient in patients_data_extractor:\r\n    for image_data in patient.data:\r\n        array = image_data.image.numpy_array\r\n        \r\n        \"\"\"Perform any tasks on images on-the-fly.\"\"\"\r\n        print(array)\r\n```\r\n\r\n## Create patients database (HDF5)\r\n\r\n```python\r\nfrom delia.databases import PatientsDatabase\r\nfrom delia.extractors import PatientsDataExtractor\r\n\r\npatients_data_extractor = PatientsDataExtractor(path_to_patients_folder=\"patients\")\r\n\r\ndatabase = PatientsDatabase(path_to_database=\"patients_database.h5\")\r\n\r\ndatabase.create(patients_data_extractor=patients_data_extractor)\r\n\r\n```\r\n\r\n## Create radiomics dataset (CSV)\r\n\r\n```python\r\nfrom delia.extractors import PatientsDataExtractor\r\nfrom delia.radiomics import RadiomicsDataset, RadiomicsFeatureExtractor\r\n\r\npatients_data_extractor = PatientsDataExtractor(path_to_patients_folder=\"patients\")\r\n\r\nradiomics_dataset = RadiomicsDataset(path_to_dataset=\"radiomics.csv\")\r\nradiomics_dataset.extractor = RadiomicsFeatureExtractor(path_to_params=\"features_extractor_params.yaml\")\r\n\r\nradiomics_dataset.create(patients_data_extractor=patients_data_extractor, organ=\"Heart\", image_modality=\"CT\")\r\n\r\n```\r\n\r\n# Motivation\r\n\r\n**Digital Imaging and Communications in Medicine** ([**DICOM**](https://www.dicomstandard.org/)) is *the* international standard for medical images and related information. The working group [DICOM WG-23](https://www.dicomstandard.org/activity/wgs/wg-23/) on Artificial Intelligence / Application Hosting is currently working to identify or develop the DICOM mechanisms to support AI workflows, concentrating on the clinical context. Moreover, their future *roadmap and objectives* includes working on the concern that current DICOM mechanisms might not be adequate to cover some use cases, particularly bulk analysis of large repository data, e.g. for training deep learning neural networks. **However, no tool has been developed to achieve this goal at present.**\r\n\r\nThe main **purpose** of this module is therefore to provide the necessary tools to facilitate the use of medical images in an AI workflow.  This goal is accomplished by using the [HDF file format](https://www.hdfgroup.org/) to create a database containing patients' medical images as well as binary label maps obtained from the segmentation of these images.\r\n\r\n# How it works\r\n\r\n## Main concepts\r\n\r\nThere are 4 main concepts :\r\n\r\n1. `PatientDataModel` : It is the primary `delia` data structure. It is a named tuple gathering the image and segmentation data available in a patient record. \r\n2. `PatientsDataExtractor` : A Python [Generator](https://docs.python.org/3/library/collections.abc.html#collections.abc.Generator) that allows to iterate over several patients and create a `PatientDataModel` object for each of them. A sequence of `delia` and/or `monai` transformations to apply to specific images or segmentations can be specified (see [MONAI](https://docs.monai.io/en/stable/transforms.html)).\r\n3. `PatientsDatabase` : An object that is used to create/interact with an HDF5 file (a database!) containing all patients information (images + label maps). The `PatientsDataExtractor` is used to populate this database. \r\n4. `RadiomicsDataset` : An object that is used to create/interact with a csv file (a dataset!) containing radiomics features extracted from images. The `PatientsDataExtractor` is used to populate this dataset. \r\n\r\n## Organize your data\r\n\r\nSince this module requires the use of data, it is important to properly configure the data-related elements before using it.\r\n\r\n### File format\r\n\r\nImages files must be in standard [**DICOM**](https://www.dicomstandard.org/) format and segmentation files must be in [DICOM-SEG](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.20.html) or [RTStruct](https://dicom.nema.org/dicom/2013/output/chtml/part03/sect_A.19.html) format.\r\n\r\nIf your segmentation files are in a research file format (`.nrrd`, `.nii`, etc.), you need to convert them into the standardized [DICOM-SEG](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.8.20.html) or [RTStruct](https://dicom.nema.org/dicom/2013/output/chtml/part03/sect_A.19.html) format. You can use the [pydicom-seg](https://pypi.org/project/pydicom-seg/) library to create the DICOM-SEG files OR use the [itkimage2dicomSEG](https://github.com/MaxenceLarose/itkimage2dicomSEG) python module, which provide a complete pipeline to perform this conversion. Also, you can use the [RT-Utils](https://github.com/qurit/rt-utils) library to create the RTStruct files.\r\n\r\n### Series descriptions (Optional)\r\n\r\n*This dictionary is **not** mandatory for the code to work and therefore its default value is `None`. Note that if no `series_descriptions` dictionary is given, i.e. `series_descriptions = None`, then all images associated with at least one segmentation will be added to the database.*\r\n\r\nThe series descriptions are specified as a **dictionary** that contains the series descriptions of the images that needs to be extracted from the patients' files. Keys are arbitrary names given to the images we want to add and values are lists of series descriptions. The images associated with these series descriptions do not need to have a corresponding segmentation volume. If none of the descriptions match the series in a patient's files, a warning is raised and the patient is added to the list of patients for whom the pipeline has failed.\r\n\r\nNote that the series descriptions can be specified as a classic dictionary or as a path to a **json file** that contains the series descriptions. Both methods are presented below.\r\n\r\n<details>\r\n  <summary>Using a json file</summary>\r\n\r\nCreate a json file containing only the dictionary of the names given to the images we want to add (keys) and lists of series descriptions (values). Place this file in your data folder.\r\n\r\nHere is an example of a json file configured as expected :\r\n\r\n```json\r\n{\r\n    \"TEP\": [\r\n        \"TEP WB CORR (AC)\",\r\n        \"TEP WB XL CORR (AC)\"\r\n    ],\r\n    \"CT\": [\r\n        \"CT 2.5 WB\",\r\n        \"AC CT 2.5 WB\"\r\n    ]\r\n}\r\n```\r\n</details>\r\n\r\n<details>\r\n  <summary>Using a Python dictionary</summary>\r\n\r\nCreate the organs dictionary in your main.py python file.\r\n\r\nHere is an example of a python dictionary instanced as expected :\r\n\r\n```python\r\nseries_descriptions = {\r\n    \"TEP\": [\r\n        \"TEP WB CORR (AC)\",\r\n        \"TEP WB XL CORR (AC)\"\r\n    ],\r\n    \"CT\": [\r\n        \"CT 2.5 WB\",\r\n        \"AC CT 2.5 WB\"\r\n    ]\r\n}\r\n```\r\n</details>\r\n\r\n## Structure your patients directory\r\n\r\nIt is important to configure the directory structure correctly to ensure that the module interacts correctly with the data files. The `patients` folder, must be structured as follows. *Note that all DICOM files in the patients' folder will be read.*\r\n\r\n```\r\n|_\ud83d\udcc2 Project directory/\r\n  |_\ud83d\udcc4 main.py\r\n  |_\ud83d\udcc2 data/\r\n    |_\ud83d\udcc4 series_descriptions.json\r\n    |_\ud83d\udcc2 patients/\r\n      |_\ud83d\udcc2 patient1/\r\n       \t|_\ud83d\udcc4 ...\r\n       \t|_\ud83d\udcc2 ...\r\n      |_\ud83d\udcc2 patient2/\r\n       \t|_\ud83d\udcc4 ...\r\n       \t|_\ud83d\udcc2 ...\r\n      |_\ud83d\udcc2 ...\r\n```\r\n\r\n# Import the package\r\n\r\nThe easiest way to import the package is to use :\r\n\r\n```python\r\nimport delia\r\n```\r\n\r\nYou can explicitly use the objects sub-modules :\r\n\r\n```python\r\nfrom delia.databases import PatientsDatabase\r\nfrom delia.extractors import PatientsDataExtractor\r\nfrom delia.radiomics import RadiomicsDataset, RadiomicsFeatureExtractor\r\n```\r\n\r\n# Use the package\r\n\r\n## Example using the `PatientsDatabase` class\r\n\r\nThis file can then be executed to obtain an hdf5 database.\r\n\r\n```python\r\nfrom delia.databases import PatientsDatabase\r\nfrom delia.extractors import PatientsDataExtractor\r\nfrom delia.transforms import (\r\n    PETtoSUVD,\r\n    ResampleD\r\n)\r\nfrom monai.transforms import (\r\n    CenterSpatialCropD,\r\n    Compose,\r\n    ScaleIntensityD,\r\n    ThresholdIntensityD\r\n)\r\n\r\npatients_data_extractor = PatientsDataExtractor(\r\n    path_to_patients_folder=\"data/patients\",\r\n    series_descriptions=\"data/series_descriptions.json\",\r\n    transforms=Compose(\r\n        [\r\n            ResampleD(keys=[\"CT_THORAX\", \"TEP\", \"Heart\"], out_spacing=(1.5, 1.5, 1.5)),\r\n            CenterSpatialCropD(keys=[\"CT_THORAX\", \"TEP\", \"Heart\"], roi_size=(1000, 160, 160)),\r\n            ThresholdIntensityD(keys=[\"CT_THORAX\"], threshold=-250, above=True, cval=-250),\r\n            ThresholdIntensityD(keys=[\"CT_THORAX\"], threshold=500, above=False, cval=500),\r\n            ScaleIntensityD(keys=[\"CT_THORAX\"], minv=0, maxv=1),\r\n            PETtoSUVD(keys=[\"TEP\"])\r\n        ]\r\n    )\r\n)\r\n\r\ndatabase = PatientsDatabase(path_to_database=\"data/patients_database.h5\")\r\n\r\ndatabase.create(\r\n    patients_data_extractor=patients_data_extractor,\r\n    tags_to_use_as_attributes=[(0x0008, 0x103E), (0x0020, 0x000E), (0x0008, 0x0060)],\r\n    overwrite_database=True\r\n)\r\n\r\n```\r\n\r\nThe created HDF5 database will then look something like :\r\n\r\n![patient_dataset](https://github.com/MaxenceLarose/delia/raw/main/images/patient_dataset.png)\r\n\r\n## Example using the `PatientsDataExtractor`class\r\n\r\nThis file can then be executed to perform on-the-fly tasks on images.\r\n\r\n```python\r\nfrom delia.extractors import PatientsDataExtractor\r\nfrom delia.transforms import Compose, CopySegmentationsD, PETtoSUVD, ResampleD\r\nimport SimpleITK as sitk\r\n\r\npatients_data_extractor = PatientsDataExtractor(\r\n    path_to_patients_folder=\"data/patients\",\r\n    series_descriptions=\"data/series_descriptions.json\",\r\n    transforms=Compose(\r\n        [\r\n            ResampleD(keys=[\"CT_THORAX\", \"Heart\"], out_spacing=(1.5, 1.5, 1.5)),\r\n            PETtoSUVD(keys=[\"TEP\"]),\r\n            CopySegmentationsD(segmented_image_key=\"CT_THORAX\", unsegmented_image_key=\"TEP\")\r\n        ]\r\n    )\r\n)\r\n\r\nfor patient_dataset in patients_data_extractor:\r\n\tprint(f\"Patient ID: {patient_data.patient_id}\")\r\n\r\n    for patient_image_data in patient_dataset.data:\r\n        dicom_header = patient_image_data.image.dicom_header\r\n        simple_itk_image = patient_image_data.image.simple_itk_image\r\n        numpy_array_image = sitk.GetArrayFromImage(simple_itk_image)\r\n\r\n        \"\"\"Perform any tasks on images on-the-fly.\"\"\"\r\n        print(numpy_array_image.shape)\r\n```\r\n\r\n## Need more examples?\r\n\r\nYou can find more in the [examples folder](https://github.com/MaxenceLarose/delia/tree/main/examples).\r\n\r\n# A deeper look into the `PatientsDataExtractor` object\r\n\r\nThe `PatientsDataExtractor` has 3 important variables:  a `path_to_patients_folder` (which dictates the path to the folder that contains all patient records), a `series_descriptions` (which dictates the images that needs to be extracted from the patient records) and `transforms` that defines a sequence of transformations to apply on images or segmentations. For each patient/folder available in the `path_to_patients_folder`, all DICOM files in their folder are read. If the series descriptions of a certain volume match one of the descriptions present in the given `series_descriptions` dictionary, this volume and its segmentation (if available) are automatically added to the `PatientDataModel`. Note that if no `series_descriptions` dictionary is given (`series_descriptions = None`), then all images (and associated segmentations) will be added to the database. \r\n\r\nThe `PatientsDataExtractor` can therefore be used to iteratively perform tasks on each of the patients, such as displaying certain images, transforming images into numpy arrays, or creating an HDF5 database using the `PatientsDatabase`. It is this last task that is highlighted in this package, but it must be understood that the data extraction is performed in a very general manner by the `PatientsDataExtractor` and is therefore not limited to this single application. For example, someone could easily develop a `Numpydatabase` whose creation would be ensured by the `PatientsDataExtractor`, similar to the current `PatientsDatabase` based on the HDF5 format.\r\n\r\n# TODO\r\n\r\n- [ ] Generalize the use of arbitrary tags to choose images to extract. At the moment, the only tag available is `series_descriptions`.\r\n\r\n# License\r\n\r\nThis code is provided under the [Apache License 2.0](https://github.com/MaxenceLarose/delia/blob/main/LICENSE).\r\n\r\n# Citation\r\n\r\n```\r\n@misc{delia,\r\n  title={DELIA: DICOM Extraction for Large-scale Image Analysis},\r\n  author={Maxence Larose},\r\n  year={2022},\r\n  publisher={Universit\u00e9 Laval},\r\n  url={https://github.com/MaxenceLarose/delia},\r\n}\r\n```\r\n\r\n# Contact\r\n\r\nMaxence Larose, B. Ing., [maxence.larose.1@ulaval.ca](mailto:maxence.larose.1@ulaval.ca)\r\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/MaxenceLarose/delia",
+            "keywords": "dicom hdf5 medical image segmentation pre-processing python3 radiomics deep-learning dicom-seg rt-struct",
+            "license": "Apache License 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "delia",
+            "package_url": "https://pypi.org/project/delia/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/delia/",
+            "project_urls": {
+                "Homepage": "https://github.com/MaxenceLarose/delia"
+            },
+            "release_url": "https://pypi.org/project/delia/1.0.7/",
+            "requires_dist": [
+                "h5py",
+                "monai",
+                "numpy",
+                "pandas",
+                "pydicom",
+                "pydicom-seg",
+                "pyradiomics",
+                "rt-utils",
+                "SimpleITK"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "DICOM Extraction for Large-scale Image Analysis (DELIA).",
+            "version": "1.0.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15806584,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "04d103ce3a37ec70bdce6ea25fffe9e7",
+                    "sha256": "0e07fcc95d1d4307c5c58ba01a3441495ced16807e9eabe6019353471357ad27"
+                },
+                "downloads": -1,
+                "filename": "delia-1.0.7-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "04d103ce3a37ec70bdce6ea25fffe9e7",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 60274,
+                "upload_time": "2022-11-17T21:05:22",
+                "upload_time_iso_8601": "2022-11-17T21:05:22.765021Z",
+                "url": "https://files.pythonhosted.org/packages/84/d1/de5c563d5332d26322d5c5a7a518b6d3cab74d1b106ebc904f7dc8d09470/delia-1.0.7-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "22cf0cc9fa2ca1a0e03ca19006618456",
+                    "sha256": "d770f2ffb13826da0d05996a70650382437fa1ede43afd8b4fa4a9832afc229c"
+                },
+                "downloads": -1,
+                "filename": "delia-1.0.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "22cf0cc9fa2ca1a0e03ca19006618456",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 44214,
+                "upload_time": "2022-11-17T21:05:24",
+                "upload_time_iso_8601": "2022-11-17T21:05:24.250231Z",
+                "url": "https://files.pythonhosted.org/packages/6c/95/21e84674b07ebadca128f30aa960db345816d144eee343d8a238dd3f5e70/delia-1.0.7.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

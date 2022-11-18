@@ -49,7 +49,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15570828,
+        "last_serial": 15802681,
         "urls": [
             {
                 "comment_text": "",
@@ -165,7 +165,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15570828,
+        "last_serial": 15802681,
         "urls": [
             {
                 "comment_text": "",
@@ -260,7 +260,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15570828,
+        "last_serial": 15802681,
         "urls": [
             {
                 "comment_text": "",
@@ -346,7 +346,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15570828,
+        "last_serial": 15802681,
         "urls": [
             {
                 "comment_text": "",
@@ -441,7 +441,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15570828,
+        "last_serial": 15802681,
         "urls": [
             {
                 "comment_text": "",
@@ -536,7 +536,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15570828,
+        "last_serial": 15802681,
         "urls": [
             {
                 "comment_text": "",
@@ -594,7 +594,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# ProDEC\n\nA package to easily calculate descriptors of protein sequences and their common transforms.\n\n## Installation\n\n    pip install prodec\n\n\n## Getting started\n\nProDEC is organised in three classes:\n 1. **ProteinDescripors** - loads all available descriptors and allows you to instantiate them\n 2. **Descriptor** - instantiated from the latter, allows retrieval of raw descriptor values\n 3. **Transform** - to calculate domain averages, auto-cross covariances (ACC), physicochemical distance transformations (PDT) and fast Fourier transform (FFT)\n 4. **TransformType** - to identify the transform to be performed\n\nLet us get the largest protein sequence from uniprot (*as of May 29th, 2020*).\n\n    import urllib.request\n    \n    url = 'https://www.uniprot.org/uniprot/A0A5A9P0L4.fasta'\n    with urllib.request.urlopen(url) as data:\n        sequence = ''.join([line.decode('ascii').strip() for line in data][1:])\nFirst load available descriptors:\n\n    from  prodec import *\n    pdescs = ProteinDescriptors()\nand print out their ID:\n\n    print(pdescs.available_descriptors)\nIdentify the descriptor ID corresponding to Zscales (Hellberg *et al.* 1987). \n\n    zscales = pdescs.get_descriptor('Zscale Hellberg')\nGet information about the descriptor as defined in the original article\n\n    print(zscales.summary)\nand values defined for each amino acid.\n\n    print(zscales.definition)\n\nNow, obtain such descriptor values for the protein sequence.\n\n    raw_values = zscales.get(sequence)\n\nTo transform raw values, first identify available transforms (static method).\n\n    print(Transform.available_transforms())\nLet us instantiate the desired transform (here domain averages)\n\n    avg_zscale = Transform(TransformType.AVG, zscales)\nand obtain 50 domain averages (defaults to 2 if not specified).\n\n    avg_values = avg_zscale.get(sequence, domains=50)\n\nOne can get information about the transform.\n\n    print(avg_zscale.summary)\n\nSimilarly, ACC, PDT and FFT can be obtain with\n\n    acc_zscale = Transform(TransformType.ACC, zscales)\n    # or Transform('ACC', zscales)\n    acc_values = acc_zscale.get(sequence, lag=10) # default lag=1\n    pdt_zscale = Transform(TransformType.PDT, zscales)\n    # or Transform('PDT', zscales)\n    pdt_values = pdt_zscale.get(sequence, lag=100) # default lag=1\n    fft_zscale = Transform(TransformType.FFT, zscales)\n    # or Transform('FFT', zscales)\n    fft_values = pdt_zscale.get(sequence)\n\n## Advanced usage\n### Descriptors\n\n - ***Flattening raw values***\n\nIn the case of multiple values being defined for one amino acid, the resulting sequence descriptors are flattened by default. This means that one gets a list in which values for each amino acid are contiguous.\nThis feature can be turned off, resulting in a list of lists, each dimension being separate from the other (e.g. for Zscales Hellberg, a list containing 3 sub-lists: the first sub-list with values of the first dimension for the whole sequence). \n\n    zscales.get(sequence, flatten=False)\n\n - ***Dealing with gaps***\n\nIn the case of aligned sequences, one may want to omit gaps. By default, gaps are considered and given a value of  0.0 . Gaps can either be omitted like so:\n\n    zscales.get(sequence, gaps='omit')\nor given any arbitrary value\n\n    zscales.get(sequence, gaps=-1)\n\n - ***Non-standard amino acids***\n\nIf working with another dictionary than the 20 standard amino acids, one can provide the ones they are working with. This is only possible if the user defines their own descriptor supporting these aminoacids.\n\n    pdescs = prodec.ProteinDescriptors()\n    mydesc = pdescs.get('Descriptor supporting Selenocysteine and Pyrrolysine')\n    mydesc.get(sequence, dictionary=list('ACDEFGHIKLMNOPQRSTUVWY'))\n \n\n - ***Raychaudhury's descriptor***\n\nRachaudhury  *et al.*'s values can be weighted by different powers (*default: -4*).\n\n    pdescs = prodec.ProteinDescriptors()\n    raych = pdescs.get('Raychaudhury')\n    raych.get(sequence, power=-3)\n\nCalculation of Raychaudhury's values is ***O(n\u00b2)*** . To speed this calculation, a sliding window optimization has been made, resulting in an  ***O(n)*** algorithm. By default the window width is set to 120 giving accuracy to the third decimal place. One may change the width by specifying the precision (half of the window size).\n\n    raych.get(sequence, prec=80) # Window size = 160\nTo turn the optimization off and get full precision:\n\n    raych.get(sequence, prec=0)\n\n### Transfoms\n\n - ***Compatibility***\n\nSome transforms cannot be calculated for binary descriptors. Some others can only be calculated with binary descriptors. One can check for compatibility between a transform and a descriptor.\n\n    psm = pdescs.get_descriptor('PSM')\n    prodec.Transform.is_compatible('AVG', 'PSM')\n\n - ***Transforms and advanced descriptor arguments***\n\nAll arguments a *Descriptor* accepts can be supplied to a transform's *get* method.\n\n    pdt_zscale.get(sequence, lag=10, average=False, flatten=False)\n    raych = pdescs.get('Raychaudhury')\n    acc_raych = prodec.Transform('ACC', raych)\n    acc_raych.get(sequence, power=-3, gaps='omit', prec=100, flatten=False, lag=12)\n\n### Adding new descriptors\nSupplied descriptors are described in the file named *data.json* under the *src* folder.\nThe list of available descriptors is loaded from the *data.json* file when **ProteinDescriptors** is instantiated.\nAdd your favorite descriptor to the list, respecting the format of the file and giving it a unique ID, for it to be available.\n\n### Checking descriptor for amino acids support\nOne can check the compatibility of their engineered descriptor with any sequence.\n\n    vstv= pdescs.get_descriptor('VSTV')\n    vstv.is_sequence_valid('ABCDEFGHIJKLMNOPQRSTUVWXYZ')\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -632,7 +631,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15570828,
+        "last_serial": 15802681,
         "urls": [
             {
                 "comment_text": "",
@@ -671,6 +670,102 @@
                 "upload_time": "2022-10-28T20:15:22",
                 "upload_time_iso_8601": "2022-10-28T20:15:22.652504Z",
                 "url": "https://files.pythonhosted.org/packages/9c/81/59c5894d7be477609cb59c0fb5d13cd18940099ac5f6894605e3a135a3b3/prodec-1.0.2.post3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.2.post4": {
+        "info": {
+            "author": "Olivier J. M. B\u00e9quignon",
+            "author_email": "olivier.bequignon.maintainer@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# ProDEC\r\n\r\nA package to easily calculate descriptors of protein sequences and their common transforms.\r\n\r\n## Installation\r\n\r\n    pip install prodec\r\n\r\n\r\n## Getting started\r\n\r\nProDEC is organised in three classes:\r\n 1. **ProteinDescripors** - loads all available descriptors and allows you to instantiate them\r\n 2. **Descriptor** - instantiated from the latter, allows retrieval of raw descriptor values\r\n 3. **Transform** - to calculate domain averages, auto-cross covariances (ACC), physicochemical distance transformations (PDT) and fast Fourier transform (FFT)\r\n 4. **TransformType** - to identify the transform to be performed\r\n\r\nLet us get the largest protein sequence from uniprot (*as of May 29th, 2020*).\r\n\r\n    import urllib.request\r\n    \r\n    url = 'https://www.uniprot.org/uniprot/A0A5A9P0L4.fasta'\r\n    with urllib.request.urlopen(url) as data:\r\n        sequence = ''.join([line.decode('ascii').strip() for line in data][1:])\r\nFirst load available descriptors:\r\n\r\n    from  prodec import *\r\n    pdescs = ProteinDescriptors()\r\nand print out their ID:\r\n\r\n    print(pdescs.available_descriptors)\r\nIdentify the descriptor ID corresponding to Zscales (Hellberg *et al.* 1987). \r\n\r\n    zscales = pdescs.get_descriptor('Zscale Hellberg')\r\nGet information about the descriptor as defined in the original article\r\n\r\n    print(zscales.summary)\r\nand values defined for each amino acid.\r\n\r\n    print(zscales.definition)\r\n\r\nNow, obtain such descriptor values for the protein sequence.\r\n\r\n    raw_values = zscales.get(sequence)\r\n\r\nTo transform raw values, first identify available transforms (static method).\r\n\r\n    print(Transform.available_transforms())\r\nLet us instantiate the desired transform (here domain averages)\r\n\r\n    avg_zscale = Transform(TransformType.AVG, zscales)\r\nand obtain 50 domain averages (defaults to 2 if not specified).\r\n\r\n    avg_values = avg_zscale.get(sequence, domains=50)\r\n\r\nOne can get information about the transform.\r\n\r\n    print(avg_zscale.summary)\r\n\r\nSimilarly, ACC, PDT and FFT can be obtain with\r\n\r\n    acc_zscale = Transform(TransformType.ACC, zscales)\r\n    # or Transform('ACC', zscales)\r\n    acc_values = acc_zscale.get(sequence, lag=10) # default lag=1\r\n    pdt_zscale = Transform(TransformType.PDT, zscales)\r\n    # or Transform('PDT', zscales)\r\n    pdt_values = pdt_zscale.get(sequence, lag=100) # default lag=1\r\n    fft_zscale = Transform(TransformType.FFT, zscales)\r\n    # or Transform('FFT', zscales)\r\n    fft_values = pdt_zscale.get(sequence)\r\n\r\n## Advanced usage\r\n### Descriptors\r\n\r\n - ***Flattening raw values***\r\n\r\nIn the case of multiple values being defined for one amino acid, the resulting sequence descriptors are flattened by default. This means that one gets a list in which values for each amino acid are contiguous.\r\nThis feature can be turned off, resulting in a list of lists, each dimension being separate from the other (e.g. for Zscales Hellberg, a list containing 3 sub-lists: the first sub-list with values of the first dimension for the whole sequence). \r\n\r\n    zscales.get(sequence, flatten=False)\r\n\r\n - ***Dealing with gaps***\r\n\r\nIn the case of aligned sequences, one may want to omit gaps. By default, gaps are considered and given a value of  0.0 . Gaps can either be omitted like so:\r\n\r\n    zscales.get(sequence, gaps='omit')\r\nor given any arbitrary value\r\n\r\n    zscales.get(sequence, gaps=-1)\r\n\r\n - ***Non-standard amino acids***\r\n\r\nIf working with another dictionary than the 20 standard amino acids, one can provide the ones they are working with. This is only possible if the user defines their own descriptor supporting these aminoacids.\r\n\r\n    pdescs = prodec.ProteinDescriptors()\r\n    mydesc = pdescs.get('Descriptor supporting Selenocysteine and Pyrrolysine')\r\n    mydesc.get(sequence, dictionary=list('ACDEFGHIKLMNOPQRSTUVWY'))\r\n \r\n\r\n - ***Raychaudhury's descriptor***\r\n\r\nRachaudhury  *et al.*'s values can be weighted by different powers (*default: -4*).\r\n\r\n    pdescs = prodec.ProteinDescriptors()\r\n    raych = pdescs.get('Raychaudhury')\r\n    raych.get(sequence, power=-3)\r\n\r\nCalculation of Raychaudhury's values is ***O(n\u00b2)*** . To speed this calculation, a sliding window optimization has been made, resulting in an  ***O(n)*** algorithm. By default the window width is set to 120 giving accuracy to the third decimal place. One may change the width by specifying the precision (half of the window size).\r\n\r\n    raych.get(sequence, prec=80) # Window size = 160\r\nTo turn the optimization off and get full precision:\r\n\r\n    raych.get(sequence, prec=0)\r\n\r\n### Transfoms\r\n\r\n - ***Compatibility***\r\n\r\nSome transforms cannot be calculated for binary descriptors. Some others can only be calculated with binary descriptors. One can check for compatibility between a transform and a descriptor.\r\n\r\n    psm = pdescs.get_descriptor('PSM')\r\n    prodec.Transform.is_compatible('AVG', 'PSM')\r\n\r\n - ***Transforms and advanced descriptor arguments***\r\n\r\nAll arguments a *Descriptor* accepts can be supplied to a transform's *get* method.\r\n\r\n    pdt_zscale.get(sequence, lag=10, average=False, flatten=False)\r\n    raych = pdescs.get('Raychaudhury')\r\n    acc_raych = prodec.Transform('ACC', raych)\r\n    acc_raych.get(sequence, power=-3, gaps='omit', prec=100, flatten=False, lag=12)\r\n\r\n### Adding new descriptors\r\nSupplied descriptors are described in the file named *data.json* under the *src* folder.\r\nThe list of available descriptors is loaded from the *data.json* file when **ProteinDescriptors** is instantiated.\r\nAdd your favorite descriptor to the list, respecting the format of the file and giving it a unique ID, for it to be available.\r\n\r\n### Checking descriptor for amino acids support\r\nOne can check the compatibility of their engineered descriptor with any sequence.\r\n\r\n    vstv= pdescs.get_descriptor('VSTV')\r\n    vstv.is_sequence_valid('ABCDEFGHIJKLMNOPQRSTUVWXYZ')\r\n\r\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/OlivierBeq/ProDEC",
+            "keywords": "protein,descriptors,proteochemometrics,PCM,QSAR",
+            "license": "MIT",
+            "maintainer": "Olivier J. M. B\u00e9quignon",
+            "maintainer_email": "olivier.bequignon.maintainer@gmail.com",
+            "name": "prodec",
+            "package_url": "https://pypi.org/project/prodec/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/prodec/",
+            "project_urls": {
+                "Homepage": "https://github.com/OlivierBeq/ProDEC"
+            },
+            "release_url": "https://pypi.org/project/prodec/1.0.2.post4/",
+            "requires_dist": [
+                "orjson",
+                "numpy",
+                "psutil",
+                "pandas",
+                "sphinx ; extra == 'docs'",
+                "sphinx-rtd-theme ; extra == 'docs'",
+                "sphinx-autodoc-typehints ; extra == 'docs'",
+                "pytest ; extra == 'testing'"
+            ],
+            "requires_python": "",
+            "summary": "A package to calculate protein sequence descriptors",
+            "version": "1.0.2.post4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15802681,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0c9d5917a1659d8cc802f4777b2cf765",
+                    "sha256": "130507f2db5670ccbab5f94ca620adfa578dd6a7afa89e0c6498191cf74b288f"
+                },
+                "downloads": -1,
+                "filename": "prodec-1.0.2.post4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "0c9d5917a1659d8cc802f4777b2cf765",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 53211,
+                "upload_time": "2022-11-17T15:00:05",
+                "upload_time_iso_8601": "2022-11-17T15:00:05.890843Z",
+                "url": "https://files.pythonhosted.org/packages/3e/29/5633fafa18d6a2c8d92c47ce17f2060fa3435f07c830f5aecedc1f503957/prodec-1.0.2.post4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "471860e73db6d67fb238caf91c511892",
+                    "sha256": "67a62683b966c9ca90e983d84fa91c5e5c3ec64120ed0f72c0ccc2ff31e554d9"
+                },
+                "downloads": -1,
+                "filename": "prodec-1.0.2.post4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "471860e73db6d67fb238caf91c511892",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 52861,
+                "upload_time": "2022-11-17T15:00:08",
+                "upload_time_iso_8601": "2022-11-17T15:00:08.071987Z",
+                "url": "https://files.pythonhosted.org/packages/a1/89/104fed0ca3d03f2f5b44c3ce28f942702803e85f8800a12f78f8c0c66019/prodec-1.0.2.post4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

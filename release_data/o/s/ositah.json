@@ -9,6 +9,7 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
+            "description": "# OSITAH : Outil de Suivi de Temps et d'Activit\u00e9s bas\u00e9 sur Hito\n\nOSITAH est une application web, bas\u00e9e sur le framework [Dash](https://dash.plotly.com), qui permet\nle suivi des d\u00e9clarations de temps dans Hito, leur validation et leur exportation dans NSIP.\nL'acc\u00e8s aux diff\u00e9rentes fonctionnalit\u00e9s est soumis \u00e0 l'authentification de\nl'utilisateur : les droits dans `ositah` sont d\u00e9riv\u00e9s de ceux dans Hito.\n\nOSITAH n\u00e9cessite un fichier de configuration `ositah.cfg` : par d\u00e9faut il est recherch\u00e9 dans le\nr\u00e9pertoire courant et s'il n'existe pas, dans le r\u00e9pertoire o\u00f9 est install\u00e9 l'application OSITAH. \nL'option `--configuration-file` permet de sp\u00e9cifier un autre fichier/localisation, par exemple pour\nutiliser une configuration de test. \n\nL'instance de production s'ex\u00e9cute normalement \u00e0 travers [gunicorn](https://gunicorn.org), un serveur\nSWGI \u00e9crit en Python et fournit par le module `gunicorn`. Dans ce contexte, le fichier de configuration\ndoit \u00eatre plac\u00e9 dans le r\u00e9pertoire d\u00e9fini comme le r\u00e9pertoire courant de l'application (l'option\n`--configuration-file` n'est pas utilisable).\n\nL'ex\u00e9cution de `ositah` suppose l'acc\u00e8s \u00e0 la base de donn\u00e9e Hito.\n\n## Installation\n\nLe d\u00e9ploiement d'OSITAH n\u00e9cessite le d\u00e9ploiement d'un environnement Python, de pr\u00e9f\u00e9rence distinct\nde ce qui est d\u00e9livr\u00e9 par l'OS car cela pose de gros probl\u00e8mes avec les pr\u00e9requis sur les versions\ndes d\u00e9pendances. Les environnements recommand\u00e9s sont [pyenv](https://github.com/pyenv/pyenv),\n[poetry](https://python-poetry.org) ou [Anaconda](https://www.anaconda.com/products/individual). \nPour la cr\u00e9ation d'un environnement virtuel avec Conda, voir la\n[documentation sp\u00e9cifique](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).\n\nPour installer OSITAH, il faut utiliser les commandes suivantes :\n\n```bash\npip install ositah\n```\n\n### D\u00e9pendances \n\nPour connaitre la liste des d\u00e9pendances de l'application OSITAH, voir la propri\u00e9t\u00e9 `dependencies`\ndans le fichier `pyproject.toml` se trouvant dans les sources de l'application. \nElles sont automatiquement install\u00e9es par la commande `pip`.\n\n\n## Configuration\n\n### OSITAH\n\nToute la configuration de l'application OSITAH est d\u00e9clar\u00e9e dans le fichier `ositah.cfg` qui doit\nse trouver dans le r\u00e9pertoire courant de l'application pour une instance de production g\u00e9r\u00e9e par \nle serveur SWGI, `gunicorn`. Pour une instance de test ou de d\u00e9veloppement qui n'utilise pas\n`gunicorn`, il est possible de sp\u00e9cifier le fichier de configuration \u00e0 utiliser avec l'option\n`--configuration-file`.\n\n### Gunicorn\n\n`gunicorn` est le serveur WSGI recommand\u00e9 pour ex\u00e9cuter une instance de production. Son installation\nconsiste \u00e0 installer 2 modules Python : `gunicorn` et `greenlet`.\n\nLe repository Git de'OSITAH contient un r\u00e9pertoire `gunicorn.config` avec les 3 fichiers importants\npour la configuration de `gunicorn` qu'il faut \u00e9diter pour adapter les r\u00e9pertoires \u00e0 la configuration\ndu site :\n\n* `gunicorn@.service` : script `systemd` \u00e0 installer pour d\u00e9marrer l'instance OSITAH. Si le\nl'instance OSITAH s'appelle `ositah`, la systemd unit \u00e0 utiliser pour g\u00e9rer le service est\n`gunicorn@ositah`.\n* `gunicorn.ositah` : fichier \u00e0 placer en `/etc/sysconfig` d\u00e9finissant la configuration sp\u00e9cifique\n\u00e0 OSITAH (r\u00e9pertoire courant, options `gunicorn`, entry point).\n* `app.conf.py` : options `gunicorn` \u00e0 utiliser avec l'instance OSITAH\n\n## Validation des d\u00e9clarations : structure des tables OSITAH\n\nLa validation des d\u00e9clarations de temps se fait agent par agent, en utilisant le bouton de validation correspondant\n\u00e0 l'agent. Ce bouton n'est actif qu'\u00e0 partir de la date d\u00e9finie dans la table `ositah_validation_period` pour la\np\u00e9riode en cours, sauf si on a ajout\u00e9 des exceptions dans le fichier de configuration, telles que :\n\n```\nvalidation:\n  override_period:\n    - ROLE_SUPER_ADMIN\n```\n\n`override_period` est une liste de roles qui peuvent faire des validations hors de la p\u00e9riode standard.\n\nLa validation d'une d\u00e9claration a pour effet d'enregistrer le temps d\u00e9clar\u00e9 sur chacune des activit\u00e9s de l'agent dans\nla table `ositah_project_declaration`. Cette entr\u00e9e est associ\u00e9e \u00e0 une entr\u00e9e dans la table `ositah_validation` qui\ncontient la date de la validation, l'agent concern\u00e9 par cette validation (son `agent id` Hito), la validation p\u00e9riode\n\u00e0 laquelle correspond cette validation (r\u00e9f\u00e9rence \u00e0 la table `ositah_validation_period`) ainsi que le statut\nde la validation. Si on invalide cette validation ult\u00e9rieurement, le statut passe \u00e0 `0` et la date de la validation\nest copi\u00e9e dans l'attribut `initial_timestamp`. L'entr\u00e9e dans `ositah_project_declaration` n'est pas d\u00e9truite. Lorsque \nla d\u00e9claration de  l'agent est \u00e0 nouveau valid\u00e9e ult\u00e9rieurement, une nouvelle entr\u00e9e est cr\u00e9\u00e9e \u00e0 la fois dans \n`ositah_project_declaration` et dans `ositah_validation`, comme pour la validation initiale. \nIl est donc possible d'avoir un historique des op\u00e9rations de validation sur une p\u00e9riode donn\u00e9e (pas exploit\u00e9\npar l'application OSITAH pour l'instant). Par contre, quand on lit les validations, il faut faire attention \u00e0\nprendre la derni\u00e8re dans une p\u00e9riode donn\u00e9e qui a son statut \u00e0 `1`.\n\nLa cr\u00e9ation de l'entr\u00e9e pour d\u00e9finir une p\u00e9riode de d\u00e9claration dans `ositah_validation_period` (date de d\u00e9but et \ndate de fin de la p\u00e9riode, date de  d\u00e9but de la validation) n'est pas g\u00e9r\u00e9e par OSITAH actuellement : il faut cr\u00e9er\nune entr\u00e9e dans la table avec la commande SQL `INSERT INTO`.\n\n\n## Export NSIP\n\nOSITAH permet d'exporter vers NSIP les d\u00e9clarations valid\u00e9es. La table du menu `Export` indique\nl'\u00e9tat de la synchronisation entre NSIP et OSITAH, agent par agent. Un code couleur permet\nd'identifier facilement si une d\u00e9claration est correctement synchronis\u00e9e ou non. Seules les\nd\u00e9clarations qui ne sont pas correctement synchronis\u00e9es peut \u00eatre export\u00e9es. Lors de l'export,\nla d\u00e9claration est indiqu\u00e9e comme valid\u00e9e par le responsable dans NSIP, avec la date de sa validation\ndans OSITAH.\n\nIl est possible d'exporter toutes les d\u00e9clarations ou de les s\u00e9lectionner agent par  agent.\nLorsqu'un agent est s\u00e9lectionn\u00e9, toutes ses d\u00e9clarations non synchronis\u00e9es sont export\u00e9es. Le bouton\nde s\u00e9lection dans la barre de titre permet de s\u00e9lectionner tous les agents s\u00e9lectionnables en un clic.\n\nLes d\u00e9clarations d'un agent ne peuvent pas \u00eatre export\u00e9es si l'agent n'existe pas dans NSIP,\nc'est-\u00e0-dire s'il est absent de RESEDA. La correction du probl\u00e8me, si on souhaite que les\nd\u00e9clarations da cet agent soient mises dans NSIP, n\u00e9cessite une intervention du Service RH\npour ajouter la personne dans RESEDA.\n\nIl peut aussi y avoir des d\u00e9clarations qui ont \u00e9t\u00e9 faites directement dans NSIP et qui ne sont \npas encore valid\u00e9es dans OSITAH. Dans ce cas, elles apparaitront comme manquantes dans OSITAH, \nm\u00eame si elles sont pr\u00e9sentes, tant qu'elles ne seront pas valid\u00e9es.\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -53,7 +54,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15753116,
+        "last_serial": 15803728,
         "urls": [
             {
                 "comment_text": "",
@@ -92,106 +93,6 @@
                 "upload_time": "2022-11-13T20:54:02",
                 "upload_time_iso_8601": "2022-11-13T20:54:02.918691Z",
                 "url": "https://files.pythonhosted.org/packages/55/b1/6e071b8fad807add460788de6675f6f4a16629b4e081df33c3168a820e96/ositah-22.10.tar.gz",
-                "yanked": false,
-                "yanked_reason": null
-            }
-        ],
-        "vulnerabilities": []
-    },
-    "22.10rc1": {
-        "info": {
-            "author": "",
-            "author_email": "Michel Jouvin <michel.jouvin@ijclab.in2p3.fr>",
-            "bugtrack_url": null,
-            "classifiers": [
-                "License :: OSI Approved :: MIT License",
-                "Operating System :: OS Independent",
-                "Programming Language :: Python :: 3"
-            ],
-            "description": "# OSITAH : Outil de Suivi de Temps et d'Activit\u00e9s bas\u00e9 sur Hito\n\nOSITAH est une application web, bas\u00e9e sur le framework [Dash](https://dash.plotly.com), qui permet\nle suivi des d\u00e9clarations de temps dans Hito, leur validation et leur exportation dans NSIP.\nL'acc\u00e8s aux diff\u00e9rentes fonctionnalit\u00e9s est soumis \u00e0 l'authentification de\nl'utilisateur : les droits dans `ositah` sont d\u00e9riv\u00e9s de ceux dans Hito.\n\nOSITAH n\u00e9cessite un fichier de configuration `ositah.cfg` : par d\u00e9faut il est recherch\u00e9 dans le\nr\u00e9pertoire courant et s'il n'existe pas, dans le r\u00e9pertoire o\u00f9 est install\u00e9 l'application OSITAH. \nL'option `--configuration-file` permet de sp\u00e9cifier un autre fichier/localisation, par exemple pour\nutiliser une configuration de test. \n\nL'instance de production s'ex\u00e9cute normalement \u00e0 travers [gunicorn](https://gunicorn.org), un serveur\nSWGI \u00e9crit en Python et fournit par le module `gunicorn`. Dans ce contexte, le fichier de configuration\ndoit \u00eatre plac\u00e9 dans le r\u00e9pertoire d\u00e9fini comme le r\u00e9pertoire courant de l'application (l'option\n`--configuration-file` n'est pas utilisable).\n\nL'ex\u00e9cution de `ositah` suppose l'acc\u00e8s \u00e0 la base de donn\u00e9e Hito.\n\n## Installation\n\nLe d\u00e9ploiement d'OSITAH n\u00e9cessite le d\u00e9ploiement d'un environnement Python, de pr\u00e9f\u00e9rence distinct\nde ce qui est d\u00e9livr\u00e9 par l'OS car cela pose de gros probl\u00e8mes avec les pr\u00e9requis sur les versions\ndes d\u00e9pendances. Les environnements recommand\u00e9s sont [pyenv](https://github.com/pyenv/pyenv),\n[poetry](https://python-poetry.org) ou [Anaconda](https://www.anaconda.com/products/individual). \nPour la cr\u00e9ation d'un environnement virtuel avec Conda, voir la\n[documentation sp\u00e9cifique](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-with-commands).\n\nPour installer OSITAH, il faut utiliser les commandes suivantes :\n\n```bash\npip install ositah\n```\n\n### D\u00e9pendances \n\nPour connaitre la liste des d\u00e9pendances de l'application OSITAH, voir la propri\u00e9t\u00e9 `dependencies`\ndans le fichier `pyproject.toml` se trouvant dans les sources de l'application. \nElles sont automatiquement install\u00e9es par la commande `pip`.\n\n\n## Configuration\n\n### OSITAH\n\nToute la configuration de l'application OSITAH est d\u00e9clar\u00e9e dans le fichier `ositah.cfg` qui doit\nse trouver dans le r\u00e9pertoire courant de l'application pour une instance de production g\u00e9r\u00e9e par \nle serveur SWGI, `gunicorn`. Pour une instance de test ou de d\u00e9veloppement qui n'utilise pas\n`gunicorn`, il est possible de sp\u00e9cifier le fichier de configuration \u00e0 utiliser avec l'option\n`--configuration-file`.\n\n### Gunicorn\n\n`gunicorn` est le serveur WSGI recommand\u00e9 pour ex\u00e9cuter une instance de production. Son installation\nconsiste \u00e0 installer 2 modules Python : `gunicorn` et `greenlet`.\n\nLe repository Git de'OSITAH contient un r\u00e9pertoire `gunicorn.config` avec les 3 fichiers importants\npour la configuration de `gunicorn` qu'il faut \u00e9diter pour adapter les r\u00e9pertoires \u00e0 la configuration\ndu site :\n\n* `gunicorn@.service` : script `systemd` \u00e0 installer pour d\u00e9marrer l'instance OSITAH. Si le\nl'instance OSITAH s'appelle `ositah`, la systemd unit \u00e0 utiliser pour g\u00e9rer le service est\n`gunicorn@ositah`.\n* `gunicorn.ositah` : fichier \u00e0 placer en `/etc/sysconfig` d\u00e9finissant la configuration sp\u00e9cifique\n\u00e0 OSITAH (r\u00e9pertoire courant, options `gunicorn`, entry point).\n* `app.conf.py` : options `gunicorn` \u00e0 utiliser avec l'instance OSITAH\n\n## Validation des d\u00e9clarations : structure des tables OSITAH\n\nLa validation des d\u00e9clarations de temps se fait agent par agent, en utilisant le bouton de validation correspondant\n\u00e0 l'agent. Ce bouton n'est actif qu'\u00e0 partir de la date d\u00e9finie dans la table `ositah_validation_period` pour la\np\u00e9riode en cours, sauf si on a ajout\u00e9 des exceptions dans le fichier de configuration, telles que :\n\n```\nvalidation:\n  override_period:\n    - ROLE_SUPER_ADMIN\n```\n\n`override_period` est une liste de roles qui peuvent faire des validations hors de la p\u00e9riode standard.\n\nLa validation d'une d\u00e9claration a pour effet d'enregistrer le temps d\u00e9clar\u00e9 sur chacune des activit\u00e9s de l'agent dans\nla table `ositah_project_declaration`. Cette entr\u00e9e est associ\u00e9e \u00e0 une entr\u00e9e dans la table `ositah_validation` qui\ncontient la date de la validation, l'agent concern\u00e9 par cette validation (son `agent id` Hito), la validation p\u00e9riode\n\u00e0 laquelle correspond cette validation (r\u00e9f\u00e9rence \u00e0 la table `ositah_validation_period`) ainsi que le statut\nde la validation. Si on invalide cette validation ult\u00e9rieurement, le statut passe \u00e0 `0` et la date de la validation\nest copi\u00e9e dans l'attribut `initial_timestamp`. L'entr\u00e9e dans `ositah_project_declaration` n'est pas d\u00e9truite. Lorsque \nla d\u00e9claration de  l'agent est \u00e0 nouveau valid\u00e9e ult\u00e9rieurement, une nouvelle entr\u00e9e est cr\u00e9\u00e9e \u00e0 la fois dans \n`ositah_project_declaration` et dans `ositah_validation`, comme pour la validation initiale. \nIl est donc possible d'avoir un historique des op\u00e9rations de validation sur une p\u00e9riode donn\u00e9e (pas exploit\u00e9\npar l'application OSITAH pour l'instant). Par contre, quand on lit les validations, il faut faire attention \u00e0\nprendre la derni\u00e8re dans une p\u00e9riode donn\u00e9e qui a son statut \u00e0 `1`.\n\nLa cr\u00e9ation de l'entr\u00e9e pour d\u00e9finir une p\u00e9riode de d\u00e9claration dans `ositah_validation_period` (date de d\u00e9but et \ndate de fin de la p\u00e9riode, date de  d\u00e9but de la validation) n'est pas g\u00e9r\u00e9e par OSITAH actuellement : il faut cr\u00e9er\nune entr\u00e9e dans la table avec la commande SQL `INSERT INTO`.\n\n\n## Export NSIP\n\nOSITAH permet d'exporter vers NSIP les d\u00e9clarations valid\u00e9es. La table du menu `Export` indique\nl'\u00e9tat de la synchronisation entre NSIP et OSITAH, agent par agent. Un code couleur permet\nd'identifier facilement si une d\u00e9claration est correctement synchronis\u00e9e ou non. Seules les\nd\u00e9clarations qui ne sont pas correctement synchronis\u00e9es peut \u00eatre export\u00e9es. Lors de l'export,\nla d\u00e9claration est indiqu\u00e9e comme valid\u00e9e par le responsable dans NSIP, avec la date de sa validation\ndans OSITAH.\n\nIl est possible d'exporter toutes les d\u00e9clarations ou de les s\u00e9lectionner agent par  agent.\nLorsqu'un agent est s\u00e9lectionn\u00e9, toutes ses d\u00e9clarations non synchronis\u00e9es sont export\u00e9es. Le bouton\nde s\u00e9lection dans la barre de titre permet de s\u00e9lectionner tous les agents s\u00e9lectionnables en un clic.\n\nLes d\u00e9clarations d'un agent ne peuvent pas \u00eatre export\u00e9es si l'agent n'existe pas dans NSIP,\nc'est-\u00e0-dire s'il est absent de RESEDA. La correction du probl\u00e8me, si on souhaite que les\nd\u00e9clarations da cet agent soient mises dans NSIP, n\u00e9cessite une intervention du Service RH\npour ajouter la personne dans RESEDA.\n\nIl peut aussi y avoir des d\u00e9clarations qui ont \u00e9t\u00e9 faites directement dans NSIP et qui ne sont \npas encore valid\u00e9es dans OSITAH. Dans ce cas, elles apparaitront comme manquantes dans OSITAH, \nm\u00eame si elles sont pr\u00e9sentes, tant qu'elles ne seront pas valid\u00e9es.\n\n",
-            "description_content_type": "text/markdown",
-            "docs_url": null,
-            "download_url": "",
-            "downloads": {
-                "last_day": -1,
-                "last_month": -1,
-                "last_week": -1
-            },
-            "home_page": "",
-            "keywords": "",
-            "license": "BSD 3-Clause License",
-            "maintainer": "",
-            "maintainer_email": "",
-            "name": "ositah",
-            "package_url": "https://pypi.org/project/ositah/",
-            "platform": null,
-            "project_url": "https://pypi.org/project/ositah/",
-            "project_urls": {
-                "Bug Tracker": "https://gitlab.in2p3.fr/hito/ositah/-/issues",
-                "Homepage": "https://gitlab.in2p3.fr/hito/ositah"
-            },
-            "release_url": "https://pypi.org/project/ositah/22.10rc1/",
-            "requires_dist": [
-                "blinker",
-                "dash",
-                "dash-bootstrap-components",
-                "flask (<2.2)",
-                "flask-multipass",
-                "flask-sqlalchemy (<3)",
-                "flask-wtf",
-                "hito-tools",
-                "pandas",
-                "pymysql",
-                "python-ldap",
-                "pyyaml",
-                "simplejson",
-                "sqlalchemy"
-            ],
-            "requires_python": ">=3.8",
-            "summary": "Outils de Suivi d'Activit\u00e9s bas\u00e9 sur Hito",
-            "version": "22.10rc1",
-            "yanked": false,
-            "yanked_reason": null
-        },
-        "last_serial": 15753116,
-        "urls": [
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "3c7955133ea9d5c2ebbd6f760249311b",
-                    "sha256": "8361c92205fea0b69425c4d46f756041a79449291eee6e6116d26ae2820fe88c"
-                },
-                "downloads": -1,
-                "filename": "ositah-22.10rc1-py3-none-any.whl",
-                "has_sig": false,
-                "md5_digest": "3c7955133ea9d5c2ebbd6f760249311b",
-                "packagetype": "bdist_wheel",
-                "python_version": "py3",
-                "requires_python": ">=3.8",
-                "size": 82386,
-                "upload_time": "2022-11-13T18:52:56",
-                "upload_time_iso_8601": "2022-11-13T18:52:56.939779Z",
-                "url": "https://files.pythonhosted.org/packages/92/39/1fcfafebe11ca92ac76f72d06e803ff185e370b16f1c1c944f7db0fedcdb/ositah-22.10rc1-py3-none-any.whl",
-                "yanked": false,
-                "yanked_reason": null
-            },
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "71a6194100325df3f77a2b3dda45b624",
-                    "sha256": "a217b5ca79d20b33d6a443d557b9fc31e5ec323db22941ce5cf234476cdc59e7"
-                },
-                "downloads": -1,
-                "filename": "ositah-22.10rc1.tar.gz",
-                "has_sig": false,
-                "md5_digest": "71a6194100325df3f77a2b3dda45b624",
-                "packagetype": "sdist",
-                "python_version": "source",
-                "requires_python": ">=3.8",
-                "size": 88571,
-                "upload_time": "2022-11-13T18:52:58",
-                "upload_time_iso_8601": "2022-11-13T18:52:58.989555Z",
-                "url": "https://files.pythonhosted.org/packages/00/18/e780a3f1bd4b3f2bea49de9bea663072163dfd9fe488a899f68413e6946b/ositah-22.10rc1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
