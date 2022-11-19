@@ -51,7 +51,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13916479,
+        "last_serial": 15823960,
         "urls": [
             {
                 "comment_text": "",
@@ -149,7 +149,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13916479,
+        "last_serial": 15823960,
         "urls": [
             {
                 "comment_text": "",
@@ -247,7 +247,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13916479,
+        "last_serial": 15823960,
         "urls": [
             {
                 "comment_text": "",
@@ -345,7 +345,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13916479,
+        "last_serial": 15823960,
         "urls": [
             {
                 "comment_text": "",
@@ -405,7 +405,6 @@
                 "Programming Language :: Python :: 3.7",
                 "Programming Language :: Python :: 3.8"
             ],
-            "description": "# h5mapper\n\n``h5mapper`` is a pythonic ORM-like tool for reading and writing HDF5 data.\n\nIt is built on top of `h5py` and lets you define types of **.h5 files as python classes** which you can then easily \n**create from raw sources** (e.g. files, urls...), **serve** (use as ``Dataset`` for a ``Dataloader``), \nor dynamically populate (logs, checkpoints of an experiment).\n\n## Content\n- [Installation](#Installation)\n- [Quickstart](#Quickstart)\n    - [TypedFile](#TypedFile)\n    - [Feature](#Feature)\n- [Examples](#Examples)\n- [Development](#Development)\n- [License](#License)\n \n## Installation\n\n### ``pip``\n\n``h5mapper`` is on pypi, to install it, one only needs to \n\n```bash\npip install h5mapper\n```\n\n### developer install\n\nfor playing around with the internals of the package, a good solution is to first\n\n```bash\ngit clone https://github.com/ktonal/h5mapper.git\n```\nand then \n\n```bash\npip install -e h5mapper/\n```\nwhich installs the repo in editable mode.\n\n## Quickstart\n\n### TypedFile\n\n``h5m`` assumes that you want to store collections of contiguous arrays in single datasets and that you want several such concatenated datasets in a file.\n\nThus, ``TypedFile`` allows you to create and read files that maintain a 2-d reference system, where contiguous arrays are stored within features and indexed by their source's id.\n\nSuch a file might then look like \n```bash\n<Experiment \"experiment.h5\">\n----------------------------------------------------> sources' ids axis\n|                   \"planes/01.jpeg\"  |     \"train\"\n|                                     |\n|   data/                             |\n|        images/        (32, 32)      |       None\n|        labels/        (1, )         |       None\n|   logs/                             |\n|        loss/           None         |       (10000,)\n|        ...\nV\nfeatures axis\n``` \nwhere the entries correspond to the shapes of arrays or their absence (`None`).\n\n> Note that this is a different approach than storing each file or image in a separate dataset. \n> In this case, there would be an `h5py.Dataset` located at `data/images/planes/01.jpeg` although in our\n> example, the only dataset is at `data/images/` and one of its regions is indexed by the id `\"planes/01.jpeg\"` \n\nFor interacting with files that follow this particular structure, simply define a class\n\n```python\nimport h5mapper as h5m\n\nclass Experiment(h5m.TypedFile):\n\n    data = h5m.Group(\n            images=h5m.Image(),\n            labels=h5m.DirLabels()\n            )\n    logs = h5m.Group(\n            loss=h5m.Array()\n            )\n```\n#### ``create``, ``add``\n\nnow, create an instance, load data from files through parallel jobs and add data on the fly :\n\n```python\n# create instance from raw sources\nexp = Experiment.create(\"experiment.h5\",\n        # those are then used as ids :\n        sources=[\"planes/01.jpeg\", \"planes/02.jpeg\"],\n        n_workers=8)\n...\n# add id <-> data on the fly :\nexp.logs.add(\"train\", dict(loss=losses_array))\n``` \n\n#### ``get``, ``refs`` and ``__getitem__`` \n\nThere are 3 main options to read data from a ``TypedFile`` or one of its ``Proxy``\n\n1/ By their id\n\n```python\n>> exp.logs.get(\"train\")\nOut: {\"loss\": np.array([...])}\n# which, in this case, is equivalent to \n>> exp.logs[\"train\"]\nOut: {\"loss\": np.array([...])}\n# because `exp.logs` is a Group and Groups only support id-based indexing\n```\n\n2/ By the index of their ids through their ``refs`` attribute :\n\n```python\n>> exp.data.images[exp.data.images.refs[0]].shape\nOut: (32, 32)\n```\nWhich works because `exp.data.images` is a `Dataset` and only `Datasets` have `refs`\n\n3/ with any ``item`` supported by the ``h5py.Dataset``\n```python\n>> exp.data.labels[:32]\nOut: np.array([0, 0, ....])\n```\nWhich also only works for `Datasets`.\n\n> Note that, in this last case, you are indexing into the **concatenation of all sub-arrays along their first axis**.\n\n> The same interface is also implemented for ``set(source, data)`` and ``__setitem__``\n\n### Feature\n\n``h5m`` exposes a class that helps you configure the behaviour of your ``TypedFile`` classes and the properties of the .h5 they create.\n\nthe ``Feature`` class helps you define :\n- how sources' ids are loaded into arrays (``feature.load(source)``)\n- which types of files are supported\n- how the data is stored by ``h5py`` (compression, chunks)\n- which extraction parameters need to be stored with the data (e.g. sample rate of audio files)\n- custom-methods relevant to this kind of data\n\nOnce you defined a `Feature` class, attach it to the class dict of a ``TypedFile``, that's it!\n\nFor example :\n\n```python\nimport h5mapper as h5m\n\n\nclass MyFeature(h5m.Feature):\n\n    # only sources matching this pattern will be passed to load(...)\n    __re__ = r\".special$\"\n\n    # args for the h5py.Dataset\n    __ds_kwargs__ = dict(compression='lzf', chunks=(1, 350))\n    \n    def __init__(self, my_extraction_param=0):\n        self.my_extraction_param = my_extraction_param\n\n    @property\n    def attrs(self):\n        # those are then written in the h5py.Group.attrs\n        return {\"p\": self.my_extraction_param}\n\n    def load(self, source):\n        \"\"\"your method to get an np.ndarray or a dict thereof\n        from a path, an url, whatever sources you have...\"\"\"   \n        return data\n\n    def plot(self, data):\n        \"\"\"custom plotting method for this kind of data\"\"\"\n        # ...\n\n# attach it\nclass Data(h5m.TypedFile):\n    feat = MyFeature(47)\n\n# load sources...\nf = Data.create(....)\n\n# read your data through __getitem__ \nbatch = f.feat[4:8]\n\n# access your method \nf.feat.plot(batch)\n\n# modify the file through __setitem__\nf.feat[4:8] = batch ** 2 \n```\n\nfor more examples, checkout `h5mapper/h5mapper/features.py`.\n\n#### ``serve``\n\nPrimarly designed with `pytorch` users in mind, `h5m` plays very nicely with the `Dataset` class :\n\n```python\nclass MyDS(h5m.TypedFile, torch.utils.data.Dataset):\n    \n    x = MyInputFeature(42)\n    labels = h5m.DirLabels()\n    \n    def __getitem__(self, item):\n        return self.x[item], self.labels[item]\n  \n    def __len__(self):\n        return len(self.x)\n\nds = MyDS.create(\"train.h5\", sources, keep_open=True)\n\ndl = torch.utils.data.DataLoader(ds, batch_size=16, num_workers=8, pin_memory=True)\n```\n\n`TypedFile` even have a method that takes the Dataloader args and a batch object filled with `BatchItems` and returns \na Dataloader that will yield such batch objects.\n\nExample :\n\n```python\nf = TypedFile(\"train.h5\", keep_open=True)\nloader = f.serve(\n    # batch object :\n    dict(\n        x=h5m.Input(key='data/image', getter=h5m.GetId()),\n        labels=h5m.Target(key='data/labels', getter=h5m.GetId())\n    ),\n    # Dataloader kwargs :\n    num_workers=8, pin_memory=True, batch_size=32, shuffle=True\n)\n```  \n\n### Examples\n\nin ``h5mapper/examples`` you'll find for now\n- a train script with data, checkpoints and logs in `dataset_and_logs.py`\n- two click command-lines for making image- and soundbanks\n- a script for benchmarking batch-loading times of different options\n\n### Development\n\n`h5mapper` is just getting started and you're welcome to contribute!\n\nYou'll find some tests you can run from the root of the repo with a simple\n```bash\npytest\n```\n\nIf you'd like to get involved, just drop us an email : ktonalberlin@gmail.com\n\n\n### License\n\n`h5mapper` is distributed under the terms of the MIT License. \n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "https://github.com/ktonal/h5mapper",
@@ -444,7 +443,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13916479,
+        "last_serial": 15823960,
         "urls": [
             {
                 "comment_text": "",
@@ -483,6 +482,106 @@
                 "upload_time": "2022-05-24T05:31:09",
                 "upload_time_iso_8601": "2022-05-24T05:31:09.898610Z",
                 "url": "https://files.pythonhosted.org/packages/a7/27/ea7fed9f810fd741d8560b0c3ab1a350512913de83286c8e3bc3a2755b99/h5mapper-0.2.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.4": {
+        "info": {
+            "author": "Antoine Daurat",
+            "author_email": "antoinedaurat@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Other Audience",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8"
+            ],
+            "description": "# h5mapper\n\n``h5mapper`` is a pythonic ORM-like tool for reading and writing HDF5 data.\n\nIt is built on top of `h5py` and lets you define types of **.h5 files as python classes** which you can then easily \n**create from raw sources** (e.g. files, urls...), **serve** (use as ``Dataset`` for a ``Dataloader``), \nor dynamically populate (logs, checkpoints of an experiment).\n\n## Content\n- [Installation](#Installation)\n- [Quickstart](#Quickstart)\n    - [TypedFile](#TypedFile)\n    - [Feature](#Feature)\n- [Examples](#Examples)\n- [Development](#Development)\n- [License](#License)\n \n## Installation\n\n### ``pip``\n\n``h5mapper`` is on pypi, to install it, one only needs to \n\n```bash\npip install h5mapper\n```\n\n### developer install\n\nfor playing around with the internals of the package, a good solution is to first\n\n```bash\ngit clone https://github.com/ktonal/h5mapper.git\n```\nand then \n\n```bash\npip install -e h5mapper/\n```\nwhich installs the repo in editable mode.\n\n## Quickstart\n\n### TypedFile\n\n``h5m`` assumes that you want to store collections of contiguous arrays in single datasets and that you want several such concatenated datasets in a file.\n\nThus, ``TypedFile`` allows you to create and read files that maintain a 2-d reference system, where contiguous arrays are stored within features and indexed by their source's id.\n\nSuch a file might then look like \n```bash\n<Experiment \"experiment.h5\">\n----------------------------------------------------> sources' ids axis\n|                   \"planes/01.jpeg\"  |     \"train\"\n|                                     |\n|   data/                             |\n|        images/        (32, 32)      |       None\n|        labels/        (1, )         |       None\n|   logs/                             |\n|        loss/           None         |       (10000,)\n|        ...\nV\nfeatures axis\n``` \nwhere the entries correspond to the shapes of arrays or their absence (`None`).\n\n> Note that this is a different approach than storing each file or image in a separate dataset. \n> In this case, there would be an `h5py.Dataset` located at `data/images/planes/01.jpeg` although in our\n> example, the only dataset is at `data/images/` and one of its regions is indexed by the id `\"planes/01.jpeg\"` \n\nFor interacting with files that follow this particular structure, simply define a class\n\n```python\nimport h5mapper as h5m\n\nclass Experiment(h5m.TypedFile):\n\n    data = h5m.Group(\n            images=h5m.Image(),\n            labels=h5m.DirLabels()\n            )\n    logs = h5m.Group(\n            loss=h5m.Array()\n            )\n```\n#### ``create``, ``add``\n\nnow, create an instance, load data from files through parallel jobs and add data on the fly :\n\n```python\n# create instance from raw sources\nexp = Experiment.create(\"experiment.h5\",\n        # those are then used as ids :\n        sources=[\"planes/01.jpeg\", \"planes/02.jpeg\"],\n        n_workers=8)\n...\n# add id <-> data on the fly :\nexp.logs.add(\"train\", dict(loss=losses_array))\n``` \n\n#### ``get``, ``refs`` and ``__getitem__`` \n\nThere are 3 main options to read data from a ``TypedFile`` or one of its ``Proxy``\n\n1/ By their id\n\n```python\n>> exp.logs.get(\"train\")\nOut: {\"loss\": np.array([...])}\n# which, in this case, is equivalent to \n>> exp.logs[\"train\"]\nOut: {\"loss\": np.array([...])}\n# because `exp.logs` is a Group and Groups only support id-based indexing\n```\n\n2/ By the index of their ids through their ``refs`` attribute :\n\n```python\n>> exp.data.images[exp.data.images.refs[0]].shape\nOut: (32, 32)\n```\nWhich works because `exp.data.images` is a `Dataset` and only `Datasets` have `refs`\n\n3/ with any ``item`` supported by the ``h5py.Dataset``\n```python\n>> exp.data.labels[:32]\nOut: np.array([0, 0, ....])\n```\nWhich also only works for `Datasets`.\n\n> Note that, in this last case, you are indexing into the **concatenation of all sub-arrays along their first axis**.\n\n> The same interface is also implemented for ``set(source, data)`` and ``__setitem__``\n\n### Feature\n\n``h5m`` exposes a class that helps you configure the behaviour of your ``TypedFile`` classes and the properties of the .h5 they create.\n\nthe ``Feature`` class helps you define :\n- how sources' ids are loaded into arrays (``feature.load(source)``)\n- which types of files are supported\n- how the data is stored by ``h5py`` (compression, chunks)\n- which extraction parameters need to be stored with the data (e.g. sample rate of audio files)\n- custom-methods relevant to this kind of data\n\nOnce you defined a `Feature` class, attach it to the class dict of a ``TypedFile``, that's it!\n\nFor example :\n\n```python\nimport h5mapper as h5m\n\n\nclass MyFeature(h5m.Feature):\n\n    # only sources matching this pattern will be passed to load(...)\n    __re__ = r\".special$\"\n\n    # args for the h5py.Dataset\n    __ds_kwargs__ = dict(compression='lzf', chunks=(1, 350))\n    \n    def __init__(self, my_extraction_param=0):\n        self.my_extraction_param = my_extraction_param\n\n    @property\n    def attrs(self):\n        # those are then written in the h5py.Group.attrs\n        return {\"p\": self.my_extraction_param}\n\n    def load(self, source):\n        \"\"\"your method to get an np.ndarray or a dict thereof\n        from a path, an url, whatever sources you have...\"\"\"   \n        return data\n\n    def plot(self, data):\n        \"\"\"custom plotting method for this kind of data\"\"\"\n        # ...\n\n# attach it\nclass Data(h5m.TypedFile):\n    feat = MyFeature(47)\n\n# load sources...\nf = Data.create(....)\n\n# read your data through __getitem__ \nbatch = f.feat[4:8]\n\n# access your method \nf.feat.plot(batch)\n\n# modify the file through __setitem__\nf.feat[4:8] = batch ** 2 \n```\n\nfor more examples, checkout `h5mapper/h5mapper/features.py`.\n\n#### ``serve``\n\nPrimarly designed with `pytorch` users in mind, `h5m` plays very nicely with the `Dataset` class :\n\n```python\nclass MyDS(h5m.TypedFile, torch.utils.data.Dataset):\n    \n    x = MyInputFeature(42)\n    labels = h5m.DirLabels()\n    \n    def __getitem__(self, item):\n        return self.x[item], self.labels[item]\n  \n    def __len__(self):\n        return len(self.x)\n\nds = MyDS.create(\"train.h5\", sources, keep_open=True)\n\ndl = torch.utils.data.DataLoader(ds, batch_size=16, num_workers=8, pin_memory=True)\n```\n\n`TypedFile` even have a method that takes the Dataloader args and a batch object filled with `BatchItems` and returns \na Dataloader that will yield such batch objects.\n\nExample :\n\n```python\nf = TypedFile(\"train.h5\", keep_open=True)\nloader = f.serve(\n    # batch object :\n    dict(\n        x=h5m.Input(key='data/image', getter=h5m.GetId()),\n        labels=h5m.Target(key='data/labels', getter=h5m.GetId())\n    ),\n    # Dataloader kwargs :\n    num_workers=8, pin_memory=True, batch_size=32, shuffle=True\n)\n```  \n\n### Examples\n\nin ``h5mapper/examples`` you'll find for now\n- a train script with data, checkpoints and logs in `dataset_and_logs.py`\n- two click command-lines for making image- and soundbanks\n- a script for benchmarking batch-loading times of different options\n\n### Development\n\n`h5mapper` is just getting started and you're welcome to contribute!\n\nYou'll find some tests you can run from the root of the repo with a simple\n```bash\npytest\n```\n\nIf you'd like to get involved, just drop us an email : ktonalberlin@gmail.com\n\n\n### License\n\n`h5mapper` is distributed under the terms of the MIT License. \n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://github.com/ktonal/h5mapper",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/ktonal/h5mapper",
+            "keywords": "hdf5 h5py ORM deep-learning machine-learning",
+            "license": "MIT License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "h5mapper",
+            "package_url": "https://pypi.org/project/h5mapper/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/h5mapper/",
+            "project_urls": {
+                "Download": "https://github.com/ktonal/h5mapper",
+                "Homepage": "https://github.com/ktonal/h5mapper"
+            },
+            "release_url": "https://pypi.org/project/h5mapper/0.2.4/",
+            "requires_dist": [
+                "h5py (>=3.0.0)",
+                "numpy (>=1.19.0)",
+                "librosa (>=0.8.0)",
+                "imageio (>=2.6.0)",
+                "torch (>=1.8.0)",
+                "tqdm",
+                "multiprocess",
+                "dill",
+                "soxr"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "pythonic ORM tool for reading and writing HDF5 data",
+            "version": "0.2.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15823960,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9f36cf20ad43a88285a138b14e9669d6",
+                    "sha256": "6a0e26a0d823144d429743acf6e7bcd09644cf5919ce72e89a6e7156e8a63d20"
+                },
+                "downloads": -1,
+                "filename": "h5mapper-0.2.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "9f36cf20ad43a88285a138b14e9669d6",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 23365,
+                "upload_time": "2022-11-19T09:22:18",
+                "upload_time_iso_8601": "2022-11-19T09:22:18.712435Z",
+                "url": "https://files.pythonhosted.org/packages/33/58/1ed7ea1dccc56b0479f9f2021474a44538903f69681e5d154430fefc678e/h5mapper-0.2.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "be3baf333aca647962740a826eabdb5e",
+                    "sha256": "3791d9fe4a82ec7b91ffb55f0228ee2bf1bffc02e2bab0b5c37b8a147f28f156"
+                },
+                "downloads": -1,
+                "filename": "h5mapper-0.2.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "be3baf333aca647962740a826eabdb5e",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 23248,
+                "upload_time": "2022-11-19T09:22:20",
+                "upload_time_iso_8601": "2022-11-19T09:22:20.459147Z",
+                "url": "https://files.pythonhosted.org/packages/5f/8f/5e5d7045d474014e3ed38fa830f1dd4595f58f6e7810993b15f2812c49a9/h5mapper-0.2.4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
