@@ -17,7 +17,6 @@
                 "Topic :: Scientific/Engineering",
                 "Topic :: Software Development"
             ],
-            "description": "# MLexp\n\nMLexp is the framework to automate model training, hyperparameters \noptimization and logging results to a server, which allows to speed up \nhypothesis testing and helps to maintain the reproducibility of experiments.\n\n## Installation\n\n### Installation with pip\n\n```bash\n$ pip install mlexp\n```\n\nTo support training on pytorch models gpu, before installation of MLexps you \nhave to install torch of version compatible with installed pytorch_lightning \nwith support of gpu.\n\n## Documentation\n\nTo open documentation, open docs/build/html/index.html\n\n## Contributing\n\nFor contributing guidelines check CONTRIBUTING.md\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -46,7 +45,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15814648,
+        "last_serial": 15827797,
         "urls": [
             {
                 "comment_text": "",
@@ -65,6 +64,78 @@
                 "upload_time": "2022-11-18T12:28:47",
                 "upload_time_iso_8601": "2022-11-18T12:28:47.258144Z",
                 "url": "https://files.pythonhosted.org/packages/69/2e/2348362d89ed9a007dce3ed01de0884cde7d46761e23fd316ca08887e939/mlexp-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.2": {
+        "info": {
+            "author": "Ilia Avilov",
+            "author_email": "ieavilov@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Developers",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: POSIX",
+                "Operating System :: Unix",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering",
+                "Topic :: Software Development"
+            ],
+            "description": "# MLexp\n\nMLexp is the framework to automate model training, hyperparameters \noptimization and logging results to a server, which allows to speed up \nhypothesis testing and helps to maintain the reproducibility of experiments.\n\n## Installation\n\n### Installation with pip\n\n```bash\n$ pip install mlexp\n```\n\nTo support training on pytorch models gpu, before installation of MLexps you \nhave to install torch of version compatible with installed pytorch_lightning \nwith support of gpu.\n\n## Documentation\n\nDocumentation is hosted on [Read the Docs](https://mlexp.readthedocs.io/en/latest/)\n\n## Simple example\n\n\n### Train model, optimize hyperparameters and log results\n\nIn this example we will train lightgbm model, optimize hyperparameters\nand log results to mlflow server.\n\nFirst of all, we have to start mlflow server. Run the following command\nin your console.\n\n```bash\n$ mlflow server --port 5000\n```\n\nRunning this command will start mlflow server on port 5000 in the\ncurrent directory.\n\nNow we should define function which returns set of parameters.\n\n``` {.python}\ndef params_func(trial):\n    return(\n        {\n            'model_params': {'boosting': trial.suggest_categorical('boosting', ['gbdt', 'dart', 'goss']),\n                             'feature_fraction': trial.suggest_float('feature_fraction', 0.01, 1),\n                             'min_child_samples': trial.suggest_int('min_child_samples', 2, 256),\n                             'n_estimators': 500},\n            'lgb_data_set_params': {}\n        }\n    )\n```\n\nAccording to this function:\n\n-   *boosting* will be chosen from ['gbdt', 'dart', 'goss']\n    during hyperparameter optimization\n-   *feature_fraction* will be chosen from uniform distribution from\n    0.01 to 1 during hyperparameter optimization\n-   *min_child_samples* will be chosen integers from 2 to 256 during\n    hyperparameter optimization\n-   no parameters will be passed to lightgbm.Dataset, except for *data*\n    and *label*, which are passed from training data automatically\n\nNow we can use python API of mlexp.trainers.LgbTrainer to train model,\noptimize hyperparameters and log results to mlflow server.\n\n``` {.python}\nfrom mlexp.trainers import LgbTrainer\nfrom sklearn.metrics import mean_squared_error\n\n# Initialise trainer object\ntrainer = LgbTrainer(\n    # MSE will be used as validation metric\n    validation_metric = mean_squared_error,\n    # MSE should be minimised during hyperparameters optimization\n    direction = 'minimize',\n    # Before logging to server files will be saved to /home/logged_files\n    saved_files_path = r'/home/logged_files',\n    # During training model on test fold n_estimators will be set to the mean n_estimators on validation_folds\n    use_average_n_estimators_on_test_fold = True,\n    # During hyperparameters' optimization, mean metric on validation fold will be optimized\n    optimization_metric = 'metric_mean_cv')\n\n# Initialise mlflow run\ntrainer.init_run(\n    # Init run on mlflow server\n    logging_server = 'mlflow',\n    # Run will be started in experiment 'example_exp'\n    experiment_name = 'example_exp',\n    # URI of mlflow server (it will be printed in console after starting mlflow server)\n    tracking_uri = 'http://127.0.0.1:5000/',\n    # Let's set run_name to 'Example. LGBM' and add tag Hypothesis = 1\n    mlflow_run_params = {'run_name': 'Example. LGBM', 'tags': {'Hypothesis': '1'}},\n    # Let's also log current_data_config.txt to mlflow server\n    upload_files = ['/home/current_data_config.txt'])\n\n# Hyperparameters' sampler\nsampler = optuna.samplers.TPESampler(seed = 1234)\n\n# Start model training, hyperparameters optimization and logging results to mlflow server\ntrainer.train(\n    X = X,\n    y = y,\n    cv = cv_list,\n    # Will optimize hyperparameters during 20 iterations\n    n_trials = 20,\n    params_func = params_func,\n    sampler = sampler)\n```\n\n### Model inference\n\nLet's get trained model, parameters and hyperparameters from mlflow\nserver with the help of mlexp.inference.LgbInference\n\n``` {.python}\nfrom mlexp.inference import LgbInference\n\n# Initialize inference object\ninference = LgbInference(\n    # Let's download models and aprameters to /home/downloaded_files\n    downloaded_files_path = '/home/downloaded_files',\n    inference_server_params={\n    'tracking_uri': 'http://127.0.0.1:5000/',\n    'run_id': '1325ca558ec14277b0f39b0f8134d17e'},\n    server='mlflow')\n# Download params and model\ninference.get_params_model(\n    # Get parameters and models from best step of hyperparameters optimization (with minimal MSE)\n    step = 'best',\n    # Get model for test fold\n    fold_num = 'test',\n    # Get trained model\n    trained_model = True)\n```\n\nAfter running this code we will get dictionary with downloaded\nparameters and trained model.\n\n## Contributing\n\nFor contributing guidelines check [CONTRIBUTING.md](CONTRIBUTING.md)\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "machine learning",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "mlexp",
+            "package_url": "https://pypi.org/project/mlexp/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/mlexp/",
+            "project_urls": {
+                "GitHub": "https://github.com/volico/mlexp"
+            },
+            "release_url": "https://pypi.org/project/mlexp/0.0.2/",
+            "requires_dist": null,
+            "requires_python": ">=3.9",
+            "summary": "MLexp allows to train different types of machine learning models,                  optimize hyperparameters and log results with simple API",
+            "version": "0.0.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15827797,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5e8f8397c48650b48bc892f11bc7d0d7",
+                    "sha256": "1c7c3ff37fe738b157721e7cf554897d38eaf56f8a1a0d4f6e9337f589f3c5f1"
+                },
+                "downloads": -1,
+                "filename": "mlexp-0.0.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5e8f8397c48650b48bc892f11bc7d0d7",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9",
+                "size": 19994,
+                "upload_time": "2022-11-20T00:12:41",
+                "upload_time_iso_8601": "2022-11-20T00:12:41.806015Z",
+                "url": "https://files.pythonhosted.org/packages/fa/e7/dce3ec630048dc76670c03ae226c4c21c5c5536ea21a973a515f441e7b5a/mlexp-0.0.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
