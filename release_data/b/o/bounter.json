@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7977263,
+        "last_serial": 15829431,
         "urls": [
             {
                 "comment_text": "",
@@ -118,7 +118,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7977263,
+        "last_serial": 15829431,
         "urls": [
             {
                 "comment_text": "",
@@ -190,7 +190,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7977263,
+        "last_serial": 15829431,
         "urls": [
             {
                 "comment_text": "",
@@ -302,7 +302,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7977263,
+        "last_serial": 15829431,
         "urls": [
             {
                 "comment_text": "",
@@ -414,7 +414,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7977263,
+        "last_serial": 15829431,
         "urls": [
             {
                 "comment_text": "",
@@ -457,7 +457,6 @@
                 "Programming Language :: Python :: 3.6",
                 "Topic :: Scientific/Engineering :: Artificial Intelligence"
             ],
-            "description": "Bounter \u2013 Counter for large datasets\n====================================\n\n|License| |Build Status| |GitHub release| |Downloads|\n\nBounter is a Python library, written in C, for extremely fast\nprobabilistic counting of item frequencies in massive datasets, using\nonly a small fixed memory footprint.\n\nWhy Bounter?\n------------\n\nBounter lets you count how many times an item appears, similar to\nPython\u2019s built-in ``dict`` or ``Counter``:\n\n.. code:: python\n\n   from bounter import bounter\n\n   counts = bounter(size_mb=1024)  # use at most 1 GB of RAM\n   counts.update([u'a', 'few', u'words', u'a', u'few', u'times'])  # count item frequencies\n\n   print(counts[u'few'])  # query the counts\n   2\n\nHowever, unlike ``dict`` or ``Counter``, Bounter can process huge\ncollections where the items would not even fit in RAM. This commonly\nhappens in Machine Learning and NLP, with tasks like **dictionary\nbuilding** or **collocation detection** that need to estimate counts of\nbillions of items (token ngrams) for their statistical scoring and\nsubsequent filtering.\n\nBounter implements approximative algorithms using optimized low-level C\nstructures, to avoid the overhead of Python objects. It lets you specify\nthe maximum amount of RAM you want to use. In the Wikipedia example\nbelow, Bounter uses 31x less memory compared to ``Counter``.\n\nBounter is also marginally faster than the built-in ``dict`` and\n``Counter``, so wherever you can represent your **items as strings**\n(both byte-strings and unicode are fine, and Bounter works in both\nPython2 and Python3), there\u2019s no reason not to use Bounter instead\nexcept:\n\nWhen not to use Bounter?\n------------------------\n\nBeware, Bounter is only a probabilistic frequency counter and cannot be\nrelied on for exact counting. (You can\u2019t expect a data structure with\nfinite size to hold infinite data.) Example of Bounter failing:\n\n.. code:: python\n\n   from bounter import bounter\n   bounts = bounter(size_mb=1)\n   bounts.update(str(i) for i in range(10000000))\n   bounts['100']\n   0\n\nPlease use ``Counter`` or ``dict`` when such exact counts matter. When\nthey don\u2019t matter, like in most NLP and ML applications with huge\ndatasets, Bounter is a very good alternative.\n\nInstallation\n------------\n\nBounter has no dependencies beyond Python >= 2.7 or Python >= 3.3 and a\nC compiler:\n\n.. code:: bash\n\n   pip install bounter  # install from PyPI\n\nOr, if you prefer to install from the `source\ntar.gz <https://pypi.python.org/pypi/bounter>`__:\n\n.. code:: bash\n\n   python setup.py test  # run unit tests\n   python setup.py install\n\nHow does it work?\n-----------------\n\nNo magic, just some clever use of approximative algorithms and solid\nengineering.\n\nIn particular, Bounter implements three different algorithms under the\nhood, depending on what type of \u201ccounting\u201d you need:\n\n1. `Cardinality\n   estimation <https://en.wikipedia.org/wiki/Count-distinct_problem>`__\\ **:\n   \u201cHow many unique items are there?\u201d**\n\n.. code:: python\n\n   from bounter import bounter\n\n   counts = bounter(need_counts=False)\n   counts.update(['a', 'b', 'c', 'a', 'b'])\n\n   print(counts.cardinality())  # cardinality estimation\n   3\n   print(counts.total())  # efficiently accumulates counts across all items\n   5\n\nThis is the simplest use case and needs the least amount of memory, by\nusing the `HyperLogLog\nalgorithm <http://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf>`__\n(built on top of Joshua Andersen\u2019s\n`HLL <https://github.com/ascv/HyperLogLog>`__ code).\n\n2. **Item frequencies: \u201cHow many times did this item appear?\u201d**\n\n.. code:: python\n\n   from bounter import bounter\n\n   counts = bounter(need_iteration=False, size_mb=200)\n   counts.update(['a', 'b', 'c', 'a', 'b'])\n   print(counts.total(), counts.cardinality())  # total and cardinality still work\n   (5L, 3L)\n\n   print(counts['a'])  # supports asking for counts of individual items\n   2\n\nThis uses the `Count-min Sketch\nalgorithm <https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch>`__ to\nestimate item counts efficiently, in a **fixed amount of memory**. See\nthe `API\ndocs <https://github.com/RaRe-Technologies/bounter/blob/master/bounter/bounter.py>`__\nfor full details and parameters.\n\nAs a further optimization, Count-min Sketch optionally support a\n`logarithmic probabilistic\ncounter <https://en.wikipedia.org/wiki/Approximate_counting_algorithm>`__:\n\n-  ``bounter(need_iteration=False)``: default option. Exact counter, no\n   probabilistic counting. Occupies 4 bytes (max value 2^32) per bucket.\n-  ``bounter(need_iteration=False, log_counting=1024)``: an integer\n   counter that occupies 2 bytes. Values up to 2048 are exact; larger\n   values are off by +/- 2%. The maximum representable value is around\n   2^71.\n-  ``bounter(need_iteration=False, log_counting=8)``: a more aggressive\n   probabilistic counter that fits into just 1 byte. Values up to 8 are\n   exact and larger values can be off by +/- 30%. The maximum\n   representable value is about 2^33.\n\nSuch memory vs.\u00a0accuracy tradeoffs are sometimes desirable in NLP, where\nbeing able to handle very large collections is more important than\nwhether an event occurs exactly 55,482x or 55,519x.\n\n3. **Full item iteration: \u201cWhat are the items and their frequencies?\u201d**\n\n.. code:: python\n\n   from bounter import bounter\n\n   counts = bounter(size_mb=200)  # default version, unless you specify need_items or need_counts\n   counts.update(['a', 'b', 'c', 'a', 'b'])\n   print(counts.total(), counts.cardinality())  # total and cardinality still work\n   (5L, 3)\n   print(counts['a'])  # individual item frequency still works\n   2\n\n   print(list(counts))  # iterator returns keys, just like Counter\n   [u'b', u'a', u'c']\n   print(list(counts.iteritems()))  # supports iterating over key-count pairs, etc.\n   [(u'b', 2L), (u'a', 2L), (u'c', 1L)]\n\nStores the keys (strings) themselves in addition to the total\ncardinality and individual item frequency (8 bytes). Uses the most\nmemory, but supports the widest range of functionality.\n\nThis option uses a custom C hash table underneath, with optimized string\nstorage. It will remove its low-count objects when nearing the maximum\nalotted memory, instead of expanding the table.\n\n--------------\n\nFor more details, see the `API\ndocstrings <https://github.com/RaRe-Technologies/bounter/blob/master/bounter/bounter.py>`__\nor read the\n`blog <https://rare-technologies.com/counting-efficiently-with-bounter-pt-1-hashtable/>`__.\n\nExample on the English Wikipedia\n--------------------------------\n\nLet\u2019s count the frequencies of all bigrams in the English Wikipedia\ncorpus:\n\n.. code:: python\n\n   with smart_open('wikipedia_tokens.txt.gz') as wiki:\n       for line in wiki:\n           words = line.decode().split()\n           bigrams = zip(words, words[1:])\n           counter.update(u' '.join(pair) for pair in bigrams)\n\n   print(counter[u'czech republic'])\n   42099\n\nThe Wikipedia dataset contained 7,661,318 distinct words across\n1,860,927,726 total words, and 179,413,989 distinct bigrams across\n1,857,420,106 total bigrams. Storing them in a naive built-in ``dict``\nwould consume over 31 GB RAM.\n\nTo test the accuracy of Bounter, we automatically extracted\n`collocations <https://en.wikipedia.org/wiki/Collocation>`__ (common\nmulti-word expressions, such as \u201cNew York\u201d, \u201cnetwork license\u201d, \u201cSupreme\nCourt\u201d or \u201celementary school\u201d) from these bigram counts.\n\nWe compared the set of collocations extracted from Counter (exact\ncounts, needs lots of memory) vs Bounter (approximate counts, bounded\nmemory) and present the precision and recall here:\n\n+-------------------------------------+-------+-----+-----+----+----+\n| Algorithm                           | Time  | Mem | Pre | Re | F1 |\n|                                     | to    | ory | cis | ca | s  |\n|                                     | build |     | ion | ll | co |\n|                                     |       |     |     |    | re |\n+=====================================+=======+=====+=====+====+====+\n| ``Counter`` (built-in)              | 32m   | 31  | 1   | 10 | 10 |\n|                                     | 26s   | GB  | 00% | 0% | 0% |\n+-------------------------------------+-------+-----+-----+----+----+\n| ``bounter(size_mb=128, need         | 19m   | **  | 95. | 97 | 96 |\n| _iteration=False, log_counting=8)`` | 53s   | 128 | 02% | .1 | .0 |\n|                                     |       | M   |     | 0% | 4% |\n|                                     |       | B** |     |    |    |\n+-------------------------------------+-------+-----+-----+----+----+\n| ``bounter(size_mb=1024)``           | 17m   | 1   | 1   | 99 | 99 |\n|                                     | 54s   | GB  | 00% | .2 | .6 |\n|                                     |       |     |     | 7% | 4% |\n+-------------------------------------+-------+-----+-----+----+----+\n| ``bounter(si                        | 19m   | 1   | 99. | 10 | 99 |\n| ze_mb=1024, need_iteration=False)`` | 58s   | GB  | 64% | 0% | .8 |\n|                                     |       |     |     |    | 2% |\n+-------------------------------------+-------+-----+-----+----+----+\n| ``bounter(size_mb=1024, need_it     | 20m   | 1   | **  | ** | ** |\n| eration=False, log_counting=1024)`` | 05s   | GB  | 100 | 10 | 10 |\n|                                     |       |     | %** | 0% | 0% |\n|                                     |       |     |     | ** | ** |\n+-------------------------------------+-------+-----+-----+----+----+\n| ``bounter(size_mb=1024, need        | 19m   | 1   | 97. | 97 | 97 |\n| _iteration=False, log_counting=8)`` | 59s   | GB  | 45% | .4 | .4 |\n|                                     |       |     |     | 5% | 5% |\n+-------------------------------------+-------+-----+-----+----+----+\n| ``bounter(size_mb=4096)``           | **16m | 4   | 1   | 10 | 10 |\n|                                     | 21s** | GB  | 00% | 0% | 0% |\n+-------------------------------------+-------+-----+-----+----+----+\n| ``bounter(si                        | 20m   | 4   | 1   | 10 | 10 |\n| ze_mb=4096, need_iteration=False)`` | 14s   | GB  | 00% | 0% | 0% |\n+-------------------------------------+-------+-----+-----+----+----+\n| ``bounter(size_mb=4096, need_it     | 20m   | 4   | 1   | 99 | 99 |\n| eration=False, log_counting=1024)`` | 14s   | GB  | 00% | .6 | .8 |\n|                                     |       |     |     | 4% | 2% |\n+-------------------------------------+-------+-----+-----+----+----+\n\nBounter achieves a perfect F1 score of 100% at 31x less memory (1GB vs\n31GB), compared to a built-in ``Counter`` or ``dict``. It is also 61%\nfaster.\n\nEven with just 128 MB (250x less memory), its F1 score is still 96.04%.\n\nSupport\n=======\n\nUse `Github\nissues <https://github.com/RaRe-Technologies/bounter/issues>`__ to\nreport bugs, and our `mailing\nlist <https://groups.google.com/forum/#!forum/gensim>`__ for general\ndiscussion and feature ideas.\n\n--------------\n\n``Bounter`` is open source software released under the `MIT\nlicense <https://github.com/rare-technologies/bounter/blob/master/LICENSE>`__.\n\nCopyright (c) 2017 `RaRe\nTechnologies <https://rare-technologies.com/>`__\n\n.. |License| image:: https://img.shields.io/pypi/l/bounter.svg\n   :target: https://github.com/RaRe-Technologies/bounter/blob/master/LICENSE\n.. |Build Status| image:: https://travis-ci.org/RaRe-Technologies/bounter.svg?branch=master\n   :target: https://travis-ci.org/RaRe-Technologies/bounter\n.. |GitHub release| image:: https://img.shields.io/github/release/rare-technologies/bounter.svg?maxAge=3600\n   :target: https://github.com/RaRe-Technologies/bounter/releases\n.. |Downloads| image:: https://pepy.tech/badge/bounter/week\n   :target: https://pepy.tech/project/bounter/week",
             "description_content_type": "",
             "docs_url": null,
             "download_url": "http://pypi.python.org/pypi/bounter",
@@ -487,7 +486,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7977263,
+        "last_serial": 15829431,
         "urls": [
             {
                 "comment_text": "",
@@ -506,6 +505,79 @@
                 "upload_time": "2020-08-17T06:37:51",
                 "upload_time_iso_8601": "2020-08-17T06:37:51.893180Z",
                 "url": "https://files.pythonhosted.org/packages/95/36/9f4a36bc5772176f6152dce1ba27feac45bc1766ca56f8c9954506d9ea3b/bounter-1.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.2.0": {
+        "info": {
+            "author": "Filip Stefanak",
+            "author_email": "f.stefanak@rare-technologies.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 2.7",
+                "Programming Language :: Python :: 3.3",
+                "Programming Language :: Python :: 3.4",
+                "Programming Language :: Python :: 3.5",
+                "Programming Language :: Python :: 3.6",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence"
+            ],
+            "description": "# Bounter -- Counter for large datasets\n\n[![License](https://img.shields.io/pypi/l/bounter.svg)](https://github.com/RaRe-Technologies/bounter/blob/master/LICENSE)\n[![Build Status](https://travis-ci.org/RaRe-Technologies/bounter.svg?branch=master)](https://travis-ci.org/RaRe-Technologies/bounter)\n[![GitHub release](https://img.shields.io/github/release/rare-technologies/bounter.svg?maxAge=3600)](https://github.com/RaRe-Technologies/bounter/releases)\n[![Downloads](https://pepy.tech/badge/bounter/week)](https://pepy.tech/project/bounter/week)\n\nBounter is a Python library, written in C, for extremely fast probabilistic counting of item frequencies in massive datasets. Unlike `Counter`, it uses only a small fixed memory footprint.\n\n## Why Bounter?\n\nBounter lets you count how many times an item appears, similar to Python's built-in `dict` or `Counter`:\n\n```python\nfrom bounter import bounter\n\ncounts = bounter(size_mb=1024)  # use at most 1 GB of RAM\ncounts.update([u'a', 'few', u'words', u'a', u'few', u'times'])  # count item frequencies\n\nprint(counts[u'few'])  # query the counts\n2\n```\n\nHowever, unlike `dict` or `Counter`, Bounter can process huge collections where the items would not even fit in RAM. This commonly happens in Machine Learning and NLP, with tasks like **dictionary building** or **collocation detection** that need to estimate counts of billions of items (token ngrams) for their statistical scoring and subsequent filtering.\n\nBounter implements approximative algorithms using optimized low-level C structures, to avoid the overhead of Python objects. It lets you specify the maximum amount of RAM you want to use. In the Wikipedia example below, Bounter uses 31x less memory compared to `Counter`.\n\nBounter is also marginally faster than the built-in `dict` and `Counter`, so wherever you can represent your **items as strings** (both byte-strings and unicode are fine, and Bounter works in both Python2 and Python3), there's no reason not to use Bounter instead except:\n\n\n## When not to use Bounter?\nBeware, Bounter is only a probabilistic frequency counter and cannot be relied on for exact counting. (You can't expect a data structure with finite size to hold infinite data.)\nExample of Bounter failing:\n\n```python\nfrom bounter import bounter\nbounts = bounter(size_mb=1)\nbounts.update(str(i) for i in range(10000000))\nbounts['100']\n0\n```\n\nPlease use `Counter` or `dict` when such exact counts matter. When they don't matter, like in most NLP and ML applications with huge datasets, Bounter is a very good alternative.\n\n## Installation\n\nBounter has no dependencies beyond Python >= 2.7 or Python >= 3.3 and a C compiler:\n\n```bash\npip install bounter  # install from PyPI\n```\n\nOr, if you prefer to install from the [source tar.gz](https://pypi.python.org/pypi/bounter):\n\n```bash\npython setup.py test  # run unit tests\npython setup.py install\n```\n\n## How does it work?\n\nNo magic, just some clever use of approximative algorithms and solid engineering.\n\nIn particular, Bounter implements three different algorithms under the hood, depending on what type of \"counting\" you need:\n\n1. **[Cardinality estimation](https://en.wikipedia.org/wiki/Count-distinct_problem): \"How many unique items are there?\"**\n\n```python\nfrom bounter import bounter\n\ncounts = bounter(need_counts=False)\ncounts.update(['a', 'b', 'c', 'a', 'b'])\n\nprint(counts.cardinality())  # cardinality estimation\n3\nprint(counts.total())  # efficiently accumulates counts across all items\n5\n```\n\n  This is the simplest use case and needs the least amount of memory, by using the [HyperLogLog algorithm](http://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf) (built on top of Joshua Andersen's [HLL](https://github.com/ascv/HyperLogLog) code).\n\n2. **Item frequencies: \"How many times did this item appear?\"**\n\n```python\nfrom bounter import bounter\n\ncounts = bounter(need_iteration=False, size_mb=200)\ncounts.update(['a', 'b', 'c', 'a', 'b'])\nprint(counts.total(), counts.cardinality())  # total and cardinality still work\n(5L, 3L)\n\nprint(counts['a'])  # supports asking for counts of individual items\n2\n```\n\n  This uses the [Count-min Sketch algorithm](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch) to estimate item counts efficiently, in a **fixed amount of memory**. See the [API docs](https://github.com/RaRe-Technologies/bounter/blob/master/bounter/bounter.py) for full details and parameters.\n\nAs a further optimization, Count-min Sketch optionally support a [logarithmic probabilistic counter](https://en.wikipedia.org/wiki/Approximate_counting_algorithm):\n\n - `bounter(need_iteration=False)`: default option. Exact counter, no probabilistic counting. Occupies 4 bytes (max value 2^32) per bucket.\n - `bounter(need_iteration=False, log_counting=1024)`: an integer counter that occupies 2 bytes. Values up to 2048 are exact; larger values are off by +/- 2%. The maximum representable value is around 2^71.\n - `bounter(need_iteration=False, log_counting=8)`: a more aggressive probabilistic counter that fits into just 1 byte. Values up to 8 are exact and larger values can be off by +/- 30%. The maximum representable value is about 2^33.\n\nSuch memory vs. accuracy tradeoffs are sometimes desirable in NLP, where being able to handle very large collections is more important than whether an event occurs exactly 55,482x or 55,519x.\n\n3. **Full item iteration: \"What are the items and their frequencies?\"**\n\n```python\nfrom bounter import bounter\n\ncounts = bounter(size_mb=200)  # default version, unless you specify need_items or need_counts\ncounts.update(['a', 'b', 'c', 'a', 'b'])\nprint(counts.total(), counts.cardinality())  # total and cardinality still work\n(5L, 3)\nprint(counts['a'])  # individual item frequency still works\n2\n\nprint(list(counts))  # iterator returns keys, just like Counter\n[u'b', u'a', u'c']\nprint(list(counts.iteritems()))  # supports iterating over key-count pairs, etc.\n[(u'b', 2L), (u'a', 2L), (u'c', 1L)]\n```\n\n  Stores the keys (strings) themselves in addition to the total cardinality and individual item frequency (8 bytes). Uses the most memory, but supports the widest range of functionality.\n\n  This option uses a custom C hash table underneath, with optimized string storage. It will remove its low-count objects when nearing the maximum alotted memory, instead of expanding the table.\n\n----\n\nFor more details, see the [API docstrings](https://github.com/RaRe-Technologies/bounter/blob/master/bounter/bounter.py) or read the [blog](https://rare-technologies.com/counting-efficiently-with-bounter-pt-1-hashtable/).\n\n## Example on the English Wikipedia\n\nLet's count the frequencies of all bigrams in the English Wikipedia corpus:\n\n```python\nwith smart_open('wikipedia_tokens.txt.gz') as wiki:\n    for line in wiki:\n        words = line.decode().split()\n        bigrams = zip(words, words[1:])\n        counter.update(u' '.join(pair) for pair in bigrams)\n\nprint(counter[u'czech republic'])\n42099\n```\n\nThe Wikipedia dataset contained 7,661,318 distinct words across 1,860,927,726 total words, and 179,413,989 distinct bigrams across 1,857,420,106 total bigrams. Storing them in a naive built-in `dict` would consume over 31 GB RAM.\n\nTo test the accuracy of Bounter, we automatically extracted [collocations](https://en.wikipedia.org/wiki/Collocation) (common multi-word expressions, such as \"New York\", \"network license\", \"Supreme Court\" or \"elementary school\") from these bigram counts.\n\nWe compared the set of collocations extracted from Counter (exact counts, needs lots of memory) vs Bounter (approximate counts, bounded memory) and present the precision and recall here:\n\n| Algorithm                                                        | Time to build |    Memory  | Precision |   Recall | F1 score |\n|------------------------------------------------------------------|--------------:|-----------:|----------:|---------:|---------:|\n| `Counter` (built-in)                                             |       32m 26s |      31 GB |      100% |     100% |     100% |\n| `bounter(size_mb=128, need_iteration=False, log_counting=8)`     |       19m 53s | **128 MB** |    95.02% |   97.10% |   96.04% |\n| `bounter(size_mb=1024)`                                          |       17m 54s |       1 GB |      100% |   99.27% |   99.64% |\n| `bounter(size_mb=1024, need_iteration=False)`                    |       19m 58s |       1 GB |    99.64% |     100% |   99.82% |\n| `bounter(size_mb=1024, need_iteration=False, log_counting=1024)` |       20m 05s |       1 GB |  **100%** | **100%** | **100%** |\n| `bounter(size_mb=1024, need_iteration=False, log_counting=8)`    |       19m 59s |       1 GB |    97.45% |   97.45% |   97.45% |\n| `bounter(size_mb=4096)`                                          |   **16m 21s** |       4 GB |      100% |     100% |     100% |\n| `bounter(size_mb=4096, need_iteration=False)`                    |      20m 14s  |       4 GB |      100% |     100% |     100% |\n| `bounter(size_mb=4096, need_iteration=False, log_counting=1024)` |       20m 14s |       4 GB |      100% |   99.64% |   99.82% |\n\nBounter achieves a perfect F1 score of 100% at 31x less memory (1GB vs 31GB), compared to a built-in `Counter` or `dict`. It is also 61% faster.\n\nEven with just 128 MB (250x less memory), its F1 score is still 96.04%.\n\n# Support\n\nUse [Github issues](https://github.com/RaRe-Technologies/bounter/issues) to report bugs, and our [mailing list](https://groups.google.com/forum/#!forum/gensim) for general discussion and feature ideas.\n\n----------------\n\n`Bounter` is open source software released under the [MIT license](https://github.com/rare-technologies/bounter/blob/master/LICENSE).\n\nCopyright (c) 2017 [RaRe Technologies](https://rare-technologies.com/)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "http://pypi.python.org/pypi/bounter",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/RaRe-Technologies/bounter",
+            "keywords": "counter,count-min sketch,bounded memory,hyperloglog,approximative counting,cardinality estimation",
+            "license": "MIT",
+            "maintainer": "RARE Technologies",
+            "maintainer_email": "opensource@rare-technologies.com",
+            "name": "bounter",
+            "package_url": "https://pypi.org/project/bounter/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/bounter/",
+            "project_urls": {
+                "Download": "http://pypi.python.org/pypi/bounter",
+                "Homepage": "https://github.com/RaRe-Technologies/bounter"
+            },
+            "release_url": "https://pypi.org/project/bounter/1.2.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Counter for large datasets",
+            "version": "1.2.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15829431,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "551160eaaa233ae819ee3d6a2549fd1c",
+                    "sha256": "0f4fabe9fb6eede07d135758033ee67c754430345c1b4f37fed512e49089412b"
+                },
+                "downloads": -1,
+                "filename": "bounter-1.2.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "551160eaaa233ae819ee3d6a2549fd1c",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 40894,
+                "upload_time": "2022-11-20T08:16:20",
+                "upload_time_iso_8601": "2022-11-20T08:16:20.092886Z",
+                "url": "https://files.pythonhosted.org/packages/f2/f0/0707d65383e1aa26efee9c6c3828333029d490776fbfd4bb936d5eb7a858/bounter-1.2.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
