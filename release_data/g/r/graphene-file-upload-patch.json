@@ -1,0 +1,86 @@
+{
+    "1.3.0.0": {
+        "info": {
+            "author": "Gabriel Sebag",
+            "author_email": "hello@gabrielsebag.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Framework :: Django :: 1.11",
+                "Framework :: Django :: 2.0",
+                "Framework :: Django :: 2.1",
+                "Framework :: Django :: 2.2",
+                "Framework :: Django :: 3.0",
+                "Framework :: Django :: 3.1",
+                "Framework :: Django :: 3.2",
+                "Framework :: Flask",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Natural Language :: English",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 2.7",
+                "Programming Language :: Python :: 3.4",
+                "Programming Language :: Python :: 3.5",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Python :: Implementation :: PyPy",
+                "Topic :: Internet :: WWW/HTTP"
+            ],
+            "description": ".. image:: https://travis-ci.com/lmcgartland/graphene-file-upload.svg?branch=master\n   :target: https://travis-ci.com/lmcgartland/graphene-file-upload \n\n.. image:: https://badge.fury.io/py/graphene-file-upload.svg\n   :target: https://badge.fury.io/py/graphene-file-upload\n\n.. image:: https://static.pepy.tech/personalized-badge/graphene-file-upload?period=month&units=international_system&left_color=grey&right_color=blue&left_text=downloads/month\n :target: https://pepy.tech/project/graphene-file-upload\n\n.. image:: https://img.shields.io/pypi/pyversions/graphene-file-upload\n   :alt: PyPI - Python Version\n\n.. image:: https://img.shields.io/pypi/djversions/graphene-file-upload\n   :alt: PyPI - Django Version\n\n.. image:: https://img.shields.io/badge/flask%20-%23000.svg?&style=flat&logo=flask&logoColor=white\n\ngraphene-file-upload\n====================\n\n``graphene-file-upload`` is a drop in replacement for the the GraphQL\nview in Graphene for Django, and for Flask-Graphql. \n\nIt supports multi-part file uploads that adhere to the `Multipart Request Spec <https://github.com/jaydenseric/graphql-multipart-request-spec>`_.\n\nIt currently supports Python 2.7 and 3.4+.\n\nInstallation:\n-------------\n\n.. code:: bash\n\n    $ pip install graphene-file-upload\n\nUsage\n-----\n\nTo add an upload type to your mutation, import and use ``Upload``.\nUpload is a scalar type.\n\n.. code:: python\n\n   from graphene_file_upload.scalars import Upload\n\n   class UploadMutation(graphene.Mutation):\n       class Arguments:\n           file = Upload(required=True)\n\n       success = graphene.Boolean()\n\n       def mutate(self, info, file, **kwargs):\n           # do something with your file\n\n           return UploadMutation(success=True)\n\nDjango Integration:\n~~~~~~~~~~~~~~~~~~~\n\nTo use, import the view, then add to your list of urls (replace previous\nGraphQL view).\n\n.. code:: python\n\n   from graphene_file_upload.django import FileUploadGraphQLView\n\n   urlpatterns = [\n     url(r'^graphql', FileUploadGraphQLView.as_view(graphiql=True)),\n   ]\n\nFlask Integration:\n~~~~~~~~~~~~~~~~~~\n\nNote that ``flask-graphql`` version ``<2.0`` is not supported. At the\ntime of writing this README, you must install ``flask-graphql`` with\n``pip install --pre flask-graphql``\n\nSimply import the modified view and create a new url rule on your app:\n\n.. code:: python\n\n   from graphene_file_upload.flask import FileUploadGraphQLView\n\n   app.add_url_rule(\n       '/graphql',\n       view_func=FileUploadGraphQLView.as_view(\n         ...\n       )\n   )\n\nTesting\n-------\n\nFlask\n~~~~~\n\n`<https://flask.palletsprojects.com/en/1.1.x/testing/#the-testing-skeleton/>`_\n\n.. code:: python\n\n    # Create a fixture using the file_graphql_query helper and `client` fixture.\n    import os\n    import json\n    import tempfile\n\n    from flaskr import flaskr\n    import pytest\n    from graphene_file_upload.flask.testing import file_graphql_query\n\n\n    @pytest.fixture\n    def client():\n        db_fd, flaskr.app.config['DATABASE'] = tempfile.mkstemp()\n        flaskr.app.config['TESTING'] = True\n\n        with flaskr.app.test_client() as client:\n            with flaskr.app.app_context():\n                flaskr.init_db()\n            yield client\n\n        os.close(db_fd)\n        os.unlink(flaskr.app.config['DATABASE'])\n\n    @pytest.fixture\n    def client_query(client):\n        def func(*args, **kwargs):\n            return file_graphql_query(*args, **kwargs, client=client)\n\n        return func\n\n    # Test your query using the client_query fixture\n    def test_some_query(client_query):\n        test_file = SimpleUploadedFile(name='test.txt', content=file_text.encode('utf-8'))\n\n        response = client_query(\n            '''\n            mutation testMutation($file: Upload!) {\n                myUpload(fileIn: $file) {\n                    ok\n                }\n            }\n            ''',\n            op_name='testMutation'\n            files={'file': test_file},\n        )\n\n        content = json.loads(response.content)\n        assert 'errors' not in content\n\n\nDjango\n~~~~~~\n\nWriting test using `django's test client <https://docs.djangoproject.com/en/3.1/topics/testing/tools/#default-test-client />`_\n\nUsing pytest\n############\n\nTo use pytest define a simple fixture using the query helper below\n\n.. code:: python\n\n    # Create a fixture using the file_graphql_query helper and ``client` fixture from ``pytest-django``.\n\n    import json\n    import pytest\n    from graphene_file_upload.django.testing import file_graphql_query\n\n    @pytest.fixture\n    def client_query(client):\n        def func(*args, **kwargs):\n            return file_graphql_query(*args, **kwargs, client=client)\n\n        return func\n\n    # Test your query using the client_query fixture\n    def test_some_query(client_query):\n        test_file = SimpleUploadedFile(name='test.txt', content=file_text.encode('utf-8'))\n\n        response = client_query(\n            '''\n            mutation testMutation($file: Upload!) {\n                myUpload(fileIn: $file) {\n                    ok\n                }\n            }\n            ''',\n            op_name='testMutation'\n            files={'file': test_file},\n        )\n\n        content = json.loads(response.content)\n        assert 'errors' not in content\n\n\nUsing unittest\n##############\n\nYour endpoint is set through the ``GRAPHQL_URL`` attribute on ``GraphQLFileUploadTestCase``. \n\nThe default endpoint is ``GRAPHQL_URL = \u201c/graphql/\u201d``.\n\n.. code:: python\n    \n    import json\n\n    from graphene_file_upload.django.testing import GraphQLFileUploadTestCase\n\n    class MutationTestCase(GraphQLFileUploadTestCase):\n       def test_some_mutation(self):\n            test_file = SimpleUploadedFile(name='test.txt', content=file_text.encode('utf-8'))\n\n            response = self.file_query(\n                '''\n                mutation testMutation($file: Upload!) {\n                    myUpload(fileIn: $file) {\n                        ok\n                    }\n                }\n                ''',\n                op_name='testMutation',\n                files={'file': test_file},\n            )\n\n            # This validates the status code and if you get errors\n            self.assertResponseNoErrors(response)\n\n\nContributing:\n-------------\n\nIf you'd like to contribute, please run the test suite prior to sending a PR.\n\nIn order to run the testing environment, create a virtual environment, install\ntox, and run the tox commands:\n\n.. code:: bash\n\n    $ python3 -m venv venv\n    $ source venv/bin/activate\n    $ make install\n    # You may have to deactivate and reactivate to have access to the tox command,\n    # depending on your system.\n\n    # Run the test suite with the versions of python you have installed\n    $ tox\n    # Alternatively, if you're using something like pyenv and can easily install\n    # Multiple versions of python, then try running the following command\n    $ tox\n\n    # If for some reason you need to recreate the tox environment (e.g. a new\n    # dependency has been added since you last ran it, add the -r flag to the\n    # tox command)\n    $ tox -r {...additional flags...}\n\nCheck out `pyenv\n<https://github.com/pyenv/pyenv>`_ if you'd like a simple way of\ninstalling multiple python versions to test out.\n\nPackaging for PyPi:\n-------------------\n\nRun\n\n.. code:: bash\n\n    $ make deploy\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/gabrielsebag/graphene-file-upload",
+            "keywords": "graphql,graphene,apollo,upload",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "graphene-file-upload-patch",
+            "package_url": "https://pypi.org/project/graphene-file-upload-patch/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/graphene-file-upload-patch/",
+            "project_urls": {
+                "Homepage": "https://github.com/gabrielsebag/graphene-file-upload"
+            },
+            "release_url": "https://pypi.org/project/graphene-file-upload-patch/1.3.0.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Lib for adding file upload functionality to GraphQL mutations in Graphene Django and Flask-Graphql",
+            "version": "1.3.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15831591,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "dddcdb86854de8149f8c678f2f24e618",
+                    "sha256": "f9870a93646e6280220d31e98b25da88573fc8a58569544240f8c70b19d8295d"
+                },
+                "downloads": -1,
+                "filename": "graphene_file_upload_patch-1.3.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "dddcdb86854de8149f8c678f2f24e618",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 11310,
+                "upload_time": "2022-11-20T14:53:40",
+                "upload_time_iso_8601": "2022-11-20T14:53:40.569424Z",
+                "url": "https://files.pythonhosted.org/packages/f2/b1/a02b081bc2c05bb9a3b533f92a5d02946045fe3679e0f5685f188a5c9596/graphene_file_upload_patch-1.3.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

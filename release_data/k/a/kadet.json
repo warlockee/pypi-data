@@ -47,7 +47,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14821145,
+        "last_serial": 15831834,
         "urls": [
             {
                 "comment_text": "",
@@ -141,7 +141,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14821145,
+        "last_serial": 15831834,
         "urls": [
             {
                 "comment_text": "",
@@ -235,7 +235,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14821145,
+        "last_serial": 15831834,
         "urls": [
             {
                 "comment_text": "",
@@ -332,7 +332,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14821145,
+        "last_serial": 15831834,
         "urls": [
             {
                 "comment_text": "",
@@ -395,7 +395,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "# kadet\n\nEasily define and reuse complex Python objects that serialize into JSON or YAML.\n\n![GitHub Workflow Status](https://img.shields.io/github/workflow/status/kapicorp/kadet/Python%20lint%20and%20tests)\n\n## Example\n\n```python\nfrom kadet import BaseObj\nfrom pprint import pprint\n\nships = BaseObj()\nships.root.type.container = [\"panamax\", \"suezmax\", \"post-panamax\"]\nships.root.type.carrier = [\"conventional\", \"geared\", \"gearless\"]\nships.root.type.tanker = BaseObj.from_yaml(\"tankers.yml\")\n\npprint(ships.root)\n\n# output\n{'type': {'carrier': ['conventional',\n                      'geared',\n                      'gearless'],\n          'container': ['panamax',\n                        'suezmax',\n                        'post-panamax'],\n          'tanker': ['oil', 'liquified-gas', 'chemical']}}\n```\n\n## Installation\n\nInstall using `pip install kadet`.\n\n## Overview\n\n### BaseObj\n\nBaseObj implements the basic object that serializes into JSON or YAML.\nSetting keys in `self.root` means they will be serialized. Keys can be set as an hierarchy of attributes.\n\nThe `self.body()` method is reserved for setting self.root on instantiation.\n\nThe example below:\n\n```python\nclass MyApp(BaseObj):\n  def body(self):\n    self.root.name = \"myapp\"\n    self.root.inner.foo = \"bar\"\n    self.root.list = [1, 2, 3]\n\nyaml.dump(MyApp().dump())\n```\n\nserializes into:\n\n```yaml\n---\nname: myapp\ninner:\n  foo: bar\nlist:\n  - 1\n  - 2\n  - 3\n```\n\nThe `self.new()` method can be used to define a basic constructor.\n\n`self.need()` checks if a key is set and errors if it isn't (with an optional custom error message).\n`self.optional()` sets a key as optional. Use `default` keyword to set default value when not set.\n\nBoth `self.new()` and `self.body()` method accept the `istype` keyword to validate value type on runtime.\nSupports `typing` types.\n\n`kwargs` that are passed onto a new instance of BaseObj are always accessible via `self.kwargs`\n\n`self.new_with()` is an utility method to call `super().new()` while passing kwargs to the super class.\n\nIn this example, MyApp needs `name` and `foo` to be passed as kwargs.\n\n```python\nclass MyApp(BaseObj):\n  def new(self):\n    self.need(\"name\")\n    self.need(\"foo\", msg=\"please provide a value for foo\")\n    self.optional(\"baz\")\n\n  def body(self):\n    self.root.name = self.kwargs.name\n    self.root.inner.foo = self.kwargs.foo\n    self.root.list = [1, 2, 3]\n\nobj = MyApp(name=\"myapp\", foo=\"bar\")\n```\n\n### Setting a skeleton\n\nDefining a large body with Python can be quite hard and repetitive to read and write.\n\nThe `self.root_file()` method allows importing a YAML/JSON file to set `self.root`.\n\nMyApp's skeleton can be set instead like this:\n\n```yaml\n#skel.yml\n---\nname: myapp\ninner:\n  foo: bar\nlist:\n  - 1\n  - 2\n  - 3\n```\n\n```python\nclass MyApp(BaseObj):\n  def new(self):\n    self.need(\"name\")\n    self.need(\"foo\", msg=\"please provide a value for foo\")\n    self.root_file(\"path/to/skel.yml\")\n```\n\nExtending a MyApp's skeleton is possible just by implementing `self.body()`:\n\n```python\nclass MyApp(BaseObj):\n  def new(self):\n    self.need(\"name\")\n    self.need(\"foo\", msg=\"please provide a value for foo\")\n    self.root_file(\"path/to/skel.yml\")\n\n  def body(self):\n    self.set_replicas()\n    self.root.metadata.labels = {\"app\": \"mylabel\"}\n\n  def set_replicas(self):\n    self.root.spec.replicas = 5\n```\n\n### Inheritance\n\nPython inheritance will work as expected:\n\n```python\n\nclass MyOtherApp(MyApp):\n  def new(self):\n    super().new()  # MyApp's new()\n    self.need(\"size\")\n\n  def body(self):\n    super().body()  #  we want to extend MyApp's body\n    self.root.size = self.kwargs.size\n    del self.root.list  # get rid of \"list\"\n\nobj = MyOtherApp(name=\"otherapp1\", foo=\"bar2\", size=3)\nyaml.dump(obj.dump())\n```\nserializes to:\n\n```yaml\n---\nname: otherapp1\ninner:\n  foo: bar2\nreplicas: 5\nsize: 3\n```\n\n### BaseModel\n\nBaseModel integrates Kadet semantics with [Pydantic](https://github.com/pydantic/pydantic)'s BaseModel together with powerful data validation and type hinting features.\nJust like in BaseObj, keys in `self.root` will be serialized, but kwargs is no longer necessary as BaseModel's parameters are set as attributes in `self`.\n\nThe `self.body()` method is reserved for setting self.root on instantiation.\n\nThe example below:\n\n```python\nclass Boat(BaseModel):\n  name: str  # Required\n  length: int  # Required\n  description: str = \"I am a boat\"  # Default description\n\n  def body(self):\n    self.root.name = self.name\n    self.root.details.length = self.length\n    self.root.details.description = self.description\n\nprint(yaml.dump(Boat(name=\"Boaty\", length=600).dump()))\n\n---\ndetails:\n  description: I am a boat\n  length: 600\nname: Boaty\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -430,7 +429,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14821145,
+        "last_serial": 15831834,
         "urls": [
             {
                 "comment_text": "",
@@ -469,6 +468,105 @@
                 "upload_time": "2022-08-20T11:34:25",
                 "upload_time_iso_8601": "2022-08-20T11:34:25.617585Z",
                 "url": "https://files.pythonhosted.org/packages/01/87/47f0ff4c62a3d07ff5ec60eef9e9e3dad9e1042b885e8b83f159bc56264a/kadet-0.2.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.2": {
+        "info": {
+            "author": "Ricardo Amaro",
+            "author_email": "ramaro@kapicorp.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "# kadet\n\nEasily define and reuse complex Python objects that serialize into JSON or YAML.\n\n![GitHub Workflow Status](https://img.shields.io/github/workflow/status/kapicorp/kadet/Python%20lint%20and%20tests)\n\n## Example\n\n```python\nfrom kadet import BaseObj\nfrom pprint import pprint\n\nships = BaseObj()\nships.root.type.container = [\"panamax\", \"suezmax\", \"post-panamax\"]\nships.root.type.carrier = [\"conventional\", \"geared\", \"gearless\"]\nships.root.type.tanker = BaseObj.from_yaml(\"tankers.yml\")\n\npprint(ships.root)\n\n# output\n{'type': {'carrier': ['conventional',\n                      'geared',\n                      'gearless'],\n          'container': ['panamax',\n                        'suezmax',\n                        'post-panamax'],\n          'tanker': ['oil', 'liquified-gas', 'chemical']}}\n```\n\n## Installation\n\nInstall using `pip install kadet`.\n\n## Overview\n\n### BaseObj\n\nBaseObj implements the basic object that serializes into JSON or YAML.\nSetting keys in `self.root` means they will be serialized. Keys can be set as an hierarchy of attributes.\n\nThe `self.body()` method is reserved for setting self.root on instantiation.\n\nThe example below:\n\n```python\nclass MyApp(BaseObj):\n  def body(self):\n    self.root.name = \"myapp\"\n    self.root.inner.foo = \"bar\"\n    self.root.list = [1, 2, 3]\n\nyaml.dump(MyApp().dump())\n```\n\nserializes into:\n\n```yaml\n---\nname: myapp\ninner:\n  foo: bar\nlist:\n  - 1\n  - 2\n  - 3\n```\n\nThe `self.new()` method can be used to define a basic constructor.\n\n`self.need()` checks if a key is set and errors if it isn't (with an optional custom error message).\n`self.optional()` sets a key as optional. Use `default` keyword to set default value when not set.\n\nBoth `self.new()` and `self.body()` method accept the `istype` keyword to validate value type on runtime.\nSupports `typing` types.\n\n`kwargs` that are passed onto a new instance of BaseObj are always accessible via `self.kwargs`\n\n`self.new_with()` is an utility method to call `super().new()` while passing kwargs to the super class.\n\nIn this example, MyApp needs `name` and `foo` to be passed as kwargs.\n\n```python\nclass MyApp(BaseObj):\n  def new(self):\n    self.need(\"name\")\n    self.need(\"foo\", msg=\"please provide a value for foo\")\n    self.optional(\"baz\")\n\n  def body(self):\n    self.root.name = self.kwargs.name\n    self.root.inner.foo = self.kwargs.foo\n    self.root.list = [1, 2, 3]\n\nobj = MyApp(name=\"myapp\", foo=\"bar\")\n```\n\n### Setting a skeleton\n\nDefining a large body with Python can be quite hard and repetitive to read and write.\n\nThe `self.root_file()` method allows importing a YAML/JSON file to set `self.root`.\n\nMyApp's skeleton can be set instead like this:\n\n```yaml\n#skel.yml\n---\nname: myapp\ninner:\n  foo: bar\nlist:\n  - 1\n  - 2\n  - 3\n```\n\n```python\nclass MyApp(BaseObj):\n  def new(self):\n    self.need(\"name\")\n    self.need(\"foo\", msg=\"please provide a value for foo\")\n    self.root_file(\"path/to/skel.yml\")\n```\n\nExtending a MyApp's skeleton is possible just by implementing `self.body()`:\n\n```python\nclass MyApp(BaseObj):\n  def new(self):\n    self.need(\"name\")\n    self.need(\"foo\", msg=\"please provide a value for foo\")\n    self.root_file(\"path/to/skel.yml\")\n\n  def body(self):\n    self.set_replicas()\n    self.root.metadata.labels = {\"app\": \"mylabel\"}\n\n  def set_replicas(self):\n    self.root.spec.replicas = 5\n```\n\n### Inheritance\n\nPython inheritance will work as expected:\n\n```python\n\nclass MyOtherApp(MyApp):\n  def new(self):\n    super().new()  # MyApp's new()\n    self.need(\"size\")\n\n  def body(self):\n    super().body()  #  we want to extend MyApp's body\n    self.root.size = self.kwargs.size\n    del self.root.list  # get rid of \"list\"\n\nobj = MyOtherApp(name=\"otherapp1\", foo=\"bar2\", size=3)\nyaml.dump(obj.dump())\n```\nserializes to:\n\n```yaml\n---\nname: otherapp1\ninner:\n  foo: bar2\nreplicas: 5\nsize: 3\n```\n\n### BaseModel\n\nBaseModel integrates Kadet semantics with [Pydantic](https://github.com/pydantic/pydantic)'s BaseModel together with powerful data validation and type hinting features.\nJust like in BaseObj, keys in `self.root` will be serialized, but kwargs is no longer necessary as BaseModel's parameters are set as attributes in `self`.\n\nThe `self.body()` method is reserved for setting self.root on instantiation.\n\nThe example below:\n\n```python\nclass Boat(BaseModel):\n  name: str  # Required\n  length: int  # Required\n  description: str = \"I am a boat\"  # Default description\n\n  def body(self):\n    self.root.name = self.name\n    self.root.details.length = self.length\n    self.root.details.description = self.description\n\nprint(yaml.dump(Boat(name=\"Boaty\", length=600).dump()))\n\n---\ndetails:\n  description: I am a boat\n  length: 600\nname: Boaty\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/kapicorp/kadet",
+            "keywords": "config,kapitan,kadet,yaml,json",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "kadet",
+            "package_url": "https://pypi.org/project/kadet/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/kadet/",
+            "project_urls": {
+                "Homepage": "https://github.com/kapicorp/kadet",
+                "Repository": "https://github.com/kapicorp/kadet"
+            },
+            "release_url": "https://pypi.org/project/kadet/0.2.2/",
+            "requires_dist": [
+                "PyYAML (>=5.3.1)",
+                "typeguard (>=2.12.1)",
+                "python-box (==6.0.2)",
+                "pydantic (>=1.9.2,<2.0.0)"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Easily define and reuse complex Python objects that serialize into JSON or YAML.",
+            "version": "0.2.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15831834,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d61fa845731b81e338ce486430ad279c",
+                    "sha256": "9b6bc3c4356db72d15225d8acd097bb0110b3c80ad9713cf6fac3b214d21be93"
+                },
+                "downloads": -1,
+                "filename": "kadet-0.2.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "d61fa845731b81e338ce486430ad279c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 8914,
+                "upload_time": "2022-11-20T15:33:45",
+                "upload_time_iso_8601": "2022-11-20T15:33:45.728595Z",
+                "url": "https://files.pythonhosted.org/packages/5f/01/9169d5ce1aa919cb9fa878b1bc9a3045adfa8f0ad58b76fab300c0d89ac4/kadet-0.2.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "eecdfd222b561dd6c76a73e1fac0f6d0",
+                    "sha256": "b47bee9c56e91b0781a3fa5b04826f4f1e406b693a4ad5402cefff67dee604d0"
+                },
+                "downloads": -1,
+                "filename": "kadet-0.2.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "eecdfd222b561dd6c76a73e1fac0f6d0",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 5638,
+                "upload_time": "2022-11-20T15:33:47",
+                "upload_time_iso_8601": "2022-11-20T15:33:47.430383Z",
+                "url": "https://files.pythonhosted.org/packages/4a/44/2e320ee702918fb839df656ae937b7a6ace64ac717e4882914ec686db768/kadet-0.2.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -33,7 +33,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15422123,
+        "last_serial": 15833279,
         "urls": [
             {
                 "comment_text": "",
@@ -344,7 +344,6 @@
             "author_email": "riccardoviviano@gmail.com",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# Install\n```\npip install Pyllab\n```\n\nWarning:\n\nfrom pip you will download the corresponding .whl file according to your OS and python version.\nAll the .whl files have been created from the compilation of C code. The files on pypi have been compiled\nfor the x86_64 architecture with the extensions \"-mavx2\". So, if you have a pentium for example\nor a processor that does not support the extension avx2 you can find in the github repo in the releases\nthe different .whl files with: no extensions, sse extension, sse2 extension, avx extension.\n\nor\n\n\n# Build .whl package On Linux:\n```\npip install -r requirements.txt\nsh generate_wheel_unix.sh\n```\n\n- On Linux specifically you have to fix the wheel package, use the container with the repair tool:\n\n```\nsudo docker run -i -t -v `pwd`:/io quay.io/pypa/manylinux1_x86_64 /bin/bash\n```\n\nwhen you are in run these lines:\n\n```\ncd io\nsh repair_wheel_linux.sh\n```\n\nin the wheelhouse directory you have the fixed wheel package\n\n# Build .whl package on MacOS\n```\npip install -r requirements.txt\nsh generate_wheel_unix.sh\nsh repair_wheel_macos.sh\n```\n\n# Build .whl package on Windows\n\n- It is a PIA. Why?\n\nPyllab is a cython library compiling .C files that use posix calls system. Now you can see the problem here. Just follow me in this journey:\n\n- First of all you need to comment this line in __init__.pyx:\n\n```\nctypedef stdint.uint64_t uint64_t\n```\n\n- Install Mingw with MYSYS2: https://www.msys2.org/ follow the steps and also the passages to install mingw-w64 \n\n-  now navigate to Pyllab with MYSYS2 and create the .lib library:\n\n```\nsh create_library.sh\n```\n\n- Go to your Python Folder (We assume as example we are using python 3.7):\n\n- You can find your python folder with:\n\n```\nimport sys\n\nlocate_python = sys.exec_prefix\nprint(locate_python)\n```\n\n- Create the file Python37\\Lib\\distutils\\distutils.cfg that should look like this:\n\n```\n[build]\ncompiler=mingw32\n \n[build_ext]\ncompiler=mingw32\n```\n\n- Download this .dll file https://it.dllfile.net/microsoft/vcruntime140-dll:\n\n- Move it to Python37\\libs and to Python37\\DLLs\n\n- Move libllab.lib previously built to Python37\\libs\n\n- Now, Move to Python37\\Lib\\distutils\\cygwinccompiler.py and modify the function get_msvcr() as follows: https://bugs.python.org/file40608/patch.diff\n\n- The last part\n\n```\nelif msc_ver == '1900':\n```\n\nchange it to \n\n```\nelif msc_ver == '1916':\n```\n\n- Now other bug fix: go to Python37\\include\\pyconfig.h and add these lines:\n\n ```\n /* Compiler specific defines */\n \n\n#ifdef __MINGW32__\n#ifdef _WIN64\n#define MS_WIN64\n#endif\n#endif\n```\n\n- Now you can run from MYSYS2:\n\n```\nsh build_python_library.sh\n```\n\n- Links:\n - https://www.msys2.org/ (To get MYSYS2 with mingw-w64)\n - https://wiki.python.org/moin/WindowsCompilers (distutils.cfg)\n - https://datatofish.com/locate-python-windows/ (Python folder search script)\n - https://stackoverflow.com/questions/34135280/valueerror-unknown-ms-compiler-version-1900 (vcruntime140-dll lacking dll)\n - https://bugs.python.org/file40608/patch.diff (function fix, changing from 1900 to 1916 was my guess and it worked, it enables the use of the .dll previously installed)\n - https://github.com/cython/cython/issues/3405 (For the ifdef stuff, cython bug)\n\n# Install .whl files\n\nOnce you have created the .whl file, you can install it locally using pip:\n\n```\npip install package.whl\n```\n# Import the library in python\n\n```\nimport pyllab\n```\n\n# Pyllab supports\n\n- Version: 1.0.0\n\n - [x] Fully connected Layers\n - [x] Convolutional Layers\n - [x] Transposed Convolutional Layers\n - [x] Residual Layers\n - [x] Dropout\n - [x] Layer normalization for Fully-connected Layers Transposed Convolutional and Convolutional Layers\n - [x] Group normalization for Convolutional and Transposed Convolutional Layers\n - [x] 2d Max Pooling\n - [x] 2d Avarage Pooling\n - [x] 2d Padding\n - [x] Local Response Normalization for Fully-connected, Convolutional, Transposed Convolutional Layers\n - [x] sigmoid function\n - [x] relu function\n - [x] softmax function\n - [x] leaky_relu function\n - [x] elu function\n - [x] standard gd and sgd\n - [x] Nesterov optimization algorithm\n - [x] ADAM optimization algorithm\n - [x] RADAM optimization algorithm\n - [x] DiffGrad optimization algorithm\n - [x] ADAMOD optimization algorithm\n - [x] Cross Entropy Loss\n - [x] Focal Loss\n - [x] Huber Loss type1\n - [x] Huber Loss type2\n - [x] MSE Loss\n - [x] KL Divergence Loss\n - [x] Entropy Loss\n - [x] Total Variational Loss\n - [x] Contrastive 2D Loss\n - [x] Edge Pop-up algorithm\n - [x] Dueling Categorical DQN\n - [x] Rainbow Training\n - [x] Genetic Algorithm training (NEAT)\n - [x] Multi Thread\n - [x] Numpy input arrays\n - [ ] GPU Training and inference (Future implementation)\n - [ ] RNN\n - [ ] LSTM (Future implementation already tested in C)\n - [ ] Transformers (Future implementation semi-implemented in C)\n - [ ] Attention mechanism (Future implementation already tested in C)\n - [ ] Multi-head Attention mechanism (Future implementation already tested in C)\n\n# Genome API\n\n```\nimport pyllab\n# Init a genome from a .bin file\ng = pyllab.Genome(\"file.bin\", input_size, output_size)\n# Get the output from an input list\ninputs = [1]*input_size\noutput = g.ff(inputs)\n```\n\n# DL Model API\n\n```\nimport pyllab\n# Init a model from a .txt file\nmodel = pyllab.Model(pyllab.get_dict_from_model_setup_file(\"./model/model_023.txt\"))\n# select the training mode (default is standard training, otherwise you can choose edge oppup)\npercentage_of_used_weights_per_layer = 0.5\nmodel.set_training_edge_popup(percentage_of_used_weights_per_layer)\n# select the multi-thread option\nmodel.make_multi_thread(batch_size)\n# select the loss function\nmodel.set_model_error(pyllab.PY_FOCAL_LOSS,model.get_output_dimension_from_model(),gamma=2)\n# init the optimization hyperparameters\ntrain = pyllab.Training(lr = 0.01, momentum = 0.9,batch_size = batch_size,gradient_descent_flag = pyllab.PY_ADAM,current_beta1 = pyllab.PY_BETA1_ADAM,current_beta2 = pyllab.PY_BETA2_ADAM, regularization = pyllab.PY_NO_REGULARIZATION,total_number_weights = 0, lambda_value = 0, lr_decay_flag = pyllab.PY_LR_NO_DECAY,timestep_threshold = 0,lr_minimum = 0,lr_maximum = 1,decay = 0)\n# train in supervised mode on a bunch of data\nfor i in range(epochs):\n    # save the model in a binary file \"i.bin\"\n    model.save(i)\n    inputs, outputs = shuffle(inputs, outputs)\n    for j in range(0,inputs.shape[0],batch_size):\n        # compute feedforward, error, backpropagation\n        model.ff_error_bp_opt_multi_thread(1, 28,28, inputs[j:j+batch_size], outputs[j:j+batch_size], model.get_output_dimension_from_model())\n        # sum the partial derivatives over the batch\n        model.sum_models_partial_derivatives()\n        # update the model according to the optimization hyperparameters\n        train.update_model(model)\n        # update the optimization hyperparameters\n        train.update_parameters()\n        # reset the needed structures for another iteration\n        model.reset()\n```\n\n# Rainbow API\n\nLook at the rainbow.py file in the test directory\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -373,7 +372,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15422123,
+        "last_serial": 15833279,
         "urls": [
             {
                 "comment_text": "",
@@ -652,6 +651,326 @@
                 "upload_time": "2022-10-15T16:45:41",
                 "upload_time_iso_8601": "2022-10-15T16:45:41.707189Z",
                 "url": "https://files.pythonhosted.org/packages/44/61/fa940fd43e5ae76afcbf937ab62223649fcd126ea537926d5fccbbb44c8e/Pyllab-1.0.1-cp39-cp39-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.2": {
+        "info": {
+            "author": "Riccardo Viviano, Matteo Galdi",
+            "author_email": "riccardoviviano@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# Pyllab\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/ez-spark/Pyllab",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "Pyllab",
+            "package_url": "https://pypi.org/project/Pyllab/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/Pyllab/",
+            "project_urls": {
+                "Homepage": "https://github.com/ez-spark/Pyllab"
+            },
+            "release_url": "https://pypi.org/project/Pyllab/1.0.2/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Deep learning library",
+            "version": "1.0.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15833279,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "961148406db679d95e3db8eb6b904635",
+                    "sha256": "8ad96c44dd580e2faba16d117974d54d0ba46b7f674d5e1e0db7c0213a904e1d"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp310-cp310-macosx_13_0_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "961148406db679d95e3db8eb6b904635",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 885951,
+                "upload_time": "2022-11-20T21:00:19",
+                "upload_time_iso_8601": "2022-11-20T21:00:19.106191Z",
+                "url": "https://files.pythonhosted.org/packages/22/36/566eecd315716ac052d5a0135f3c2416daaad64de3f93247cca8b1acca44/Pyllab-1.0.2-cp310-cp310-macosx_13_0_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "49ae7cfba2b7468edd941b450d061f48",
+                    "sha256": "3187672a5896a7abd8f507db5e0f4f3a66e4ef4966e53c91bf739e5f2ada0338"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "49ae7cfba2b7468edd941b450d061f48",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 2397174,
+                "upload_time": "2022-11-20T19:36:05",
+                "upload_time_iso_8601": "2022-11-20T19:36:05.609588Z",
+                "url": "https://files.pythonhosted.org/packages/78/fd/67423960d8451afd5111436aa59600c6452807201f2d6e3b0f5d3b47fae8/Pyllab-1.0.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0ee49c6f5be9415fd3e1fa9e42dd421b",
+                    "sha256": "4ef8017d04b410fd956c02d2184fb5bba749e4ad6bc8a5fb0d5aebea00928468"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp310-cp310-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "0ee49c6f5be9415fd3e1fa9e42dd421b",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 837441,
+                "upload_time": "2022-11-20T19:36:08",
+                "upload_time_iso_8601": "2022-11-20T19:36:08.688493Z",
+                "url": "https://files.pythonhosted.org/packages/62/ac/d6096af1eb9085a2a884159fb15545c9f25fb5dd85a826128f8e1123c18b/Pyllab-1.0.2-cp310-cp310-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e768336f9c80a8c87956e3be10fe804a",
+                    "sha256": "e49787a3e0bf64d5563f3555ddd693a440eacacedac78b705d9358531a48a664"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "e768336f9c80a8c87956e3be10fe804a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 2271790,
+                "upload_time": "2022-11-20T19:36:12",
+                "upload_time_iso_8601": "2022-11-20T19:36:12.337548Z",
+                "url": "https://files.pythonhosted.org/packages/a0/fa/a0df1261aa7faa5179bb1b0c005b6f70283592b17ba4287445703fdc9424/Pyllab-1.0.2-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "736060f9da3939c63164e619dfa95438",
+                    "sha256": "6bb036b6fdac171337028c2251d393f76c2b02bce5ba1d14c8126b512d30df39"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp36-cp36m-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "736060f9da3939c63164e619dfa95438",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 744366,
+                "upload_time": "2022-11-20T19:36:15",
+                "upload_time_iso_8601": "2022-11-20T19:36:15.117373Z",
+                "url": "https://files.pythonhosted.org/packages/9c/39/1d3006206d5db9bf5350612dcb1fc5ad612905e60954d759b0649db055de/Pyllab-1.0.2-cp36-cp36m-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "29114a803f1659ad017cfbba8a7e96e1",
+                    "sha256": "e01557b35585d9238f9b6e261a31cb51f4ad555c301f9f72930400889f41269c"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp37-cp37m-macosx_13_0_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "29114a803f1659ad017cfbba8a7e96e1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 870927,
+                "upload_time": "2022-11-20T21:00:21",
+                "upload_time_iso_8601": "2022-11-20T21:00:21.812064Z",
+                "url": "https://files.pythonhosted.org/packages/d7/2c/50bf4b05e1af7d45645606993d6323e6fd082be5ccc1f637245dfb93456e/Pyllab-1.0.2-cp37-cp37m-macosx_13_0_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0e337f9c5c4cc95639db6153d1e5f3a7",
+                    "sha256": "f2244af6c750dbeebabbf0500819fb73ceba4a008a9be5f4f3af7c3bf0a5fc45"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "0e337f9c5c4cc95639db6153d1e5f3a7",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 2246558,
+                "upload_time": "2022-11-20T19:36:18",
+                "upload_time_iso_8601": "2022-11-20T19:36:18.393263Z",
+                "url": "https://files.pythonhosted.org/packages/ff/77/6e4a80eaff314ab97e533bd2c9983df6cbf956204fae4006c5be7972667c/Pyllab-1.0.2-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c772d4a234ac74621d997eedee717f53",
+                    "sha256": "b5bc3401ef1c43b0a782894f853434cff430510218c1960d9a2b02ede2ce07de"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp37-cp37m-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "c772d4a234ac74621d997eedee717f53",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 755585,
+                "upload_time": "2022-11-20T19:36:21",
+                "upload_time_iso_8601": "2022-11-20T19:36:21.570781Z",
+                "url": "https://files.pythonhosted.org/packages/61/ca/703e2a1f457d8f528b0d9f0f2e5b5375b7a80f88ed21f6898ca4eea89edb/Pyllab-1.0.2-cp37-cp37m-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "95610c79d33bd699b4ebb0a5a7c61e75",
+                    "sha256": "9fd468c0014fcb6f817f8526062b85d10c7313ea4fa4ce3b135cba372be204ad"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp38-cp38-macosx_13_0_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "95610c79d33bd699b4ebb0a5a7c61e75",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 883724,
+                "upload_time": "2022-11-20T21:00:24",
+                "upload_time_iso_8601": "2022-11-20T21:00:24.404823Z",
+                "url": "https://files.pythonhosted.org/packages/06/62/c072ff1e1ebe56b3d37f9de99970a715ff5fd73696e96c538d7ebe1427d4/Pyllab-1.0.2-cp38-cp38-macosx_13_0_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5da0fe07da981bb47f8f8634c3a88bfc",
+                    "sha256": "8374763b4ed76494a2bb010ec63fc40700939938d06dea7364f16261cbce8be1"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "5da0fe07da981bb47f8f8634c3a88bfc",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 2818420,
+                "upload_time": "2022-11-20T19:36:24",
+                "upload_time_iso_8601": "2022-11-20T19:36:24.550753Z",
+                "url": "https://files.pythonhosted.org/packages/53/68/b4a6d98f9b202f95e3eb5e80432fb751dc8ddd63d917e77918a71a21e0f6/Pyllab-1.0.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "99a0db0b8438ac2fa5c834964504b405",
+                    "sha256": "e175b5156e4cdee9d7208eac33cb50e84128eac5a4cd4f8dc77879fbdd26d08d"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp38-cp38-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "99a0db0b8438ac2fa5c834964504b405",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 826448,
+                "upload_time": "2022-11-20T19:36:27",
+                "upload_time_iso_8601": "2022-11-20T19:36:27.037554Z",
+                "url": "https://files.pythonhosted.org/packages/af/be/af4c14d7e63120b764beacc3ce70f8c5ca57c09d2b04047a0f6b02a103e1/Pyllab-1.0.2-cp38-cp38-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "78bbb1fd03da46e28d549058e6099bd5",
+                    "sha256": "6126c0afd20f18764756687eecb59896f80d12e101dfc184f7522ef1ec5003bd"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp39-cp39-macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "78bbb1fd03da46e28d549058e6099bd5",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 1384795,
+                "upload_time": "2022-11-20T21:00:28",
+                "upload_time_iso_8601": "2022-11-20T21:00:28.869149Z",
+                "url": "https://files.pythonhosted.org/packages/99/dc/afe984d2810ce3fc16381252f93050b102cf9df96fcf6e4e6a2191a712ee/Pyllab-1.0.2-cp39-cp39-macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2f5e6a3b856365a97bbd49e8bca25cdc",
+                    "sha256": "5d6b16f102a5d5db659e35bb0f33f1ee8fb5618dc80e746cfc7f9dd73bfde1e6"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "2f5e6a3b856365a97bbd49e8bca25cdc",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 2430059,
+                "upload_time": "2022-11-20T19:36:30",
+                "upload_time_iso_8601": "2022-11-20T19:36:30.389550Z",
+                "url": "https://files.pythonhosted.org/packages/06/08/f0382dbbc67c1c89190fd29898ee64a0287909051c4951017f4818650e15/Pyllab-1.0.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "220f5a519c847b753a94b907abb66ed1",
+                    "sha256": "5a63e7a627058cb8d78675d383864774c463132ba3766de1653a4fd8be8de858"
+                },
+                "downloads": -1,
+                "filename": "Pyllab-1.0.2-cp39-cp39-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "220f5a519c847b753a94b907abb66ed1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 843742,
+                "upload_time": "2022-11-20T19:36:32",
+                "upload_time_iso_8601": "2022-11-20T19:36:32.789813Z",
+                "url": "https://files.pythonhosted.org/packages/39/d2/ca46a7c61a65cd5c50932f0b111edbac95512717f89a51b0fd24aa7ab55c/Pyllab-1.0.2-cp39-cp39-win_amd64.whl",
                 "yanked": false,
                 "yanked_reason": null
             }
