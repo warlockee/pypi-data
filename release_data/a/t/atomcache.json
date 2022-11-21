@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -133,7 +133,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -223,7 +223,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -313,7 +313,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -403,7 +403,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -493,7 +493,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -583,7 +583,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -673,7 +673,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -763,7 +763,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -853,7 +853,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -943,7 +943,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -1001,7 +1001,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "<p align=\"center\">\n<a href=\"https://codecov.io/gh/pysergio/atomcache\" target=\"_blank\"> \n<img src=\"https://codecov.io/gh/pysergio/atomcache/branch/master/graph/badge.svg? token=OVZABBE1UJ\"/> \n</a>\n<a href=\"https://pypi.org/project/atomcache\" target=\"_blank\">\n    <img src=\"https://img.shields.io/pypi/v/atomcache?color=%2334D058&label=pypi%20package\" alt=\"Package version\">\n</a>\n<a href=\"https://pypi.org/project/atomcache\" target=\"_blank\">\n    <img src=\"https://img.shields.io/pypi/pyversions/atomcache.svg?color=%2334D058\" alt=\"Supported Python versions\">\n</a>\n</p>\n\n## Introduction\nAsynchronous cache manager designed for horizontally scaled web applications.\n**NOTE:** _Currently has implementation only for FastAPI using Redis._\n\n## Requirements\n\nPython 3.7+\n\n* <a href=\"https://aioredis.readthedocs.io\" class=\"external-link\" target=\"_blank\">aioredis</a> for cache implementation.\n* <a href=\"https://fastapi.tiangolo.com\" class=\"external-link\" target=\"_blank\">FastAPI</a> for the web parts.\n  \n## Installation\n\n<div class=\"termy\">\n\n```console\n$ pip install atomcache\n\n---> 100%\n```\n\n## Explanation schema\n\n![Class Diagram](http://www.plantuml.com/plantuml/proxy?src=https://raw.githubusercontent.com/pysergio/atomcache/master/README.md)\n\n<details markdown=\"1\">\n<summary>As UML</summary>\n\n```plantuml\n@startuml\n    !theme materia\n    participant Redis\n    participant Instance_A as A\n    participant Instance_B as B\n    participant Instance_N as C\n\n\n    B <-> Redis: GET: Cache=null & GET: Lock=null\n\n    B <-> Redis: SET: Lock = true\n\n    activate B #Red\n    A <--> Redis: GET: Cache=null & GET: Lock=true\n    activate A #Transparent\n    C <--> Redis: GET: Cache=null & GET: Lock=true\n    activate C #Transparent\n    B <--> B: Do the computation\n    B -> Redis: SET: Cache={...}\n    deactivate B\n\n    group Notify Cache SET\n        Redis -> C\n        Redis -> A\n    end\n    group GET Cache\n        Redis <-> C\n    deactivate C\n        Redis <-> A\n    deactivate A\n    end\n@enduml\n```\n</details>\n\n## Examples:\n\n### Usage as FastAPI Dependency\n\n* Create a file `events.py` with:\n\n```Python\nfrom typing import Optional, Callable\n\nimport aioredis\nfrom fastapi import FastAPI, Depends\nfrom atomcache import Cache\n\n\ndef create_start_app_handler(app: FastAPI) -> Callable:\n    async def start_app() -> None:\n        redis: aioredis.Redis = await aioredis.from_url(url=\"redis://localhost\", encoding=\"utf-8\")\n        await Cache.init(app, redis)\n\n    return start_app\n\n\ndef create_stop_app_handler(app: FastAPI) -> Callable:\n    async def stop_app() -> None:\n        await Cache.backend.close()\n\n    return stop_app\n```\n\n* Create a file `main.py` with:\n\n```Python\nfrom typing import Optional\n\nfrom fastapi import FastAPI, Depends\nfrom atomcache import Cache\n\nfrom .events import create_start_app_handler, create_stop_app_handler\n\napp = FastAPI()\n\napp.add_event_handler(\"startup\", create_start_app_handler(app))\napp.add_event_handler(\"shutdown\", create_stop_app_handler(app))\n\n\n@router.get(\"/resources\", response_model=List[TheResponseModel], name=\"main:test-example\")\nasync def resources(offset: int = 0, items: int = 10, cache: Cache = Depends(Cache(exp=600)):\n    cache_id = f\"{offset}-{items}\"  # Build cache identifier\n    await cache.raise_try(cache_id)  # Try to respond from cache\n    response = await db.find(TheResponseModel, skip=offset, limit=items)\n    await asyncio.sleep(10)  # Do some heavy work for 10 sec, see `lock_timeout`\n    return cache.set(response, cache_id=cache_id)\n```\n\n### Direct cache usage for avoiding repetitive calling on external resources:\n\n```Python\nfrom aiohttp import ClientSession\nfrom atomcache import Cache\n\ncache = Cache(exp=1200, namespace=\"my-namespace:\")\n\n\nasync def requesting_helper(ref: str) -> List[dict]:\n    cached_value = await cache.get(cache_id=ref)\n    if cached_value is not None:\n        return cached_value\n\n    async with ClientSession() as session:\n        async with session.get(f\"https://external-api.io/{ref}\") as response:\n            if response.ok:\n                cached_value = response.json()\n                return cache.set(cached_value, cache_id=ref)\n    return []\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -1034,7 +1033,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15280983,
+        "last_serial": 15837327,
         "urls": [
             {
                 "comment_text": "",
@@ -1073,6 +1072,97 @@
                 "upload_time": "2022-10-02T11:48:16",
                 "upload_time_iso_8601": "2022-10-02T11:48:16.156127Z",
                 "url": "https://files.pythonhosted.org/packages/81/eb/3e22e1ee110532992b34edbd4dc6895f60bc664fd89a1f2234f0b0cad1c3/atomcache-0.6.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.7.0": {
+        "info": {
+            "author": "Serghei Ungurean",
+            "author_email": "srg.ungurean@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "<p align=\"center\">\n<a href=\"https://codecov.io/gh/pysergio/atomcache\"> \n <img src=\"https://codecov.io/gh/pysergio/atomcache/branch/master/graph/badge.svg?token=OVZABBE1UJ\"/> \n</a>\n<a href=\"https://pypi.org/project/atomcache\" target=\"_blank\">\n    <img src=\"https://img.shields.io/pypi/v/atomcache?color=%2334D058&label=pypi%20package\" alt=\"Package version\">\n</a>\n<a href=\"https://pypi.org/project/atomcache\" target=\"_blank\">\n    <img src=\"https://img.shields.io/pypi/pyversions/atomcache.svg?color=%2334D058\" alt=\"Supported Python versions\">\n</a>\n</p>\n\n## Introduction\nAsynchronous cache manager designed for horizontally scaled web applications.\n**NOTE:** _Currently has implementation only for FastAPI using Redis._\n\n## Requirements\n\nPython 3.7+\n\n* <a href=\"https://aioredis.readthedocs.io\" class=\"external-link\" target=\"_blank\">aioredis</a> for cache implementation.\n* <a href=\"https://fastapi.tiangolo.com\" class=\"external-link\" target=\"_blank\">FastAPI</a> for the web parts.\n  \n## Installation\n\n<div class=\"termy\">\n\n```console\n$ pip install atomcache\n\n---> 100%\n```\n\n## Explanation schema\n\n![Class Diagram](http://www.plantuml.com/plantuml/proxy?src=https://raw.githubusercontent.com/pysergio/atomcache/master/README.md)\n\n<details markdown=\"1\">\n<summary>As UML</summary>\n\n```plantuml\n@startuml\n    !theme materia\n    participant Redis\n    participant Instance_A as A\n    participant Instance_B as B\n    participant Instance_N as C\n\n\n    B <-> Redis: GET: Cache=null & GET: Lock=null\n\n    B <-> Redis: SET: Lock = true\n\n    activate B #Red\n    A <--> Redis: GET: Cache=null & GET: Lock=true\n    activate A #Transparent\n    C <--> Redis: GET: Cache=null & GET: Lock=true\n    activate C #Transparent\n    B <--> B: Do the computation\n    B -> Redis: SET: Cache={...}\n    deactivate B\n\n    group Notify Cache SET\n        Redis -> C\n        Redis -> A\n    end\n    group GET Cache\n        Redis <-> C\n    deactivate C\n        Redis <-> A\n    deactivate A\n    end\n@enduml\n```\n</details>\n\n## Examples:\n\n### Usage as FastAPI Dependency\n\n* Create a file `events.py` with:\n\n```Python\nfrom typing import Optional, Callable\n\nimport aioredis\nfrom fastapi import FastAPI, Depends\nfrom atomcache import Cache\n\n\ndef create_start_app_handler(app: FastAPI) -> Callable:\n    async def start_app() -> None:\n        redis: aioredis.Redis = await aioredis.from_url(url=\"redis://localhost\", encoding=\"utf-8\")\n        await Cache.init(app, redis)\n\n    return start_app\n\n\ndef create_stop_app_handler(app: FastAPI) -> Callable:\n    async def stop_app() -> None:\n        await Cache.backend.close()\n\n    return stop_app\n```\n\n* Create a file `main.py` with:\n\n```Python\nfrom typing import Optional\n\nfrom fastapi import FastAPI, Depends\nfrom atomcache import Cache\n\nfrom .events import create_start_app_handler, create_stop_app_handler\n\napp = FastAPI()\n\napp.add_event_handler(\"startup\", create_start_app_handler(app))\napp.add_event_handler(\"shutdown\", create_stop_app_handler(app))\n\n\n@router.get(\"/resources\", response_model=List[TheResponseModel], name=\"main:test-example\")\nasync def resources(offset: int = 0, items: int = 10, cache: Cache = Depends(Cache(exp=600)):\n    cache_id = f\"{offset}-{items}\"  # Build cache identifier\n    await cache.raise_try(cache_id)  # Try to respond from cache\n    response = await db.find(TheResponseModel, skip=offset, limit=items)\n    await asyncio.sleep(10)  # Do some heavy work for 10 sec, see `lock_timeout`\n    return cache.set(response, cache_id=cache_id)\n```\n\n### Direct cache usage for avoiding repetitive calling on external resources:\n\n```Python\nfrom aiohttp import ClientSession\nfrom atomcache import Cache\n\ncache = Cache(exp=1200, namespace=\"my-namespace:\")\n\n\nasync def requesting_helper(ref: str) -> List[dict]:\n    cached_value = await cache.get(cache_id=ref)\n    if cached_value is not None:\n        return cached_value\n\n    async with ClientSession() as session:\n        async with session.get(f\"https://external-api.io/{ref}\") as response:\n            if response.ok:\n                cached_value = response.json()\n                return cache.set(cached_value, cache_id=ref)\n    return []\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/pysergio/atomcache",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "atomcache",
+            "package_url": "https://pypi.org/project/atomcache/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/atomcache/",
+            "project_urls": {
+                "Homepage": "https://github.com/pysergio/atomcache",
+                "Repository": "https://github.com/pysergio/atomcache"
+            },
+            "release_url": "https://pypi.org/project/atomcache/0.7.0/",
+            "requires_dist": [
+                "fastapi (>=0.61.2,<=0.85.0)",
+                "aioredis (>=2.0.0,<3.0.0)"
+            ],
+            "requires_python": ">=3.7,<4.0",
+            "summary": "Asynchronous cache manager designed for horizontally scaled web applications.",
+            "version": "0.7.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15837327,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4e865975dbd8b861f1fd0f8d04c74e3b",
+                    "sha256": "04924eb993e3d25a4128c23b0a968bbc42ab046b24250b0d05a1efcda9396d18"
+                },
+                "downloads": -1,
+                "filename": "atomcache-0.7.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "4e865975dbd8b861f1fd0f8d04c74e3b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7,<4.0",
+                "size": 9172,
+                "upload_time": "2022-11-21T08:07:12",
+                "upload_time_iso_8601": "2022-11-21T08:07:12.111039Z",
+                "url": "https://files.pythonhosted.org/packages/85/29/82c2e19bfd899fbdcb284095dbec8c6b2176c05d49708d2137fbd924cc3e/atomcache-0.7.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "716b68ed30cbad7f875e9e4956d35092",
+                    "sha256": "313ed558f2c6d52987ed997dba3549b9f13b95691a6daccc3ba6d81a524bda6e"
+                },
+                "downloads": -1,
+                "filename": "atomcache-0.7.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "716b68ed30cbad7f875e9e4956d35092",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<4.0",
+                "size": 9651,
+                "upload_time": "2022-11-21T08:07:14",
+                "upload_time_iso_8601": "2022-11-21T08:07:14.370544Z",
+                "url": "https://files.pythonhosted.org/packages/00/0a/ab8675b9c313d0320011922380adadaac2778f4f999e57f404adaf1cb851/atomcache-0.7.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

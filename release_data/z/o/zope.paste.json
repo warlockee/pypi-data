@@ -42,7 +42,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785583,
+        "last_serial": 15837120,
         "urls": [
             {
                 "comment_text": "",
@@ -110,7 +110,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785583,
+        "last_serial": 15837120,
         "urls": [
             {
                 "comment_text": "",
@@ -198,7 +198,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785583,
+        "last_serial": 15837120,
         "urls": [
             {
                 "comment_text": "",
@@ -286,7 +286,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785583,
+        "last_serial": 15837120,
         "urls": [
             {
                 "comment_text": "",
@@ -359,7 +359,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785583,
+        "last_serial": 15837120,
         "urls": [
             {
                 "comment_text": "",
@@ -405,7 +405,6 @@
                 "Topic :: Internet :: WWW/HTTP",
                 "Topic :: Software Development"
             ],
-            "description": "zope.paste - Zope 3 and PasteDeploy\n===================================\n\nzope.paste allows you to deploy the Zope 3 application server on any\nWSGI-capable webserver using PasteDeploy_.\n\n.. _PasteDeploy: http://pythonpaste.org/deploy/\n\nzope.paste allows you to run Zope 3 on any WSGI-capable webserver\nsoftware using PasteDeploy_.  For this you will no longer need a Zope\n3 instance (though you can still have one), you won't configure Zope 3\nthrough ``zope.conf`` and won't start it using ``runzope`` or\n``zopectl``.\n\nConfiguring the application\n---------------------------\n\nzope.paste provides a PasteDeploy_-compatible factory for Zope 3's\nWSGI publisher application and registers it in an entry point.  We can\ntherefore create a very simple Zope 3 application in a PasteDeploy_\nconfiguration file (e.g. ``paste.ini``)::\n\n  [app:main]\n  use = egg:zope.paste\n  site_definition = /path/to/site.zcml\n  file_storage = /path/to/Data.fs\n  devmode = on\n\nIn this case, ``/path/to/site.zcml`` refers to a ``site.zcml`` as\nknown from a Zope 3 instance.  You can, for example, put ``paste.ini``\ninto an existing Zope 3 instance, next to ``site.zcml``.\n\nConfiguring the ZODB database\n-----------------------------\n\nInstead of referring to a ZODB FileStorage using the ``file_storage``\nsetting, you can also configure multiple or other ZODB database\nbackends in a ZConfig-style configuration file (much like\n``zope.conf``), e.g. the following configures a ZEO client::\n\n  <zodb>\n    <zeoclient>\n      server localhost:8100\n      storage 1\n      cache-size 20MB\n    </zeoclient>\n  </zodb>\n\nRefer to this file from ``paste.ini`` this way (and delete the\n``file_storage`` setting)::\n\n  db_definition = db.conf\n\nConfiguring the server\n----------------------\n\nIn order to be able to use our Zope application, we only need to add a\nserver definition.  We can use the one that comes with Paste or\nPasteScript_, rather::\n\n  [server:main]\n  use = egg:PasteScript#wsgiutils\n  host = 127.0.0.1\n  port = 8080\n\n.. _PasteScript: http://pythonpaste.org/script/\n\nNow we can start the application using the ``paster`` command that\ncomes with PasteScript_::\n\n  $ paster serve paste.ini\n\nWSGI middlewares can be configured like described above or on the\nPasteDeploy_ website.\n\n\nMultiple WSGI applications within Zope 3\n----------------------------------------\n\nIf you wanted to host *more* than one WSGI application there are a\ncouple ways of doing it:\n\n1. Using a *composite application* as described in PasteDeploy_.\n\n2. Setting up extra `IServerType` utilities.\n\nI'm going to show you how to do the latter now.\n\nThe trick here is that you have the option to use both the `zserver`\nand the `twisted` WSGI servers. `zope.paste` is just glue code, so we\ndefined a `IServerType` utility for each, and the only thing special\nis that the utility name is passed on to the WSGI application factory.\n\nHere's an excerpt from the `configure.zcml` as found on this package::\n\n  <configure zcml:condition=\"have zserver\">\n    <utility\n        name=\"Paste.Main\"\n        component=\"._server.http\"\n        provides=\"zope.app.server.servertype.IServerType\"\n        />\n  </configure>\n\n  <configure zcml:condition=\"have twisted\">\n    <utility\n        name=\"Paste.Main\"\n        component=\"._twisted.http\"\n        provides=\"zope.app.twisted.interfaces.IServerType\"\n        />\n  </configure>\n\nDepending on which server is available, the right `IServerType`\nutility is registered. You are encouraged to use the same pattern when\ndefining yours.\n\nSo suppose you want to have a second WSGI application. Here's how you\ncould do it.\n\n1. Create a new `IServerType` utility. This excerpt could be added to\n   a `configure.zcml` in your own package, or to a standalone file in\n   `etc/package_includes`::\n\n    <configure zcml:condition=\"have zserver\">\n      <utility\n          name=\"Paste.Another\"\n          component=\"zope.paste._server.http\"\n          provides=\"zope.app.server.servertype.IServerType\"\n          />\n    </configure>\n\n    <configure zcml:condition=\"have twisted\">\n      <utility\n          name=\"Paste.Another\"\n          component=\"zope.paste._twisted.http\"\n          provides=\"zope.app.twisted.interfaces.IServerType\"\n          />\n    </configure>\n\n2. Change your `zope.conf` file to define a new server, using the\n   newly-created `Paste.Another` utility::\n\n     <server>\n       type Paste.Main\n       address 8080\n     </server>\n\n     <server>\n       type Paste.Another\n       address 8180\n     </server>\n\n3. Define a WSGI application `Paste.Another` in `paste.ini`::\n\n     [pipeline:Paste.Main]\n     pipeline = xslt main\n\n     [app:main]\n     paste.app_factory = zope.paste.application:zope_publisher_app_factory\n\n     [filter:xslt]\n     paste.filter_factory = xslfilter:filter_factory\n\n     [app:Paste.Another]\n     paste.app_factory = zope.paste.application:zope_publisher_app_factory\n\n\nChange History\n--------------\n\n1.0.0a1 (2013-02-27)\n~~~~~~~~~~~~~~~~~~~~\n\n- Added support for Python 3.3.\n\n- Dropped support for Python 2.4 and 2.5.\n\n- Removed support for employing WSGI middlewares inside a Zope 3\n  application. Only the script-based server startup is now supported.\n\n- Added a new console script to run a paste-configured WSGI server and\n  application.\n\n- Conform to standard ZF project layout.\n\n- Added license and copyright file. Also fixed copyright statement in file\n  headers.\n\n- Added ``MANIFEST.in`` and ``tox.ini``.\n\n\n0.4 (2012-08-21)\n~~~~~~~~~~~~~~~~\n\n- Add this changelog, reconstructed from svn logs and release dates on\n  PyPI.\n\n- Support a 'features' config option in the PasteDeploy INI file, which\n  can contain a space-separated list of feature names.  These can be\n  tested for in ZCML files with the <*directive*\n  zcml:condition=\"have *featurename*\"> syntax.\n\n  Previously the only feature that could be enabled was 'devmode' and\n  it had its own option.  For backwards compatibility, ``devmode = on``\n  adds a 'devmode' feature to the feature list.\n\n\n0.3 (2007-06-02)\n~~~~~~~~~~~~~~~~\n\n- Release as an egg with explicit dependencies for zope.app packages.\n\n- Buildoutify the source tree.\n\n\n0.2 (2007-05-29)\n~~~~~~~~~~~~~~~~\n\n- Extended documentation.\n\n- Added a real PasteDeploy application factory. This allows you to run\n  Zope 3 on any WSGI capable server, without integration code.\n\n- Support for devmode.\n\n- Support multiple databases through a config file (specify db_definition\n  instead of file_storage).\n\n- Accept filenames relative to the location of the PasteDeploy INI file.\n\n\n0.1 (2006-01-25)\n~~~~~~~~~~~~~~~~\n\n- Initial release.",
             "description_content_type": null,
             "docs_url": null,
             "download_url": "UNKNOWN",
@@ -435,7 +434,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15785583,
+        "last_serial": 15837120,
         "urls": [
             {
                 "comment_text": "",
@@ -454,6 +453,133 @@
                 "upload_time": "2013-02-27T07:08:11",
                 "upload_time_iso_8601": "2013-02-27T07:08:11.590947Z",
                 "url": "https://files.pythonhosted.org/packages/c0/3e/7f4969c560feeb28f43badd3d8d69afcf6fa066c96923d04e7faba24ef75/zope.paste-1.0.0a1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.1.0": {
+        "info": {
+            "author": "Sidnei da Silva and the Zope Community",
+            "author_email": "zope-dev@zope.org",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: Zope Public License",
+                "Natural Language :: English",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Topic :: Internet :: WWW/HTTP",
+                "Topic :: Software Development"
+            ],
+            "description": "zope.paste - Zope 3 and PasteDeploy\n===================================\n\nzope.paste allows you to deploy the Zope 3 application server on any\nWSGI-capable webserver using PasteDeploy_.\n\n.. _PasteDeploy: http://pythonpaste.org/deploy/\n\nzope.paste allows you to run Zope 3 on any WSGI-capable webserver\nsoftware using PasteDeploy_.  For this you will no longer need a Zope\n3 instance (though you can still have one), you won't configure Zope 3\nthrough ``zope.conf`` and won't start it using ``runzope`` or\n``zopectl``.\n\nConfiguring the application\n---------------------------\n\nzope.paste provides a PasteDeploy_-compatible factory for Zope 3's\nWSGI publisher application and registers it in an entry point.  We can\ntherefore create a very simple Zope 3 application in a PasteDeploy_\nconfiguration file (e.g. ``paste.ini``)::\n\n  [app:main]\n  use = egg:zope.paste\n  site_definition = /path/to/site.zcml\n  file_storage = /path/to/Data.fs\n  devmode = on\n\nIn this case, ``/path/to/site.zcml`` refers to a ``site.zcml`` as\nknown from a Zope 3 instance.  You can, for example, put ``paste.ini``\ninto an existing Zope 3 instance, next to ``site.zcml``.\n\nConfiguring the ZODB database\n-----------------------------\n\nInstead of referring to a ZODB FileStorage using the ``file_storage``\nsetting, you can also configure multiple or other ZODB database\nbackends in a ZConfig-style configuration file (much like\n``zope.conf``), e.g. the following configures a ZEO client::\n\n  <zodb>\n    <zeoclient>\n      server localhost:8100\n      storage 1\n      cache-size 20MB\n    </zeoclient>\n  </zodb>\n\nRefer to this file from ``paste.ini`` this way (and delete the\n``file_storage`` setting)::\n\n  db_definition = db.conf\n\nConfiguring the server\n----------------------\n\nIn order to be able to use our Zope application, we only need to add a\nserver definition.  We can use the one that comes with Paste or\nPasteScript_, rather::\n\n  [server:main]\n  use = egg:PasteScript#wsgiutils\n  host = 127.0.0.1\n  port = 8080\n\n.. _PasteScript: http://pythonpaste.org/script/\n\nNow we can start the application using the ``paster`` command that\ncomes with PasteScript_::\n\n  $ paster serve paste.ini\n\nWSGI middlewares can be configured like described above or on the\nPasteDeploy_ website.\n\n\nMultiple WSGI applications within Zope 3\n----------------------------------------\n\nIf you wanted to host *more* than one WSGI application there are a\ncouple ways of doing it:\n\n1. Using a *composite application* as described in PasteDeploy_.\n\n2. Setting up extra `IServerType` utilities.\n\nI'm going to show you how to do the latter now.\n\nThe trick here is that you have the option to use both the `zserver`\nand the `twisted` WSGI servers. `zope.paste` is just glue code, so we\ndefined a `IServerType` utility for each, and the only thing special\nis that the utility name is passed on to the WSGI application factory.\n\nHere's an excerpt from the `configure.zcml` as found on this package::\n\n  <configure zcml:condition=\"have zserver\">\n    <utility\n        name=\"Paste.Main\"\n        component=\"._server.http\"\n        provides=\"zope.app.server.servertype.IServerType\"\n        />\n  </configure>\n\n  <configure zcml:condition=\"have twisted\">\n    <utility\n        name=\"Paste.Main\"\n        component=\"._twisted.http\"\n        provides=\"zope.app.twisted.interfaces.IServerType\"\n        />\n  </configure>\n\nDepending on which server is available, the right `IServerType`\nutility is registered. You are encouraged to use the same pattern when\ndefining yours.\n\nSo suppose you want to have a second WSGI application. Here's how you\ncould do it.\n\n1. Create a new `IServerType` utility. This excerpt could be added to\n   a `configure.zcml` in your own package, or to a standalone file in\n   `etc/package_includes`::\n\n    <configure zcml:condition=\"have zserver\">\n      <utility\n          name=\"Paste.Another\"\n          component=\"zope.paste._server.http\"\n          provides=\"zope.app.server.servertype.IServerType\"\n          />\n    </configure>\n\n    <configure zcml:condition=\"have twisted\">\n      <utility\n          name=\"Paste.Another\"\n          component=\"zope.paste._twisted.http\"\n          provides=\"zope.app.twisted.interfaces.IServerType\"\n          />\n    </configure>\n\n2. Change your `zope.conf` file to define a new server, using the\n   newly-created `Paste.Another` utility::\n\n     <server>\n       type Paste.Main\n       address 8080\n     </server>\n\n     <server>\n       type Paste.Another\n       address 8180\n     </server>\n\n3. Define a WSGI application `Paste.Another` in `paste.ini`::\n\n     [pipeline:Paste.Main]\n     pipeline = xslt main\n\n     [app:main]\n     paste.app_factory = zope.paste.application:zope_publisher_app_factory\n\n     [filter:xslt]\n     paste.filter_factory = xslfilter:filter_factory\n\n     [app:Paste.Another]\n     paste.app_factory = zope.paste.application:zope_publisher_app_factory\n\n\nChange History\n--------------\n\n1.1.0 (2022-11-21)\n~~~~~~~~~~~~~~~~~~\n\n- Add support for Python 3.6, 3.7, 3.8, 3.9, 3.10, 3.11.\n\n- Drop support for Python 2.7 and 3.5.\n\n\n1.0.0 (2017-01-04)\n~~~~~~~~~~~~~~~~~~\n\n- Changed support from Python 3.3 to 3.5.\n\n- Dropped Python 2.6 support.\n\n\n1.0.0a1 (2013-02-27)\n~~~~~~~~~~~~~~~~~~~~\n\n- Added support for Python 3.3.\n\n- Dropped support for Python 2.4 and 2.5.\n\n- Removed support for employing WSGI middlewares inside a Zope 3\n  application. Only the script-based server startup is now supported.\n\n- Added a new console script to run a paste-configured WSGI server and\n  application.\n\n- Conform to standard ZF project layout.\n\n- Added license and copyright file. Also fixed copyright statement in file\n  headers.\n\n- Added ``MANIFEST.in`` and ``tox.ini``.\n\n\n0.4 (2012-08-21)\n~~~~~~~~~~~~~~~~\n\n- Add this changelog, reconstructed from svn logs and release dates on\n  PyPI.\n\n- Support a 'features' config option in the PasteDeploy INI file, which\n  can contain a space-separated list of feature names.  These can be\n  tested for in ZCML files with the <*directive*\n  zcml:condition=\"have *featurename*\"> syntax.\n\n  Previously the only feature that could be enabled was 'devmode' and\n  it had its own option.  For backwards compatibility, ``devmode = on``\n  adds a 'devmode' feature to the feature list.\n\n\n0.3 (2007-06-02)\n~~~~~~~~~~~~~~~~\n\n- Release as an egg with explicit dependencies for zope.app packages.\n\n- Buildoutify the source tree.\n\n\n0.2 (2007-05-29)\n~~~~~~~~~~~~~~~~\n\n- Extended documentation.\n\n- Added a real PasteDeploy application factory. This allows you to run\n  Zope 3 on any WSGI capable server, without integration code.\n\n- Support for devmode.\n\n- Support multiple databases through a config file (specify db_definition\n  instead of file_storage).\n\n- Accept filenames relative to the location of the PasteDeploy INI file.\n\n\n0.1 (2006-01-25)\n~~~~~~~~~~~~~~~~\n\n- Initial release.\n\n\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/zopefoundation/zope.paste",
+            "keywords": "web wsgi application server paste",
+            "license": "ZPL 2.1",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "zope.paste",
+            "package_url": "https://pypi.org/project/zope.paste/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/zope.paste/",
+            "project_urls": {
+                "Homepage": "https://github.com/zopefoundation/zope.paste"
+            },
+            "release_url": "https://pypi.org/project/zope.paste/1.1.0/",
+            "requires_dist": [
+                "setuptools",
+                "PasteDeploy",
+                "zope.interface",
+                "zope.app.appsetup",
+                "zope.app.wsgi",
+                "waitress ; extra == 'test'",
+                "zope.app.publication ; extra == 'test'",
+                "zope.authentication ; extra == 'test'",
+                "zope.browserpage ; extra == 'test'",
+                "zope.component ; extra == 'test'",
+                "zope.error ; extra == 'test'",
+                "zope.principalregistry ; extra == 'test'",
+                "zope.publisher ; extra == 'test'",
+                "zope.security ; extra == 'test'",
+                "zope.site ; extra == 'test'",
+                "zope.traversing ; extra == 'test'",
+                "zope.testrunner ; extra == 'test'",
+                "waitress ; extra == 'test-app'",
+                "zope.app.publication ; extra == 'test-app'",
+                "zope.authentication ; extra == 'test-app'",
+                "zope.browserpage ; extra == 'test-app'",
+                "zope.component ; extra == 'test-app'",
+                "zope.error ; extra == 'test-app'",
+                "zope.principalregistry ; extra == 'test-app'",
+                "zope.publisher ; extra == 'test-app'",
+                "zope.security ; extra == 'test-app'",
+                "zope.site ; extra == 'test-app'",
+                "zope.traversing ; extra == 'test-app'",
+                "zope.testrunner ; extra == 'test-app'"
+            ],
+            "requires_python": "",
+            "summary": "Zope 3 and PasteDeploy",
+            "version": "1.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15837120,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4429818547f41a4414fdb7baadedc374",
+                    "sha256": "306d0676ec515a02ede1e484e4e774bc623a47420cfd254ef7cf7f439cbab989"
+                },
+                "downloads": -1,
+                "filename": "zope.paste-1.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "4429818547f41a4414fdb7baadedc374",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 13555,
+                "upload_time": "2022-11-21T07:30:03",
+                "upload_time_iso_8601": "2022-11-21T07:30:03.296920Z",
+                "url": "https://files.pythonhosted.org/packages/48/90/42a3b5e6f1df6a6902b96a70faa656e2893939f4f92f55b2d16947ad2033/zope.paste-1.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5c3336ad238abbb520049c79a59214b2",
+                    "sha256": "c5c1c55803b6aab8a52c50418c179ae57d04f74a18765ebcc310f34e7a4122ed"
+                },
+                "downloads": -1,
+                "filename": "zope.paste-1.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5c3336ad238abbb520049c79a59214b2",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 15010,
+                "upload_time": "2022-11-21T07:30:05",
+                "upload_time_iso_8601": "2022-11-21T07:30:05.137912Z",
+                "url": "https://files.pythonhosted.org/packages/dc/90/a5f143517b3abc0056eef5dd5e4538aaabec32689f90f7110a198da7e40d/zope.paste-1.1.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

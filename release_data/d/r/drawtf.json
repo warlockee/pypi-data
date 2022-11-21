@@ -40,7 +40,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15793382,
+        "last_serial": 15839251,
         "urls": [
             {
                 "comment_text": "",
@@ -112,7 +112,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15793382,
+        "last_serial": 15839251,
         "urls": [
             {
                 "comment_text": "",
@@ -204,7 +204,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15793382,
+        "last_serial": 15839251,
         "urls": [
             {
                 "comment_text": "",
@@ -296,7 +296,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15793382,
+        "last_serial": 15839251,
         "urls": [
             {
                 "comment_text": "",
@@ -354,7 +354,6 @@
                 "Programming Language :: Python :: 3",
                 "Programming Language :: Python :: 3.7"
             ],
-            "description": "[![PyPI Version](https://img.shields.io/pypi/v/drawtf.svg)](https://pypi.python.org/project/drawtf) ![Latest Build](https://github.com/aggreko/drawtf/actions/workflows/main.yml/badge.svg)\n\n# drawtf\nDraw diagrams which include Cloud resources using TF state files or without them. Inspired by the [Diagrams](https://github.com/mingrammer/diagrams) package and a burning desire to not have to manually keep architecture diagrams updated, this was born.\n\n## Prerequisites\n* Install Python\n* Install [Graphviz](https://graphviz.org/)\n\n## Install\n```console\nfoo@bar:~$ python -m pip install --upgrade pip\nfoo@bar:~$ pip install drawtf\nfoo@bar:~$ drawtf --help\n\nUsage: drawtf [OPTIONS]\n\n  Console script for drawtf.\n\nOptions:\n  --name TEXT                     The diagram name.\n  --state TEXT                    The tfstate file to run against.\n  --platform TEXT                 The platform to use 'azure' or 'aws', only\n                                  'azure' currently supported\n\n  --output-path TEXT              Output path if to debug generated json    \n                                  populated.\n\n  --json-config-path TEXT         Config file path if populated.\n  --json-config-override-path TEXT\n                                  Config file with overrides path to merge  \n                                  with main one if populated.\n\n  --verbose                       Add verbose logs.\n  --help                          Show this message and exit.\n```\n\n## Usage\nThere are a few ways we can create diagrams here, all options on the CLI are optional, and it is basically just the order which you create them that draws a diagram.\n\n### Sample config File (app.json)\nIf we use a config file with the fields below, this will set the name for the designs title, import a state file, and add some custom components not in the state file, The final section at the bottom draws the lines between the resources.\n\n```json \n{\n    \"name\": \"Aggreko Application (All Resources)\",\n    \"state\": \"../../application.tfstate\",\n    \"components\": [\n        {\n            \"name\": \"Aggreko\",\n            \"type\": \"draw_custom\",\n            \"resource_group_name\": \"\",\n            \"attributes\":{},\n            \"components\": [\n                {\n                    \"name\": \"InternalDB\",\n                    \"type\": \"draw_custom\",\n                    \"resource_group_name\": \"\",\n                    \"custom\": \"diagrams.azure.database.DatabaseForMysqlServers\",\n                    \"attributes\": {}\n                },\n                {\n                    \"name\": \"App\",\n                    \"type\": \"draw_custom\",\n                    \"resource_group_name\": \"\",\n                    \"custom\": \"diagrams.onprem.compute.Server\",\n                    \"attributes\": {}\n                },\n                {\n                    \"name\": \"AnotherApp\",\n                    \"type\": \"draw_custom\",\n                    \"resource_group_name\": \"\",\n                    \"custom\": \"diagrams.onprem.compute.Server\",\n                    \"attributes\": {}\n                }\n            ]\n        }\n    ],\n\t\"links\": [\n        {\n            \"from\": \"App-draw_custom\",\n            \"to\": \"InternalDB-draw_custom\",\n            \"color\": \"darkgreen\",\n            \"label\": \"Write\",\n            \"type\": \"dotted\"\n        },\n        {\n            \"from\": \"AnotherApp-draw_custom\",\n            \"to\": \"InternalDB-draw_custom\",\n            \"color\": \"darkgreen\",\n            \"label\": \"Write\",\n            \"type\": \"dotted\"\n        }\n    ],\n    \"excludes\": []\n}                                            \n```\n\n```console \nfoo@bar:~$ drawtf --json-config-path ./test/app.json    \n``` \n![Example](https://github.com/aggreko/drawtf/blob/main/test/app.png?raw=true)\n\nBy running the command above pointing to the config file, this will set the name and grab other resources from the state file linked. Outputs from will create the design in the same sub-folder with the name **app.png**.\n\n### Override config File (app-subset.json)\n\nProviding an override config alongside our main config file with the fields below, this will override the initial the designs title but still use the same state file and components from the original and attempt to join the links if all of the resources are available. You will notice an excludes section, if the keys for each resource added are in this list, then it will exclude those items.\n\n```json\n{\n    \"name\": \"Aggreko Application (Subset)\",\n    \"excludes\": [ \n        \"AnotherApp-draw_custom\"\n    ]\n}  \n```\n\n```console \nfoo@bar:~$ drawtf --json-config-path ./test/app.json --json-config-override-path ./test/app-subset.json\n```\n![Example](https://github.com/aggreko/drawtf/blob/main/test/app-subset.png?raw=true)\n\nBy running the command above pointing to the config file and override files, this will set the name from the override and grab other resources from the state file linked. Outputs from will create the design in the same sub-folder with the name **app-subset.png**.\n\n### Override config File and CLI overrides\n\n```console \nfoo@bar:~$ drawtf --json-config-path ./test/app.json --json-config-override-path ./test/app-subset.json --name \"Aggreko Application (Sample)\" --state ./test/app.tfstate --output-path ./test/sample --verbose                                                                           \n```\n![Example](https://github.com/aggreko/drawtf/blob/main/test/sample.png?raw=true)\n\nThe command above, though using the same config files, can override all for the name, state file path and output path. Outputs from will create the design in the directory **test** with the name **sample.png**.\n\n## Github Actions Steps\n\nYes you can run this via GitHub actions or devops pipelines.\n\n```yaml\n      - name: Setup Graphviz\n        uses: ts-graphviz/setup-graphviz@v1\n      - name: Set up Python 3.7\n        uses: actions/setup-python@v4\n        with:\n          python-version: '3.7'\n      - name: Generate Diagram\n        run: |\n          python -m pip install --upgrade pip\n          pip install drawtf\n          drawtf --help\n          drawtf --json-config-path \"./static/images/test/test.json\"\n```\n\n## Early days\n\nJust an FYI, its early days here and is still a development style project. That said we are using for all of our projects internally using TF, but loads of resources types are still to be added.\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -389,7 +388,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15793382,
+        "last_serial": 15839251,
         "urls": [
             {
                 "comment_text": "",
@@ -428,6 +427,100 @@
                 "upload_time": "2022-11-16T20:22:52",
                 "upload_time_iso_8601": "2022-11-16T20:22:52.957563Z",
                 "url": "https://files.pythonhosted.org/packages/ce/ec/4e2a7dfba9502c876a51c141c92687c6eb77aea14f3cc35ae60888d798ae/drawtf-0.5.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.6.0": {
+        "info": {
+            "author": "Aggreko",
+            "author_email": "michael.law@aggreko.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 2 - Pre-Alpha",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Natural Language :: English",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.7"
+            ],
+            "description": "[![PyPI Version](https://img.shields.io/pypi/v/drawtf.svg)](https://pypi.python.org/project/drawtf) ![Latest Build](https://github.com/aggreko/drawtf/actions/workflows/main.yml/badge.svg)\n\n# drawtf\nDraw diagrams which include Cloud resources using TF state files or without them. Inspired by the [Diagrams](https://github.com/mingrammer/diagrams) package and a burning desire to not have to manually keep architecture diagrams updated, this was born.\n\n## Prerequisites\n* Install Python\n* Install [Graphviz](https://graphviz.org/)\n\n## Install\n```console\nfoo@bar:~$ python -m pip install --upgrade pip\nfoo@bar:~$ pip install drawtf\nfoo@bar:~$ drawtf --help\n\nUsage: drawtf [OPTIONS]\n\n  Top level command for drawtf.\n\nOptions:\n  --help  Show this message and exit.\n\nCommands:\n  draw   Draw a single design from config and settings.\n  watch  Watch a directory for changes to draw.\n\nfoo@bar:~$ drawtf draw --help\n\nUsage: drawtf draw [OPTIONS]\n\n  Draw a single design from config and settings.\n\nOptions:\n  --name TEXT              The diagram name.\n  --state TEXT             The tfstate file to run against.\n  --platform TEXT          The platform to use 'azure' or 'aws', only 'azure'\n                           currently supported\n\n  --output-path TEXT       Output path if to debug generated json populated.\n  --json-config-path TEXT  Config file path if populated.\n  --verbose                Add verbose logs.\n  --help                   Show this message and exit.\n\nfoo@bar:~$ drawtf watch --help\n\nUsage: drawtf watch [OPTIONS]\n\n  Watch a directory for changes to draw.\n\nOptions:\n  --directory TEXT  Directory to watch for changes in.\n  --help            Show this message and exit.\n```\n\n## Draw\nThere are a few ways we can create diagrams here, all options on the CLI are optional, and it is basically just the order which you create them that draws a diagram.\n\n### Sample config File (app.json)\nIf we use a config file with the fields below, this will set the name for the designs title, import a state file, and add some custom components not in the state file, The final section at the bottom draws the lines between the resources.\n\n```json \n{\n    \"name\": \"Aggreko Application (All Resources)\",\n    \"state\": \"../../application.tfstate\",\n    \"components\": [\n        {\n            \"name\": \"Aggreko\",\n            \"type\": \"draw_custom\",\n            \"resource_group_name\": \"\",\n            \"attributes\":{},\n            \"components\": [\n                {\n                    \"name\": \"InternalDB\",\n                    \"type\": \"draw_custom\",\n                    \"resource_group_name\": \"\",\n                    \"custom\": \"diagrams.azure.database.DatabaseForMysqlServers\",\n                    \"attributes\": {}\n                },\n                {\n                    \"name\": \"App\",\n                    \"type\": \"draw_custom\",\n                    \"resource_group_name\": \"\",\n                    \"custom\": \"diagrams.onprem.compute.Server\",\n                    \"attributes\": {}\n                },\n                {\n                    \"name\": \"AnotherApp\",\n                    \"type\": \"draw_custom\",\n                    \"resource_group_name\": \"\",\n                    \"custom\": \"diagrams.onprem.compute.Server\",\n                    \"attributes\": {}\n                }\n            ]\n        }\n    ],\n\t\"links\": [\n        {\n            \"from\": \"App-draw_custom\",\n            \"to\": \"InternalDB-draw_custom\",\n            \"color\": \"darkgreen\",\n            \"label\": \"Write\",\n            \"type\": \"dotted\"\n        },\n        {\n            \"from\": \"AnotherApp-draw_custom\",\n            \"to\": \"InternalDB-draw_custom\",\n            \"color\": \"darkgreen\",\n            \"label\": \"Write\",\n            \"type\": \"dotted\"\n        }\n    ],\n    \"excludes\": []\n}                                            \n```\n\n```console \nfoo@bar:~$ drawtf draw --json-config-path ./test/app.json    \n``` \n![Example](https://github.com/aggreko/drawtf/blob/main/test/app.png?raw=true)\n\nBy running the command above pointing to the config file, this will set the name and grab other resources from the state file linked. Outputs from will create the design in the same sub-folder with the name **app.png**.\n\n### Override config File (app-subset.json)\n\nProviding an override config alongside our main config file with the fields below, this will override the initial the designs title but still use the same state file and components from the original and attempt to join the links if all of the resources are available. You will notice an excludes section, if the keys for each resource added are in this list, then it will exclude those items.\n\n```json\n{\n    \"name\": \"Aggreko Application (Subset)\",\n    \"base\": \".//test//app.json\",\n    \"excludes\": [ \n        \"AnotherApp-draw_custom\"\n    ]\n}  \n```\n\n```console \nfoo@bar:~$ drawtf draw --json-config-path ./test/app-subset.json\n```\n![Example](https://github.com/aggreko/drawtf/blob/main/test/app-subset.png?raw=true)\n\nBy running the command above pointing to the config file and override files, this will set the name from the override and grab other resources from the state file linked. Outputs from will create the design in the same sub-folder with the name **app-subset.png**.\n\n### Override config File and CLI overrides\n\n```console \nfoo@bar:~$ drawtf draw --json-config-path ./test/app-subset.json --name \"Aggreko Application (Sample)\" --state ./test/app.tfstate --output-path ./test/sample --verbose                                                                           \n```\n![Example](https://github.com/aggreko/drawtf/blob/main/test/sample.png?raw=true)\n\nThe command above, though using the same config files, can override all for the name, state file path and output path. Outputs from will create the design in the directory **test** with the name **sample.png**.\n\n## Watch\n\nIt is now possible to simply watch a folder for *.json files to change or be created, this will then pick up the changes and draw designs as required.\n\n```console\nfoo@bar:~$ drawtf watch --directory ./test   \n\nStarting watch for *.json files...\nWatching in .//test...\nModified file .//test\\app.json, drawing...\nAdding resource APPLICATION_DEV-azurerm_resource_group\nAdding resource storageaccount-azurerm_storage_account\nAdding resource (from config) InternalDB-draw_custom\nAdding resource (from config) App-draw_custom\nAdding resource (from config) AnotherApp-draw_custom\nAdding resource (from config) Aggreko-draw_custom\n.//test\\app.json done.\nModified file .//test\\app-subset.json, drawing...\nAdding resource APPLICATION_DEV-azurerm_resource_group\nAdding resource storageaccount-azurerm_storage_account\nAdding resource (from config) InternalDB-draw_custom\nAdding resource (from config) App-draw_custom\nExcluding resource (from config) AnotherApp-draw_custom\nAdding resource (from config) Aggreko-draw_custom\nWARNING:root:Ignoring link as object not in component cache: {'from': 'AnotherApp-draw_custom', 'to': 'InternalDB-draw_custom', 'color': 'firebrick', 'label': 'Write', 'type': 'dotted'}\n.//test\\app-subset.json done.\n```\n\n## Github Actions Steps\n\nYes you can run this via GitHub actions or devops pipelines.\n\n```yaml\n      - name: Setup Graphviz\n        uses: ts-graphviz/setup-graphviz@v1\n      - name: Set up Python 3.7\n        uses: actions/setup-python@v4\n        with:\n          python-version: '3.7'\n      - name: Generate Diagram\n        run: |\n          python -m pip install --upgrade pip\n          pip install drawtf\n          drawtf --help\n          drawtf --json-config-path \"./static/images/test/test.json\"\n```\n\n## Early days\n\nJust an FYI, its early days here and is still a development style project. That said we are using for all of our projects internally using TF, but loads of resources types are still to be added.\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/Aggreko/DrawTF",
+            "keywords": "drawtf,terraform,ci/cd,design,architecture,diagrams,graphviz",
+            "license": "MIT license",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "drawtf",
+            "package_url": "https://pypi.org/project/drawtf/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/drawtf/",
+            "project_urls": {
+                "Homepage": "https://github.com/Aggreko/DrawTF"
+            },
+            "release_url": "https://pypi.org/project/drawtf/0.6.0/",
+            "requires_dist": [
+                "setuptools (==41.2.0)",
+                "wheel (==0.33.6)",
+                "twine (==1.14.0)",
+                "Click (==7.1.2)",
+                "diagrams (==0.22.0)",
+                "watchdog (==2.1.9)"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Draw diagrams from tf state files",
+            "version": "0.6.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15839251,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "738bf34d2f26109ee40f967ca7810c28",
+                    "sha256": "a88aa50747b0b3c4afb134a170cc7f4c430fe8e7c40c5c0bd50bc51e99d260f9"
+                },
+                "downloads": -1,
+                "filename": "drawtf-0.6.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "738bf34d2f26109ee40f967ca7810c28",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 42599,
+                "upload_time": "2022-11-21T11:53:50",
+                "upload_time_iso_8601": "2022-11-21T11:53:50.158826Z",
+                "url": "https://files.pythonhosted.org/packages/31/48/898f2ba62f56e90cf1b937b399cfcb204280a18ec11cd4253585bb7e83a0/drawtf-0.6.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "35d4e5ef4ea91eb3e7a0261cbe7a1d0c",
+                    "sha256": "1d023b1ddbcbbc11c7a00e6fad0f4459e24884317aebca9e2dce56a9f87476ba"
+                },
+                "downloads": -1,
+                "filename": "drawtf-0.6.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "35d4e5ef4ea91eb3e7a0261cbe7a1d0c",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 20597,
+                "upload_time": "2022-11-21T11:53:52",
+                "upload_time_iso_8601": "2022-11-21T11:53:52.820674Z",
+                "url": "https://files.pythonhosted.org/packages/b9/42/5edafc6eacf551af3d94a78db8d0894c6fbccbc7c455e622113b766d0c93/drawtf-0.6.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
