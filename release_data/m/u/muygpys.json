@@ -61,7 +61,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15811568,
+        "last_serial": 15848225,
         "urls": [
             {
                 "comment_text": "",
@@ -168,7 +168,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15811568,
+        "last_serial": 15848225,
         "urls": [
             {
                 "comment_text": "",
@@ -275,7 +275,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15811568,
+        "last_serial": 15848225,
         "urls": [
             {
                 "comment_text": "",
@@ -412,7 +412,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15811568,
+        "last_serial": 15848225,
         "urls": [
             {
                 "comment_text": "",
@@ -550,7 +550,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15811568,
+        "last_serial": 15848225,
         "urls": [
             {
                 "comment_text": "",
@@ -688,7 +688,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15811568,
+        "last_serial": 15848225,
         "urls": [
             {
                 "comment_text": "",
@@ -827,7 +827,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15811568,
+        "last_serial": 15848225,
         "urls": [
             {
                 "comment_text": "",
@@ -966,7 +966,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15811568,
+        "last_serial": 15848225,
         "urls": [
             {
                 "comment_text": "",
@@ -1033,7 +1033,6 @@
                 "Topic :: Software Development :: Libraries",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "[![Develop test](https://github.com/LLNL/MuyGPyS/actions/workflows/develop-test.yml/badge.svg)](https://github.com/LLNL/MuyGPyS/actions/workflows/develop-test.yml)\n[![Documentation Status](https://readthedocs.org/projects/muygpys/badge/?version=stable)](https://muygpys.readthedocs.io/en/stable/?badge=stable)\n# Fast implementation of the MuyGPs Gaussian process hyperparameter estimation algorithm\n\n\nMuyGPs is a GP estimation method that affords fast hyperparameter optimization \nby way of performing leave-one-out cross-validation.\nMuyGPs achieves best-in-class speed and scalability by limiting inference to the information contained in k nearest neighborhoods for prediction locations for \nboth hyperparameter optimization and tuning.\nThis feature affords the optimization of hyperparameters by way of leave-one-out cross-validation, as opposed to the more expensive loglikelihood evaluations \nrequired by similar sparse methods. \n\n\n## Under-The-Hood Math Implementation Options\n\nAs of release v0.6.0, `MuyGPyS` supports three distinct implementations of all\nof its underlying math functions:\n\n- `numpy` - basic numpy (the default)\n- [JAX](https://github.com/google/jax) - GPU acceleration\n- [MPI](https://github.com/mpi4py/mpi4py) - distributed memory acceleration\n\nMost users will specify the desired implementation at install-time.\nPlease see the below installation instructions.\n\nNote that the current version of the code supports either JAX OR MPI, not both.\nFuture versions will support both simultaneously.\n\n`MuyGPyS` detects which versions of its math functions to use at import time.\n`MuyGPyS.config` allows the user to toggle both JAX and MPI support on and off.\nPresently, JAX will take precedence if both JAX and MPI dependencies are\ninstalled and both are enabled.\n\n### Just-In-Time Compilation with JAX?,\n\n`MuyGPyS` supports just-in-time compilation of the \nunderlying math functions to CPU or GPU using \n[JAX](https://github.com/google/jax) since version v0.5.0.\nThe JAX-compiled versions of the code are significantly faster especially on \nGPUs.\n\nIf for some reason you want to swap between numpy and JAX implementations (and\nhave installed the JAX dependencies as below), `MuyGPyS.config` allows this.\nNote that deactivating JAX must happen prior to importing any other `MuyGPyS`\nfunctions.\n```\nfrom MuyGPyS import config\n\nconfig.update(\"muygpys_jax_enabled\", False)\n\n# subsequent imports...\n```\n\n#### JAX precision\n\nJAX uses 32 bit types by default, whereas numpy tends to promote everything to\n64 bits.\nFor highly stable operations like matrix multiplication, this difference in\nprecision tends to result in a roughly `1e-8` disagreement between 64 bit and 32\nbit implementations.\nHowever, `MuyGPyS` depends upon matrix-vector solves, which can result in\ndisagreements up to `1e-2`.\nIn order to ensure that the numpy and JAX implementations agree, `MuyGPyS`\nforces JAX to use 64 bit types by default.\n\nHowever, the 64 bit operations are slightly slower than their 32 bit\ncounterparts.\nIt is possible for a user to switch to 32 bit types and functions in their JAX\ncompiled code by directly manipulating JAX's configuration:\n```\nfrom MuyGPyS import jax_config\n# equivalent to `from jax import config as jax_config`\n\njax_config.update(\"jax_enable_x64\", False)\n```\nIf confused, you can also query for whether 64 bit types are enabled via\nthe `jax_config.x64_enabled` boolean.\n\n### MPI support\n\nThe current version of `MuyGPyS` requires that the user manually enable MPI\nbefore importing any other `MuyGPyS` functions.\nIf the user has installed the JAX dependencies, the user will also need to\ndisable JAX support.\n```\nfrom MuyGPyS import config\n\nconfig.update(\"muygpys_mpi_enabled\", True)\nconfig.update(\"muygpys_jax_enabled\", False)  # if JAX is installed\n\n# subsequent imports...\n```\n\nThe MPI version of `MuyGPyS` performs all tensor manipulation in distributed\nmemory.\nThe tensor creation functions will in fact create and distribute a chunk of each\ntensor to each MPI rank.\nThis data and subsequent data such as posterior means and variances remains\npartitioned, and most operations are embarassingly parallel.\nGlobal operations such as loss function computation make use of MPI collectives\nlike allreduce.\nIf the user needs to reason about all products of an experiment, such the full\nposterior distribution in local memory, it is necessary to employ a collective\nsuch as `MPI.gather`.\n\nThe wrapped KNN algorithms are not distributed, and so `MuyGPyS` does not yet\nhave an internal distributed KNN implementation.\nFuture versions will support a distributed memory approximate KNN solution.\n\nThe user can run a script `myscript.py` with MPI using, e.g. `mpirun` (or `srun`\nif using slurm) via\n```\n$ # mpirun version\n$ mpirun -n 4 python myscript.py\n$ # srun version\n$ srun -N 1 --tasks-per-node 4 -p pbatch python myscript.py\n```\n\n## Installation\n\n### Pip: CPU\n\nThe index `muygpys` is maintained on PyPI and can be installed using `pip`.\n`muygps` supports many optional extras flags, which will install additional\ndependencies if specified. \nIf installing CPU-only with pip, you might want to consider the following flags:  \nThese extras include:\n- `hnswlib` - install [hnswlib](https://github.com/nmslib/hnswlib) dependency to\nsupport fast approximate nearest neighbors indexing\n- `jax_cpu` - install [JAX](https://github.com/google/jax) dependencies to \nsupport just-in-time compilation of math functions on CPU (see below to install\non GPU CUDA architectures)\n- `mpi` - install [MPI](https://github.com/mpi4py/mpi4py) dependencies to\nsupport distributed memory parallel computation. Requires that the user has\ninstalled a version of MPI such as\n[mvapich](https://mvapich.cse.ohio-state.edu/) or\n[open-mpi](https://github.com/open-mpi/ompi).\n```\n$ # numpy-only installation. Functions will internally use numpy.\n$ pip install --upgrade muygpys\n$ # The same, but includes hnswlib.\n$ pip install --upgrade muygpys[hnswlib]\n$ # CPU-only JAX installation. Functions will be jit-compiled using JAX.\n$ pip install --upgrade muygpys[jax_cpu]\n$ # The same, but includes hnswlib.\n$ pip install --upgrade muygpys[jax_cpu,hnswlib]\n$ # MPI installation. Functions will operate in distributed memory.\n$ pip install --upgrade muygpys[mpi]\n$ # The same, but includes hnswlib.\n$ pip install --upgrade muygpys[mpi,hnswlib]\n```\n\nIt is possible to install both MPI and JAX dependencies, but at present only one\ncan be enabled at a time.\nIf both dependencies are found and the user does not manually specify which\nversion to use with the `config` object, `MuyGPyS` will default to use JAX.\n### Pip: GPU (CUDA)\n\n[JAX](https://github.com/google/jax) also supports just-in-time compilation to\nCUDA, making the compiled math functions within `MuyGPyS` runnable on NVidia \nGPUS.\nThis requires you to install \n[CUDA](https://developer.nvidia.com/cuda-downloads)\nand \n[CuDNN](https://developer.nvidia.com/CUDNN)\nin your environment, if they are not already installed, and to ensure that they\nare on your environment's `$LD_LIBRARY_PATH`. \nSee [scripts](scripts/lc-setup/pascal.sh) for an example environment setup.\n\nJAX currently supports CUDA 11.1 or newer, and CuDNN 8.0.5 or newer or CuDNN 8.2 \nor newer. \nWe will attempt to keep the `muygpys` PyPI index up to date with JAX, but any \nsignificant installation changes may result in a lag in automated installation \nsupport.\nConsider reading the \n[JAX CUDA installation instructions](https://github.com/google/jax#pip-installation-gpu-cuda)\nfor more information.\n\nInstalling `muygpys` with NVidia GPU support requires indicating the location \nfor JAX's pre-built wheels, as well as specifying the versions of CUDA and CuDNN\ninstalled in your environment with one of the following extras flags:\n- `jax_cuda11_cudnn82`\n- `jax_cuda11_cudnn805`\n- `jax_cuda` (shorthand for `jax_cuda11_cudnn805`)\n```\n$ # CUDA >= 11.1 and CuDNN >= 8.2\n$ pip install muygpys[jax_cuda11_cudnn82] -f https://storage.googleapis.com/jax-releases/jax_releases.html\n$ # CUDA >= 11.1 and CuDNN >= 8.0.5\n$ pip install muygpys[jax_cuda11_cudnn805] -f https://storage.googleapis.com/jax-releases/jax_releases.html\n$ # alternately, \n$ pip install muygpys[jax_cuda] -f https://storage.googleapis.com/jax-releases/jax_releases.html\n```\n\n\n### From Source\n\nThis repository includes several `extras_require` optional dependencies.\n- `tests` - install dependencies necessary to run [tests](tests/)\n- `docs` - install dependencies necessary to build the docs\n- `dev` - install dependencies for maintaining code style, linting, and \npackaging (includes all of the dependencies in `tests` and `docs`)\n\nFor example, follow these instructions to install from source for development \npurposes:\n```\n$ git clone git@github.com:LLNL/MuyGPyS.git\n$ cd MuyGPyS\n$ pip install -e .[dev,jax_cpu]\n```\n\nIf you would like to perform a GPU installation from source, you will need to\ninstall the jax dependency directly instead of using the `jax_cuda` flag or\nsimilar.\nThe following instructions outline such an installation procedure on `pascal`:\n```\n$ git clone git@github.com:LLNL/MuyGPyS.git\n$ cd MuyGPyS\n$ pip install -e .[dev]\n$ source scripts/lc-setup/pascal.sh\n$ pip install --upgrade jax[cuda11_cudnn805] -f https://storage.googleapis.com/jax-releases/jax_releases.html\n```\n\nAdditionally check out the develop branch to access the latest features in \nbetween stable releases.\nSee [CONTRIBUTING.md](CONTRIBUTING.md) for contribution rules. \n\n### Full list of extras flags\n\n- `hnswlib` - install [hnswlib](https://github.com/nmslib/hnswlib) dependency to\nsupport fast approximate nearest neighbors indexing\n- `jax_cpu` - install [JAX](https://github.com/google/jax) dependencies to \nsupport just-in-time compilation of math functions on CPU (see below to install\non GPU CUDA architectures)\n- `jax_cuda11_cudnn82` - install JAX dependencies with NVidia GPU support with \nCUDA >= 11.1 and CuDNN >= 8.2 (pip only)\n- `jax_cuda11_cudnn805` - install JAX dependencies with NVidia GPU support with \nCUDA >= 11.1 and CuDNN >= 8.0.5 (pip only)\n- `jax_cuda` (shorthand for `jax_cuda11_cudnn805`, pip only)\n- `mpi` - install [MPI](https://github.com/mpi4py/mpi4py) dependency to support\nparallel computation\n- `tests` - install dependencies necessary to run [tests](tests/)\n- `docs` - install dependencies necessary to build the [docs](docs/)\n- `dev` - install dependencies for maintaining code style, linting, and \npackaging (includes all of the dependencies in `tests` and `docs`)\n\n## Building Docs\n\nAutomatically-generated documentation can be found at \n[readthedocs.io](https://muygpys.readthedocs.io/en/stable/?).\n\nIn order to build the docs locally, first `pip` install from source using either \nthe `docs` or `dev` options and then execute:\n```\n$ sphinx-build -b html docs docs/_build/html\n```\nFinally, open the file `docs/_build/html/index.html` in your browser of choice.\n\n\n## Tutorials and Examples \n\nOur documentation includes several jupyter notebook tutorials at \n`docs/examples`.\nThese tutorials are also include in the \n[online documentation](https://muygpys.readthedocs.io/en/stable/).\n\nSee in particular the \n[univariate regression tutorial](docs/examples/univariate_regression_tutorial.ipynb)\nfor a low-level introduction to the use of `MuyGPyS`.\nSee also the \n[regression api tutorial](docs/examples/regress_api_tutorial.ipynb)\ndescribing how to coalesce the same simple workflow into a one-line call.\n\n\n## Testing\n\nIn order to run tests locally, first `pip` install `MuyGPyS` from source using \neither the `dev` or `tests` options.\nAll tests in the `test/` directory are then runnable using python, e.g.\n```\n$ python tests/kernels.py\n```\n\nIndividual `absl` unit test classes can be run in isolation, e.g.\n```\n$ python tests/kernels.py DistancesTest\n```\n\nThe user can also modify the `MuyGPyS.config` object when running `absl` tests\nfrom the command line.\nFor example, if you have installed the JAX dependencies but want to run a test\nwithout using JAX, run\n```\n$ python tests/kernels.py --muygpys_jax_enabled=False\n```\n\nIf the MPI dependencies are installed, the user can also run `absl` tests using\nMPI, e.g. using `mpirun`\n```\n$ mpirun -n 4 python tests/kernels.py\n$ # If JAX dependencies are installed and you want to use the pure MPI implementation, use\n$ mpirun -n 4 python tests/kernels.py --muygpys_jax_enabled=False\n```\nor using `srun`\n```\n$ srun -N 1 --tasks-per-node 4 -p pdebug python tests/kernels.py\n$ # If JAX dependencies are installed and you want to use the pure MPI implementation, use\n$ srun -N 1 --tasks-per-node 4 -p pdebug python tests/kernels.py --muygpys_jax_enabled=False\n```\n\n# About\n\n## Authors\n\n* Benjamin W. Priest (priest2 at llnl dot gov)\n* Amanada L. Muyskens (muyskens1 at llnl dot gov)\n\n## Papers\n\nMuyGPyS has been used the in the following papers (newest first):\n\n1. [Scalable Gaussian Process Hyperparameter Optimization via Coverage Regularization](http://export.arxiv.org/abs/2209.11280)\n2. [Light Curve Completion and Forecasting Using Fast and Scalable Gaussian Processes (MuyGPs)](https://arxiv.org/abs/2208.14592)\n3. [Fast Gaussian Process Posterior Mean Prediction via Local Cross Validation and Precomputation](https://arxiv.org/abs/2205.10879v1)\n4. [Gaussian Process Classification fo Galaxy Blend Identification in LSST](https://arxiv.org/abs/2107.09246)\n5. [Star-Galaxy Image Separation with Computationally Efficient Gaussian Process Classification](https://arxiv.org/abs/2105.01106)\n6. [Star-Galaxy Separation via Gaussian Processes with Model Reduction](https://arxiv.org/abs/2010.06094)\n\n## Citation\n\nIf you use MuyGPyS in a research paper, please reference our article:\n\n```\n@article{muygps2021,\n  title={MuyGPs: Scalable Gaussian Process Hyperparameter Estimation Using Local Cross-Validation},\n  author={Muyskens, Amanda and Priest, Benjamin W. and Goumiri, Im{\\`e}ne and \n  Schneider, Michael},\n  journal={arXiv preprint arXiv:2104.14581},\n  year={2021}\n}\n\n```\n\n## License\n\nMuyGPyS is distributed under the terms of the MIT license.\nAll new contributions must be made under the MIT license.\n\nSee [LICENSE-MIT](LICENSE-MIT), [NOTICE](NOTICE), and [COPYRIGHT](COPYRIGHT) for \ndetails.\n\nSPDX-License-Identifier: MIT\n\n## Release\n\nLLNL-CODE-824804\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "https://pypi.org/project/muygpys",
@@ -1106,7 +1105,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15811568,
+        "last_serial": 15848225,
         "urls": [
             {
                 "comment_text": "",
@@ -1145,6 +1144,146 @@
                 "upload_time": "2022-11-18T05:57:25",
                 "upload_time_iso_8601": "2022-11-18T05:57:25.420441Z",
                 "url": "https://files.pythonhosted.org/packages/75/35/83906c076dbd4e40881aeda0f4acd61bcab7d6e79ee256b221c82915ce39/muygpys-0.6.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.6.5": {
+        "info": {
+            "author": "Benjamin W. Priest",
+            "author_email": "priest2@llnl.gov",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Education",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: MacOS",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering",
+                "Topic :: Scientific/Engineering :: Mathematics",
+                "Topic :: Software Development",
+                "Topic :: Software Development :: Libraries",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "[![Develop test](https://github.com/LLNL/MuyGPyS/actions/workflows/develop-test.yml/badge.svg)](https://github.com/LLNL/MuyGPyS/actions/workflows/develop-test.yml)\n[![Documentation Status](https://readthedocs.org/projects/muygpys/badge/?version=stable)](https://muygpys.readthedocs.io/en/stable/?badge=stable)\n# Fast implementation of the MuyGPs Gaussian process hyperparameter estimation algorithm\n\n\nMuyGPs is a GP estimation method that affords fast hyperparameter optimization \nby way of performing leave-one-out cross-validation.\nMuyGPs achieves best-in-class speed and scalability by limiting inference to the information contained in k nearest neighborhoods for prediction locations for \nboth hyperparameter optimization and tuning.\nThis feature affords the optimization of hyperparameters by way of leave-one-out cross-validation, as opposed to the more expensive loglikelihood evaluations \nrequired by similar sparse methods. \n\n\n## Under-The-Hood Math Implementation Options\n\nAs of release v0.6.0, `MuyGPyS` supports three distinct implementations of all\nof its underlying math functions:\n\n- `numpy` - basic numpy (the default)\n- [JAX](https://github.com/google/jax) - GPU acceleration\n- [MPI](https://github.com/mpi4py/mpi4py) - distributed memory acceleration\n\nMost users will specify the desired implementation at install-time.\nPlease see the below installation instructions.\n\nNote that the current version of the code supports either JAX OR MPI, not both.\nFuture versions will support both simultaneously.\n\n`MuyGPyS` detects which versions of its math functions to use at import time.\n`MuyGPyS.config` allows the user to toggle both JAX and MPI support on and off.\nPresently, JAX will take precedence if both JAX and MPI dependencies are\ninstalled and both are enabled.\n\n### Just-In-Time Compilation with JAX?,\n\n`MuyGPyS` supports just-in-time compilation of the \nunderlying math functions to CPU or GPU using \n[JAX](https://github.com/google/jax) since version v0.5.0.\nThe JAX-compiled versions of the code are significantly faster especially on \nGPUs.\n\nIf for some reason you want to swap between numpy and JAX implementations (and\nhave installed the JAX dependencies as below), `MuyGPyS.config` allows this.\nNote that deactivating JAX must happen prior to importing any other `MuyGPyS`\nfunctions.\n```\nfrom MuyGPyS import config\n\nconfig.update(\"muygpys_jax_enabled\", False)\n\n# subsequent imports...\n```\n\n#### JAX precision\n\nJAX uses 32 bit types by default, whereas numpy tends to promote everything to\n64 bits.\nFor highly stable operations like matrix multiplication, this difference in\nprecision tends to result in a roughly `1e-8` disagreement between 64 bit and 32\nbit implementations.\nHowever, `MuyGPyS` depends upon matrix-vector solves, which can result in\ndisagreements up to `1e-2`.\nIn order to ensure that the numpy and JAX implementations agree, `MuyGPyS`\nforces JAX to use 64 bit types by default.\n\nHowever, the 64 bit operations are slightly slower than their 32 bit\ncounterparts.\nIt is possible for a user to switch to 32 bit types and functions in their JAX\ncompiled code by directly manipulating JAX's configuration:\n```\nfrom MuyGPyS import jax_config\n# equivalent to `from jax import config as jax_config`\n\njax_config.update(\"jax_enable_x64\", False)\n```\nIf confused, you can also query for whether 64 bit types are enabled via\nthe `jax_config.x64_enabled` boolean.\n\n### MPI support\n\nThe current version of `MuyGPyS` requires that the user manually enable MPI\nbefore importing any other `MuyGPyS` functions.\nIf the user has installed the JAX dependencies, the user will also need to\ndisable JAX support.\n```\nfrom MuyGPyS import config\n\nconfig.update(\"muygpys_mpi_enabled\", True)\nconfig.update(\"muygpys_jax_enabled\", False)  # if JAX is installed\n\n# subsequent imports...\n```\n\nThe MPI version of `MuyGPyS` performs all tensor manipulation in distributed\nmemory.\nThe tensor creation functions will in fact create and distribute a chunk of each\ntensor to each MPI rank.\nThis data and subsequent data such as posterior means and variances remains\npartitioned, and most operations are embarassingly parallel.\nGlobal operations such as loss function computation make use of MPI collectives\nlike allreduce.\nIf the user needs to reason about all products of an experiment, such the full\nposterior distribution in local memory, it is necessary to employ a collective\nsuch as `MPI.gather`.\n\nThe wrapped KNN algorithms are not distributed, and so `MuyGPyS` does not yet\nhave an internal distributed KNN implementation.\nFuture versions will support a distributed memory approximate KNN solution.\n\nThe user can run a script `myscript.py` with MPI using, e.g. `mpirun` (or `srun`\nif using slurm) via\n```\n$ # mpirun version\n$ mpirun -n 4 python myscript.py\n$ # srun version\n$ srun -N 1 --tasks-per-node 4 -p pbatch python myscript.py\n```\n\n## Installation\n\n### Pip: CPU\n\nThe index `muygpys` is maintained on PyPI and can be installed using `pip`.\n`muygps` supports many optional extras flags, which will install additional\ndependencies if specified. \nIf installing CPU-only with pip, you might want to consider the following flags:  \nThese extras include:\n- `hnswlib` - install [hnswlib](https://github.com/nmslib/hnswlib) dependency to\nsupport fast approximate nearest neighbors indexing\n- `jax_cpu` - install [JAX](https://github.com/google/jax) dependencies to \nsupport just-in-time compilation of math functions on CPU (see below to install\non GPU CUDA architectures)\n- `mpi` - install [MPI](https://github.com/mpi4py/mpi4py) dependencies to\nsupport distributed memory parallel computation. Requires that the user has\ninstalled a version of MPI such as\n[mvapich](https://mvapich.cse.ohio-state.edu/) or\n[open-mpi](https://github.com/open-mpi/ompi).\n```\n$ # numpy-only installation. Functions will internally use numpy.\n$ pip install --upgrade muygpys\n$ # The same, but includes hnswlib.\n$ pip install --upgrade muygpys[hnswlib]\n$ # CPU-only JAX installation. Functions will be jit-compiled using JAX.\n$ pip install --upgrade muygpys[jax_cpu]\n$ # The same, but includes hnswlib.\n$ pip install --upgrade muygpys[jax_cpu,hnswlib]\n$ # MPI installation. Functions will operate in distributed memory.\n$ pip install --upgrade muygpys[mpi]\n$ # The same, but includes hnswlib.\n$ pip install --upgrade muygpys[mpi,hnswlib]\n```\n\nIt is possible to install both MPI and JAX dependencies, but at present only one\ncan be enabled at a time.\nIf both dependencies are found and the user does not manually specify which\nversion to use with the `config` object, `MuyGPyS` will default to use JAX.\n### Pip: GPU (CUDA)\n\n[JAX](https://github.com/google/jax) also supports just-in-time compilation to\nCUDA, making the compiled math functions within `MuyGPyS` runnable on NVidia \nGPUS.\nThis requires you to install \n[CUDA](https://developer.nvidia.com/cuda-downloads)\nand \n[CuDNN](https://developer.nvidia.com/CUDNN)\nin your environment, if they are not already installed, and to ensure that they\nare on your environment's `$LD_LIBRARY_PATH`. \nSee [scripts](scripts/lc-setup/pascal.sh) for an example environment setup.\n\nJAX currently supports CUDA 11.1 or newer, and CuDNN 8.0.5 or newer or CuDNN 8.2 \nor newer. \nWe will attempt to keep the `muygpys` PyPI index up to date with JAX, but any \nsignificant installation changes may result in a lag in automated installation \nsupport.\nConsider reading the \n[JAX CUDA installation instructions](https://github.com/google/jax#pip-installation-gpu-cuda)\nfor more information.\n\nInstalling `muygpys` with NVidia GPU support requires indicating the location \nfor JAX's pre-built wheels, as well as specifying the versions of CUDA and CuDNN\ninstalled in your environment with one of the following extras flags:\n- `jax_cuda11_cudnn82`\n- `jax_cuda11_cudnn805`\n- `jax_cuda` (shorthand for `jax_cuda11_cudnn805`)\n```\n$ # CUDA >= 11.1 and CuDNN >= 8.2\n$ pip install muygpys[jax_cuda11_cudnn82] -f https://storage.googleapis.com/jax-releases/jax_releases.html\n$ # CUDA >= 11.1 and CuDNN >= 8.0.5\n$ pip install muygpys[jax_cuda11_cudnn805] -f https://storage.googleapis.com/jax-releases/jax_releases.html\n$ # alternately, \n$ pip install muygpys[jax_cuda] -f https://storage.googleapis.com/jax-releases/jax_releases.html\n```\n\n\n### From Source\n\nThis repository includes several `extras_require` optional dependencies.\n- `tests` - install dependencies necessary to run [tests](tests/)\n- `docs` - install dependencies necessary to build the docs\n- `dev` - install dependencies for maintaining code style, linting, and \npackaging (includes all of the dependencies in `tests` and `docs`)\n\nFor example, follow these instructions to install from source for development \npurposes:\n```\n$ git clone git@github.com:LLNL/MuyGPyS.git\n$ cd MuyGPyS\n$ pip install -e .[dev,jax_cpu]\n```\n\nIf you would like to perform a GPU installation from source, you will need to\ninstall the jax dependency directly instead of using the `jax_cuda` flag or\nsimilar.\nThe following instructions outline such an installation procedure on `pascal`:\n```\n$ git clone git@github.com:LLNL/MuyGPyS.git\n$ cd MuyGPyS\n$ pip install -e .[dev]\n$ source scripts/lc-setup/pascal.sh\n$ pip install --upgrade jax[cuda11_cudnn805] -f https://storage.googleapis.com/jax-releases/jax_releases.html\n```\n\nAdditionally check out the develop branch to access the latest features in \nbetween stable releases.\nSee [CONTRIBUTING.md](CONTRIBUTING.md) for contribution rules. \n\n### Full list of extras flags\n\n- `hnswlib` - install [hnswlib](https://github.com/nmslib/hnswlib) dependency to\nsupport fast approximate nearest neighbors indexing\n- `jax_cpu` - install [JAX](https://github.com/google/jax) dependencies to \nsupport just-in-time compilation of math functions on CPU (see below to install\non GPU CUDA architectures)\n- `jax_cuda11_cudnn82` - install JAX dependencies with NVidia GPU support with \nCUDA >= 11.1 and CuDNN >= 8.2 (pip only)\n- `jax_cuda11_cudnn805` - install JAX dependencies with NVidia GPU support with \nCUDA >= 11.1 and CuDNN >= 8.0.5 (pip only)\n- `jax_cuda` (shorthand for `jax_cuda11_cudnn805`, pip only)\n- `mpi` - install [MPI](https://github.com/mpi4py/mpi4py) dependency to support\nparallel computation\n- `tests` - install dependencies necessary to run [tests](tests/)\n- `docs` - install dependencies necessary to build the [docs](docs/)\n- `dev` - install dependencies for maintaining code style, linting, and \npackaging (includes all of the dependencies in `tests` and `docs`)\n\n## Building Docs\n\nAutomatically-generated documentation can be found at \n[readthedocs.io](https://muygpys.readthedocs.io/en/stable/?).\n\nIn order to build the docs locally, first `pip` install from source using either \nthe `docs` or `dev` options and then execute:\n```\n$ sphinx-build -b html docs docs/_build/html\n```\nFinally, open the file `docs/_build/html/index.html` in your browser of choice.\n\n\n## Tutorials and Examples \n\nOur documentation includes several jupyter notebook tutorials at \n`docs/examples`.\nThese tutorials are also include in the \n[online documentation](https://muygpys.readthedocs.io/en/stable/).\n\nSee in particular the \n[univariate regression tutorial](docs/examples/univariate_regression_tutorial.ipynb)\nfor a low-level introduction to the use of `MuyGPyS`.\nSee also the \n[regression api tutorial](docs/examples/regress_api_tutorial.ipynb)\ndescribing how to coalesce the same simple workflow into a one-line call.\n\n\n## Testing\n\nIn order to run tests locally, first `pip` install `MuyGPyS` from source using \neither the `dev` or `tests` options.\nAll tests in the `test/` directory are then runnable using python, e.g.\n```\n$ python tests/kernels.py\n```\n\nIndividual `absl` unit test classes can be run in isolation, e.g.\n```\n$ python tests/kernels.py DistancesTest\n```\n\nThe user can also modify the `MuyGPyS.config` object when running `absl` tests\nfrom the command line.\nFor example, if you have installed the JAX dependencies but want to run a test\nwithout using JAX, run\n```\n$ python tests/kernels.py --muygpys_jax_enabled=False\n```\n\nIf the MPI dependencies are installed, the user can also run `absl` tests using\nMPI, e.g. using `mpirun`\n```\n$ mpirun -n 4 python tests/kernels.py\n$ # If JAX dependencies are installed and you want to use the pure MPI implementation, use\n$ mpirun -n 4 python tests/kernels.py --muygpys_jax_enabled=False\n```\nor using `srun`\n```\n$ srun -N 1 --tasks-per-node 4 -p pdebug python tests/kernels.py\n$ # If JAX dependencies are installed and you want to use the pure MPI implementation, use\n$ srun -N 1 --tasks-per-node 4 -p pdebug python tests/kernels.py --muygpys_jax_enabled=False\n```\n\n# About\n\n## Authors\n\n* Benjamin W. Priest (priest2 at llnl dot gov)\n* Amanada L. Muyskens (muyskens1 at llnl dot gov)\n\n## Papers\n\nMuyGPyS has been used the in the following papers (newest first):\n\n1. [Scalable Gaussian Process Hyperparameter Optimization via Coverage Regularization](http://export.arxiv.org/abs/2209.11280)\n2. [Light Curve Completion and Forecasting Using Fast and Scalable Gaussian Processes (MuyGPs)](https://arxiv.org/abs/2208.14592)\n3. [Fast Gaussian Process Posterior Mean Prediction via Local Cross Validation and Precomputation](https://arxiv.org/abs/2205.10879v1)\n4. [Gaussian Process Classification fo Galaxy Blend Identification in LSST](https://arxiv.org/abs/2107.09246)\n5. [Star-Galaxy Image Separation with Computationally Efficient Gaussian Process Classification](https://arxiv.org/abs/2105.01106)\n6. [Star-Galaxy Separation via Gaussian Processes with Model Reduction](https://arxiv.org/abs/2010.06094)\n\n## Citation\n\nIf you use MuyGPyS in a research paper, please reference our article:\n\n```\n@article{muygps2021,\n  title={MuyGPs: Scalable Gaussian Process Hyperparameter Estimation Using Local Cross-Validation},\n  author={Muyskens, Amanda and Priest, Benjamin W. and Goumiri, Im{\\`e}ne and \n  Schneider, Michael},\n  journal={arXiv preprint arXiv:2104.14581},\n  year={2021}\n}\n\n```\n\n## License\n\nMuyGPyS is distributed under the terms of the MIT license.\nAll new contributions must be made under the MIT license.\n\nSee [LICENSE-MIT](LICENSE-MIT), [NOTICE](NOTICE), and [COPYRIGHT](COPYRIGHT) for \ndetails.\n\nSPDX-License-Identifier: MIT\n\n## Release\n\nLLNL-CODE-824804\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://pypi.org/project/muygpys",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/LLNL/MuyGPyS",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "muygpys",
+            "package_url": "https://pypi.org/project/muygpys/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/muygpys/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/LLNL/MuyGPyS/issues",
+                "Documentation": "https://muygpys.readthedocs.io",
+                "Download": "https://pypi.org/project/muygpys",
+                "Homepage": "https://github.com/LLNL/MuyGPyS",
+                "Source Code": "https://github.com/LLNL/MuyGPyS"
+            },
+            "release_url": "https://pypi.org/project/muygpys/0.6.5/",
+            "requires_dist": [
+                "numpy (>=1.18.5)",
+                "scipy (<=1.7.3,>=1.4.1)",
+                "scikit-learn (>=0.23.2)",
+                "bayesian-optimization (>=1.2.0)",
+                "black (>=21.1.0) ; extra == 'dev'",
+                "build (>=0.7.0) ; extra == 'dev'",
+                "mypy (>=0.910) ; extra == 'dev'",
+                "twine (>=3.7.1) ; extra == 'dev'",
+                "absl-py (>=0.13.0) ; extra == 'dev'",
+                "sphinx (==4.2.0) ; extra == 'dev'",
+                "sphinx-rtd-theme (==0.5.2) ; extra == 'dev'",
+                "sphinx-autodoc-typehints (==1.12.0) ; extra == 'dev'",
+                "matplotlib (>=3.2.1) ; extra == 'dev'",
+                "nbsphinx (==0.8.7) ; extra == 'dev'",
+                "pandoc (==2.0.1) ; extra == 'dev'",
+                "pandocfilters (==1.5.0) ; extra == 'dev'",
+                "ipython (==7.30.1) ; extra == 'dev'",
+                "ipykernel (==6.6.0) ; extra == 'dev'",
+                "sphinx (==4.2.0) ; extra == 'docs'",
+                "sphinx-rtd-theme (==0.5.2) ; extra == 'docs'",
+                "sphinx-autodoc-typehints (==1.12.0) ; extra == 'docs'",
+                "matplotlib (>=3.2.1) ; extra == 'docs'",
+                "nbsphinx (==0.8.7) ; extra == 'docs'",
+                "pandoc (==2.0.1) ; extra == 'docs'",
+                "pandocfilters (==1.5.0) ; extra == 'docs'",
+                "ipython (==7.30.1) ; extra == 'docs'",
+                "ipykernel (==6.6.0) ; extra == 'docs'",
+                "pybind11 (>=2.5.0) ; extra == 'hnswlib'",
+                "hnswlib (>=0.6.0) ; extra == 'hnswlib'",
+                "jax[cpu] (>=0.2.26) ; extra == 'jax_cpu'",
+                "tensorflow-probability[jax] (>=0.16.0) ; extra == 'jax_cpu'",
+                "jax[cuda11_cudnn805] ; extra == 'jax_cuda'",
+                "tensorflow-probability[jax] (>=0.16.0) ; extra == 'jax_cuda'",
+                "jax[cuda11_cudnn805] ; extra == 'jax_cuda11_cudnn805'",
+                "tensorflow-probability[jax] (>=0.16.0) ; extra == 'jax_cuda11_cudnn805'",
+                "jax[cuda11_cudnn82] ; extra == 'jax_cuda11_cudnn82'",
+                "tensorflow-probability[jax] (>=0.16.0) ; extra == 'jax_cuda11_cudnn82'",
+                "mpi4py (>=3.1.3) ; extra == 'mpi'",
+                "absl-py (>=0.13.0) ; extra == 'tests'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Scalable Approximate Gaussian Process using Local Kriging",
+            "version": "0.6.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15848225,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3b668522fb86e8f7e196d6ddd1b7372d",
+                    "sha256": "91082dcd62104cc855143a3191891fe0d72a30c18dda08fb77442654435b5c0a"
+                },
+                "downloads": -1,
+                "filename": "muygpys-0.6.5-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "3b668522fb86e8f7e196d6ddd1b7372d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 97472,
+                "upload_time": "2022-11-22T01:18:13",
+                "upload_time_iso_8601": "2022-11-22T01:18:13.092971Z",
+                "url": "https://files.pythonhosted.org/packages/ed/7d/31a72ed355914563ee695219ef3cdfb7fe21607a542c35337b9f2baa7f5d/muygpys-0.6.5-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ed70561f76e9a99f6cc91e22c4b83fa4",
+                    "sha256": "09ecc4e636b8986a5e0e3962a7e7f809b76b3c82b830341fbb7e71f1da468d2c"
+                },
+                "downloads": -1,
+                "filename": "muygpys-0.6.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ed70561f76e9a99f6cc91e22c4b83fa4",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 70459,
+                "upload_time": "2022-11-22T01:18:14",
+                "upload_time_iso_8601": "2022-11-22T01:18:14.263785Z",
+                "url": "https://files.pythonhosted.org/packages/54/e7/293d50fe6cf451fecae8df41f101ae6539dc170658addd5f91f7de86f524/muygpys-0.6.5.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
