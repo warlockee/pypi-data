@@ -49,7 +49,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15725062,
+        "last_serial": 15844399,
         "urls": [
             {
                 "comment_text": "",
@@ -140,7 +140,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15725062,
+        "last_serial": 15844399,
         "urls": [
             {
                 "comment_text": "",
@@ -231,7 +231,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15725062,
+        "last_serial": 15844399,
         "urls": [
             {
                 "comment_text": "",
@@ -323,7 +323,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15725062,
+        "last_serial": 15844399,
         "urls": [
             {
                 "comment_text": "",
@@ -387,7 +387,6 @@
                 "Topic :: Communications :: Telephony",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "AsyncIO python library with Asterisk AMI\n========================================\n\n[![Build Status](https://travis-ci.com/streltsovdenis/pyami_asterisk.svg?branch=main)](https://travis-ci.com/streltsovdenis/pyami_asterisk)\n![PyPI](https://img.shields.io/pypi/v/pyami_asterisk)\n![PyPI - Downloads](https://img.shields.io/pypi/dm/pyami_asterisk?color=green)\n![PyPI - License](https://img.shields.io/pypi/l/pyami-asterisk?color=green)\n\nPyami_asterisk is a library based on python\u2019s AsyncIO with Asterisk AMI\n\nInstall\n-------\n\nInstall pyami_asterisk\n\n```bash\npip install pyami-asterisk\n```\n\nUsage\n-----\n\nAsterisk AMI Listen all Events\n\n```python\nimport asyncio\nfrom pyami_asterisk import AMIClient\n\n\ndef all_events(events):\n    print(events)\n\n\nasync def hangup_call(events):\n    \"\"\"asynchronous callbacks\"\"\"\n    await asyncio.sleep(3)\n    print(events)\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.register_event([\"*\"], all_events)\nami.register_event([\"Hangup\"], hangup_call)\nami.connect()\n```\n\nAsterisk AMI Listen Events: Registry, ContactStatus, PeerStatus\n\n```python\nfrom pyami_asterisk import AMIClient\n\n\ndef register_multiple_events(events):\n    print(events)\n\n\nasync def callback_peer_status(events):\n    \"\"\"\n        Response event:\n        {\n            'Event': 'PeerStatus', \n            'Privilege': 'system,all',\n            'ChannelType': 'PJSIP', \n            'Peer': 'PJSIP/888', \n            'PeerStatus': 'Unreachable',\n        }\n    \"\"\"\n    if events.get('PeerStatus') == 'Unreachable':\n        await asyncio.sleep(2)\n        print(events)\n\n    async def ping(events):\n        \"\"\"asynchronous callbacks\"\"\"\n        await asyncio.sleep(3)\n        print(events)\n\n    ami.create_action({\"Action\": \"Ping\"}, ping)\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.register_event(patterns=[\"Registry\", \"ContactStatus\"], callbacks=register_multiple_events)\nami.register_event([\"PeerStatus\"], callback_peer_status)\nami.connect()\n```\n\nAsterisk AMI Actions: CoreSettings\n\n```python\nimport asyncio\nfrom pyami_asterisk import AMIClient\n\n\ndef core_settings(events):\n    print(events)\n\n\nasync def core_status(events):\n    \"\"\"asynchronous callbacks\"\"\"\n    await asyncio.sleep(4)\n    print(events)\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.create_action({\"Action\": \"CoreSettings\"}, core_settings)\nami.create_action({\"Action\": \"CoreStatus\"}, core_status)\nami.connect()\n```\n\nAsterisk AMI Actions: CoreSettings, CoreStatus (repeat 3 seconds)\n\n```python\nfrom pyami_asterisk import AMIClient\n\n\ndef core_settings(events):\n    print(events)\n\n\ndef core_status(events):\n    print(events)\n    print(events['CoreCurrentCalls'])\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.create_action({\"Action\": \"CoreSettings\"}, core_settings)\nami.create_action({\"Action\": \"CoreStatus\"}, core_status, repeat=3)\nami.connect()\n```\n\nAsterisk AMI Action Originate\n\n```python\nfrom pyami_asterisk import AMIClient\n\n\ndef callback_originate(events):\n    print(events)\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.create_action(\n    {\n        \"Action\": \"Originate\",\n        \"Channel\": \"pjsip/203\",\n        \"Timeout\": \"20000\",\n        \"CallerID\": \"+37529XXXXXXX <203>\",\n        \"Exten\": \"+37529XXXXXXX\",\n        \"Context\": \"from-internal\",\n        \"Async\": \"true\",\n        \"Variable\": r\"PJSIP_HEADER(add,Call-Info)=\\;Answer-After=0\",  # or multiple Variable ['var=1', 'var=2']\n        \"Priority\": \"1\",\n    },\n    callback_originate,\n)\nami.connect()\n```\n\nAsterisk AMI Listen Events + Action\n\n```python\nfrom pyami_asterisk import AMIClient\n\n\ndef callback_peer_status(events):\n    \n    def callback_ping(response_ping):\n        print(\"Response Ping\", response_ping)\n\n    print(\"PeerStatus\", events)\n    ami.create_action({\"Action\": \"Ping\"}, callback_ping)\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.register_event([\"PeerStatus\"], callback_peer_status)\nami.connect()\n```\n\nCreate asyncio task\n\n``` python\nimport asyncio\nimport random\nfrom pyami_asterisk import AMIClient\n\n\nasync def refresh_tokens(timeout=4):\n    \"\"\"Example: Refresh tokens\"\"\"\n    while True:\n        print(random.randrange(0, 1000))\n        await asyncio.sleep(timeout)\n    \n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.create_asyncio_task(tasks=[refresh_tokens(timeout=2)])\nami.connect()\n```\n\nRun / stop async\n\n``` python\nimport asyncio\nfrom pyami_asterisk import AMIClient\n\n\nasync def all_events(event):\n    print(event)\n    if event.get('Event') == 'SuccessfulAuth':\n        # connection close\n        await ami.connection_close()\n\n\nasync def run_async():\n    await asyncio.sleep(2)\n    await ami.connect_ami()\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.register_event([\"*\"], all_events)\nasyncio.run(run_async())\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -418,7 +417,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15725062,
+        "last_serial": 15844399,
         "urls": [
             {
                 "comment_text": "",
@@ -457,6 +456,101 @@
                 "upload_time": "2022-11-10T14:36:19",
                 "upload_time_iso_8601": "2022-11-10T14:36:19.441832Z",
                 "url": "https://files.pythonhosted.org/packages/1b/51/247fa25181fd443578091fe0988fb811502201c07671f03474f97f85ddda/pyami_asterisk-1.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.5.1": {
+        "info": {
+            "author": "Denis Streltsov",
+            "author_email": "sdv.streltsov@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Communications :: Telephony",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "AsyncIO python library with Asterisk AMI\n========================================\n\n[![Build Status](https://travis-ci.com/streltsovdenis/pyami_asterisk.svg?branch=main)](https://travis-ci.com/streltsovdenis/pyami_asterisk)\n![PyPI](https://img.shields.io/pypi/v/pyami_asterisk)\n![PyPI - Downloads](https://img.shields.io/pypi/dm/pyami_asterisk?color=green)\n![PyPI - License](https://img.shields.io/pypi/l/pyami-asterisk?color=green)\n\nPyami_asterisk is a library based on python\u2019s AsyncIO with Asterisk AMI\n\nInstall\n-------\n\nInstall pyami_asterisk\n\n```bash\npip install pyami-asterisk\n```\n\nUsage\n-----\n\nAsterisk AMI Listen all Events\n\n```python\nimport asyncio\nfrom pyami_asterisk import AMIClient\n\n\ndef all_events(events):\n    print(events)\n\n\nasync def hangup_call(events):\n    \"\"\"asynchronous callbacks\"\"\"\n    await asyncio.sleep(3)\n    print(events)\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.register_event([\"*\"], all_events)\nami.register_event([\"Hangup\"], hangup_call)\nami.connect()\n```\n\nAsterisk AMI Listen Events: Registry, ContactStatus, PeerStatus\n\n```python\nfrom pyami_asterisk import AMIClient\n\n\ndef register_multiple_events(events):\n    print(events)\n\n\nasync def callback_peer_status(events):\n    \"\"\"\n        Response event:\n        {\n            'Event': 'PeerStatus', \n            'Privilege': 'system,all',\n            'ChannelType': 'PJSIP', \n            'Peer': 'PJSIP/888', \n            'PeerStatus': 'Unreachable',\n        }\n    \"\"\"\n    if events.get('PeerStatus') == 'Unreachable':\n        await asyncio.sleep(2)\n        print(events)\n\n    async def ping(events):\n        \"\"\"asynchronous callbacks\"\"\"\n        await asyncio.sleep(3)\n        print(events)\n\n    ami.create_action({\"Action\": \"Ping\"}, ping)\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.register_event(patterns=[\"Registry\", \"ContactStatus\"], callbacks=register_multiple_events)\nami.register_event([\"PeerStatus\"], callback_peer_status)\nami.connect()\n```\n\nAsterisk AMI Actions: CoreSettings\n\n```python\nimport asyncio\nfrom pyami_asterisk import AMIClient\n\n\ndef core_settings(events):\n    print(events)\n\n\nasync def core_status(events):\n    \"\"\"asynchronous callbacks\"\"\"\n    await asyncio.sleep(4)\n    print(events)\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.create_action({\"Action\": \"CoreSettings\"}, core_settings)\nami.create_action({\"Action\": \"CoreStatus\"}, core_status)\nami.connect()\n```\n\nAsterisk AMI Actions: CoreSettings, CoreStatus (repeat 3 seconds)\n\n```python\nfrom pyami_asterisk import AMIClient\n\n\ndef core_settings(events):\n    print(events)\n\n\ndef core_status(events):\n    print(events)\n    print(events['CoreCurrentCalls'])\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.create_action({\"Action\": \"CoreSettings\"}, core_settings)\nami.create_action({\"Action\": \"CoreStatus\"}, core_status, repeat=3)\nami.connect()\n```\n\nAsterisk AMI Action Originate\n\n```python\nfrom pyami_asterisk import AMIClient\n\n\ndef callback_originate(events):\n    print(events)\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.create_action(\n    {\n        \"Action\": \"Originate\",\n        \"Channel\": \"pjsip/203\",\n        \"Timeout\": \"20000\",\n        \"CallerID\": \"+37529XXXXXXX <203>\",\n        \"Exten\": \"+37529XXXXXXX\",\n        \"Context\": \"from-internal\",\n        \"Async\": \"true\",\n        \"Variable\": r\"PJSIP_HEADER(add,Call-Info)=\\;Answer-After=0\",  # or multiple Variable ['var=1', 'var=2']\n        \"Priority\": \"1\",\n    },\n    callback_originate,\n)\nami.connect()\n```\n\nAsterisk AMI Listen Events + Action\n\n```python\nfrom pyami_asterisk import AMIClient\n\n\ndef callback_peer_status(events):\n    \n    def callback_ping(response_ping):\n        print(\"Response Ping\", response_ping)\n\n    print(\"PeerStatus\", events)\n    ami.create_action({\"Action\": \"Ping\"}, callback_ping)\n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.register_event([\"PeerStatus\"], callback_peer_status)\nami.connect()\n```\n\nCreate asyncio task\n\n``` python\nimport asyncio\nimport random\nfrom pyami_asterisk import AMIClient\n\n\nasync def refresh_tokens(timeout=4):\n    \"\"\"Example: Refresh tokens\"\"\"\n    while True:\n        print(random.randrange(0, 1000))\n        await asyncio.sleep(timeout)\n    \n\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.create_asyncio_task(tasks=[refresh_tokens(timeout=2)])\nami.connect()\n```\n\nRun / stop async\n\n``` python\nimport asyncio\nfrom pyami_asterisk import AMIClient\n\n\nasync def all_events(event):\n    print(event)\n    if event.get('Event') == 'SuccessfulAuth':\n        # connection close\n        await ami.connection_close()\n\n\nasync def run_async():\n    await asyncio.sleep(2)\n    await ami.connect_ami()\n\nami = AMIClient(host='127.0.0.1', port=5038, username='username', secret='password')\nami.register_event([\"*\"], all_events)\nasyncio.run(run_async())\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/streltsovdenis/pyami_asterisk.git",
+            "keywords": "AMI,Asterisk,asyncio,python",
+            "license": "MIT license",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pyami-asterisk",
+            "package_url": "https://pypi.org/project/pyami-asterisk/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pyami-asterisk/",
+            "project_urls": {
+                "Homepage": "https://github.com/streltsovdenis/pyami_asterisk.git"
+            },
+            "release_url": "https://pypi.org/project/pyami-asterisk/1.5.1/",
+            "requires_dist": [
+                "loguru (==0.6.0)"
+            ],
+            "requires_python": "",
+            "summary": "pyami_asterisk is a library based on python\u2019s AsyncIO with Asterisk AMI",
+            "version": "1.5.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15844399,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6bdd64518f6262eb2a6975f309ef6074",
+                    "sha256": "ec836eab010c4dbeee51976e20a1423b96aab3d688b2c7434ef81130dfc9a6e8"
+                },
+                "downloads": -1,
+                "filename": "pyami_asterisk-1.5.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "6bdd64518f6262eb2a6975f309ef6074",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 6928,
+                "upload_time": "2022-11-21T19:08:50",
+                "upload_time_iso_8601": "2022-11-21T19:08:50.245803Z",
+                "url": "https://files.pythonhosted.org/packages/38/2a/8624d57f5c61caf54ca7fe984e10f18d39c7e6ce0397f6752758ee65f3e5/pyami_asterisk-1.5.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7c6cc44d2388a69e95fbe8e356744301",
+                    "sha256": "0328d1ad03998ed562b6a08b6d2333b433ad9f217b1ef27ae77e7dfee1e6a048"
+                },
+                "downloads": -1,
+                "filename": "pyami_asterisk-1.5.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7c6cc44d2388a69e95fbe8e356744301",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 6623,
+                "upload_time": "2022-11-21T19:08:51",
+                "upload_time_iso_8601": "2022-11-21T19:08:51.554914Z",
+                "url": "https://files.pythonhosted.org/packages/e4/6f/abbd51fb80febdfe5f46028aaf026722d465d0a712937aa6fae574c29076/pyami_asterisk-1.5.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

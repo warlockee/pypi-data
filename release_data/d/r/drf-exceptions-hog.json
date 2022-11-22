@@ -42,7 +42,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13240233,
+        "last_serial": 15843751,
         "urls": [
             {
                 "comment_text": "",
@@ -130,7 +130,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13240233,
+        "last_serial": 15843751,
         "urls": [
             {
                 "comment_text": "",
@@ -218,7 +218,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13240233,
+        "last_serial": 15843751,
         "urls": [
             {
                 "comment_text": "",
@@ -306,7 +306,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13240233,
+        "last_serial": 15843751,
         "urls": [
             {
                 "comment_text": "",
@@ -394,7 +394,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13240233,
+        "last_serial": 15843751,
         "urls": [
             {
                 "comment_text": "",
@@ -482,7 +482,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13240233,
+        "last_serial": 15843751,
         "urls": [
             {
                 "comment_text": "",
@@ -540,7 +540,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "<img src=\"drf-exceptions-hog.png\" alt=\"Logo\" height=\"125\" />\n\n# DRF Exceptions Hog\n\nStandardized and **easy-to-parse** API error responses for [Django REST Framework][drf].\n\nAfter reusing similar code in multiple projects, we realized this might actually help others. The problem we're trying to solve is that DRF exceptions tend to vary in format and therefore require complex parsing logic on the frontend, which generally needs to be implemented in more than one language or framework. This simple package standardizes the exception responses to simplify the parsing logic on the frontend and enable developers to provide clear errors to their users (instead of the cryptic or even shady-looking parsing errors). This package is inspired on the way [Stripe API](https://stripe.com/docs/api/errors) handles errors. See an example below.\n\nYou will get predictable responses like these:\n\n```json\n// Example 1\n{\n  \"type\": \"validation_error\",\n  \"code\": \"required\",\n  \"detail\": \"This field is required.\",\n  \"attr\": \"name\"\n}\n\n// Example 2\n{\n    \"type\": \"authentication_error\",\n    \"code\": \"permission_denied\",\n    \"detail\": \"You do not have permission to perform this operation.\",\n    \"attr\": null\n}\n\n```\n\ninstead of these:\n\n```json\n// Example 1\n{\n  \"name\": [\"This field is required.\"]\n}\n\n// Example 2\n{\n    \"detail\": \"You do not have permission to perform this operation.\"\n}\n```\n\n**Note:** Currently we only support JSON responses. If you'd like us to support a different response format, please open an issue or a PR (see [Contributing](#-contributing))\n\n## \ud83d\udd0c Usage\n\nTo start using DRF Exceptions Hog please follow these instructions:\n\nInstall the package with `pip`\n\n```bash\npip install drf-exceptions-hog\n```\n\nUpdate your DRF configuration on your `settings.py`.\n\n```python\nREST_FRAMEWORK={\n    \"EXCEPTION_HANDLER\": \"exceptions_hog.exception_handler\",\n}\n```\n\nOptionally set additional configuration for the package.\n\n```python\nEXCEPTIONS_HOG = {\n    \"EXCEPTION_REPORTING\": \"exceptions_hog.handler.exception_reporter\",\n    \"ENABLE_IN_DEBUG\": False,\n    \"NESTED_KEY_SEPARATOR\": \"__\",\n    \"SUPPORT_MULTIPLE_EXCEPTIONS\": False,\n}\n```\n\n- `EXCEPTION_REPORTING`: specify a method to call after an exception occurs. Particularly useful to report errors (e.g. through Sentry, NewRelic, ...). Default: `exceptions_hog.handler.exception_reporter`\n- `ENABLE_IN_DEBUG`: whether exceptions-hog should run when `DEBUG = 1`. It's useful to turn this off in debugging to get full error stack traces when developing. Defaut: `False`.\n- `NESTED_KEY_SEPARATOR`: customize the separator used for obtaining the `attr` name if the exception comes from nested objects (e.g. nested serializers). Default: `__`.\n- `SUPPORT_MULTIPLE_EXCEPTIONS`: whether exceptions-hog should return all exceptions in an error response. Useful particularly in form and serializer validation where multiple input exceptions can occur.\n\n## \ud83d\udcd1 Documentation\n\nWe're working on more comprehensive documentation. Feel free to open a PR to contribute to this. In the meantime, you will find the most relevant information for this package here.\n\n### Response structure\n\nAll responses handled by DRF Exceptions Hog have the following format:\n\n```json\n{\n  \"type\": \"server_error\",\n  \"code\": \"server_error\",\n  \"detail\": \"Something went wrong.\",\n  \"attr\": null,\n  \"list\": null\n}\n```\n\nwhere:\n\n- `type` entails the high-level grouping of the type error returned (See [Error Types](#error-types)).\n- `code` is a machine-friendly error code specific for this type of error (e.g. `permission_denied`, `method_not_allowed`, `required`)\n- `detail` will contain human-friendly information on the error (e.g. \"This field is required.\", \"Authentication credentials were not provided.\").\n  - For security reasons (mainly to avoid leaking sensitive information) this attribute will return a generic error message for unhandled server exceptions, like an `ImportError`.\n  - If you use Django localization, all our exception detail messages support using multiple languages.\n- `attr` will contain the name of the attribute to which the exception is related. Relevant mostly for `validation_error`s.\n- `list` will only be returned when [multiple exceptions](#multiple-exceptions) are enabled and the exception contains multiple exceptions (i.e. `type = multiple`).\n- `extra` is an extra attribute you can set on an exception to pass through extra content, normally in dict form.\n\n### Multiple exceptions\n\nThere are some cases when handling multiple exceptions in a single response can be helpful. For instance, if you have a form with multiple fields, each field can have their own validations, and a user could benefit from knowing everything that is wrong in a single pass. You can enable multiple exception support by setting the `SUPPORT_MULTIPLE_EXCEPTIONS` setting to `True`. When it's enabled, if multiple exceptions are raised (e.g. by a serializer), you will receive a response like this:\n\n```json\n{\n  \"type\": \"multiple\",\n  \"code\": \"multiple\",\n  \"detail\": \"Multiple exceptions ocurred. Please check list for details.\",\n  \"attr\": null,\n  \"list\": [\n    {\n      \"type\": \"validation_error\",\n      \"code\": \"required\",\n      \"detail\": \"This field is required.\",\n      \"attr\": \"email\"\n    },\n    {\n      \"type\": \"validation_error\",\n      \"code\": \"unsafe_password\",\n      \"detail\": \"This password is unsafe.\",\n      \"attr\": \"password\"\n    }\n  ]\n}\n```\n\n### Error types\n\nOur package introduces the following general error types (but feel free to add custom ones):\n\n- `authentication_error` indicates there is an authentication-related problem with the request (e.g. no authentication credentials provided, invalid or expired credentials provided, credentials have insufficient privileges, etc.)\n- `invalid_request` indicates a general issue with the request that must be fixed by the client, excluding validation errors (e.g. request has an invalid media type format, request is malformed, etc.)\n- `multiple` indicates multiple exceptions ocurred (only if enabled). See [multiple exceptions](#multiple-exceptions) for details.\n- `server_error` indicates a generic internal server error that needs to be addressed on the server.\n- `throttled_error` indicates the request is throttled or rate limited and must be retried by the client at a later time.\n- `validation_error` indicates the request has not passed validation and must be fixed by the client (e.g. a required attribute was not provided, an incorrect data type was passed for an attribute, etc.)\n\n## \ud83e\udd1d Contributing\n\nWant to help move this project forward? Read our [CONTRIBUTING.md](CONTRIBUTING.md).\n\n## \ud83d\udc69\u200d\ud83d\udcbb Development\n\nTo run a local copy of the package for development, please follow these instructions:\n\n1. Clone the repository.\n1. **[Optional]**. Install and activate a virtual enviroment. Example:\n\n   ```bash\n   python3 -m venv env && source env/bin/activate\n   ```\n\n1. Install the project dependencies and the test dependencies.\n\n   ```bash\n   python setup.py develop\n   pip install -r requirements-test.txt\n   ```\n\n1. Run the tests to make sure everything is working as expected.\n\n   ```bash\n   python runtests.py\n   ```\n\n1. Start coding!\n\n## \ud83e\uddf1 Requirements\n\n- This package requires at least Python 3.7 & Django 3.1\n- Supported Python versions: 3.7.x, 3.8.x & 3.9.x\n- Supported Django versions: 3.1.x & 3.2.x\n\n## \ud83d\udc68\u200d\u2696\ufe0f License\n\nWe \u2665 Open Source! This repository is MIT licensed by PostHog. Full license [here](LICENSE).\n\n[drf]: https://github.com/encode/django-rest-framework\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -571,7 +570,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13240233,
+        "last_serial": 15843751,
         "urls": [
             {
                 "comment_text": "",
@@ -610,6 +609,95 @@
                 "upload_time": "2022-01-25T14:00:04",
                 "upload_time_iso_8601": "2022-01-25T14:00:04.273035Z",
                 "url": "https://files.pythonhosted.org/packages/af/d6/8b6e84ac5be6c53f82ab592a0b8c45b9931e3aef13da4d96124bbae397d0/drf-exceptions-hog-0.2.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.0": {
+        "info": {
+            "author": "PostHog",
+            "author_email": "hey@posthog.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "<img src=\"drf-exceptions-hog.png\" alt=\"Logo\" height=\"125\" />\n\n# DRF Exceptions Hog\n\nStandardized and **easy-to-parse** API error responses for [Django REST Framework][drf].\n\nAfter reusing similar code in multiple projects, we realized this might actually help others. The problem we're trying to solve is that DRF exceptions tend to vary in format and therefore require complex parsing logic on the frontend, which generally needs to be implemented in more than one language or framework. This simple package standardizes the exception responses to simplify the parsing logic on the frontend and enable developers to provide clear errors to their users (instead of the cryptic or even shady-looking parsing errors). This package is inspired on the way [Stripe API](https://stripe.com/docs/api/errors) handles errors. See an example below.\n\nYou will get predictable responses like these:\n\n```json\n// Example 1\n{\n  \"type\": \"validation_error\",\n  \"code\": \"required\",\n  \"detail\": \"This field is required.\",\n  \"attr\": \"name\"\n}\n\n// Example 2\n{\n    \"type\": \"authentication_error\",\n    \"code\": \"permission_denied\",\n    \"detail\": \"You do not have permission to perform this operation.\",\n    \"attr\": null\n}\n\n```\n\ninstead of these:\n\n```json\n// Example 1\n{\n  \"name\": [\"This field is required.\"]\n}\n\n// Example 2\n{\n    \"detail\": \"You do not have permission to perform this operation.\"\n}\n```\n\n**Note:** Currently we only support JSON responses. If you'd like us to support a different response format, please open an issue or a PR (see [Contributing](#-contributing))\n\n## \ud83d\udd0c Usage\n\nTo start using DRF Exceptions Hog please follow these instructions:\n\nInstall the package with `pip`\n\n```bash\npip install drf-exceptions-hog\n```\n\nUpdate your DRF configuration on your `settings.py`.\n\n```python\nREST_FRAMEWORK={\n    \"EXCEPTION_HANDLER\": \"exceptions_hog.exception_handler\",\n}\n```\n\nOptionally set additional configuration for the package.\n\n```python\nEXCEPTIONS_HOG = {\n    \"EXCEPTION_REPORTING\": \"exceptions_hog.handler.exception_reporter\",\n    \"ENABLE_IN_DEBUG\": False,\n    \"NESTED_KEY_SEPARATOR\": \"__\",\n    \"SUPPORT_MULTIPLE_EXCEPTIONS\": False,\n}\n```\n\n- `EXCEPTION_REPORTING`: specify a method to call after an exception occurs. Particularly useful to report errors (e.g. through Sentry, NewRelic, ...). Default: `exceptions_hog.handler.exception_reporter`\n- `ENABLE_IN_DEBUG`: whether exceptions-hog should run when `DEBUG = 1`. It's useful to turn this off in debugging to get full error stack traces when developing. Defaut: `False`.\n- `NESTED_KEY_SEPARATOR`: customize the separator used for obtaining the `attr` name if the exception comes from nested objects (e.g. nested serializers). Default: `__`.\n- `SUPPORT_MULTIPLE_EXCEPTIONS`: whether exceptions-hog should return all exceptions in an error response. Useful particularly in form and serializer validation where multiple input exceptions can occur.\n\n## \ud83d\udcd1 Documentation\n\nWe're working on more comprehensive documentation. Feel free to open a PR to contribute to this. In the meantime, you will find the most relevant information for this package here.\n\n### Response structure\n\nAll responses handled by DRF Exceptions Hog have the following format:\n\n```json\n{\n  \"type\": \"server_error\",\n  \"code\": \"server_error\",\n  \"detail\": \"Something went wrong.\",\n  \"attr\": null,\n  \"list\": null\n}\n```\n\nwhere:\n\n- `type` entails the high-level grouping of the type error returned (See [Error Types](#error-types)).\n- `code` is a machine-friendly error code specific for this type of error (e.g. `permission_denied`, `method_not_allowed`, `required`)\n- `detail` will contain human-friendly information on the error (e.g. \"This field is required.\", \"Authentication credentials were not provided.\").\n  - For security reasons (mainly to avoid leaking sensitive information) this attribute will return a generic error message for unhandled server exceptions, like an `ImportError`.\n  - If you use Django localization, all our exception detail messages support using multiple languages.\n- `attr` will contain the name of the attribute to which the exception is related. Relevant mostly for `validation_error`s.\n- `list` will only be returned when [multiple exceptions](#multiple-exceptions) are enabled and the exception contains multiple exceptions (i.e. `type = multiple`).\n- `extra` is an extra attribute you can set on an exception to pass through extra content, normally in dict form.\n\n### Multiple exceptions\n\nThere are some cases when handling multiple exceptions in a single response can be helpful. For instance, if you have a form with multiple fields, each field can have their own validations, and a user could benefit from knowing everything that is wrong in a single pass. You can enable multiple exception support by setting the `SUPPORT_MULTIPLE_EXCEPTIONS` setting to `True`. When it's enabled, if multiple exceptions are raised (e.g. by a serializer), you will receive a response like this:\n\n```json\n{\n  \"type\": \"multiple\",\n  \"code\": \"multiple\",\n  \"detail\": \"Multiple exceptions ocurred. Please check list for details.\",\n  \"attr\": null,\n  \"list\": [\n    {\n      \"type\": \"validation_error\",\n      \"code\": \"required\",\n      \"detail\": \"This field is required.\",\n      \"attr\": \"email\"\n    },\n    {\n      \"type\": \"validation_error\",\n      \"code\": \"unsafe_password\",\n      \"detail\": \"This password is unsafe.\",\n      \"attr\": \"password\"\n    }\n  ]\n}\n```\n\n### Error types\n\nOur package introduces the following general error types (but feel free to add custom ones):\n\n- `authentication_error` indicates there is an authentication-related problem with the request (e.g. no authentication credentials provided, invalid or expired credentials provided, credentials have insufficient privileges, etc.)\n- `invalid_request` indicates a general issue with the request that must be fixed by the client, excluding validation errors (e.g. request has an invalid media type format, request is malformed, etc.)\n- `multiple` indicates multiple exceptions ocurred (only if enabled). See [multiple exceptions](#multiple-exceptions) for details.\n- `server_error` indicates a generic internal server error that needs to be addressed on the server.\n- `throttled_error` indicates the request is throttled or rate limited and must be retried by the client at a later time.\n- `validation_error` indicates the request has not passed validation and must be fixed by the client (e.g. a required attribute was not provided, an incorrect data type was passed for an attribute, etc.)\n\n## \ud83e\udd1d Contributing\n\nWant to help move this project forward? Read our [CONTRIBUTING.md](CONTRIBUTING.md).\n\n## \ud83d\udc69\u200d\ud83d\udcbb Development\n\nTo run a local copy of the package for development, please follow these instructions:\n\n1. Clone the repository.\n1. **[Optional]**. Install and activate a virtual enviroment. Example:\n\n   ```bash\n   python3 -m venv env && source env/bin/activate\n   ```\n\n1. Install the project dependencies and the test dependencies.\n\n   ```bash\n   python setup.py develop\n   pip install -r requirements-test.txt\n   ```\n\n1. Run the tests to make sure everything is working as expected.\n\n   ```bash\n   python runtests.py\n   ```\n\n1. Start coding!\n\n## \ud83e\uddf1 Requirements\n\n- This package requires at least Python 3.7 & Django 3.1\n- Supported Python versions: 3.7.x, 3.8.x & 3.9.x\n- Supported Django versions: 3.1.x & 3.2.x\n\n## \ud83d\udc68\u200d\u2696\ufe0f License\n\nWe \u2665 Open Source! This repository is MIT licensed by PostHog. Full license [here](LICENSE).\n\n[drf]: https://github.com/encode/django-rest-framework\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/posthog/drf-exceptions-hog",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "drf-exceptions-hog",
+            "package_url": "https://pypi.org/project/drf-exceptions-hog/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/drf-exceptions-hog/",
+            "project_urls": {
+                "Homepage": "https://github.com/posthog/drf-exceptions-hog"
+            },
+            "release_url": "https://pypi.org/project/drf-exceptions-hog/0.3.0/",
+            "requires_dist": [
+                "djangorestframework (>=3.9.4)"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Standardized and easy-to-parse API error responses for DRF.",
+            "version": "0.3.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15843751,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c965d1a51de0c922765c8ce82771da40",
+                    "sha256": "dcfd1e625d65ab59313588c0fbeb230421f30b826308384494572ed6531477af"
+                },
+                "downloads": -1,
+                "filename": "drf_exceptions_hog-0.3.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c965d1a51de0c922765c8ce82771da40",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 10285,
+                "upload_time": "2022-11-21T17:52:31",
+                "upload_time_iso_8601": "2022-11-21T17:52:31.771012Z",
+                "url": "https://files.pythonhosted.org/packages/08/04/669047a262a378bcd23ee2f884a1daed6af4a1190f1b8e48db78068645e0/drf_exceptions_hog-0.3.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "66fcdef5ed3bea8b373bf22d0ec36acd",
+                    "sha256": "14cc84e93382a9860ee60c3a2b1b38c7fb41dc6fbf349bdf76f8851dedf8d280"
+                },
+                "downloads": -1,
+                "filename": "drf-exceptions-hog-0.3.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "66fcdef5ed3bea8b373bf22d0ec36acd",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 9103,
+                "upload_time": "2022-11-21T17:52:33",
+                "upload_time_iso_8601": "2022-11-21T17:52:33.553415Z",
+                "url": "https://files.pythonhosted.org/packages/85/54/f60660069a880c86c248aca30f31d5b079a08cae207dbd3eb778af35a7d2/drf-exceptions-hog-0.3.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

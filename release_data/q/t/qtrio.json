@@ -72,7 +72,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15400091,
+        "last_serial": 15842122,
         "urls": [
             {
                 "comment_text": "",
@@ -207,7 +207,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15400091,
+        "last_serial": 15842122,
         "urls": [
             {
                 "comment_text": "",
@@ -342,7 +342,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15400091,
+        "last_serial": 15842122,
         "urls": [
             {
                 "comment_text": "",
@@ -490,7 +490,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15400091,
+        "last_serial": 15842122,
         "urls": [
             {
                 "comment_text": "",
@@ -643,7 +643,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15400091,
+        "last_serial": 15842122,
         "urls": [
             {
                 "comment_text": "",
@@ -797,7 +797,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15400091,
+        "last_serial": 15842122,
         "urls": [
             {
                 "comment_text": "",
@@ -951,7 +951,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15400091,
+        "last_serial": 15842122,
         "urls": [
             {
                 "comment_text": "",
@@ -1017,7 +1017,6 @@
                 "Programming Language :: Python :: Implementation :: CPython",
                 "Topic :: Software Development :: User Interfaces"
             ],
-            "description": "QTrio - a library bringing Qt GUIs together with ``async`` and ``await`` via Trio\n=================================================================================\n\nResources\n---------\n\n=================================  =================================  =============================\n\n`Documentation <documentation_>`_  `Read the Docs <documentation_>`_  |documentation badge|\n`Chat <chat_>`_                    `Gitter <chat_>`_                  |chat badge|\n`Forum <forum_>`_                  `Discourse <forum_>`_              |forum badge|\n`Issues <issues_>`_                `GitHub <issues_>`_                |issues badge|\n\n`Repository <repository_>`_        `GitHub <repository_>`_            |repository badge|\n`Tests <tests_>`_                  `GitHub Actions <tests_>`_         |tests badge|\n`Coverage <coverage_>`_            `Codecov <coverage_>`_             |coverage badge|\n\n`Distribution <distribution_>`_    `PyPI <distribution_>`_            | |version badge|\n                                                                      | |python versions badge|\n                                                                      | |python interpreters badge|\n\n=================================  =================================  =============================\n\n\nIntroduction\n------------\n\nNote:\n    This library is in early development.  It works.  It has tests.  It has\n    documentation.  Expect breaking changes as we explore a clean API.  By paying this\n    price you get the privilege to provide feedback via\n    `GitHub issues <https://github.com/altendky/qtrio/issues>`__ to help shape our\n    future.  ``:]``\n\nThe QTrio project's goal is to bring the friendly concurrency of Trio using Python's\n``async`` and ``await`` syntax together with the GUI features of Qt to enable more\ncorrect code and a more pleasant developer experience.  QTrio is `permissively licensed\n<https://github.com/altendky/qtrio/blob/main/LICENSE>`__ to avoid introducing\nrestrictions beyond those of the underlying Python Qt library you choose.  Both PySide2\nand PyQt5 are supported.\n\nBy enabling use of ``async`` and ``await`` it is possible in some cases to write\nrelated code more concisely and clearly than you would get with the signal and slot\nmechanisms of Qt concurrency.  In this set of small examples we will allow the user to\ninput their name then use that input to generate an output message.  The user will be\nable to cancel the input to terminate the program early.  In the first example we will\ndo it in the form of a classic \"hello\" console program.  Well, classic plus a bit of\nboilerplate to allow explicit testing without using special external tooling.  Then\nsecond, the form of a general Qt program implementing this same activity.  And finally,\nthe QTrio way.\n\n.. code-block:: python\n\n    # A complete runnable source file with imports and helpers is available in\n    # either the documentation readme examples or in the repository under\n    # qtrio/examples/readme/console.py.\n\n    def main(\n        input_file: typing.TextIO = sys.stdin, output_file: typing.TextIO = sys.stdout\n    ) -> None:\n        try:\n            output_file.write(\"What is your name? \")\n            output_file.flush()\n            name = input_file.readline()[:-1]\n            output_file.write(f\"Hi {name}, welcome to the team!\\n\")\n        except KeyboardInterrupt:\n            pass\n\nNice and concise, including the cancellation via ``ctrl+c``.  This is because we can\nstay in one scope thus using both local variables and a ``try``/``except`` block.  This\nkind of explodes when you shift into a classic Qt GUI setup.\n\n.. code-block:: python\n\n    # A complete runnable source file with imports and helpers is available in\n    # either the documentation readme examples or in the repository under\n    # qtrio/examples/readme/qt.py.\n\n    class Main:\n        def __init__(\n            self,\n            application: QtWidgets.QApplication,\n            input_dialog: typing.Optional[QtWidgets.QInputDialog] = None,\n            output_dialog: typing.Optional[QtWidgets.QMessageBox] = None,\n        ):\n            self.application = application\n\n            if input_dialog is None:  # pragma: no cover\n                input_dialog = create_input()\n\n            if output_dialog is None:  # pragma: no cover\n                output_dialog = create_output()\n\n            self.input_dialog = input_dialog\n            self.output_dialog = output_dialog\n\n        def setup(self) -> None:\n            self.input_dialog.accepted.connect(self.input_accepted)\n            self.input_dialog.rejected.connect(self.input_rejected)\n\n            self.input_dialog.show()\n\n        def input_accepted(self) -> None:\n            name = self.input_dialog.textValue()\n\n            self.output_dialog.setText(f\"Hi {name}, welcome to the team!\")\n\n            self.output_dialog.finished.connect(self.output_finished)\n            self.output_dialog.show()\n\n        def input_rejected(self) -> None:\n            self.application.quit()\n\n        def output_finished(self) -> None:\n            self.application.quit()\n\nThe third example, below, shows how using ``async`` and ``await`` allows us to\nreturn to the more concise and clear description of the sequenced activity.\nMost of the code is just setup for testability with only the last four lines\nreally containing the activity.\n\n.. code-block:: python\n\n    # A complete runnable source file with imports and helpers is available in\n    # either the documentation readme examples or in the repository under\n    # qtrio/examples/readme/qtrio_example.py.\n\n    async def main(\n        *,\n        task_status: trio_typing.TaskStatus[Dialogs] = trio.TASK_STATUS_IGNORED,\n    ) -> None:\n        dialogs = Dialogs()\n        task_status.started(dialogs)\n\n        with contextlib.suppress(qtrio.UserCancelledError):\n            name = await dialogs.input.wait()\n            dialogs.output.text = f\"Hi {name}, welcome to the team!\"\n            await dialogs.output.wait()\n\n\n.. _chat: https://gitter.im/python-trio/general\n.. |chat badge| image:: https://img.shields.io/badge/chat-join%20now-blue.svg?color=royalblue&logo=Gitter&logoColor=whitesmoke\n   :target: `chat`_\n   :alt: Support chatroom\n\n.. _forum: https://trio.discourse.group\n.. |forum badge| image:: https://img.shields.io/badge/forum-join%20now-blue.svg?color=royalblue&logo=Discourse&logoColor=whitesmoke\n   :target: `forum`_\n   :alt: Support forum\n\n.. _documentation: https://qtrio.readthedocs.io\n.. |documentation badge| image:: https://img.shields.io/badge/docs-read%20now-blue.svg?color=royalblue&logo=Read-the-Docs&logoColor=whitesmoke\n   :target: `documentation`_\n   :alt: Documentation\n\n.. _distribution: https://pypi.org/project/qtrio\n.. |version badge| image:: https://img.shields.io/pypi/v/qtrio.svg?color=indianred&logo=PyPI&logoColor=whitesmoke\n   :target: `distribution`_\n   :alt: Latest distribution version\n\n.. |python versions badge| image:: https://img.shields.io/pypi/pyversions/qtrio.svg?color=indianred&logo=PyPI&logoColor=whitesmoke\n   :alt: Supported Python versions\n   :target: `distribution`_\n\n.. |python interpreters badge| image:: https://img.shields.io/pypi/implementation/qtrio.svg?color=indianred&logo=PyPI&logoColor=whitesmoke\n   :alt: Supported Python interpreters\n   :target: `distribution`_\n\n.. _issues: https://github.com/altendky/qtrio/issues\n.. |issues badge| image:: https://img.shields.io/github/issues/altendky/qtrio?color=royalblue&logo=GitHub&logoColor=whitesmoke\n   :target: `issues`_\n   :alt: Issues\n\n.. _repository: https://github.com/altendky/qtrio\n.. |repository badge| image:: https://img.shields.io/github/last-commit/altendky/qtrio.svg?color=seagreen&logo=GitHub&logoColor=whitesmoke\n   :target: `repository`_\n   :alt: Repository\n\n.. _tests: https://github.com/altendky/qtrio/actions?query=branch%3Amaster\n.. |tests badge| image:: https://img.shields.io/github/workflow/status/altendky/qtrio/CI/main?color=seagreen&logo=GitHub-Actions&logoColor=whitesmoke\n   :target: `tests`_\n   :alt: Tests\n\n.. _coverage: https://codecov.io/gh/altendky/qtrio\n.. |coverage badge| image:: https://img.shields.io/codecov/c/github/altendky/qtrio/main?color=seagreen&logo=Codecov&logoColor=whitesmoke\n   :target: `coverage`_\n   :alt: Test coverage\n",
             "description_content_type": "text/x-rst",
             "docs_url": null,
             "download_url": "",
@@ -1109,7 +1108,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15400091,
+        "last_serial": 15842122,
         "urls": [
             {
                 "comment_text": "",
@@ -1148,6 +1147,166 @@
                 "upload_time": "2022-10-13T14:59:12",
                 "upload_time_iso_8601": "2022-10-13T14:59:12.178616Z",
                 "url": "https://files.pythonhosted.org/packages/c2/db/ef85644757054f0395b9a1b10b2790baadbbaba1590c26e613b0c776bda7/qtrio-0.5.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.6.0": {
+        "info": {
+            "author": "Kyle Altendorf",
+            "author_email": "sda@fstab.net",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Framework :: Trio",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: Apache Software License",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: MacOS :: MacOS X",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Topic :: Software Development :: User Interfaces"
+            ],
+            "description": "QTrio - a library bringing Qt GUIs together with ``async`` and ``await`` via Trio\n=================================================================================\n\nResources\n---------\n\n=================================  =================================  =============================\n\n`Documentation <documentation_>`_  `Read the Docs <documentation_>`_  |documentation badge|\n`Chat <chat_>`_                    `Gitter <chat_>`_                  |chat badge|\n`Forum <forum_>`_                  `Discourse <forum_>`_              |forum badge|\n`Issues <issues_>`_                `GitHub <issues_>`_                |issues badge|\n\n`Repository <repository_>`_        `GitHub <repository_>`_            |repository badge|\n`Tests <tests_>`_                  `GitHub Actions <tests_>`_         |tests badge|\n`Coverage <coverage_>`_            `Codecov <coverage_>`_             |coverage badge|\n\n`Distribution <distribution_>`_    `PyPI <distribution_>`_            | |version badge|\n                                                                      | |python versions badge|\n                                                                      | |python interpreters badge|\n\n=================================  =================================  =============================\n\n\nIntroduction\n------------\n\nNote:\n    This library is in early development.  It works.  It has tests.  It has\n    documentation.  Expect breaking changes as we explore a clean API.  By paying this\n    price you get the privilege to provide feedback via\n    `GitHub issues <https://github.com/altendky/qtrio/issues>`__ to help shape our\n    future.  ``:]``\n\nThe QTrio project's goal is to bring the friendly concurrency of Trio using Python's\n``async`` and ``await`` syntax together with the GUI features of Qt to enable more\ncorrect code and a more pleasant developer experience.  QTrio is `permissively licensed\n<https://github.com/altendky/qtrio/blob/main/LICENSE>`__ to avoid introducing\nrestrictions beyond those of the underlying Python Qt library you choose.  Both PySide2\nand PyQt5 are supported.\n\nBy enabling use of ``async`` and ``await`` it is possible in some cases to write\nrelated code more concisely and clearly than you would get with the signal and slot\nmechanisms of Qt concurrency.  In this set of small examples we will allow the user to\ninput their name then use that input to generate an output message.  The user will be\nable to cancel the input to terminate the program early.  In the first example we will\ndo it in the form of a classic \"hello\" console program.  Well, classic plus a bit of\nboilerplate to allow explicit testing without using special external tooling.  Then\nsecond, the form of a general Qt program implementing this same activity.  And finally,\nthe QTrio way.\n\n.. code-block:: python\n\n    # A complete runnable source file with imports and helpers is available in\n    # either the documentation readme examples or in the repository under\n    # qtrio/examples/readme/console.py.\n\n    def main(\n        input_file: typing.TextIO = sys.stdin, output_file: typing.TextIO = sys.stdout\n    ) -> None:\n        try:\n            output_file.write(\"What is your name? \")\n            output_file.flush()\n            name = input_file.readline()[:-1]\n            output_file.write(f\"Hi {name}, welcome to the team!\\n\")\n        except KeyboardInterrupt:\n            pass\n\nNice and concise, including the cancellation via ``ctrl+c``.  This is because we can\nstay in one scope thus using both local variables and a ``try``/``except`` block.  This\nkind of explodes when you shift into a classic Qt GUI setup.\n\n.. code-block:: python\n\n    # A complete runnable source file with imports and helpers is available in\n    # either the documentation readme examples or in the repository under\n    # qtrio/examples/readme/qt.py.\n\n    class Main:\n        def __init__(\n            self,\n            application: QtWidgets.QApplication,\n            input_dialog: typing.Optional[QtWidgets.QInputDialog] = None,\n            output_dialog: typing.Optional[QtWidgets.QMessageBox] = None,\n        ):\n            self.application = application\n\n            if input_dialog is None:  # pragma: no cover\n                input_dialog = create_input()\n\n            if output_dialog is None:  # pragma: no cover\n                output_dialog = create_output()\n\n            self.input_dialog = input_dialog\n            self.output_dialog = output_dialog\n\n        def setup(self) -> None:\n            self.input_dialog.accepted.connect(self.input_accepted)\n            self.input_dialog.rejected.connect(self.input_rejected)\n\n            self.input_dialog.show()\n\n        def input_accepted(self) -> None:\n            name = self.input_dialog.textValue()\n\n            self.output_dialog.setText(f\"Hi {name}, welcome to the team!\")\n\n            self.output_dialog.finished.connect(self.output_finished)\n            self.output_dialog.show()\n\n        def input_rejected(self) -> None:\n            self.application.quit()\n\n        def output_finished(self) -> None:\n            self.application.quit()\n\nThe third example, below, shows how using ``async`` and ``await`` allows us to\nreturn to the more concise and clear description of the sequenced activity.\nMost of the code is just setup for testability with only the last four lines\nreally containing the activity.\n\n.. code-block:: python\n\n    # A complete runnable source file with imports and helpers is available in\n    # either the documentation readme examples or in the repository under\n    # qtrio/examples/readme/qtrio_example.py.\n\n    async def main(\n        *,\n        task_status: trio_typing.TaskStatus[Dialogs] = trio.TASK_STATUS_IGNORED,\n    ) -> None:\n        dialogs = Dialogs()\n        task_status.started(dialogs)\n\n        with contextlib.suppress(qtrio.UserCancelledError):\n            name = await dialogs.input.wait()\n            dialogs.output.text = f\"Hi {name}, welcome to the team!\"\n            await dialogs.output.wait()\n\n\n.. _chat: https://gitter.im/python-trio/general\n.. |chat badge| image:: https://img.shields.io/badge/chat-join%20now-blue.svg?color=royalblue&logo=Gitter&logoColor=whitesmoke\n   :target: `chat`_\n   :alt: Support chatroom\n\n.. _forum: https://trio.discourse.group\n.. |forum badge| image:: https://img.shields.io/badge/forum-join%20now-blue.svg?color=royalblue&logo=Discourse&logoColor=whitesmoke\n   :target: `forum`_\n   :alt: Support forum\n\n.. _documentation: https://qtrio.readthedocs.io\n.. |documentation badge| image:: https://img.shields.io/badge/docs-read%20now-blue.svg?color=royalblue&logo=Read-the-Docs&logoColor=whitesmoke\n   :target: `documentation`_\n   :alt: Documentation\n\n.. _distribution: https://pypi.org/project/qtrio\n.. |version badge| image:: https://img.shields.io/pypi/v/qtrio.svg?color=indianred&logo=PyPI&logoColor=whitesmoke\n   :target: `distribution`_\n   :alt: Latest distribution version\n\n.. |python versions badge| image:: https://img.shields.io/pypi/pyversions/qtrio.svg?color=indianred&logo=PyPI&logoColor=whitesmoke\n   :alt: Supported Python versions\n   :target: `distribution`_\n\n.. |python interpreters badge| image:: https://img.shields.io/pypi/implementation/qtrio.svg?color=indianred&logo=PyPI&logoColor=whitesmoke\n   :alt: Supported Python interpreters\n   :target: `distribution`_\n\n.. _issues: https://github.com/altendky/qtrio/issues\n.. |issues badge| image:: https://img.shields.io/github/issues/altendky/qtrio?color=royalblue&logo=GitHub&logoColor=whitesmoke\n   :target: `issues`_\n   :alt: Issues\n\n.. _repository: https://github.com/altendky/qtrio\n.. |repository badge| image:: https://img.shields.io/github/last-commit/altendky/qtrio.svg?color=seagreen&logo=GitHub&logoColor=whitesmoke\n   :target: `repository`_\n   :alt: Repository\n\n.. _tests: https://github.com/altendky/qtrio/actions?query=branch%3Amaster\n.. |tests badge| image:: https://img.shields.io/github/workflow/status/altendky/qtrio/CI/main?color=seagreen&logo=GitHub-Actions&logoColor=whitesmoke\n   :target: `tests`_\n   :alt: Tests\n\n.. _coverage: https://codecov.io/gh/altendky/qtrio\n.. |coverage badge| image:: https://img.shields.io/codecov/c/github/altendky/qtrio/main?color=seagreen&logo=Codecov&logoColor=whitesmoke\n   :target: `coverage`_\n   :alt: Test coverage\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/altendky/qtrio",
+            "keywords": "async,io,Trio,GUI,Qt,PyQt5,PySide2",
+            "license": "MIT -or- Apache License 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "qtrio",
+            "package_url": "https://pypi.org/project/qtrio/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/qtrio/",
+            "project_urls": {
+                "Chat": "https://gitter.im/python-trio/general",
+                "Coverage": "https://codecov.io/gh/altendky/qtrio",
+                "Distribution": "https://pypi.org/project/qtrio",
+                "Documentation": "https://qtrio.readthedocs.io/",
+                "Forum": "https://trio.discourse.group/",
+                "Homepage": "https://github.com/altendky/qtrio",
+                "Issues": "https://github.com/altendky/qtrio/issues",
+                "Repository": "https://github.com/altendky/qtrio",
+                "Tests": "https://github.com/altendky/qtrio/actions?query=branch%3Amain"
+            },
+            "release_url": "https://pypi.org/project/qtrio/0.6.0/",
+            "requires_dist": [
+                "async-generator",
+                "attrs",
+                "decorator",
+                "outcome",
+                "qts (~=0.3.0)",
+                "trio (>=0.16)",
+                "trio-typing (~=0.7.0)",
+                "typing-extensions ; python_version < \"3.8\"",
+                "click (~=8.1) ; extra == 'cli'",
+                "click (~=8.1) ; extra == 'examples'",
+                "httpcore (~=0.16) ; extra == 'examples'",
+                "httpx (~=0.23) ; extra == 'examples'",
+                "hyperlink (~=21.0.0) ; extra == 'examples'",
+                "black (==22.10.0) ; extra == 'p_checks'",
+                "check-manifest (~=0.46.0) ; extra == 'p_checks'",
+                "flake8 (~=3.8) ; extra == 'p_checks'",
+                "mypy (==0.991) ; extra == 'p_checks'",
+                "pytest (~=7.2) ; extra == 'p_checks'",
+                "quart-trio (~=0.10.0) ; extra == 'p_checks'",
+                "quart (~=0.18.3) ; extra == 'p_checks'",
+                "towncrier (>=21.3.0) ; extra == 'p_checks'",
+                "click (~=8.1) ; extra == 'p_checks'",
+                "httpcore (~=0.16) ; extra == 'p_checks'",
+                "httpx (~=0.23) ; extra == 'p_checks'",
+                "hyperlink (~=21.0.0) ; extra == 'p_checks'",
+                "sphinx (>=4.0.0b2,~=5.1) ; extra == 'p_docs'",
+                "sphinx-autodoc-typehints (~=1.11) ; extra == 'p_docs'",
+                "sphinx-qt-documentation (~=0.4.0) ; extra == 'p_docs'",
+                "sphinx-rtd-theme (~=1.0) ; extra == 'p_docs'",
+                "sphinxcontrib-trio (~=1.1) ; extra == 'p_docs'",
+                "towncrier (>=21.3.0) ; extra == 'p_docs'",
+                "click (~=8.1) ; extra == 'p_tests'",
+                "httpcore (~=0.16) ; extra == 'p_tests'",
+                "httpx (~=0.23) ; extra == 'p_tests'",
+                "hyperlink (~=21.0.0) ; extra == 'p_tests'",
+                "coverage (~=6.5) ; extra == 'p_tests'",
+                "pytest (~=7.2) ; extra == 'p_tests'",
+                "pytest-cov (~=4.0) ; extra == 'p_tests'",
+                "pytest-faulthandler (~=2.0) ; extra == 'p_tests'",
+                "pytest-qt (~=4.2) ; extra == 'p_tests'",
+                "pytest-trio (>=0.7.0) ; extra == 'p_tests'",
+                "pytest-xdist[psutil] (~=2.2) ; extra == 'p_tests'",
+                "quart-trio (~=0.10.0) ; extra == 'p_tests'",
+                "quart (~=0.18.3) ; extra == 'p_tests'",
+                "pytest-xvfb (~=2.0) ; (sys_platform == \"linux\") and extra == 'p_tests'",
+                "pyqt5 (~=5.15.1) ; extra == 'pyqt5'",
+                "pyqt5-stubs (~=5.15.2) ; extra == 'pyqt5'",
+                "pyside2 (!=5.15.2,!=5.15.2.1,~=5.15) ; extra == 'pyside2'",
+                "pytest (~=7.2) ; extra == 's_pytest'",
+                "pytest-trio (>=0.7.0) ; extra == 's_pytest_trio'",
+                "quart-trio (~=0.10.0) ; extra == 's_quart_trio'",
+                "quart (~=0.18.3) ; extra == 's_quart_trio'",
+                "towncrier (>=21.3.0) ; extra == 's_towncrier'",
+                "pytest-trio (>=0.7.0) ; extra == 'testing'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "a library bringing Qt GUIs together with ``async`` and ``await`` via Trio",
+            "version": "0.6.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15842122,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "324c862f18654e86a160cad2c91e74db",
+                    "sha256": "25f48b1debc1ad44ada6269f10dcffabb9e699d56064b443f36d428c83cccdcb"
+                },
+                "downloads": -1,
+                "filename": "qtrio-0.6.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "324c862f18654e86a160cad2c91e74db",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 53362,
+                "upload_time": "2022-11-21T15:16:49",
+                "upload_time_iso_8601": "2022-11-21T15:16:49.660968Z",
+                "url": "https://files.pythonhosted.org/packages/21/88/9350622e46d21a54e2545650b9da8d04e8c0344b6b056d99b12f6819a395/qtrio-0.6.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fcf09b8c334720e389d162a6198e6854",
+                    "sha256": "1435eb11fb8e06fed28815aad0cd614f22f9a5c94855d82fa7a4abb69a5b54e4"
+                },
+                "downloads": -1,
+                "filename": "qtrio-0.6.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "fcf09b8c334720e389d162a6198e6854",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 60425,
+                "upload_time": "2022-11-21T15:16:51",
+                "upload_time_iso_8601": "2022-11-21T15:16:51.196492Z",
+                "url": "https://files.pythonhosted.org/packages/7a/20/11171ed45eb678205692e836c57ec1dbc432b4e537f905694200e4be584a/qtrio-0.6.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

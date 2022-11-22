@@ -38,7 +38,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15839211,
+        "last_serial": 15846704,
         "urls": [
             {
                 "comment_text": "",
@@ -122,7 +122,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15839211,
+        "last_serial": 15846704,
         "urls": [
             {
                 "comment_text": "",
@@ -177,7 +177,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# taskkit\n\npypi: https://pypi.org/project/taskkit/\n\n## Overview\n\n`taskkit` is a distributed task runner.\n\n## How to use\n\n### 1. Implement TaskHandler\n\nThis is the core part.\n\n```python\nimport json\nfrom typing import Any\nfrom taskkit import TaskHandler, Task, DiscardTask\n\n\nclass Handler(TaskHandler):\n    def handle(self, task: Task):\n        # Use `tagk.group` and `task.name` to determine how to handle the task\n        if task.group == '...':\n            if task.name == 'foo':\n                # decode the data which encoded by `self.encode_data` if needed\n                data = json.loads(task.data)\n                # do something with the `data`\n                ...\n                # return result for the task\n                return ...\n\n            elif task.name == 'bar':\n                # do something\n                return ...\n\n        # you should raise DiscardTask if you want to discard the task\n        raise DiscardTask\n\n    def get_retry_interval(self,\n                           task: Task,\n                           exception: Exception) -> float | None:\n        # This method will be called if the handle method raises exceptions. You\n        # should return how long time should be wait to retry the task in seconds\n        # as float. If you don't want to retry the task, you can return None to\n        # make the task fail or raise DiscardTask to discard the task.\n        return task.retry_count if task.retry_count < 10 else None\n\n    def encode_data(self, group: str, task_name: str, data: Any) -> bytes:\n        # encode data of tasks for serializing it\n        return json.dumps(data).encode()\n\n    def encode_result(self, task: Task, result: Any) -> bytes:\n        # encode the result of the task\n        return json.dumps(result).encode()\n\n    def decode_result(self, task: Task, encoded: bytes) -> Any:\n        # decode the result of the task\n        return json.loads(encoded)\n```\n\n### 2. Make Kit\n\n#### Use redis impl\n\nYou can use redis backend like this:\n\n```python\nfrom redis.client import Redis\nfrom taskkit.impl.redis import make_kit\n\nREDIS_HOST = '...'\nREDIS_PORT = '...'\n\nredis = Redis(host=REDIS_HOST, port=REDIS_PORT)\nkit = make_kit(redis, Handler())\n```\n\n#### Use django impl\n\n1. Add `'taskkit.contrib.django'` to `INSTALLED_APPS` in the settings\n2. Run `python manage.py migrate`\n3. Make a `kit` instance like below:\n\n\n```python\nfrom redis.client import Redis\nfrom taskkit.impl.django import make_kit\n\nkit = make_kit(Handler())\n```\n\n\n### 3. Run workers\n\n```python\nGROUP_NAME = 'Any task group name'\n\n# it starts busy loop\nkit.start(\n    # number of processes\n    num_processes=3,\n    # number of worker threads per process\n    num_worker_threads_per_group={GROUP_NAME: 3})\n\n# you can use `start_processes` to avoid busy loop\nkit.start_processes(\n    num_processes=3,\n    num_worker_threads_per_group={GROUP_NAME: 3},\n    daemon=True)\n```\n\n\n### 4. Initiate task\n\n```python\nfrom datetime import timedelta\nfrom taskkit import ResultGetTimedOut\n\n\nresult = kit.initiate_task(\n    GROUP_NAME,\n    # task name\n    'your task name',\n    # task data which can be encoded by `Handler.encode_data`\n    dict(some_data=1),\n    # run the task after 10 or more seconds.\n    due=datetime.now() + timedelta(seconds=10))\n\ntry:\n    value = result.get(timeout=10)\nexcept ResultGetTimedOut:\n    ...\n```\n\n### Scheduled Tasks\n\n```python\nfrom datetime import timezone, timedelta\nfrom taskkit import ScheduleEntry, RegularSchedule\n\n# define entries\n# key is a name for scheduler\n# value is a list of instances of ScheduleEntry\nschedule_entries = {\n    'scheduler_name': [\n        ScheduleEntry(\n            # A key which can identify the schedule in the list\n            key='...',\n            # group name\n            group=GROUP_NAME,\n            # task name\n            name='test2',\n            # task data encoded by the same algorithm as `Handler.encode_data`\n            data=b'...',\n\n            # It means that the scheduler will initiate the task twice\n            # an hour at **:00:00 and **:30:00.\n            schedule=RegularSchedule(\n                seconds={0},\n                minutes={0, 30},\n            ),\n        ),\n    ],\n\n    # You can have multiple schedulers\n    'another_scheduler': [\n        # other entries ...\n    ],\n}\n\n# pass the entries with kit.start\nkit.start(\n    num_processes=3,\n    num_worker_threads_per_group={GROUP_NAME: 3},\n\n    schedule_entries=schedule_entries,\n    tzinfo=timezone(timedelta(hours=9), 'JST'))\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -207,7 +206,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15839211,
+        "last_serial": 15846704,
         "urls": [
             {
                 "comment_text": "",
@@ -246,6 +245,91 @@
                 "upload_time": "2022-11-21T11:47:15",
                 "upload_time_iso_8601": "2022-11-21T11:47:15.377400Z",
                 "url": "https://files.pythonhosted.org/packages/0a/c9/7823b1313690712cdd07a0643e94ac5b768e269f0c153349b3a5932bccfb/taskkit-0.1.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.3": {
+        "info": {
+            "author": "Ryosuke Sasaki",
+            "author_email": "saryou.ssk@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# taskkit\n\npypi: https://pypi.org/project/taskkit/\n\n## Overview\n\n`taskkit` is a distributed task runner.\n\n## How to use\n\n### 1. Implement TaskHandler\n\nThis is the core part.\n\n```python\nimport json\nfrom typing import Any\nfrom taskkit import TaskHandler, Task, DiscardTask\n\n\nclass Handler(TaskHandler):\n    def handle(self, task: Task):\n        # Use `tagk.group` and `task.name` to determine how to handle the task\n        if task.group == '...':\n            if task.name == 'foo':\n                # decode the data which encoded by `self.encode_data` if needed\n                data = json.loads(task.data)\n                # do something with the `data`\n                ...\n                # return result for the task\n                return ...\n\n            elif task.name == 'bar':\n                # do something\n                return ...\n\n        # you should raise DiscardTask if you want to discard the task\n        raise DiscardTask\n\n    def get_retry_interval(self,\n                           task: Task,\n                           exception: Exception) -> float | None:\n        # This method will be called if the handle method raises exceptions. You\n        # should return how long time should be wait to retry the task in seconds\n        # as float. If you don't want to retry the task, you can return None to\n        # make the task fail or raise DiscardTask to discard the task.\n        return task.retry_count if task.retry_count < 10 else None\n\n    def encode_data(self, group: str, task_name: str, data: Any) -> bytes:\n        # encode data of tasks for serializing it\n        return json.dumps(data).encode()\n\n    def encode_result(self, task: Task, result: Any) -> bytes:\n        # encode the result of the task\n        return json.dumps(result).encode()\n\n    def decode_result(self, task: Task, encoded: bytes) -> Any:\n        # decode the result of the task\n        return json.loads(encoded)\n```\n\n### 2. Make Kit\n\n#### Use redis impl\n\nYou can use redis backend like this:\n\n```python\nfrom redis.client import Redis\nfrom taskkit.impl.redis import make_kit\n\nREDIS_HOST = '...'\nREDIS_PORT = '...'\n\nredis = Redis(host=REDIS_HOST, port=REDIS_PORT)\nkit = make_kit(redis, Handler())\n```\n\n#### Use django impl\n\n1. Add `'taskkit.contrib.django'` to `INSTALLED_APPS` in the settings\n2. Run `python manage.py migrate`\n3. Make a `kit` instance like below:\n\n\n```python\nfrom redis.client import Redis\nfrom taskkit.impl.django import make_kit\n\nkit = make_kit(Handler())\n```\n\n\n### 3. Run workers\n\n```python\nGROUP_NAME = 'Any task group name'\n\n# it starts busy loop\nkit.start(\n    # number of processes\n    num_processes=3,\n    # number of worker threads per process\n    num_worker_threads_per_group={GROUP_NAME: 3})\n\n# you can use `start_processes` to avoid busy loop\nkit.start_processes(\n    num_processes=3,\n    num_worker_threads_per_group={GROUP_NAME: 3},\n    daemon=True)\n```\n\n\n### 4. Initiate task\n\n```python\nfrom datetime import timedelta\nfrom taskkit import ResultGetTimedOut\n\n\nresult = kit.initiate_task(\n    GROUP_NAME,\n    # task name\n    'your task name',\n    # task data which can be encoded by `Handler.encode_data`\n    dict(some_data=1),\n    # run the task after 10 or more seconds.\n    due=datetime.now() + timedelta(seconds=10))\n\ntry:\n    value = result.get(timeout=10)\nexcept ResultGetTimedOut:\n    ...\n```\n\n### Scheduled Tasks\n\n```python\nfrom datetime import timezone, timedelta\nfrom taskkit import ScheduleEntry, RegularSchedule\n\n# define entries\n# key is a name for scheduler\n# value is a list of instances of ScheduleEntry\nschedule_entries = {\n    'scheduler_name': [\n        ScheduleEntry(\n            # A key which can identify the schedule in the list\n            key='...',\n            # group name\n            group=GROUP_NAME,\n            # task name\n            name='test2',\n            # task data encoded by the same algorithm as `Handler.encode_data`\n            data=b'...',\n\n            # It means that the scheduler will initiate the task twice\n            # an hour at **:00:00 and **:30:00.\n            schedule=RegularSchedule(\n                seconds={0},\n                minutes={0, 30},\n            ),\n        ),\n    ],\n\n    # You can have multiple schedulers\n    'another_scheduler': [\n        # other entries ...\n    ],\n}\n\n# pass the entries with kit.start\nkit.start(\n    num_processes=3,\n    num_worker_threads_per_group={GROUP_NAME: 3},\n\n    schedule_entries=schedule_entries,\n    tzinfo=timezone(timedelta(hours=9), 'JST'))\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/saryou/taskkit",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "taskkit",
+            "package_url": "https://pypi.org/project/taskkit/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/taskkit/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/saryou/taskkit/issues",
+                "Homepage": "https://github.com/saryou/taskkit"
+            },
+            "release_url": "https://pypi.org/project/taskkit/0.1.3/",
+            "requires_dist": null,
+            "requires_python": ">=3.10",
+            "summary": "a distributed task runner",
+            "version": "0.1.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15846704,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "958f55a8b898360c5a5b124f2d45a87b",
+                    "sha256": "06f7915c7fe980ffba20fc79a54e416c39d5611c5b29009a60c8cefa3d9b503f"
+                },
+                "downloads": -1,
+                "filename": "taskkit-0.1.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "958f55a8b898360c5a5b124f2d45a87b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10",
+                "size": 24583,
+                "upload_time": "2022-11-21T23:20:37",
+                "upload_time_iso_8601": "2022-11-21T23:20:37.274401Z",
+                "url": "https://files.pythonhosted.org/packages/e3/97/cfbd69296141b294e1e020d474165556aeac5a86602f83d618bdb629a1aa/taskkit-0.1.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "81f790b6dce90384f620436fe89dbe5e",
+                    "sha256": "7f6dea6e34a1dfe93b0820575cb5e7205eb2e89810628909c5abb8226364eb64"
+                },
+                "downloads": -1,
+                "filename": "taskkit-0.1.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "81f790b6dce90384f620436fe89dbe5e",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10",
+                "size": 19504,
+                "upload_time": "2022-11-21T23:20:38",
+                "upload_time_iso_8601": "2022-11-21T23:20:38.858796Z",
+                "url": "https://files.pythonhosted.org/packages/d8/ef/a0cafa2b3399323e5560925321fc095c52d7b6700adfef27120d7a5b9d55/taskkit-0.1.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

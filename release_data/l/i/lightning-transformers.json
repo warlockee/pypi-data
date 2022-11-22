@@ -61,7 +61,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15654523,
+        "last_serial": 15842957,
         "urls": [
             {
                 "comment_text": "",
@@ -172,7 +172,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15654523,
+        "last_serial": 15842957,
         "urls": [
             {
                 "comment_text": "",
@@ -283,7 +283,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15654523,
+        "last_serial": 15842957,
         "urls": [
             {
                 "comment_text": "",
@@ -394,7 +394,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15654523,
+        "last_serial": 15842957,
         "urls": [
             {
                 "comment_text": "",
@@ -504,7 +504,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15654523,
+        "last_serial": 15842957,
         "urls": [
             {
                 "comment_text": "",
@@ -615,7 +615,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15654523,
+        "last_serial": 15842957,
         "urls": [
             {
                 "comment_text": "",
@@ -679,7 +679,6 @@
                 "Topic :: Scientific/Engineering :: Image Recognition",
                 "Topic :: Scientific/Engineering :: Information Analysis"
             ],
-            "description": "<div align=\"center\">\n\n<img src=\"https://github.com/Lightning-AI/lightning-transformers/raw/0.2.4/docs/source/_static/images/logo.png\" width=\"500px\">\n\n**Flexible components pairing :hugs: Transformers with [Pytorch Lightning](https://github.com/PyTorchLightning/pytorch-lightning)**\n\n______________________________________________________________________\n\n<p align=\"center\">\n  <a href=\"https://lightning-transformers.readthedocs.io/\">Docs</a> \u2022\n  <a href=\"#community\">Community</a>\n</p>\n\n______________________________________________________________________\n\n</div>\n\n## Installation\n\n```bash\npip install lightning-transformers\n```\n\n<details>\n<summary>From Source</summary>\n\n```bash\ngit clone https://github.com/PyTorchLightning/lightning-transformers.git\ncd lightning-transformers\npip install .\n```\n\n</details>\n\n______________________________________________________________________\n\n## What is Lightning-Transformers\n\nLightning Transformers provides `LightningModules`, `LightningDataModules` and `Strategies` to use :hugs: Transformers with the [PyTorch Lightning Trainer](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html).\n\n## Quick Recipes\n\n#### Train [bert-base-cased](https://huggingface.co/bert-base-cased) on the [CARER](https://huggingface.co/datasets/emotion) emotion dataset using the Text Classification task.\n\n```python\nimport pytorch_lightning as pl\nfrom transformers import AutoTokenizer\n\nfrom lightning_transformers.task.nlp.text_classification import (\n    TextClassificationDataModule,\n    TextClassificationTransformer,\n)\n\ntokenizer = AutoTokenizer.from_pretrained(\n    pretrained_model_name_or_path=\"bert-base-cased\"\n)\ndm = TextClassificationDataModule(\n    batch_size=1,\n    dataset_name=\"emotion\",\n    max_length=512,\n    tokenizer=tokenizer,\n)\nmodel = TextClassificationTransformer(\n    pretrained_model_name_or_path=\"bert-base-cased\", num_labels=dm.num_classes\n)\n\ntrainer = pl.Trainer(accelerator=\"auto\", devices=\"auto\", max_epochs=1)\n\ntrainer.fit(model, dm)\n```\n\n#### Train a pre-trained [mt5-base](https://huggingface.co/google/mt5-base) backbone on the [WMT16](https://huggingface.co/datasets/wmt16) dataset using the Translation task.\n\n```python\nimport pytorch_lightning as pl\nfrom transformers import AutoTokenizer\n\nfrom lightning_transformers.task.nlp.translation import (\n    TranslationTransformer,\n    WMT16TranslationDataModule,\n)\n\ntokenizer = AutoTokenizer.from_pretrained(\n    pretrained_model_name_or_path=\"google/mt5-base\"\n)\nmodel = TranslationTransformer(\n    pretrained_model_name_or_path=\"google/mt5-base\",\n    n_gram=4,\n    smooth=False,\n    val_target_max_length=142,\n    num_beams=None,\n    compute_generate_metrics=True,\n)\ndm = WMT16TranslationDataModule(\n    # WMT translation datasets: ['cs-en', 'de-en', 'fi-en', 'ro-en', 'ru-en', 'tr-en']\n    dataset_config_name=\"ro-en\",\n    source_language=\"en\",\n    target_language=\"ro\",\n    max_source_length=128,\n    max_target_length=128,\n    padding=\"max_length\",\n    tokenizer=tokenizer,\n)\ntrainer = pl.Trainer(accelerator=\"auto\", devices=\"auto\", max_epochs=1)\n\ntrainer.fit(model, dm)\n```\n\nLightning Transformers supports a bunch of :hugs: tasks and datasets. See the [documentation](https://lightning-transformers.readthedocs.io/en/latest/).\n\n## Billion Parameter Model Support\n\n### Big Model Inference\n\nIt's really easy to enable large model support for the pre-built LightningModule :hugs: tasks.\n\nBelow is an example to enable automatic model partitioning (across CPU/GPU and even leveraging disk space) to run text generation using a 6B parameter model.\n\n```python\nimport torch\nfrom accelerate import init_empty_weights\nfrom transformers import AutoTokenizer\n\nfrom lightning_transformers.task.nlp.language_modeling import (\n    LanguageModelingTransformer,\n)\n\nwith init_empty_weights():\n    model = LanguageModelingTransformer(\n        pretrained_model_name_or_path=\"EleutherAI/gpt-j-6B\",\n        tokenizer=AutoTokenizer.from_pretrained(\"EleutherAI/gpt-j-6B\"),\n        low_cpu_mem_usage=True,\n        device_map=\"auto\",  # automatically partitions the model based on the available hardware.\n    )\n\noutput = model.generate(\"Hello, my name is\", device=torch.device(\"cuda\"))\nprint(model.tokenizer.decode(output[0].tolist()))\n```\n\nFor more information see [Big Transformers Model Inference](https://lightning-transformers.readthedocs.io/en/latest/features/large_model.html).\n\n### Big Model Training with DeepSpeed\n\nBelow is an example of how you can train a 6B parameter transformer model using Lightning Transformers and DeepSpeed.\n\n```python\nimport pytorch_lightning as pl\nfrom transformers import AutoTokenizer\n\nfrom lightning_transformers.task.nlp.language_modeling import (\n    LanguageModelingDataModule,\n    LanguageModelingTransformer,\n)\n\ntokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=\"gpt2\")\n\nmodel = LanguageModelingTransformer(\n    pretrained_model_name_or_path=\"EleutherAI/gpt-j-6B\",\n    tokenizer=AutoTokenizer.from_pretrained(\"EleutherAI/gpt-j-6B\"),\n    deepspeed_sharding=True,  # defer initialization of the model to shard/load pre-train weights\n)\n\ndm = LanguageModelingDataModule(\n    batch_size=1,\n    dataset_name=\"wikitext\",\n    dataset_config_name=\"wikitext-2-raw-v1\",\n    tokenizer=tokenizer,\n)\ntrainer = pl.Trainer(\n    accelerator=\"gpu\",\n    devices=\"auto\",\n    strategy=\"deepspeed_stage_3\",\n    precision=16,\n    max_epochs=1,\n)\n\ntrainer.fit(model, dm)\n```\n\nFor more information see [DeepSpeed Training with Big Transformers Models](https://lightning-transformers.readthedocs.io/en/latest/features/large_model_training.html) or the [Model Parallelism](https://pytorch-lightning.readthedocs.io/en/latest/advanced/model_parallel.html#fully-sharded-training) documentation.\n\n## Contribute\n\nPull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.\n\nPlease make sure to update tests as appropriate.\n\n## Community\n\nFor help or questions, join our huge community on [Slack](https://www.pytorchlightning.ai/community)!\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "https://github.com/Lightning-AI/lightning-transformers",
@@ -722,7 +721,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15654523,
+        "last_serial": 15842957,
         "urls": [
             {
                 "comment_text": "",
@@ -761,6 +760,115 @@
                 "upload_time": "2022-11-04T12:12:29",
                 "upload_time_iso_8601": "2022-11-04T12:12:29.256879Z",
                 "url": "https://files.pythonhosted.org/packages/15/a2/78e594aa6c9da0a9f3c444c82821463b5d02f011d03721384a1ae31bae3d/lightning-transformers-0.2.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.5": {
+        "info": {
+            "author": "Lightning AI et al.",
+            "author_email": "pytorch@lightning.ai",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: Apache Software License",
+                "Natural Language :: English",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence",
+                "Topic :: Scientific/Engineering :: Image Recognition",
+                "Topic :: Scientific/Engineering :: Information Analysis"
+            ],
+            "description": "# Deprecation notice \ud83d\udd12\n\n**This repository has been archived (read-only) on Nov 21, 2022**. Thanks to everyone who contributed to `lightning-transformers`, we feel it's time to move on.\n\n:hugs: Transformers can **already be easily trained using the Lightning :zap: Trainer**. Here's a recent example from the community: <https://sachinruk.github.io/blog/deep-learning/2022/11/07/t5-for-grammar-correction.html>. Note that there are **no limitations or workarounds**, things just work out of the box.\n\nThe `lightning-transformers` repo explored the possibility to provide task-specific modules and pre-baked defaults, at the cost of introducing extra abstractions. In the spirit of keeping ourselves focused, these abstractions are not something we wish to continue supporting.\n\nIf you liked `lightning-transformers` and want to continue developing it in the future, feel free to fork the repo and choose another name for the project.\n\n______________________________________________________________________\n\n<div align=\"center\">\n\n<img src=\"https://github.com/Lightning-AI/lightning-transformers/raw/0.2.5/docs/source/_static/images/logo.png\" width=\"500px\">\n\n**Flexible components pairing :hugs: Transformers with [Pytorch Lightning](https://github.com/PyTorchLightning/pytorch-lightning) :zap:**\n\n______________________________________________________________________\n\n<p align=\"center\">\n  <a href=\"https://lightning-transformers.readthedocs.io/\">Docs</a> \u2022\n  <a href=\"#community\">Community</a>\n</p>\n\n______________________________________________________________________\n\n</div>\n\n## Installation\n\n```bash\npip install lightning-transformers\n```\n\n<details>\n<summary>From Source</summary>\n\n```bash\ngit clone https://github.com/PyTorchLightning/lightning-transformers.git\ncd lightning-transformers\npip install .\n```\n\n</details>\n\n______________________________________________________________________\n\n## What is Lightning-Transformers\n\nLightning Transformers provides `LightningModules`, `LightningDataModules` and `Strategies` to use :hugs: Transformers with the [PyTorch Lightning Trainer](https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html).\n\n## Quick Recipes\n\n#### Train [bert-base-cased](https://huggingface.co/bert-base-cased) on the [CARER](https://huggingface.co/datasets/emotion) emotion dataset using the Text Classification task.\n\n```python\nimport pytorch_lightning as pl\nfrom transformers import AutoTokenizer\n\nfrom lightning_transformers.task.nlp.text_classification import (\n    TextClassificationDataModule,\n    TextClassificationTransformer,\n)\n\ntokenizer = AutoTokenizer.from_pretrained(\n    pretrained_model_name_or_path=\"bert-base-cased\"\n)\ndm = TextClassificationDataModule(\n    batch_size=1,\n    dataset_name=\"emotion\",\n    max_length=512,\n    tokenizer=tokenizer,\n)\nmodel = TextClassificationTransformer(\n    pretrained_model_name_or_path=\"bert-base-cased\", num_labels=dm.num_classes\n)\n\ntrainer = pl.Trainer(accelerator=\"auto\", devices=\"auto\", max_epochs=1)\n\ntrainer.fit(model, dm)\n```\n\n#### Train a pre-trained [mt5-base](https://huggingface.co/google/mt5-base) backbone on the [WMT16](https://huggingface.co/datasets/wmt16) dataset using the Translation task.\n\n```python\nimport pytorch_lightning as pl\nfrom transformers import AutoTokenizer\n\nfrom lightning_transformers.task.nlp.translation import (\n    TranslationTransformer,\n    WMT16TranslationDataModule,\n)\n\ntokenizer = AutoTokenizer.from_pretrained(\n    pretrained_model_name_or_path=\"google/mt5-base\"\n)\nmodel = TranslationTransformer(\n    pretrained_model_name_or_path=\"google/mt5-base\",\n    n_gram=4,\n    smooth=False,\n    val_target_max_length=142,\n    num_beams=None,\n    compute_generate_metrics=True,\n)\ndm = WMT16TranslationDataModule(\n    # WMT translation datasets: ['cs-en', 'de-en', 'fi-en', 'ro-en', 'ru-en', 'tr-en']\n    dataset_config_name=\"ro-en\",\n    source_language=\"en\",\n    target_language=\"ro\",\n    max_source_length=128,\n    max_target_length=128,\n    padding=\"max_length\",\n    tokenizer=tokenizer,\n)\ntrainer = pl.Trainer(accelerator=\"auto\", devices=\"auto\", max_epochs=1)\n\ntrainer.fit(model, dm)\n```\n\nLightning Transformers supports a bunch of :hugs: tasks and datasets. See the [documentation](https://lightning-transformers.readthedocs.io/en/latest/).\n\n## Billion Parameter Model Support\n\n### Big Model Inference\n\nIt's really easy to enable large model support for the pre-built LightningModule :hugs: tasks.\n\nBelow is an example to enable automatic model partitioning (across CPU/GPU and even leveraging disk space) to run text generation using a 6B parameter model.\n\n```python\nimport torch\nfrom accelerate import init_empty_weights\nfrom transformers import AutoTokenizer\n\nfrom lightning_transformers.task.nlp.language_modeling import (\n    LanguageModelingTransformer,\n)\n\nwith init_empty_weights():\n    model = LanguageModelingTransformer(\n        pretrained_model_name_or_path=\"EleutherAI/gpt-j-6B\",\n        tokenizer=AutoTokenizer.from_pretrained(\"EleutherAI/gpt-j-6B\"),\n        low_cpu_mem_usage=True,\n        device_map=\"auto\",  # automatically partitions the model based on the available hardware.\n    )\n\noutput = model.generate(\"Hello, my name is\", device=torch.device(\"cuda\"))\nprint(model.tokenizer.decode(output[0].tolist()))\n```\n\nFor more information see [Big Transformers Model Inference](https://lightning-transformers.readthedocs.io/en/latest/features/large_model.html).\n\n### Big Model Training with DeepSpeed\n\nBelow is an example of how you can train a 6B parameter transformer model using Lightning Transformers and DeepSpeed.\n\n```python\nimport pytorch_lightning as pl\nfrom transformers import AutoTokenizer\n\nfrom lightning_transformers.task.nlp.language_modeling import (\n    LanguageModelingDataModule,\n    LanguageModelingTransformer,\n)\n\ntokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=\"gpt2\")\n\nmodel = LanguageModelingTransformer(\n    pretrained_model_name_or_path=\"EleutherAI/gpt-j-6B\",\n    tokenizer=AutoTokenizer.from_pretrained(\"EleutherAI/gpt-j-6B\"),\n    deepspeed_sharding=True,  # defer initialization of the model to shard/load pre-train weights\n)\n\ndm = LanguageModelingDataModule(\n    batch_size=1,\n    dataset_name=\"wikitext\",\n    dataset_config_name=\"wikitext-2-raw-v1\",\n    tokenizer=tokenizer,\n)\ntrainer = pl.Trainer(\n    accelerator=\"gpu\",\n    devices=\"auto\",\n    strategy=\"deepspeed_stage_3\",\n    precision=16,\n    max_epochs=1,\n)\n\ntrainer.fit(model, dm)\n```\n\nFor more information see [DeepSpeed Training with Big Transformers Models](https://lightning-transformers.readthedocs.io/en/latest/features/large_model_training.html) or the [Model Parallelism](https://pytorch-lightning.readthedocs.io/en/latest/advanced/model_parallel.html#fully-sharded-training) documentation.\n\n## Contribute\n\nPull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.\n\nPlease make sure to update tests as appropriate.\n\n## Community\n\nFor help or questions, join our huge community on [Slack](https://www.pytorchlightning.ai/community)!\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://github.com/Lightning-AI/lightning-transformers",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/Lightning-AI/lightning-transformers",
+            "keywords": "deep learning,pytorch,AI",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "lightning-transformers",
+            "package_url": "https://pypi.org/project/lightning-transformers/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/lightning-transformers/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/Lightning-AI/lightning-transformers/issues",
+                "Documentation": "https://lightning-transformers.readthedocs.io/en/stable/",
+                "Download": "https://github.com/Lightning-AI/lightning-transformers",
+                "Homepage": "https://github.com/Lightning-AI/lightning-transformers",
+                "Source Code": "https://github.com/Lightning-AI/lightning-transformers"
+            },
+            "release_url": "https://pypi.org/project/lightning-transformers/0.2.5/",
+            "requires_dist": [
+                "pytorch-lightning (>=1.7.0)",
+                "transformers (>=4.21.0)",
+                "datasets (>2.0.0)",
+                "sentencepiece (>=0.1.96)",
+                "torchmetrics[text] (>=0.8.0)",
+                "Pillow (>=9.0.0)",
+                "lightning-bolts (>=0.6.0) ; extra == 'extra'",
+                "deepspeed (>=0.6.0) ; extra == 'extra'",
+                "accelerate (>=0.11.0) ; extra == 'extra'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Lightning Transformers.",
+            "version": "0.2.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15842957,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "15038d3ceb01e94f3848d7c64dfeede8",
+                    "sha256": "36680f6342e2300008bb4a7e78e664302dd114dfe749f13f89b6b5bff7e40890"
+                },
+                "downloads": -1,
+                "filename": "lightning_transformers-0.2.5-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "15038d3ceb01e94f3848d7c64dfeede8",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 75643,
+                "upload_time": "2022-11-21T16:36:22",
+                "upload_time_iso_8601": "2022-11-21T16:36:22.024232Z",
+                "url": "https://files.pythonhosted.org/packages/bc/56/c86d4aedd7ec1e175d3a3fff50723b3ef3f4873f7a9e64741181c052d3d9/lightning_transformers-0.2.5-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "918ce8cee40f792ca85adb0f5fc737dd",
+                    "sha256": "67c5b16eb532986b5c684892ced751beb021101a38d3c47b7e4d344b5eb4c30c"
+                },
+                "downloads": -1,
+                "filename": "lightning-transformers-0.2.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "918ce8cee40f792ca85adb0f5fc737dd",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 43636,
+                "upload_time": "2022-11-21T16:36:23",
+                "upload_time_iso_8601": "2022-11-21T16:36:23.614990Z",
+                "url": "https://files.pythonhosted.org/packages/ef/12/7ec608768cbb10316d419041915815597ad01ca2fd46c322d621923da6e5/lightning-transformers-0.2.5.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

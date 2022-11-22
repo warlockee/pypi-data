@@ -41,7 +41,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15817311,
+        "last_serial": 15843843,
         "urls": [
             {
                 "comment_text": "",
@@ -96,7 +96,6 @@
                 "Programming Language :: Python :: 3",
                 "Programming Language :: Python :: 3.6"
             ],
-            "description": "# decomp2dbg\n\nReverse engineering often involves both static (decompiler) and dynamic (debugger) analysis, yet we often\nuse these analyses without sharing knowledge between the two. In the case of reversing static binaries, \ncontext switching between debugger assembly and the symbols you have reversed in decompilation can be inefficient.\n\ndecomp2dbg aims to shorten the gap of context switching between decompiler and debugger by introducing a generic\nAPI for decompiler-to-debugger symbol syncing. In effect, giving the reverser the power of their debugger with\nthe symbols and decompilation lines they recover in their decompiler. \n\n![decomp2dbg](./assets/decomp2dbg.png)\n\nFor active help, join the BinSync Discord below, where we answer decomp2dbg questions:\n\n[![Discord](https://img.shields.io/discord/900841083532087347?label=Discord&style=plastic)](https://discord.gg/wZSCeXnEvR)\n\n## Supported Platforms\n### Decompilers\n- IDA Pro (>= 7.0): [Demo w/ GEF](https://asciinema.org/a/442740)\n- Binary Ninja (>= 2.4): [Demo w/ GEF](https://t.co/M2IZd0fmi3)\n- Ghidra (>= 10.1): [Demo w/ GEF](https://youtu.be/MK7N7uQTUNY)\n- [angr-management](https://github.com/angr/angr-management) (>= 9.0)\n\n### Debuggers\n- gdb (works best with [GEF](https://github.com/hugsy/gef))\n  - GEF\n  - pwndbg\n  - vanilla\n\n## Install\nInstall through pip, then use the built-in installer for decompilers:\n```bash\npip3 install decomp2dbg && decomp2dbg --install \n```\n\nThis will open a prompt where you be asked to input the path to your decompiler of choice. For Ghidra installs,\nyou must follow the extra steps to enable extensions [here](https://github.com/mahaloz/d2d-ghidra-plugin).\n\n**Note**: You may need to allow inbound connections on port 3662, or the port you use, for decomp2dbg to connect\nto the decompiler. If you are installing decomp2dbg with GEF or pwndbg it's important that in your `~/.gdbinit` the\n`d2d.py` file is sourced after GEF or pwndbg.\n\n## Manual Install \n\nSkip this if you were able to use the above install with no errors.\nIf you can't use the above built-in script (non-WSL Windows install for the decompiler), follow the steps below:\n\nIf you only need the decompiler side of things, copy the associated decompiler plugin to the\ndecompiler's plugin folder. Here is how you do it in IDA:\n\nFirst, clone the repo:\n```\ngit clone https://github.com/mahaloz/decomp2dbg.git\n```\n\nCopy all the files in `./decompilers/d2d_ida/` into your ida `plugins` folder:\n```bash\ncp -r ./decompilers/d2d_ida/* /path/to/ida/plugins/\n```\n\nIf you also need to install the gdb side of things, use the line below: \n```bash\npip3 install . && \\\ncp d2d.py ~/.d2d.py && echo \"source ~/.d2d.py\" >> ~/.gdbinit\n```\n\n## Usage \nFirst, start the decompilation server on your decompiler. You may want to wait\nuntil your decompiler finishes its normal analysis before starting it. After normal analysis, this can be done by using the hotkey `Ctrl-Shift-D`,\nor selecting the `decomp2GEF: configure` tab in your associated plugins tab. After starting the server, you should\nsee a message in your decompiler\n```\n[+] Starting XMLRPC server: localhost:3662\n[+] Registered decompilation server!\n```\n\nNext, in your debugger, run:\n```bash\ndecompiler connect <decompiler_name>\n```\n\nIf you are running the decompiler on a VM or different machine, you can optionally provide the host and \nport to connect to. Here is an example:\n```bash\ndecompiler connect ida --host 10.211.55.2 --port 3662\n```\n\nYou can find out how to use all the commands by running the decompiler command with the `--help` flag.\n\nThe first connection can take up to 30 seconds to register depending on the amount of globals in the binary.\nIf all is well, you should see:\n```bash\n[+] Connected to decompiler!\n```\n\nIf you are using decomp2dbg for a library, i.e. the main binary your debugger attached to is not the binary\nyou want source for, then you should take a look at the [Advanced Usage - Shared Libs](#shared-libraries) section\nof the readme.\n\n### Decompilation View\nOn each breakpoint event, you will now see decompilation printed, and the line you are on associated with\nthe break address. \n\n### Functions and Global Vars\nFunctions and Global Vars from your decompilation are now mapped into your GDB like normal Source-level \nsymbols. This means normal GDB commands like printing and examination are native:\n```bash\nb sub_46340\nx/10i sub_46340\n```\n```bash\np dword_267A2C \nx dword_267A2C\n```\n\n### Stack Vars, Register Vars, Func Args\nSome variables that are stored locally in a function are stack variables. For the vars that can be mapped\nto the stack or registers, we import them as convenience variables. You can see their contents like a normal GDB convenience\nvariable:\n```bash \np $v4\n```\n\nStack variables will always store their address on the stack. To see what value is actually in that stack variable,\nsimply dereference the variable:\n```bash\nx $v4\n```\n\nThis also works with function arguments if applicable (mileage may vary):\n```bash\np $a1\n```\n\nNote: `$v4` in this case will only be mapped for as long as you are in the same function. Once you leave the function\nit may be unmapped or remapped to another value.\n\n## Advanced Usage\n### Shared Libraries\nWhen you want the decompilation (and symbols) displayed for a section of memory which is not the main binary, like when debugging a shared library, you need to do some extra steps. Currently, d2d only supports 1 decompiler connected at a time, which means if you currently have any decompilers connected that is not the library, you need to disconnect it.\n\nAfter following the normal setup to have your decompiler running the d2d server for your shared library, you need to manually set the base address for this library and its end address:\n\n```\ndecompiler connect ida --base-addr-start 0x00007ffff7452000 --base-addr-end 0x00007ffff766d000\n```\n\nTo find the base address that your library is loaded at in memory, its recommend you use something like the `vmmap` command from GEF to look for the libraries name in the memory space. After connecting with this manually set address, symbols show work like normal d2d. Decompilation will only be printed on the screen when you are in the range of this address space. \n\n## Features\n- [X] Auto-updating decompilation context view\n- [X] Auto-syncing function names\n- [X] Breakable/Inspectable symbols\n- [X] Auto-syncing stack variable names\n- [ ] Auto-syncing structs\n- [ ] Online DWARF Creation\n- [ ] Function Type Syncing\n- [ ] lldb support\n- [ ] windbg support\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -129,7 +128,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15817311,
+        "last_serial": 15843843,
         "urls": [
             {
                 "comment_text": "",
@@ -168,6 +167,94 @@
                 "upload_time": "2022-11-18T16:59:22",
                 "upload_time_iso_8601": "2022-11-18T16:59:22.103341Z",
                 "url": "https://files.pythonhosted.org/packages/a7/b1/590526b7bff971ff109e4411aa39c598a2269d8e96a96f5c505bb69a76b4/decomp2dbg-3.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "3.1.3": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: BSD License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.6"
+            ],
+            "description": "# decomp2dbg\n\nReverse engineering often involves both static (decompiler) and dynamic (debugger) analysis, yet we often\nuse these analyses without sharing knowledge between the two. In the case of reversing static binaries, \ncontext switching between debugger assembly and the symbols you have reversed in decompilation can be inefficient.\n\ndecomp2dbg aims to shorten the gap of context switching between decompiler and debugger by introducing a generic\nAPI for decompiler-to-debugger symbol syncing. In effect, giving the reverser the power of their debugger with\nthe symbols and decompilation lines they recover in their decompiler. \n\n![decomp2dbg](./assets/decomp2dbg.png)\n\nFor active help, join the BinSync Discord below, where we answer decomp2dbg questions:\n\n[![Discord](https://img.shields.io/discord/900841083532087347?label=Discord&style=plastic)](https://discord.gg/wZSCeXnEvR)\n\n## Supported Platforms\n### Decompilers\n- IDA Pro (>= 7.0): [Demo w/ GEF](https://asciinema.org/a/442740)\n- Binary Ninja (>= 2.4): [Demo w/ GEF](https://t.co/M2IZd0fmi3)\n- Ghidra (>= 10.1): [Demo w/ GEF](https://youtu.be/MK7N7uQTUNY)\n- [angr-management](https://github.com/angr/angr-management) (>= 9.0)\n\n### Debuggers\n- gdb (works best with [GEF](https://github.com/hugsy/gef))\n  - GEF\n  - pwndbg\n  - vanilla\n\n## Install\nInstall through pip, then use the built-in installer for decompilers:\n```bash\npip3 install decomp2dbg && decomp2dbg --install \n```\n\nThis will open a prompt where you be asked to input the path to your decompiler of choice. For Ghidra installs,\nyou must follow the extra steps to enable extensions [here](https://github.com/mahaloz/d2d-ghidra-plugin).\n\n**Note**: You may need to allow inbound connections on port 3662, or the port you use, for decomp2dbg to connect\nto the decompiler. If you are installing decomp2dbg with GEF or pwndbg it's important that in your `~/.gdbinit` the\n`d2d.py` file is sourced after GEF or pwndbg.\n\n## Manual Install \n\nSkip this if you were able to use the above install with no errors.\nIf you can't use the above built-in script (non-WSL Windows install for the decompiler), follow the steps below:\n\nIf you only need the decompiler side of things, copy the associated decompiler plugin to the\ndecompiler's plugin folder. Here is how you do it in IDA:\n\nFirst, clone the repo:\n```\ngit clone https://github.com/mahaloz/decomp2dbg.git\n```\n\nCopy all the files in `./decompilers/d2d_ida/` into your ida `plugins` folder:\n```bash\ncp -r ./decompilers/d2d_ida/* /path/to/ida/plugins/\n```\n\nIf you also need to install the gdb side of things, use the line below: \n```bash\npip3 install . && \\\ncp d2d.py ~/.d2d.py && echo \"source ~/.d2d.py\" >> ~/.gdbinit\n```\n\n## Usage \nFirst, start the decompilation server on your decompiler. You may want to wait\nuntil your decompiler finishes its normal analysis before starting it. After normal analysis, this can be done by using the hotkey `Ctrl-Shift-D`,\nor selecting the `decomp2GEF: configure` tab in your associated plugins tab. After starting the server, you should\nsee a message in your decompiler\n```\n[+] Starting XMLRPC server: localhost:3662\n[+] Registered decompilation server!\n```\n\nNext, in your debugger, run:\n```bash\ndecompiler connect <decompiler_name>\n```\n\nIf you are running the decompiler on a VM or different machine, you can optionally provide the host and \nport to connect to. Here is an example:\n```bash\ndecompiler connect ida --host 10.211.55.2 --port 3662\n```\n\nYou can find out how to use all the commands by running the decompiler command with the `--help` flag.\n\nThe first connection can take up to 30 seconds to register depending on the amount of globals in the binary.\nIf all is well, you should see:\n```bash\n[+] Connected to decompiler!\n```\n\nIf you are using decomp2dbg for a library, i.e. the main binary your debugger attached to is not the binary\nyou want source for, then you should take a look at the [Advanced Usage - Shared Libs](#shared-libraries) section\nof the readme.\n\n### Decompilation View\nOn each breakpoint event, you will now see decompilation printed, and the line you are on associated with\nthe break address. \n\n### Functions and Global Vars\nFunctions and Global Vars from your decompilation are now mapped into your GDB like normal Source-level \nsymbols. This means normal GDB commands like printing and examination are native:\n```bash\nb sub_46340\nx/10i sub_46340\n```\n```bash\np dword_267A2C \nx dword_267A2C\n```\n\n### Stack Vars, Register Vars, Func Args\nSome variables that are stored locally in a function are stack variables. For the vars that can be mapped\nto the stack or registers, we import them as convenience variables. You can see their contents like a normal GDB convenience\nvariable:\n```bash \np $v4\n```\n\nStack variables will always store their address on the stack. To see what value is actually in that stack variable,\nsimply dereference the variable:\n```bash\nx $v4\n```\n\nThis also works with function arguments if applicable (mileage may vary):\n```bash\np $a1\n```\n\nNote: `$v4` in this case will only be mapped for as long as you are in the same function. Once you leave the function\nit may be unmapped or remapped to another value.\n\n## Advanced Usage\n### Shared Libraries\nWhen you want the decompilation (and symbols) displayed for a section of memory which is not the main binary, like when debugging a shared library, you need to do some extra steps. Currently, d2d only supports 1 decompiler connected at a time, which means if you currently have any decompilers connected that is not the library, you need to disconnect it.\n\nAfter following the normal setup to have your decompiler running the d2d server for your shared library, you need to manually set the base address for this library and its end address:\n\n```\ndecompiler connect ida --base-addr-start 0x00007ffff7452000 --base-addr-end 0x00007ffff766d000\n```\n\nTo find the base address that your library is loaded at in memory, its recommend you use something like the `vmmap` command from GEF to look for the libraries name in the memory space. After connecting with this manually set address, symbols show work like normal d2d. Decompilation will only be printed on the screen when you are in the range of this address space. \n\n## Features\n- [X] Auto-updating decompilation context view\n- [X] Auto-syncing function names\n- [X] Breakable/Inspectable symbols\n- [X] Auto-syncing stack variable names\n- [ ] Auto-syncing structs\n- [ ] Online DWARF Creation\n- [ ] Function Type Syncing\n- [ ] lldb support\n- [ ] windbg support\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/mahaloz/decomp2dbg",
+            "keywords": "",
+            "license": "BSD 2 Clause",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "decomp2dbg",
+            "package_url": "https://pypi.org/project/decomp2dbg/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/decomp2dbg/",
+            "project_urls": {
+                "Homepage": "https://github.com/mahaloz/decomp2dbg"
+            },
+            "release_url": "https://pypi.org/project/decomp2dbg/3.1.3/",
+            "requires_dist": [
+                "sortedcontainers",
+                "pyelftools",
+                "binsync"
+            ],
+            "requires_python": ">=3.5",
+            "summary": "Symbol syncing framework for decompilers and debuggers",
+            "version": "3.1.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15843843,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8fc7f500e9b5a110b05ca4f448891437",
+                    "sha256": "6339d4a7d2fc2b32b2fe4f4b5b2a206b8ab5d58aa0e883b62bdba380c729b89a"
+                },
+                "downloads": -1,
+                "filename": "decomp2dbg-3.1.3-py3-none-manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "8fc7f500e9b5a110b05ca4f448891437",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.5",
+                "size": 38310,
+                "upload_time": "2022-11-21T18:08:13",
+                "upload_time_iso_8601": "2022-11-21T18:08:13.093119Z",
+                "url": "https://files.pythonhosted.org/packages/d0/47/28705caa9c4642a088ff366318c2653be7c3c7b5fc601372e9be10634208/decomp2dbg-3.1.3-py3-none-manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e775d95d6604b39ada62bd96853cc32f",
+                    "sha256": "0c3a8700a8d3f83ff9a70f1a440b988e9f69780e4a765710bf74db2665ca0b98"
+                },
+                "downloads": -1,
+                "filename": "decomp2dbg-3.1.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e775d95d6604b39ada62bd96853cc32f",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.5",
+                "size": 29953,
+                "upload_time": "2022-11-21T18:08:14",
+                "upload_time_iso_8601": "2022-11-21T18:08:14.388688Z",
+                "url": "https://files.pythonhosted.org/packages/a1/fb/bc18688ce01acf10f900436d1d2b9735dff0373e05c288202c8ff65e22b1/decomp2dbg-3.1.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -41,7 +41,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12528113,
+        "last_serial": 15842489,
         "urls": [
             {
                 "comment_text": "",
@@ -130,7 +130,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12528113,
+        "last_serial": 15842489,
         "urls": [
             {
                 "comment_text": "",
@@ -219,7 +219,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12528113,
+        "last_serial": 15842489,
         "urls": [
             {
                 "comment_text": "",
@@ -277,7 +277,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# asyncio-gevent\n\nasyncio-gevent makes asyncio and gevent compatible. It provides utilities for\n\n- running asyncio on gevent (by using gevent as asyncio's event loop)\n- running gevent on asyncio (by using asyncio as gevent's event loop, still work in progress)\n- converting greenlets to asyncio futures\n- converting futures to asyncio greenlets\n- wrapping blocking or spawning functions in coroutines which spawn a greenlet and wait for its completion\n- wrapping coroutines in spawning functions which block until the future is resolved\n\nasyncio-gevent is a fork and rewrite of `aiogevent` and `tulipcore` for modern python 3.\n\n## Install\n\nInstall `asyncio-gevent` from pypi using your favourite package manager.\n\n```sh\n# If you use poetry\npoetry add asyncio-gevent\n\n# If you use pip\npip install asyncio-gevent\n```\n\n## Usage\n\n### Running asyncio on gevent\n\nIn order to run `asyncio` on `gevent`, we need to set the (default) `EventLoopPolicy` to use `asyncio_gevent.EventLoopPolicy`.\n\n```py3\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\nasync def main():\n    await asyncio.sleep(1)\n    print(\"done\")\n\nasyncio.run(main())\n```\n\nAfter setting the event loop policy, asyncio will use an event loop that uses greenlets for scheduling.\n\nUnder the hood, it uses the default selector-based event loop in asyncio with the the gevent selector implementation.\n\nAlternatively, you can also manually set and use the event loop.\n\n```py3\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nloop = asyncio_gevent.EventLoop()\nasyncio.set_event_loop(loop)\n\nasync def main():\n    await asyncio.sleep(1)\n    print(\"done\")\n\nloop.run_until_complete(main())\n```\n\n### Running gevent on asyncio\n\n> This implementation is still work-in-progress. It may work for simple examples, but otherwise fail in unexpected ways.\n\nIn order to run `gevent` on `asyncio`, `gevent` needs to be initialised to use the asyncio event loop. This is done by setting the environment variable `GEVENT_LOOP` to `asyncio_gevent.gevent_loop.GeventLoop` and then starting python.\n\n```sh\nGEVENT_LOOP=asyncio_gevent.gevent_loop.GeventLoop python3 myscript.py\n```\n\ngevent will now run on asyncio.\n\nAlternatively, you can also set the loop configuration setting, preferably right after importing `gevent` and before monkey patching.\n\n```py3\nimport gevent\ngevent.config.loop = \"asyncio_gevent.gevent_loop.GeventLoop\"\n```\n\n### Converting greenlets to asyncio futures\n\nUse `asyncio_gevent.greenlet_to_future` to convert a greenlet to an asyncio future. The future yields once the greenlet has finished execution.\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\ndef blocking_function() -> int:\n    gevent.sleep(10)\n    return 42\n\n\nasync def main() -> None:\n    greenlet = gevent.spawn(blocking_function)\n    future = asyncio_gevent.greenlet_to_future(greenlet)\n    result = await future\n\nasyncio.run(main())\n```\n\nIf the greenlet is already dead when the future is awaited/scheduled, then the future will resolve with the result or raise the exception thrown immediately.\n\nIf the greenlet is not yet running, the greenlet will by default be started when the future is awaited/scheduled. This is to ensure a sensible default behaviour and prevent odd concurrency issues. To prevent this auto-starting, you can pass `autostart_greenlet=False` as an argument to `greenlet_to_future`.\n\nWhen a greenlet is killed without a custom exception type, it will return a `GreenletExit` exception. In this instance, the future get cancelled. If a custom exception type is used, the future will raise the exception.\n\nIf the future gets cancelled, then by default the greenlet is killed. To prevent the greenlet from getting killed, you can pass `autokill_greenlet=False` as an argument to `greenlet_to_future`.\n\n### Converting asyncio futures to greenlets\n\nUse `asyncio_gevent.future_to_greenlet` to convert a future to a greenlet.\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\nasync def async_function() -> int:\n    await asyncio.sleep(1)\n    return 42\n\n\ndef main() -> None:\n    future = async_function()\n    greenlet = asyncio_gevent.future_to_greenlet(future)\n    greenlet.start()\n    greenlet.join()\n    assert greenlet.get() == 42\n\nmain()\n```\n\nThe greenlet returned by this function will not start automatically, so you need to call `Greenlet.start()` manually.\n\nIf `future` is a coroutine object, it will be scheduled as a task on the `loop` when the greenlet starts. If no `loop` argument has been passed, the running event loop will be used. If there is no running event loop, a new event loop will be started using the current event loop policy.\n\nIf the future is not already scheduled, then it won't be scheduled for execution until the greenlet starts running. To prevent the future from being scheduled automatically, you can pass `autostart_future=False` as an argument to `future_to_greenlet`.\n\nIf the greenlet gets killed, the by default the future gets cancelled. To prevent this from happening and having the future return the `GreenletExit` objct instead, you can pass `autocancel_future=False` as an argument to `future_to_greenlet`.\n\nIf the future gets cancelled, the greenlet gets killed and will return a `GreenletExit`. This default behaviour can be circumvented by passing `autokill_greenlet=False` and the greenlet will raise the `CancelledError` instead.\n\n### Wrapping blocking or spawning functions in coroutines\n\nUse `asyncio_gevent.sync_to_async` to wrap a blocking function or a function that may spawn greenlets and wait for their completion in a coroutine.\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\ndef blocking_function(duration: float):\n    gevent.sleep(duration)\n    return 42\n\nasync_function = asyncio_gevent.sync_to_async(blocking_function)\n\nasyncio.run(async_function(1.0))\n```\n\nThe returned corountine function will execute the original function in a spawned greenlet and await it's completion.\n\nUnder the hood, this is just a thin convenience wrapper around `asyncio_gevent.greenlet_to_future`.\n\nAs a result, `asyncio_gevent.sync_to_async` accepts the same arguments as `asyncio_gevent.greenlet_to_future` to achieve the same behaviour.\n\n`asyncio_gevent.sync_to_async` can also be used as a decorator\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\n@asyncio_gevent.sync_to_async()\ndef fn(duration: float):\n    gevent.sleep(duration)\n    return 42\n\nasyncio.run(fn(1.0))\n```\n\n\n### Wrapping coroutines in spawning functions\n\nUse `asyncio_gevent.async_to_sync` to wrap a coroutine function or in a blocking function that spawns a greenlet and waits until the coroutine has returned.\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\nasync def async_function(duration: float):\n    await asyncio.sleep(duration)\n    return 42\n\nblocking_function = asyncio_gevent.async_to_sync(async_function)\n\nblocking_function(1)\n```\n\nThe returned function will execute the coroutine on an existing running loop or a new event loop and await it's completion.\n\nUnder the hood, this is just a thin convenience wrapper around `asyncio_gevent.future_to_greenlet`.\n\nAs a result, `asyncio_gevent.async_to_sync` accepts the same arguments as `asyncio_gevent.future_to_greenlet` to achieve the same behaviour.\n\n`asyncio_gevent.async_to_sync` can also be used as a decorator.\n\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\n@asyncio_gevent.async_to_sync\nasync def fn(duration: float):\n    await asyncio.sleep(duration)\n    return 42\n\nfn(1)\n```\n\n## License\n\n[MIT](LICENSE)\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -311,7 +310,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12528113,
+        "last_serial": 15842489,
         "urls": [
             {
                 "comment_text": "",
@@ -350,6 +349,100 @@
                 "upload_time": "2022-01-10T12:46:06",
                 "upload_time_iso_8601": "2022-01-10T12:46:06.796868Z",
                 "url": "https://files.pythonhosted.org/packages/1e/44/27567948b53c76c03e7c80bad8eb9c58038b7c3bc80ae26528a1e01a0a06/asyncio-gevent-0.2.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.2": {
+        "info": {
+            "author": "Fr\u00e9d\u00e9rique Mittelstaedt",
+            "author_email": "hi@gfm.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# asyncio-gevent\n\nasyncio-gevent makes asyncio and gevent compatible. It provides utilities for\n\n- running asyncio on gevent (by using gevent as asyncio's event loop)\n- running gevent on asyncio (by using asyncio as gevent's event loop, still work in progress)\n- converting greenlets to asyncio futures\n- converting futures to asyncio greenlets\n- wrapping blocking or spawning functions in coroutines which spawn a greenlet and wait for its completion\n- wrapping coroutines in spawning functions which block until the future is resolved\n\nasyncio-gevent is a fork and rewrite of `aiogevent` and `tulipcore` for modern python 3.\n\n## Install\n\nInstall `asyncio-gevent` from pypi using your favourite package manager.\n\n```sh\n# If you use poetry\npoetry add asyncio-gevent\n\n# If you use pip\npip install asyncio-gevent\n```\n\n## Usage\n\n### Running asyncio on gevent\n\nIn order to run `asyncio` on `gevent`, we need to set the (default) `EventLoopPolicy` to use `asyncio_gevent.EventLoopPolicy`.\n\n```py3\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\nasync def main():\n    await asyncio.sleep(1)\n    print(\"done\")\n\nasyncio.run(main())\n```\n\nAfter setting the event loop policy, asyncio will use an event loop that uses greenlets for scheduling.\n\nUnder the hood, it uses the default selector-based event loop in asyncio with the the gevent selector implementation.\n\nAlternatively, you can also manually set and use the event loop.\n\n```py3\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nloop = asyncio_gevent.EventLoop()\nasyncio.set_event_loop(loop)\n\nasync def main():\n    await asyncio.sleep(1)\n    print(\"done\")\n\nloop.run_until_complete(main())\n```\n\n### Running gevent on asyncio\n\n> This implementation is still work-in-progress. It may work for simple examples, but otherwise fail in unexpected ways.\n\nIn order to run `gevent` on `asyncio`, `gevent` needs to be initialised to use the asyncio event loop. This is done by setting the environment variable `GEVENT_LOOP` to `asyncio_gevent.gevent_loop.GeventLoop` and then starting python.\n\n```sh\nGEVENT_LOOP=asyncio_gevent.gevent_loop.GeventLoop python3 myscript.py\n```\n\ngevent will now run on asyncio.\n\nAlternatively, you can also set the loop configuration setting, preferably right after importing `gevent` and before monkey patching.\n\n```py3\nimport gevent\ngevent.config.loop = \"asyncio_gevent.gevent_loop.GeventLoop\"\n```\n\n### Converting greenlets to asyncio futures\n\nUse `asyncio_gevent.greenlet_to_future` to convert a greenlet to an asyncio future. The future yields once the greenlet has finished execution.\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\ndef blocking_function() -> int:\n    gevent.sleep(10)\n    return 42\n\n\nasync def main() -> None:\n    greenlet = gevent.spawn(blocking_function)\n    future = asyncio_gevent.greenlet_to_future(greenlet)\n    result = await future\n\nasyncio.run(main())\n```\n\nIf the greenlet is already dead when the future is awaited/scheduled, then the future will resolve with the result or raise the exception thrown immediately.\n\nIf the greenlet is not yet running, the greenlet will by default be started when the future is awaited/scheduled. This is to ensure a sensible default behaviour and prevent odd concurrency issues. To prevent this auto-starting, you can pass `autostart_greenlet=False` as an argument to `greenlet_to_future`.\n\nWhen a greenlet is killed without a custom exception type, it will return a `GreenletExit` exception. In this instance, the future get cancelled. If a custom exception type is used, the future will raise the exception.\n\nIf the future gets cancelled, then by default the greenlet is killed. To prevent the greenlet from getting killed, you can pass `autokill_greenlet=False` as an argument to `greenlet_to_future`.\n\n### Converting asyncio futures to greenlets\n\nUse `asyncio_gevent.future_to_greenlet` to convert a future to a greenlet.\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\nasync def async_function() -> int:\n    await asyncio.sleep(1)\n    return 42\n\n\ndef main() -> None:\n    future = async_function()\n    greenlet = asyncio_gevent.future_to_greenlet(future)\n    greenlet.start()\n    greenlet.join()\n    assert greenlet.get() == 42\n\nmain()\n```\n\nThe greenlet returned by this function will not start automatically, so you need to call `Greenlet.start()` manually.\n\nIf `future` is a coroutine object, it will be scheduled as a task on the `loop` when the greenlet starts. If no `loop` argument has been passed, the running event loop will be used. If there is no running event loop, a new event loop will be started using the current event loop policy.\n\nIf the future is not already scheduled, then it won't be scheduled for execution until the greenlet starts running. To prevent the future from being scheduled automatically, you can pass `autostart_future=False` as an argument to `future_to_greenlet`.\n\nIf the greenlet gets killed, the by default the future gets cancelled. To prevent this from happening and having the future return the `GreenletExit` objct instead, you can pass `autocancel_future=False` as an argument to `future_to_greenlet`.\n\nIf the future gets cancelled, the greenlet gets killed and will return a `GreenletExit`. This default behaviour can be circumvented by passing `autokill_greenlet=False` and the greenlet will raise the `CancelledError` instead.\n\n### Wrapping blocking or spawning functions in coroutines\n\nUse `asyncio_gevent.sync_to_async` to wrap a blocking function or a function that may spawn greenlets and wait for their completion in a coroutine.\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\ndef blocking_function(duration: float):\n    gevent.sleep(duration)\n    return 42\n\nasync_function = asyncio_gevent.sync_to_async(blocking_function)\n\nasyncio.run(async_function(1.0))\n```\n\nThe returned corountine function will execute the original function in a spawned greenlet and await it's completion.\n\nUnder the hood, this is just a thin convenience wrapper around `asyncio_gevent.greenlet_to_future`.\n\nAs a result, `asyncio_gevent.sync_to_async` accepts the same arguments as `asyncio_gevent.greenlet_to_future` to achieve the same behaviour.\n\n`asyncio_gevent.sync_to_async` can also be used as a decorator\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\n@asyncio_gevent.sync_to_async()\ndef fn(duration: float):\n    gevent.sleep(duration)\n    return 42\n\nasyncio.run(fn(1.0))\n```\n\n\n### Wrapping coroutines in spawning functions\n\nUse `asyncio_gevent.async_to_sync` to wrap a coroutine function or in a blocking function that spawns a greenlet and waits until the coroutine has returned.\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\nasync def async_function(duration: float):\n    await asyncio.sleep(duration)\n    return 42\n\nblocking_function = asyncio_gevent.async_to_sync(async_function)\n\nblocking_function(1)\n```\n\nThe returned function will execute the coroutine on an existing running loop or a new event loop and await it's completion.\n\nUnder the hood, this is just a thin convenience wrapper around `asyncio_gevent.future_to_greenlet`.\n\nAs a result, `asyncio_gevent.async_to_sync` accepts the same arguments as `asyncio_gevent.future_to_greenlet` to achieve the same behaviour.\n\n`asyncio_gevent.async_to_sync` can also be used as a decorator.\n\n\n```py3\n# Preamble: Apply the gevent monkey patch and initialise the asyncio event loop policy\n\nimport gevent.monkey\ngevent.monkey.patch_all()\n\nimport asyncio\n\nimport asyncio_gevent\n\nasyncio.set_event_loop_policy(asyncio_gevent.EventLoopPolicy())\n\n# Main example\n\nimport gevent\n\n@asyncio_gevent.async_to_sync\nasync def fn(duration: float):\n    await asyncio.sleep(duration)\n    return 42\n\nfn(1)\n```\n\n## License\n\n[MIT](LICENSE)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/gfmio/asyncio-gevent",
+            "keywords": "asyncio,gevent",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "asyncio-gevent",
+            "package_url": "https://pypi.org/project/asyncio-gevent/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/asyncio-gevent/",
+            "project_urls": {
+                "Documentation": "https://github.com/gfmio/asyncio-gevent",
+                "Homepage": "https://github.com/gfmio/asyncio-gevent",
+                "Repository": "https://github.com/gfmio/asyncio-gevent"
+            },
+            "release_url": "https://pypi.org/project/asyncio-gevent/0.2.2/",
+            "requires_dist": [
+                "gevent; python_version >= \"3.7\" and python_version < \"3.10\"",
+                "gevent (>=21.12.0,<22.0.0); python_version >= \"3.10\" and python_version < \"3.11\"",
+                "gevent (>=22.10.2,<23.0.0); python_version >= \"3.11\" and python_version < \"4.0\""
+            ],
+            "requires_python": ">=3.7,<4.0",
+            "summary": "asyncio & gevent in harmony",
+            "version": "0.2.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15842489,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b59d5366b63401592d1996241681fae9",
+                    "sha256": "6e8e7b4b11ca8a10e7fb091519da0990d87c60d57205e433c8b28d9892eb6608"
+                },
+                "downloads": -1,
+                "filename": "asyncio_gevent-0.2.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b59d5366b63401592d1996241681fae9",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7,<4.0",
+                "size": 21484,
+                "upload_time": "2022-11-21T15:49:23",
+                "upload_time_iso_8601": "2022-11-21T15:49:23.330075Z",
+                "url": "https://files.pythonhosted.org/packages/4b/51/140a37fda965de1aa3f6a4d11cf95e1973308d4ec9cd5d51a5bb06134fa6/asyncio_gevent-0.2.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "03538ac8f79cbdcf044766149355a9b4",
+                    "sha256": "cdcc06a96f88866a75758ae36e8852b7065101e4217a20adafabb07b090afc64"
+                },
+                "downloads": -1,
+                "filename": "asyncio_gevent-0.2.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "03538ac8f79cbdcf044766149355a9b4",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<4.0",
+                "size": 17592,
+                "upload_time": "2022-11-21T15:49:24",
+                "upload_time_iso_8601": "2022-11-21T15:49:24.751150Z",
+                "url": "https://files.pythonhosted.org/packages/ab/91/e6be82b8675824739fe2b850cf99420108ff7a7b3d8280d4b7fe8dd69e51/asyncio_gevent-0.2.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

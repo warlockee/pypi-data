@@ -53,7 +53,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15810299,
+        "last_serial": 15846943,
         "urls": [
             {
                 "comment_text": "",
@@ -152,7 +152,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15810299,
+        "last_serial": 15846943,
         "urls": [
             {
                 "comment_text": "",
@@ -251,7 +251,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15810299,
+        "last_serial": 15846943,
         "urls": [
             {
                 "comment_text": "",
@@ -314,7 +314,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Typing :: Typed"
             ],
-            "description": "## CDK Graph (`@aws-prototyping-sdk/cdk-graph`)\n\n![experimental](http://badges.github.io/stability-badges/dist/experimental.svg)\n\n> More comprehensive documentation to come as this package stabilizes\n\nThis package is the core framework for supporting additional cdk based automation and tooling, such as diagraming, cost modeling, security and compliance, in a holistic and comprehensive way.\n\nThis package provides the following functionality:\n\n1. Synthesizes a serialized graph (nodes and edges) from CDK source code.\n2. Provides runtime interface for interacting with the graph (in-memory database-like graph store).\n3. Provides plugin framework for additional tooling to utilize and extend the graph.\n\nThe goal of this framework is to enable bespoke tooling to be built without having to first traverse the CDK Tree and Metadata to build a graph. Projects like [cdk-dia](https://github.com/pistazie/cdk-dia) generate a bespoke in-memory graph that is then utilized to generate diagrams; while the diagram generation is the core value it must first have a graph to act upon and currently is required to generate this undifferentiated graph to provide its diagrams. By standardizing on the graph interface necessary to build complex tooling, we can more rapidly build new tooling that focuses on its core value.\n\n### Quick Start\n\n#### Instrument CDK App with CdkGraph\n\n```python\n#!/usr/bin/env node\nimport * as cdk from \"aws-cdk-lib\";\nimport { MyStack } from \"../lib/my-stack\";\n\nimport { CdkGraph } from \"@aws-prototyping-sdk/cdk-graph\";\n\nconst app = new cdk.App();\nnew MyStack(app, \"MyStack\");\n\n// Add CdkGraph after other construct added to app\nnew CdkGraph(app);\n```\n\n#### Using Plugins\n\n```python\n#!/usr/bin/env node\nimport * as cdk from \"aws-cdk-lib\";\nimport { MyStack } from \"../lib/my-stack\";\n\nimport { CdkGraph } from \"@aws-prototyping-sdk/cdk-graph\";\nimport { ExamplePlugin } from \"@aws-prototyping-sdk/cdk-graph-plugin-example\"; // does not exist, just example\n\nconst app = new cdk.App();\nnew MyStack(app, \"MyStack\");\n\n// Add CdkGraph after other construct added to app\nnew CdkGraph(app, {\n  plugins: [new ExamplePlugin()],\n});\n```\n\n#### Config\n\nConfiguration is supported through the `.cdkgraphrc.js` and depending on the plugin, through passing config to the plugin instance.\n\nConfig precedence follows 1) defaults, 2) cdkgraphrc, 3) instance.\n\n```js\n// .cdkgraphrc.js\nmodule.exports = {\n  // Defaults to \"<cdk.out>/cdkgraph\"\n  outdir: \"reports/graph\",\n\n  // plugin configuration\n  example: {\n    verbose: true,\n    reportType: \"csv\",\n  },\n};\n```\n\n```python\n#!/usr/bin/env node\nimport * as cdk from \"aws-cdk-lib\";\nimport { MyStack } from \"../lib/my-stack\";\n\nimport { CdkGraph } from \"@aws-prototyping-sdk/cdk-graph\";\nimport { ExamplePlugin } from \"@aws-prototyping-sdk/cdk-graph-plugin-example\"; // does not exist, just example\n\nconst app = new cdk.App();\nnew MyStack(app, \"MyStack\");\n\n// Add CdkGraph after other construct added to app\nnew CdkGraph(app, {\n  plugins: [\n    new ExamplePlugin({\n      // Will override .cdkgraphrc.js value\n      verbose: false,\n    }),\n  ],\n});\n```\n\n### Plugin Interface\n\n```python\n/** CdkGraph **Plugin** interface */\nexport interface ICdkGraphPlugin {\n  /** Unique identifier for this plugin */\n  readonly id: string;\n  /** Plugin version */\n  readonly version: Version;\n  /** List of plugins this plugin depends on, including optional semver version (eg: [\"foo\", \"bar@1.2\"]) */\n  readonly dependencies?: string[];\n\n  /**\n   * Binds the plugin to the CdkGraph instance. Enables plugins to receive base configs.\n   */\n  bind: IGraphPluginBindCallback;\n\n  /**\n   * Node visitor callback for construct tree traversal. This follows IAspect.visit pattern, but the order\n   * of visitor traversal in managed by the CdkGraph.\n   */\n  inspect?: IGraphVisitorCallback;\n  /**\n   * Called during CDK synthesize to generate synchronous artifacts based on the in-memory graph passed\n   * to the plugin. This is called in fifo order of plugins.\n   */\n  synthesize?: IGraphSynthesizeCallback;\n  /**\n   * Generate asynchronous reports based on the graph. This is not automatically called when synthesizing CDK.\n   * Developer must explicitly add `await graphInstance.report()` to the CDK bin or invoke this outside\n   * of the CDK synth. In either case, the plugin receives the in-memory graph interface when invoked, as the\n   * CdkGraph will deserialize the graph prior to invoking the plugin report.\n   */\n  report?: IGraphReportCallback;\n}\n```\n\nPlugin operations are automatically invoked by CdkGraph in the order they are defined in the `plugins` property. The invocation flow of plugins follows: 1) `bind`, 2) `inspect`, 3) `synthesize`, 4) `async report`.\n\n### Asynchronous Plugins\n\nSome plugins may requiring performing asynchronous requests, or may make expensive operations that are best left outside of the synthesis process.\n\nCdkGraph support asynchronous operations through the `async report()` method of plugins. However, since CDK does not support asynchronous operations during synthesis, this must be wired up a bit differently.\n\n```python\n#!/usr/bin/env node\nimport * as cdk from \"aws-cdk-lib\";\nimport { MyStack } from \"../lib/my-stack\";\n\nimport { CdkGraph } from \"@aws-prototyping-sdk/cdk-graph\";\nimport { ExampleAsyncPlugin } from \"@aws-prototyping-sdk/cdk-graph-plugin-async-example\"; // does not exist, just example\n\n(async () => {\n  const app = new cdk.App();\n  new MyStack(app, \"MyStack\");\n\n  // Add CdkGraph after other construct added to app\n  const graph = new CdkGraph(app, {\n    plugins: [new ExampleAsyncPlugin()],\n  });\n\n  // invokes all plugin `report()` operations asynchronously (in order they are defined in `plugins` property)\n  await graph.report();\n})();\n```\n\n### Example Plugin Implementation\n\nVery basic example of implementing a plugin. Once the first actual plugins have been published this will be updated to reference those as examples.\n\n```python\nimport {\n  CdkGraph,\n  CdkGraphContext,\n  ICdkGraphPlugin,\n} from \"@aws-prototyping-sdk/cdk-graph\";\n\nexport class CdkGraphExamplePlugin implements ICdkGraphPlugin {\n  static readonly ARTIFACT_NS = \"EXAMPLE\";\n  static readonly ID = \"example\";\n  static readonly VERSION = \"0.0.0\";\n\n  get id(): string {\n    return CdkGraphDiagramPlugin.ID;\n  }\n  get version(): string {\n    return CdkGraphDiagramPlugin.VERSION;\n  }\n\n  readonly dependencies?: string[] = [];\n\n  /** @internal */\n  private _graph?: CdkGraph;\n\n  bind(graph: CdkGraph): void {\n    this._graph = graph;\n  }\n\n  synthesize(context: CdkGraphContext): void {\n    const pluginConfig = this.config as Required<IPluginConfig>;\n\n    // Get counts of all resources\n    const cfnResourceCounts = context.store.counts.cfnResources;\n\n    // Write plugin artifact\n    context.writeArtifact(\n      this,\n      \"EXAMPLE\",\n      \"example.json\",\n      JSON.stringify(cfnResourceCounts, null, 2)\n    );\n  }\n\n  async report(context: CdkGraphContext): void {\n    // perform async operation here utilizing graph store\n    const cfnResourceCounts = context.store.counts.cfnResources;\n    const fetchedData = await fetch(\"https://example.com/data\", {\n      method: \"POST\",\n      body: JSON.stringify(cfnResourceCounts),\n    });\n\n    // Write plugin artifact for fetched data\n    context.writeArtifact(\n      this,\n      \"EXAMPLE:FETCHED\",\n      \"example-fetched.json\",\n      JSON.stringify(fetchedData, null, 2)\n    );\n  }\n}\n```\n\n### Path to Stability\n\nThe below is a rough checklist of task necessary to elevate this from experimental to stable.\n\n* [ ] Dynamic versioning and Semver enforcement (store, plugins, etc)\n* [ ] Support running `async report()` method outside of CDK synthesis process\n* [ ] Find alternative synthesis solution that doesn't utilize CDK internals\n* [ ] Support custom Nodes and Edges\n* [ ] Improve logging, bookkeeping, and debugging\n* [ ] Implement store upgrade solution\n* [ ] Battle test the implementation against several plugins\n* [ ] Battle test the implementation in all target languages (currently tested in Typescript, but vended in all PDK supported languages)\n* [ ] Receive community feedback to validate approach\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -351,7 +350,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15810299,
+        "last_serial": 15846943,
         "urls": [
             {
                 "comment_text": "",
@@ -390,6 +389,205 @@
                 "upload_time": "2022-11-18T04:02:46",
                 "upload_time_iso_8601": "2022-11-18T04:02:46.444601Z",
                 "url": "https://files.pythonhosted.org/packages/84/bc/b2be481baba36f6aced71fa5899b7293da88ca282d3ff340a5da9f98bb82/aws_prototyping_sdk.cdk_graph-0.12.13.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.12.14": {
+        "info": {
+            "author": "AWS APJ COPE<apj-cope@amazon.com>",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved",
+                "Operating System :: OS Independent",
+                "Programming Language :: JavaScript",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Typing :: Typed"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/aws/aws-prototyping-sdk",
+            "keywords": "",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "aws-prototyping-sdk.cdk-graph",
+            "package_url": "https://pypi.org/project/aws-prototyping-sdk.cdk-graph/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/aws-prototyping-sdk.cdk-graph/",
+            "project_urls": {
+                "Homepage": "https://github.com/aws/aws-prototyping-sdk",
+                "Source": "https://github.com/aws/aws-prototyping-sdk"
+            },
+            "release_url": "https://pypi.org/project/aws-prototyping-sdk.cdk-graph/0.12.14/",
+            "requires_dist": [
+                "aws-cdk-lib (<3.0.0,>=2.50.0)",
+                "constructs (<11.0.0,>=10.1.162)",
+                "jsii (<2.0.0,>=1.71.0)",
+                "projen (<0.66.0,>=0.65.26)",
+                "publication (>=0.0.3)",
+                "typeguard (~=2.13.3)"
+            ],
+            "requires_python": "~=3.7",
+            "summary": "@aws-prototyping-sdk/cdk-graph",
+            "version": "0.12.14",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15846943,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d2e69e6a5b4bcfa12b4219ced2870623",
+                    "sha256": "2a18fefdd7b5bad4c6395f991440c84fb4f19111fce0b3e6c518d226c2a3d531"
+                },
+                "downloads": -1,
+                "filename": "aws_prototyping_sdk.cdk_graph-0.12.14-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "d2e69e6a5b4bcfa12b4219ced2870623",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": "~=3.7",
+                "size": 200705,
+                "upload_time": "2022-11-21T21:38:15",
+                "upload_time_iso_8601": "2022-11-21T21:38:15.542527Z",
+                "url": "https://files.pythonhosted.org/packages/29/13/80a176958c483021a83a384301a3a42dbbf49528cbd443abc725b3cc250b/aws_prototyping_sdk.cdk_graph-0.12.14-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "84bfbdfc814fa8ffa1fb268b56a12bc4",
+                    "sha256": "9b7ac50ad6abff521a402d4069617e7c26abf1feddf229625061ea832ff5db70"
+                },
+                "downloads": -1,
+                "filename": "aws_prototyping_sdk.cdk_graph-0.12.14.tar.gz",
+                "has_sig": false,
+                "md5_digest": "84bfbdfc814fa8ffa1fb268b56a12bc4",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": "~=3.7",
+                "size": 202824,
+                "upload_time": "2022-11-21T21:38:17",
+                "upload_time_iso_8601": "2022-11-21T21:38:17.427522Z",
+                "url": "https://files.pythonhosted.org/packages/ee/2c/f9476d455ae2d848b5eb05509c0e2313e74bd2e84e88c8a5cc4d97fa4811/aws_prototyping_sdk.cdk_graph-0.12.14.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.12.15": {
+        "info": {
+            "author": "AWS APJ COPE<apj-cope@amazon.com>",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved",
+                "Operating System :: OS Independent",
+                "Programming Language :: JavaScript",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Typing :: Typed"
+            ],
+            "description": "## CDK Graph (`@aws-prototyping-sdk/cdk-graph`)\n\n![experimental](http://badges.github.io/stability-badges/dist/experimental.svg)\n\n> More comprehensive documentation to come as this package stabilizes\n\nThis package is the core framework for supporting additional cdk based automation and tooling, such as diagraming, cost modeling, security and compliance, in a holistic and comprehensive way.\n\nThis package provides the following functionality:\n\n1. Synthesizes a serialized graph (nodes and edges) from CDK source code.\n2. Provides runtime interface for interacting with the graph (in-memory database-like graph store).\n3. Provides plugin framework for additional tooling to utilize and extend the graph.\n\nThe goal of this framework is to enable bespoke tooling to be built without having to first traverse the CDK Tree and Metadata to build a graph. Projects like [cdk-dia](https://github.com/pistazie/cdk-dia) generate a bespoke in-memory graph that is then utilized to generate diagrams; while the diagram generation is the core value it must first have a graph to act upon and currently is required to generate this undifferentiated graph to provide its diagrams. By standardizing on the graph interface necessary to build complex tooling, we can more rapidly build new tooling that focuses on its core value.\n\n### Quick Start\n\n#### Instrument CDK App with CdkGraph\n\n```python\n#!/usr/bin/env node\nimport * as cdk from \"aws-cdk-lib\";\nimport { MyStack } from \"../lib/my-stack\";\n\nimport { CdkGraph } from \"@aws-prototyping-sdk/cdk-graph\";\n\nconst app = new cdk.App();\nnew MyStack(app, \"MyStack\");\n\n// Add CdkGraph after other construct added to app\nnew CdkGraph(app);\n```\n\n#### Using Plugins\n\n```python\n#!/usr/bin/env node\nimport * as cdk from \"aws-cdk-lib\";\nimport { MyStack } from \"../lib/my-stack\";\n\nimport { CdkGraph } from \"@aws-prototyping-sdk/cdk-graph\";\nimport { ExamplePlugin } from \"@aws-prototyping-sdk/cdk-graph-plugin-example\"; // does not exist, just example\n\nconst app = new cdk.App();\nnew MyStack(app, \"MyStack\");\n\n// Add CdkGraph after other construct added to app\nnew CdkGraph(app, {\n  plugins: [new ExamplePlugin()],\n});\n```\n\n#### Config\n\nConfiguration is supported through the `.cdkgraphrc.js` and depending on the plugin, through passing config to the plugin instance.\n\nConfig precedence follows 1) defaults, 2) cdkgraphrc, 3) instance.\n\n```js\n// .cdkgraphrc.js\nmodule.exports = {\n  // Defaults to \"<cdk.out>/cdkgraph\"\n  outdir: \"reports/graph\",\n\n  // plugin configuration\n  example: {\n    verbose: true,\n    reportType: \"csv\",\n  },\n};\n```\n\n```python\n#!/usr/bin/env node\nimport * as cdk from \"aws-cdk-lib\";\nimport { MyStack } from \"../lib/my-stack\";\n\nimport { CdkGraph } from \"@aws-prototyping-sdk/cdk-graph\";\nimport { ExamplePlugin } from \"@aws-prototyping-sdk/cdk-graph-plugin-example\"; // does not exist, just example\n\nconst app = new cdk.App();\nnew MyStack(app, \"MyStack\");\n\n// Add CdkGraph after other construct added to app\nnew CdkGraph(app, {\n  plugins: [\n    new ExamplePlugin({\n      // Will override .cdkgraphrc.js value\n      verbose: false,\n    }),\n  ],\n});\n```\n\n### Plugin Interface\n\n```python\n/** CdkGraph **Plugin** interface */\nexport interface ICdkGraphPlugin {\n  /** Unique identifier for this plugin */\n  readonly id: string;\n  /** Plugin version */\n  readonly version: Version;\n  /** List of plugins this plugin depends on, including optional semver version (eg: [\"foo\", \"bar@1.2\"]) */\n  readonly dependencies?: string[];\n\n  /**\n   * Binds the plugin to the CdkGraph instance. Enables plugins to receive base configs.\n   */\n  bind: IGraphPluginBindCallback;\n\n  /**\n   * Node visitor callback for construct tree traversal. This follows IAspect.visit pattern, but the order\n   * of visitor traversal in managed by the CdkGraph.\n   */\n  inspect?: IGraphVisitorCallback;\n  /**\n   * Called during CDK synthesize to generate synchronous artifacts based on the in-memory graph passed\n   * to the plugin. This is called in fifo order of plugins.\n   */\n  synthesize?: IGraphSynthesizeCallback;\n  /**\n   * Generate asynchronous reports based on the graph. This is not automatically called when synthesizing CDK.\n   * Developer must explicitly add `await graphInstance.report()` to the CDK bin or invoke this outside\n   * of the CDK synth. In either case, the plugin receives the in-memory graph interface when invoked, as the\n   * CdkGraph will deserialize the graph prior to invoking the plugin report.\n   */\n  report?: IGraphReportCallback;\n}\n```\n\nPlugin operations are automatically invoked by CdkGraph in the order they are defined in the `plugins` property. The invocation flow of plugins follows: 1) `bind`, 2) `inspect`, 3) `synthesize`, 4) `async report`.\n\n### Asynchronous Plugins\n\nSome plugins may requiring performing asynchronous requests, or may make expensive operations that are best left outside of the synthesis process.\n\nCdkGraph support asynchronous operations through the `async report()` method of plugins. However, since CDK does not support asynchronous operations during synthesis, this must be wired up a bit differently.\n\n```python\n#!/usr/bin/env node\nimport * as cdk from \"aws-cdk-lib\";\nimport { MyStack } from \"../lib/my-stack\";\n\nimport { CdkGraph } from \"@aws-prototyping-sdk/cdk-graph\";\nimport { ExampleAsyncPlugin } from \"@aws-prototyping-sdk/cdk-graph-plugin-async-example\"; // does not exist, just example\n\n(async () => {\n  const app = new cdk.App();\n  new MyStack(app, \"MyStack\");\n\n  // Add CdkGraph after other construct added to app\n  const graph = new CdkGraph(app, {\n    plugins: [new ExampleAsyncPlugin()],\n  });\n\n  // invokes all plugin `report()` operations asynchronously (in order they are defined in `plugins` property)\n  await graph.report();\n})();\n```\n\n### Example Plugin Implementation\n\nVery basic example of implementing a plugin. Once the first actual plugins have been published this will be updated to reference those as examples.\n\n```python\nimport {\n  CdkGraph,\n  CdkGraphContext,\n  ICdkGraphPlugin,\n} from \"@aws-prototyping-sdk/cdk-graph\";\n\nexport class CdkGraphExamplePlugin implements ICdkGraphPlugin {\n  static readonly ARTIFACT_NS = \"EXAMPLE\";\n  static readonly ID = \"example\";\n  static readonly VERSION = \"0.0.0\";\n\n  get id(): string {\n    return CdkGraphDiagramPlugin.ID;\n  }\n  get version(): string {\n    return CdkGraphDiagramPlugin.VERSION;\n  }\n\n  readonly dependencies?: string[] = [];\n\n  /** @internal */\n  private _graph?: CdkGraph;\n\n  bind(graph: CdkGraph): void {\n    this._graph = graph;\n  }\n\n  synthesize(context: CdkGraphContext): void {\n    const pluginConfig = this.config as Required<IPluginConfig>;\n\n    // Get counts of all resources\n    const cfnResourceCounts = context.store.counts.cfnResources;\n\n    // Write plugin artifact\n    context.writeArtifact(\n      this,\n      \"EXAMPLE\",\n      \"example.json\",\n      JSON.stringify(cfnResourceCounts, null, 2)\n    );\n  }\n\n  async report(context: CdkGraphContext): void {\n    // perform async operation here utilizing graph store\n    const cfnResourceCounts = context.store.counts.cfnResources;\n    const fetchedData = await fetch(\"https://example.com/data\", {\n      method: \"POST\",\n      body: JSON.stringify(cfnResourceCounts),\n    });\n\n    // Write plugin artifact for fetched data\n    context.writeArtifact(\n      this,\n      \"EXAMPLE:FETCHED\",\n      \"example-fetched.json\",\n      JSON.stringify(fetchedData, null, 2)\n    );\n  }\n}\n```\n\n### Path to Stability\n\nThe below is a rough checklist of task necessary to elevate this from experimental to stable.\n\n* [ ] Dynamic versioning and Semver enforcement (store, plugins, etc)\n* [ ] Support running `async report()` method outside of CDK synthesis process\n* [ ] Find alternative synthesis solution that doesn't utilize CDK internals\n* [ ] Support custom Nodes and Edges\n* [ ] Improve logging, bookkeeping, and debugging\n* [ ] Implement store upgrade solution\n* [ ] Battle test the implementation against several plugins\n* [ ] Battle test the implementation in all target languages (currently tested in Typescript, but vended in all PDK supported languages)\n* [ ] Receive community feedback to validate approach\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/aws/aws-prototyping-sdk",
+            "keywords": "",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "aws-prototyping-sdk.cdk-graph",
+            "package_url": "https://pypi.org/project/aws-prototyping-sdk.cdk-graph/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/aws-prototyping-sdk.cdk-graph/",
+            "project_urls": {
+                "Homepage": "https://github.com/aws/aws-prototyping-sdk",
+                "Source": "https://github.com/aws/aws-prototyping-sdk"
+            },
+            "release_url": "https://pypi.org/project/aws-prototyping-sdk.cdk-graph/0.12.15/",
+            "requires_dist": [
+                "aws-cdk-lib (<3.0.0,>=2.50.0)",
+                "constructs (<11.0.0,>=10.1.162)",
+                "jsii (<2.0.0,>=1.71.0)",
+                "projen (<0.66.0,>=0.65.26)",
+                "publication (>=0.0.3)",
+                "typeguard (~=2.13.3)"
+            ],
+            "requires_python": "~=3.7",
+            "summary": "@aws-prototyping-sdk/cdk-graph",
+            "version": "0.12.15",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15846943,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "151af424a06645a0ee9a6caad05c31ae",
+                    "sha256": "759acbb89c6a8ca7dbfd4ef5889ee284c331e58a9ac4809273d47e58eb3ba5e2"
+                },
+                "downloads": -1,
+                "filename": "aws_prototyping_sdk.cdk_graph-0.12.15-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "151af424a06645a0ee9a6caad05c31ae",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": "~=3.7",
+                "size": 200706,
+                "upload_time": "2022-11-21T23:58:57",
+                "upload_time_iso_8601": "2022-11-21T23:58:57.319372Z",
+                "url": "https://files.pythonhosted.org/packages/7c/f3/4c942816b4e5a097316450587bca1952bc04726b9b24cf0ec7b16d6d464e/aws_prototyping_sdk.cdk_graph-0.12.15-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a1ca6dd1dcfb18fe4d22114398ac032c",
+                    "sha256": "9b503d3b3c6ff10d5ee23388cd15585e1792633d12aa2463faaa9a372e636533"
+                },
+                "downloads": -1,
+                "filename": "aws_prototyping_sdk.cdk_graph-0.12.15.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a1ca6dd1dcfb18fe4d22114398ac032c",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": "~=3.7",
+                "size": 202813,
+                "upload_time": "2022-11-21T23:58:59",
+                "upload_time_iso_8601": "2022-11-21T23:58:59.047957Z",
+                "url": "https://files.pythonhosted.org/packages/61/6c/6a085e3cd171bacfb101ab2042ac73180b6f27814d5f68b472b006a3ea4c/aws_prototyping_sdk.cdk_graph-0.12.15.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
