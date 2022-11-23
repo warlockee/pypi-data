@@ -52,7 +52,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12803725,
+        "last_serial": 15864936,
         "urls": [
             {
                 "comment_text": "",
@@ -150,7 +150,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12803725,
+        "last_serial": 15864936,
         "urls": [
             {
                 "comment_text": "",
@@ -247,7 +247,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12803725,
+        "last_serial": 15864936,
         "urls": [
             {
                 "comment_text": "",
@@ -343,7 +343,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12803725,
+        "last_serial": 15864936,
         "urls": [
             {
                 "comment_text": "",
@@ -440,7 +440,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12803725,
+        "last_serial": 15864936,
         "urls": [
             {
                 "comment_text": "",
@@ -537,7 +537,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12803725,
+        "last_serial": 15864936,
         "urls": [
             {
                 "comment_text": "",
@@ -634,7 +634,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12803725,
+        "last_serial": 15864936,
         "urls": [
             {
                 "comment_text": "",
@@ -731,7 +731,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12803725,
+        "last_serial": 15864936,
         "urls": [
             {
                 "comment_text": "",
@@ -800,7 +800,6 @@
                 "Topic :: Software Development :: Libraries",
                 "Topic :: Software Development :: Libraries :: Application Frameworks"
             ],
-            "description": "=====\nKerno\n=====\n\nKerno is trying to be:\n\n- a framework for building applications in Python\n- which approximates Robert C. Martin's\n  `Clean Architecture <http://blog.8thlight.com/uncle-bob/2012/08/13/the-clean-architecture.html>`_\n- by empowering a service layer (here called **Action layer**)\n- and moving both persistence and UI (including web frameworks) to\n  the edges of the system, while still providing ways to make\n  development and automated testing easier.\n\nThe documentation is at http://docs.nando.audio/kerno/latest/\n\n\nDefense of the architecture\n~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nThis is the first such project in the entire Python community, which\nseems so addicted to the insufficient MVC or MVT proposed by common\nweb frameworks. Kerno does not replace these frameworks, but facilitates\ncreation of the top layers of an architecture that contains,\nfrom center to border:\n\n- **Configuration layer:** Such that all other layers have access to settings.\n  Why should configuration settings be available only to the web framework???\n- **Model layer:** in which you define entities (e. g. SQLAlchemy models),\n  but no I/O (no session, no queries). The entities can be seen\n  by all the layers below.\n- **Action layer:** in which you define business rules (decisions,\n  the core of your app), meaning it can import and use the models above,\n  and use other utilities that are dependency-injected.\n- **Repository layer:** Performs database access (e. g. queries) and is\n  dependency-injected into the Action layer, making unit tests easier to write.\n- **Controller layer:** Thin glue layer, the only one that imports and uses\n  a web framework or GUI framework.\n- **Template layer:** If using a web framework.\n\nIn order to better understand why this architecture is good for medium to\nlarge applications, I encourage you to watch a couple of Uncle Bob Martin's\ntalks on this subject -- easily found on the Internet.\n\nGood software architecture is about decoupling. The main message of the Clean\nArchitecture seems to be, decouple your business logic from any dependencies,\nso your large project can survive these (swapping them with less effort).\n\nKerno is just a set of whatever tools might have been missing for you to\nbuild the core of your app in that way. You can use only the parts you value.\nIn fact, it doesn't matter if you use the Kerno library, what is important is\nfor you to understand:\n\n- that automated testing is necessary today (non-negotiable),\n- that function purity makes automated testing possible or easy,\n- that decoupling is important for the future of your project,\n- that global variables (module-level attributes) make testing difficult\n  and error prone, limit concurrency, and increase implementation complexity,\n- and that finding the right abstractions can be difficult.\n\nThe main inspiration for the *implementation* of Kerno is the Pyramid\nweb framework because it is so well architected. It managed to avoid\nthe global variables that plague Flask and Django while providing the\nbest application composition method of all these frameworks. Sometimes I\nthink Kerno is doing little more than bringing parts of Pyramid out of the\nweb framework in a composable way.\n\nWe require Python >= 3.6 because we are type annotating our functions so you\ncan use mypy if you like.\n\n\nAction (or Service) layer\n=========================\n\nNow I am going to tell you why you should decouple 1) your web framework\nand 2) your data persistence.\n\nDo not conflate the core of your app -- the business rules -- with usage\nof a web framework. You may want to switch web frameworks in the future,\nor build an entirely different UI. Therefore, business rules must not\nreside in controllers -- move your application's decisions to a higher layer!\nConversely, the layer that contains business rules (the Action layer)\nmay NOT import anything from the web framework.\n\nhttp://programmers.stackexchange.com/questions/162399/how-essential-is-it-to-make-a-service-layer\n\nYour controllers should be thin -- just get the data and call an Action.\n\nAlso do not conflate business rules with data persistence. If you keep\nI/O concerns out of your Service layer, here called Action layer,\nthen this layer becomes truly unit-testable, which in itself is reason\nenough to do this. Integrated test (meaning a test that hits a database,\neven SQLite in memory) suites easily take 5+ minutes to run for large apps,\nmaking TDD (test first) impossible. The solution is to separate decisions\nin pure functions (which do no I/O) so they can be unit-tested. This way the\nunit tests run instantaneously and you are able to do TDD.\n\nMVC or MVT is missing a Service layer between the Model and the Controller.\nThis layer, here called Action, should contain the business rules in a pure\nway, leaving UI related preoccupations to a thin controller, and storage\nconcerns to Models and the...\n\n\nRepository layer\n================\n\nMVT, as implemented by most Python web frameworks, puts a\ndata persistence layer in the center of the architecture,\nbut Uncle Bob's Clean Architecture teaches us this is wrong.\n\nIn our solution, the model entities may remain in the center and circulate\n(as data holders) through all layers -- this has always been so convenient --,\nbut the engine that stores and retrieves entities -- here called Repository\n(in SQLAlchemy it's the session and its queries) -- must be a\ndependency-injected layer in order to make testing easy.\n\nFowler and Robert C. Martin would have us put the SQLAlchemy models away too,\nso in the future you could more easily swap SQLAlchemy with something else,\nor even develop multiple storages simultaneously: SQLAlchemy, ZODB etc.,\nbut this piece of advice I am not following yet.\n\n(Even so, you might be able to pull this off right now, if you remember that\nyou don't have to use the declarative flavor of the SQLAlchemy ORM --\nyou can instead declare tables, and then classes, and then mappers that\nmap tables to the classes.  These classes need no specific base class,\nso you are free to use them as your entities.)\n\nSince many large apps are assembled from smaller packages, we have devised\na sort of plugin system that composes the final Repository class from\nmixin classes.\n\n\nSQLAlchemy strategy\n-------------------\n\nFunctions are easiest to unit-test when they do not perform IO. Any IO you do\nis something that needs to be mocked in tests, and mocking is hard.\n\nSQLAlchemy is an excellent example of this. It creates profound testability\nchallenges for any code that uses it, because its fluent API is very hard\nto mock out.\n\nAfter struggling with the problem for years, we decided that any I/O must\nbe cleanly decoupled from the Action layer, since this is the most\nimportant layer to be unit-tested. So we follow these rules:\n\n1. The session must be present in the Repository layer, which is\n   dependency-injected into the Action layer.  This allows you to write\n   fast unit tests for the Action layer -- by injecting a\n   FakeRepository object which never touches an RDBMS.\n2. The session must NOT be present in the model layer (which defines entities).\n   Usage of SQLAlchemy relationships (e.g. ``User.addresses``), though very\n   convenient, makes code hard to test because it is doing I/O.\n   ``object_session(self)`` also must be avoided to keep the separation.\n   For now, I think relationships can continue to exist in models normally,\n   but they must be used only in the repository.\n3. The session must NOT be imported in the Action layer (which contains\n   business rules). Really, only your Repository object can use the session.\n\n\nUsing Kerno\n~~~~~~~~~~~\n\nIf you wish to adopt the Clean Architecture, then Kerno can help you.\nHere is how.\n\n\nStartup time and request time\n=============================\n\nKerno computes some things at startup and keeps the result in a \"global\" object\nwhich is an instance of the Kerno class. This instance is initialized with\nthe app's settings and utilities (strategies) are registered on it.\n\nThen each request uses that to obtain globals and calls an Action.\n\n\nComponent registration\n======================\n\nIn order to swap components between environments, Kerno could have used the\nfamous and awesome\n`Zope Component Architecture <http://zopecomponent.readthedocs.io/>`_,\nbut we are using `Reg <http://reg.readthedocs.io/>`_ instead.\nReg is very powerful and you don't need to create an interface for\neach component you want to register.\n\nHowever, there's only a certain amount of overlap on the problems solved\nby Reg and the ZCA. Reg implements multiple dispatch for functions. The ZCA\naids you with contracts and uses these for multiple dispatch.\n\n\nActions\n=======\n\nYou can express Kerno actions (the service layer) as functions or as classes.\nKerno provides a base class for this purpose.\n\n\nWeb framework integration\n=========================\n\nKerno is trying to provide a good scheme to communicate with web frameworks\nin general.\n\nIntegration with Pyramid is provided, but totally decoupled and optional.\nIt includes an Exception class, a view that catches and renders it,\nand conventions for returned objects.\n\n\n",
             "description_content_type": "",
             "docs_url": null,
             "download_url": "",
@@ -829,7 +828,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12803725,
+        "last_serial": 15864936,
         "urls": [
             {
                 "comment_text": "",
@@ -868,6 +867,109 @@
                 "upload_time": "2022-02-06T16:05:30",
                 "upload_time_iso_8601": "2022-02-06T16:05:30.582077Z",
                 "url": "https://files.pythonhosted.org/packages/38/9c/f8232259f7337126fba779bb4d710e72f90a6c3059b97cd6f75a110e7a3f/kerno-0.7.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.8.0": {
+        "info": {
+            "author": "Nando Florestan",
+            "author_email": "nandoflorestan@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Framework :: Pyramid",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.9",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Python :: Implementation :: PyPy",
+                "Topic :: Database",
+                "Topic :: Internet :: WWW/HTTP",
+                "Topic :: Internet :: WWW/HTTP :: WSGI",
+                "Topic :: Software Development :: Libraries",
+                "Topic :: Software Development :: Libraries :: Application Frameworks"
+            ],
+            "description": "=====\nKerno\n=====\n\nKerno is trying to be:\n\n- a framework for building applications in Python\n- which approximates Robert C. Martin's\n  `Clean Architecture <http://blog.8thlight.com/uncle-bob/2012/08/13/the-clean-architecture.html>`_\n- by empowering a service layer (here called **Action layer**)\n- and moving both persistence and UI (including web frameworks) to\n  the edges of the system, while still providing ways to make\n  development and automated testing easier.\n\nThe documentation is at http://docs.nando.audio/kerno/latest/\n\n\nDefense of the architecture\n~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nThis is the first such project in the entire Python community, which\nseems so addicted to the insufficient MVC or MVT proposed by common\nweb frameworks. Kerno does not replace these frameworks, but facilitates\ncreation of the top layers of an architecture that contains,\nfrom center to border:\n\n- **Configuration layer:** Such that all other layers have access to settings.\n  Why should configuration settings be available only to the web framework???\n- **Model layer:** in which you define entities (e. g. SQLAlchemy models),\n  but no I/O (no session, no queries). The entities can be seen\n  by all the layers below.\n- **Action layer:** in which you define business rules (decisions,\n  the core of your app), meaning it can import and use the models above,\n  and use other utilities that are dependency-injected.\n- **Repository layer:** Performs database access (e. g. queries) and is\n  dependency-injected into the Action layer, making unit tests easier to write.\n- **Controller layer:** Thin glue layer, the only one that imports and uses\n  a web framework or GUI framework.\n- **Template layer:** If using a web framework.\n\nIn order to better understand why this architecture is good for medium to\nlarge applications, I encourage you to watch a couple of Uncle Bob Martin's\ntalks on this subject -- easily found on the Internet.\n\nGood software architecture is about decoupling. The main message of the Clean\nArchitecture seems to be, decouple your business logic from any dependencies,\nso your large project can survive these (swapping them with less effort).\n\nKerno is just a set of whatever tools might have been missing for you to\nbuild the core of your app in that way. You can use only the parts you value.\nIn fact, it doesn't matter if you use the Kerno library, what is important is\nfor you to understand:\n\n- that automated testing is necessary today (non-negotiable),\n- that function purity makes automated testing possible or easy,\n- that decoupling is important for the future of your project,\n- that global variables (module-level attributes) make testing difficult\n  and error prone, limit concurrency, and increase implementation complexity,\n- and that finding the right abstractions can be difficult.\n\nThe main inspiration for the *implementation* of Kerno is the Pyramid\nweb framework because it is so well architected. It managed to avoid\nthe global variables that plague Flask and Django while providing the\nbest application composition method of all these frameworks. Sometimes I\nthink Kerno is doing little more than bringing parts of Pyramid out of the\nweb framework in a composable way.\n\nWe require Python >= 3.6 because we are type annotating our functions so you\ncan use mypy if you like.\n\n\nAction (or Service) layer\n=========================\n\nNow I am going to tell you why you should decouple 1) your web framework\nand 2) your data persistence.\n\nDo not conflate the core of your app -- the business rules -- with usage\nof a web framework. You may want to switch web frameworks in the future,\nor build an entirely different UI. Therefore, business rules must not\nreside in controllers -- move your application's decisions to a higher layer!\nConversely, the layer that contains business rules (the Action layer)\nmay NOT import anything from the web framework.\n\nhttp://programmers.stackexchange.com/questions/162399/how-essential-is-it-to-make-a-service-layer\n\nYour controllers should be thin -- just get the data and call an Action.\n\nAlso do not conflate business rules with data persistence. If you keep\nI/O concerns out of your Service layer, here called Action layer,\nthen this layer becomes truly unit-testable, which in itself is reason\nenough to do this. Integrated test (meaning a test that hits a database,\neven SQLite in memory) suites easily take 5+ minutes to run for large apps,\nmaking TDD (test first) impossible. The solution is to separate decisions\nin pure functions (which do no I/O) so they can be unit-tested. This way the\nunit tests run instantaneously and you are able to do TDD.\n\nMVC or MVT is missing a Service layer between the Model and the Controller.\nThis layer, here called Action, should contain the business rules in a pure\nway, leaving UI related preoccupations to a thin controller, and storage\nconcerns to Models and the...\n\n\nRepository layer\n================\n\nMVT, as implemented by most Python web frameworks, puts a\ndata persistence layer in the center of the architecture,\nbut Uncle Bob's Clean Architecture teaches us this is wrong.\n\nIn our solution, the model entities may remain in the center and circulate\n(as data holders) through all layers -- this has always been so convenient --,\nbut the engine that stores and retrieves entities -- here called Repository\n(in SQLAlchemy it's the session and its queries) -- must be a\ndependency-injected layer in order to make testing easy.\n\nFowler and Robert C. Martin would have us put the SQLAlchemy models away too,\nso in the future you could more easily swap SQLAlchemy with something else,\nor even develop multiple storages simultaneously: SQLAlchemy, ZODB etc.,\nbut this piece of advice I am not following yet.\n\n(Even so, you might be able to pull this off right now, if you remember that\nyou don't have to use the declarative flavor of the SQLAlchemy ORM --\nyou can instead declare tables, and then classes, and then mappers that\nmap tables to the classes.  These classes need no specific base class,\nso you are free to use them as your entities.)\n\nSince many large apps are assembled from smaller packages, we have devised\na sort of plugin system that composes the final Repository class from\nmixin classes.\n\n\nSQLAlchemy strategy\n-------------------\n\nFunctions are easiest to unit-test when they do not perform IO. Any IO you do\nis something that needs to be mocked in tests, and mocking is hard.\n\nSQLAlchemy is an excellent example of this. It creates profound testability\nchallenges for any code that uses it, because its fluent API is very hard\nto mock out.\n\nAfter struggling with the problem for years, we decided that any I/O must\nbe cleanly decoupled from the Action layer, since this is the most\nimportant layer to be unit-tested. So we follow these rules:\n\n1. The session must be present in the Repository layer, which is\n   dependency-injected into the Action layer.  This allows you to write\n   fast unit tests for the Action layer -- by injecting a\n   FakeRepository object which never touches an RDBMS.\n2. The session must NOT be present in the model layer (which defines entities).\n   Usage of SQLAlchemy relationships (e.g. ``User.addresses``), though very\n   convenient, makes code hard to test because it is doing I/O.\n   ``object_session(self)`` also must be avoided to keep the separation.\n   For now, I think relationships can continue to exist in models normally,\n   but they must be used only in the repository.\n3. The session must NOT be imported in the Action layer (which contains\n   business rules). Really, only your Repository object can use the session.\n\n\nUsing Kerno\n~~~~~~~~~~~\n\nIf you wish to adopt the Clean Architecture, then Kerno can help you.\nHere is how.\n\n\nStartup time and request time\n=============================\n\nKerno computes some things at startup and keeps the result in a \"global\" object\nwhich is an instance of the Kerno class. This instance is initialized with\nthe app's settings and utilities (strategies) are registered on it.\n\nThen each request uses that to obtain globals and calls an Action.\n\n\nComponent registration\n======================\n\nIn order to swap components between environments, Kerno could have used the\nfamous and awesome\n`Zope Component Architecture <http://zopecomponent.readthedocs.io/>`_,\nbut we are using `Reg <http://reg.readthedocs.io/>`_ instead.\nReg is very powerful and you don't need to create an interface for\neach component you want to register.\n\nHowever, there's only a certain amount of overlap on the problems solved\nby Reg and the ZCA. Reg implements multiple dispatch for functions. The ZCA\naids you with contracts and uses these for multiple dispatch.\n\n\nActions\n=======\n\nYou can express Kerno actions (the service layer) as functions or as classes.\nKerno provides a base class for this purpose.\n\n\nWeb framework integration\n=========================\n\nKerno is trying to provide a good scheme to communicate with web frameworks\nin general.\n\nIntegration with Pyramid is provided, but totally decoupled and optional.\nIt includes an Exception class, a view that catches and renders it,\nand conventions for returned objects.\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/nandoflorestan/kerno",
+            "keywords": "Clean Architecture,service layer,action,pyramid,sqlalchemy",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "kerno",
+            "package_url": "https://pypi.org/project/kerno/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/kerno/",
+            "project_urls": {
+                "Documentation": "http://docs.nando.audio/kerno/latest/",
+                "Homepage": "https://github.com/nandoflorestan/kerno",
+                "Repository": "https://github.com/nandoflorestan/kerno"
+            },
+            "release_url": "https://pypi.org/project/kerno/0.8.0/",
+            "requires_dist": [
+                "bag (>=5.0)",
+                "reg (==0.12)"
+            ],
+            "requires_python": ">=3.9",
+            "summary": "Framework for the application service layer.",
+            "version": "0.8.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15864936,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0e0aedf6548c9205fa7dd2adf27fba23",
+                    "sha256": "7e4e66cfb82c62eabab403c1a90bb48e4684c0b12aca3eff238fbb474eef6e8f"
+                },
+                "downloads": -1,
+                "filename": "kerno-0.8.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "0e0aedf6548c9205fa7dd2adf27fba23",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.9",
+                "size": 37082,
+                "upload_time": "2022-11-23T09:21:02",
+                "upload_time_iso_8601": "2022-11-23T09:21:02.203800Z",
+                "url": "https://files.pythonhosted.org/packages/5d/2c/de0e6338a32c2837d9866a7c92423a46d92170c1ff357ace9f43fca054d2/kerno-0.8.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d2f3d8ba2318033a461d3d8b0ffe44be",
+                    "sha256": "bff9b6177ce1999dd928fd227a15590e4180037568f9644deaee306b644fc106"
+                },
+                "downloads": -1,
+                "filename": "kerno-0.8.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d2f3d8ba2318033a461d3d8b0ffe44be",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9",
+                "size": 34087,
+                "upload_time": "2022-11-23T09:21:04",
+                "upload_time_iso_8601": "2022-11-23T09:21:04.237397Z",
+                "url": "https://files.pythonhosted.org/packages/c7/51/4c896b225fcdd0eccda5e824f42acdb329330a59cedede3b9449d469fc80/kerno-0.8.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

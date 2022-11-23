@@ -37,7 +37,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15855494,
+        "last_serial": 15865969,
         "urls": [
             {
                 "comment_text": "",
@@ -100,7 +100,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15855494,
+        "last_serial": 15865969,
         "urls": [
             {
                 "comment_text": "",
@@ -163,7 +163,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15855494,
+        "last_serial": 15865969,
         "urls": [
             {
                 "comment_text": "",
@@ -226,7 +226,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15855494,
+        "last_serial": 15865969,
         "urls": [
             {
                 "comment_text": "",
@@ -261,7 +261,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# QASem - Question-Answer based Semantics \n\nThis repository includes software for parsing natural language sentence with various layers of QA-based semantic annotations. \nWe currently support three layers of semantic annotations - QASRL, QANom, and QADiscourse. \nSee an overview of our approach at our paper on [QASem Parsing](https://arxiv.org/abs/2205.11413). \n\n[QASRL (Question Answer driven Semantic Role Labeling)](https://aclanthology.org/D15-1076/) is a lightweight semantic framework for annotating \"who did what to whom, how, when and where\". \nFor every verb in the sentence, it provides a set of question-answer pairs, where the answer mark a participant of the event denoted by the verb, while the question captures its *semantic role* (that is, what is the role of the participant in the event).\n\n\"QANom\" stands for \"QASRL for Nominalizations\", which is an adaptation of QASRL to (deverbal) nominalization. See the [QANom paper](https://aclanthology.org/2020.coling-main.274/) for details about the task. \n\nYou can find more information on [QASRL's official website](https://qasrl.org), including links to all the papers and datasets and a data browsing utility. \nWe also wrapped the datasets into Huggingface Datasets ([QASRL](https://huggingface.co/datasets/kleinay/qa_srl); [QANom](https://huggingface.co/datasets/biu-nlp/qanom)), which are easier to plug-and-play with (check out our [HF profile](https://huggingface.co/biu-nlp) for other related datasets, such as QAMR, QADiscourse, and QA-Align).\n\n[QADiscourse](https://aclanthology.org/2020.emnlp-main.224) annotates intra-sentential discourse relations with question-answer pairs. It focus on discourse relations that carry information, rather than specifying structural or pragmatic properties of the realied sentencs. Each question starts with one of 17 crafted question prefixes, roughly mapped into PDTB relation senses.   \n\n*Note*: In the future, we will also combine additional layers of QA-based semantic annotations for adjectives and noun modifiers, currently at the stage of ongoing work. \n\n\n## Demo\n\nCheck out the [live QASem demo](https://huggingface.co/spaces/kleinay/qasem-demo) on Huggingface.\n\n\n\n\n## Installation\n\n**Pre-requisite**: Python 3.7\n\nInstallation is available via pip:\n```bash\npip install qasem\n```\n\n### Installation from source\nClone the repo and install using `setup.py`:\n```bash\ngit clone https://github.com/kleinay/QASem.git\ncd QASem\npip install -e .\n```\n\nAlternatively, If you want to install the dependencies explicitly:\n```bash\npip install transformers==4.15.0 spacy>=2.3.7 qanom \npip install git+https://github.com/rubenwol/RoleQGeneration.git\n```\n\nIn addition, you would need to download a spacy model for pre-requisite tokenization & POS-tagging:\n```bash\npython -m spacy download en_core_web_sm\n```\n\n\n## Usage \n\nThe `QASemEndToEndPipeline` class would, by demand, parse sentences with any of the QASem semantic annotation layers --- currenlty including 'qasrl', 'qanom' and 'qadiscourse'.  \n\n### Features\n\n**Annotation layers:**\nBy default, the pipeline would parse all layers.\nTo specify a subset of desired layers, e.g. QASRL and QADiscourse alone, use `annotation_layers=('qasrl', 'qadiscourse')` in initialization.\n\n**QA-SRL contextualization:**\nFor the sake of generality, QA-SRL and QANom generate ``abstractive'' questions, that replace arguments with placeholders, e.g. \"Why was *someone* interested in *something*?\". However, in some use-cases you might want to have a more natural question with contextualized arguments, e.g. \"Why was *the doctor* interested in *Luke 's treatment*?\". Utilizing the model from [Pyatkin et. al., 2021](https://aclanthology.org/2021.emnlp-main.108/), one can additionally get contextualized questions for QA-SRL and QANom by setting `QASemEndToEndPipeline(contextualize=True)` (see example below).     \n\n**Nominal predicate detection:**\n`nominalization_detection_threshold` --- which can be set globally in initialization and per `__call__` --- is the threshold for the nominalization detection model.\nA higher threshold (e.g. `0.8`) means capturing less nominal predicates with higher confidence of them being, in context, verb-derived event markers. Default threshold is `0.7`. \n\n**OpenIE converter:**\nSet `output_openie=True` (in `__call__`) in order to get a reduction of output QAs into Open Information Extraction's tuples format. This option uses the `qasem.openie_converter.OpenIEConverter` class to linearize the arguments along with the predicate by the order of occurrence in the source sentence. \nThe pipeline's output would then be in the form `{\"qasem\": <regular QA outputs>, \"openie\": <OpenIE tuple outputs>}`.\n\nBy default, only verbal QA-SRL QAs would be converted, but one can also sepcify `layers_included=[\"qasrl\", \"qanom\"]` when initializing `OpenIEConverter` to also include nominalizations' QAs. \nYou can set arguments for `OpenIEConverter` in the `QASemEndToEndPipeline` constructor using the `openie_converter_kwargs` argument, e.g. `QASemEndToEndPipeline(openie_converter_kwargs={\"layers_included\": [\"qasrl\", \"qanom\"]})`. \n\n\n### Example\n\n ```python\nfrom qasem.end_to_end_pipeline import QASemEndToEndPipeline \npipe = QASemEndToEndPipeline(annotation_layers=('qasrl', 'qanom', 'qadiscourse'),  nominalization_detection_threshold=0.75, contextualize = True)  \nsentences = [\"The doctor was interested in Luke 's treatment as he was still not feeling well .\", \"Tom brings the dog to the park.\"]\noutputs = pipe(sentences)\n\nprint(outputs)\n ```\nOutputs\n ```python\n[{'qanom': [\n   {'QAs': [{\n      'question': 'who was treated ?',\n      'answers': ['Luke'],\n      'contextual_question': 'Who was treated?'}],\n    'predicate_idx': 7,\n    'predicate': 'treatment',\n    'predicate_detector_probability': 0.8152085542678833,\n    'verb_form': 'treat'}\n  ],\n  'qasrl': [\n    ...\n  ],\n  'qadiscourse': [{\n    'question': 'What is the cause of the doctor being interested in Luke 's treatment?',\n    'answer': 'he was still not feeling well'}\n  ]},\n },\n \n {'qanom': [],\n  'qasrl': [{'QAs': [\n     {'question': 'who brings something ?',\n      'answers': ['Tom'],\n      'contextual_question': 'Who brings the dog?'},\n     {'question': ' what does someone bring ?',\n      'answers': ['the dog'],\n      'contextual_question': 'What does Tom bring?'},\n     {'question': ' where does someone bring something ?',\n      'answers': ['to the park'],\n      'contextual_question': 'Where does Tom bring the dog?'}],\n    'predicate_idx': 1,\n    'predicate': 'brings',\n    'verb_form': 'bring'}]}\n  ],\n  'qadiscourse': []\n }\n ```\n\n\n## Repository for Model Training & Experiments\n\nThe underlying QA-SRL and QANom models were trained and evaluated using the code at [qasrl-seq2seq](https://github.com/kleinay/qasrl-seq2seq) repository.\n\nThe code for training and evaluating the QADiscourse model will be uploaded soon.\n\n## Cite\n\n```latex\n@article{klein2022qasem,\n  title={QASem Parsing: Text-to-text Modeling of QA-based Semantics},\n  author={Klein, Ayal and Hirsch, Eran and Eliav, Ron and Pyatkin, Valentina and Caciularu, Avi and Dagan, Ido},\n  journal={arXiv preprint arXiv:2205.11413},\n  year={2022}\n}\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -290,7 +289,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15855494,
+        "last_serial": 15865969,
         "urls": [
             {
                 "comment_text": "",
@@ -309,6 +308,70 @@
                 "upload_time": "2022-11-22T15:28:55",
                 "upload_time_iso_8601": "2022-11-22T15:28:55.669592Z",
                 "url": "https://files.pythonhosted.org/packages/33/58/8062ab67eddd55fddc0a31fc1f27271ada5dc225421aaf4c0c319f34e022/qasem-0.1.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.7": {
+        "info": {
+            "author": "Ayal Klein, Ruben Wolhandler, Ron Eliav",
+            "author_email": "ayal.s.klein@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# QASem - Question-Answer based Semantics \n\nThis repository includes software for parsing natural language sentence with various layers of QA-based semantic annotations. \nWe currently support three layers of semantic annotations - QASRL, QANom, and QADiscourse. \nSee an overview of our approach at our paper on [QASem Parsing](https://arxiv.org/abs/2205.11413). \n\n[QASRL (Question Answer driven Semantic Role Labeling)](https://aclanthology.org/D15-1076/) is a lightweight semantic framework for annotating \"who did what to whom, how, when and where\". \nFor every verb in the sentence, it provides a set of question-answer pairs, where the answer mark a participant of the event denoted by the verb, while the question captures its *semantic role* (that is, what is the role of the participant in the event).\n\n\"QANom\" stands for \"QASRL for Nominalizations\", which is an adaptation of QASRL to (deverbal) nominalization. See the [QANom paper](https://aclanthology.org/2020.coling-main.274/) for details about the task. \n\nYou can find more information on [QASRL's official website](https://qasrl.org), including links to all the papers and datasets and a data browsing utility. \nWe also wrapped the datasets into Huggingface Datasets ([QASRL](https://huggingface.co/datasets/kleinay/qa_srl); [QANom](https://huggingface.co/datasets/biu-nlp/qanom)), which are easier to plug-and-play with (check out our [HF profile](https://huggingface.co/biu-nlp) for other related datasets, such as QAMR, QADiscourse, and QA-Align).\n\n[QADiscourse](https://aclanthology.org/2020.emnlp-main.224) annotates intra-sentential discourse relations with question-answer pairs. It focus on discourse relations that carry information, rather than specifying structural or pragmatic properties of the realied sentencs. Each question starts with one of 17 crafted question prefixes, roughly mapped into PDTB relation senses.   \n\n*Note*: In the future, we will also combine additional layers of QA-based semantic annotations for adjectives and noun modifiers, currently at the stage of ongoing work. \n\n\n## Demo\n\nCheck out the [live QASem demo](https://huggingface.co/spaces/kleinay/qasem-demo) on Huggingface.\n\n\n\n\n## Installation\n\n**Pre-requisite**: Python 3.7\n\nInstallation is available via pip:\n```bash\npip install qasem\n```\n\n### Installation from source\nClone the repo and install using `setup.py`:\n```bash\ngit clone https://github.com/kleinay/QASem.git\ncd QASem\npip install -e .\n```\n\nAlternatively, If you want to install the dependencies explicitly:\n```bash\npip install transformers==4.15.0 spacy>=2.3.7 qanom \npip install git+https://github.com/rubenwol/RoleQGeneration.git\n```\n\nIn addition, you would need to download a spacy model for pre-requisite tokenization & POS-tagging:\n```bash\npython -m spacy download en_core_web_sm\n```\n\n\n## Usage \n\nThe `QASemEndToEndPipeline` class would, by demand, parse sentences with any of the QASem semantic annotation layers --- currenlty including 'qasrl', 'qanom' and 'qadiscourse'.  \n\n### Features\n\n**Annotation layers:**\nBy default, the pipeline would parse all layers.\nTo specify a subset of desired layers, e.g. QASRL and QADiscourse alone, use `annotation_layers=('qasrl', 'qadiscourse')` in initialization.\n\n**QA-SRL contextualization:**\nFor the sake of generality, QA-SRL and QANom generate ``abstractive'' questions, that replace arguments with placeholders, e.g. \"Why was *someone* interested in *something*?\". However, in some use-cases you might want to have a more natural question with contextualized arguments, e.g. \"Why was *the doctor* interested in *Luke 's treatment*?\". Utilizing the model from [Pyatkin et. al., 2021](https://aclanthology.org/2021.emnlp-main.108/), one can additionally get contextualized questions for QA-SRL and QANom by setting `QASemEndToEndPipeline(contextualize=True)` (see example below).     \n\n**Nominal predicate detection:**\n`nominalization_detection_threshold` --- which can be set globally in initialization and per `__call__` --- is the threshold for the nominalization detection model.\nA higher threshold (e.g. `0.8`) means capturing less nominal predicates with higher confidence of them being, in context, verb-derived event markers. Default threshold is `0.7`. \n\n**OpenIE converter:**\nSet `output_openie=True` (in `__call__`) in order to get a reduction of output QAs into Open Information Extraction's tuples format. This option uses the `qasem.openie_converter.OpenIEConverter` class to linearize the arguments along with the predicate by the order of occurrence in the source sentence. \nThe pipeline's output would then be in the form `{\"qasem\": <regular QA outputs>, \"openie\": <OpenIE tuple outputs>}`.\n\nBy default, only verbal QA-SRL QAs would be converted, but one can also sepcify `layers_included=[\"qasrl\", \"qanom\"]` when initializing `OpenIEConverter` to also include nominalizations' QAs. \nYou can set arguments for `OpenIEConverter` in the `QASemEndToEndPipeline` constructor using the `openie_converter_kwargs` argument, e.g. `QASemEndToEndPipeline(openie_converter_kwargs={\"layers_included\": [\"qasrl\", \"qanom\"]})`. \n\n\n### Example\n\n ```python\nfrom qasem.end_to_end_pipeline import QASemEndToEndPipeline \npipe = QASemEndToEndPipeline(annotation_layers=('qasrl', 'qanom', 'qadiscourse'),  nominalization_detection_threshold=0.75, contextualize = True)  \nsentences = [\"The doctor was interested in Luke 's treatment as he was still not feeling well .\", \"Tom brings the dog to the park.\"]\noutputs = pipe(sentences)\n\nprint(outputs)\n ```\nOutputs\n ```python\n[{'qanom': [\n   {'QAs': [{\n      'question': 'who was treated ?',\n      'answers': ['Luke'],\n      'contextual_question': 'Who was treated?'}],\n    'predicate_idx': 7,\n    'predicate': 'treatment',\n    'predicate_detector_probability': 0.8152085542678833,\n    'verb_form': 'treat'}\n  ],\n  'qasrl': [\n    ...\n  ],\n  'qadiscourse': [{\n    'question': 'What is the cause of the doctor being interested in Luke 's treatment?',\n    'answer': 'he was still not feeling well'}\n  ]},\n },\n \n {'qanom': [],\n  'qasrl': [{'QAs': [\n     {'question': 'who brings something ?',\n      'answers': ['Tom'],\n      'contextual_question': 'Who brings the dog?'},\n     {'question': ' what does someone bring ?',\n      'answers': ['the dog'],\n      'contextual_question': 'What does Tom bring?'},\n     {'question': ' where does someone bring something ?',\n      'answers': ['to the park'],\n      'contextual_question': 'Where does Tom bring the dog?'}],\n    'predicate_idx': 1,\n    'predicate': 'brings',\n    'verb_form': 'bring'}]}\n  ],\n  'qadiscourse': []\n }\n ```\n\n\n## Repository for Model Training & Experiments\n\nThe underlying QA-SRL and QANom models were trained and evaluated using the code at [qasrl-seq2seq](https://github.com/kleinay/qasrl-seq2seq) repository.\n\nThe code for training and evaluating the QADiscourse model will be uploaded soon.\n\n## Cite\n\n```latex\n@article{klein2022qasem,\n  title={QASem Parsing: Text-to-text Modeling of QA-based Semantics},\n  author={Klein, Ayal and Hirsch, Eran and Eliav, Ron and Pyatkin, Valentina and Caciularu, Avi and Dagan, Ido},\n  journal={arXiv preprint arXiv:2205.11413},\n  year={2022}\n}\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/kleinay/QASem",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "qasem",
+            "package_url": "https://pypi.org/project/qasem/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/qasem/",
+            "project_urls": {
+                "Homepage": "https://github.com/kleinay/QASem"
+            },
+            "release_url": "https://pypi.org/project/qasem/0.1.7/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "package for QA-based Semantics - representing textual information via question-answer pairs",
+            "version": "0.1.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15865969,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1b74e75d8d1a1722c9d047a51245ac59",
+                    "sha256": "8e8fa1269372a645b71adb609a890662f30374a8bf72addaf8af8cb25305d248"
+                },
+                "downloads": -1,
+                "filename": "qasem-0.1.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "1b74e75d8d1a1722c9d047a51245ac59",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 17743,
+                "upload_time": "2022-11-23T11:29:34",
+                "upload_time_iso_8601": "2022-11-23T11:29:34.152738Z",
+                "url": "https://files.pythonhosted.org/packages/62/a1/294c6d8d092c0b98fc05733c61f9f449b810d33d825e8c847043c856cbe5/qasem-0.1.7.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
