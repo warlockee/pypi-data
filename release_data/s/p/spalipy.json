@@ -41,7 +41,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13736134,
+        "last_serial": 15857160,
         "urls": [
             {
                 "comment_text": "",
@@ -128,7 +128,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13736134,
+        "last_serial": 15857160,
         "urls": [
             {
                 "comment_text": "",
@@ -235,7 +235,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13736134,
+        "last_serial": 15857160,
         "urls": [
             {
                 "comment_text": "",
@@ -302,7 +302,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13736134,
+        "last_serial": 15857160,
         "urls": [
             {
                 "comment_text": "",
@@ -369,7 +369,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13736134,
+        "last_serial": 15857160,
         "urls": [
             {
                 "comment_text": "",
@@ -435,7 +435,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13736134,
+        "last_serial": 15857160,
         "urls": [
             {
                 "comment_text": "",
@@ -501,7 +501,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13736134,
+        "last_serial": 15857160,
         "urls": [
             {
                 "comment_text": "",
@@ -567,7 +567,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13736134,
+        "last_serial": 15857160,
         "urls": [
             {
                 "comment_text": "",
@@ -633,7 +633,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13736134,
+        "last_serial": 15857160,
         "urls": [
             {
                 "comment_text": "",
@@ -671,7 +671,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Topic :: Scientific/Engineering :: Astronomy"
             ],
-            "description": "# spalipy\n\nDetection-based astronomical image registration.\n\nInitially built from the algorithm of\n[alipy2.0](https://obswww.unige.ch/~tewes/alipy/), `spalipy` includes an\noptional additional warping of the affine transformation via splines to \nachieve accurate registration in the case of non-homogeneous coordinate \ntransforms. This is particularly useful in the case of optically distorted \nor wide field-of-view images.\n\n## Install\n\n#### From PyPI\n```\npip install spalipy\n```\n\n#### From source\n```\ngit clone https://github.com/Lyalpha/spalipy\ncd spalipy\npip install .\n```\n\n## Quick run\n\nIf you have (geometrically) well-behaved images with a significant\noverlap, then good results can usually be obtained with a call such\nas:\n```\nalign-fits-simple source.fits source_aligned.fits template.fits\n```\nWhere `source.fits` is the image to be aligned to the supplied `template.fits`,\nand `source_aligned.fits` is where the result should be written.\n\nTo take advantage of all the dials and sliders to tweak the alignment,\ntake a look at the entire parameter descriptions via:\n```\nalign-fits -h\n```\n\nAlternatively, one can pass lower level objects to perform an alignment\ninteractively or within an external script, see running `spalipy` \n[interactively](#interactively).\n\n## Description\n\nA `source` image is transformed to the pixel-coordinate system of a\n`template` image using their respective detections as tie-points.\n\nMatching [quads](https://arxiv.org/abs/0910.2233) of detections between \nthe two catalogues are used to match corresponding detections in the two \nimages. An initial affine transformation is calculated from a quad match,\nand is applied to `source` image detections. Following this, cross-matching\nis performed within some tolerance to find corresponding detections across\nthe image. The remaining residuals between the matched detection coordinates \nare used to construct 2D spline surfaces that represent the spatially-varying \nresiduals in `x` and `y` axes. These surfaces are used to calculate the \ncorrection needed to properly register the images even in the face of \nnon-homogeneous coordinate transformation between the images. Flux \nconservation is relatively robust so long as the pixel scale between `source`\nand `template` is the same. Proper investigation with different pixel scales\nhas not been performed.\n\n*__Note:__ the affine transformation uses `scipy.interpolation.affine_transform`\nwhich doesn't handle nans properly, therefore replace all nan values\nin the `source` image prior to running `spalipy`.*\n\n\n## Examples\n\n`spalipy` can be run in two modes - via the command-line scripts or \ninteractively. The second big choice is to either provide your own detection\ncatalogues or let `spalipy` perform its own detection. Each of these scenarios\nis shown below.\n\n### via the command-line\n\n##### Using the internal detection routine\n\nWhen using the internal detection routines, there are two command-line \nscripts: `align-fits` and `align-fits-simple`. For narrow field-of-view\nimages without significant distortions, `align-fits-simple` is probabably\nentirely sufficient to get a good alignment. (`align-fits-simple` has\na significantly reduced parameter list and sets some automatically,\nfor example it will always switch off spline fitting and does not\nallow the user to pass existing detection catalogues.)\n\n```\nalign-fits-simple source.fits source_aligned.fits template.fits\n```\nor\n```\nalign-fits source.fits source_aligned.fits -tf template.fits\n```\nTake notice of the `-tf` argument in the second example, this is because \n`align-fits` offers multiple ways to provide detections, as shown in the next\nsection.\n\n##### Passing existing SExtractor detection catalogues\n\nIf one already has detection catalogues from a SExtractor run, then these can\nbe used to save repetition.\n\ne.g. create two `SExtractor` catalogues for the image:\n```\nsex -c /path/to/my/sex.config source.fits -CATALOG_NAME source.cat\nsex -c /path/to/my/sex.config template.fits -CATALOG_NAME template.cat\n```\n*__Note:__ At a minimum, the `SExtractor` catalogues __must__ contain the \ncolumns `X_IMAGE, Y_IMAGE, FLUX, FWHM_IMAGE, FLAGS`.*\n\nWe must use `align-fits` here since `align-fits-simple` does not allow us to\npass catalogues:\n\n```\nalign-fits source.fits source_aligned.fits -sc source.cat -tc template.cat\n```\n\n### Interactively\n\n##### Using the internal detection routine\n\n```python\nfrom astropy.io import fits\nfrom spalipy import Spalipy\n\nsource_data = fits.getdata(\"source.fits\")\ntemplate_data = fits.getdata(\"template.fits\")\n\nsp = Spalipy(source_data, template_data=template_data)\nsp.align()\nfits.writeto(\"source_aligned.fits\", data=sp.aligned_data)\n```\n\n##### Passing existing detection tables\n\nAnalagously to [passing `SExtractor` catalogues](#passing-existing-sextractor-detection-catalogues),\none can pass existing `astropy.Table` objects when calling `spalipy` interactively, for examples\nas the output of a prior `sep.extract()` call.\n\n*__Note:__ At a minimum, the detection tables __must__ contain the \ncolumns `x, y, flux, fwhm, flag`.*\n\n```python\nimport sep\nfrom astropy.io import fits\nfrom astropy.table import Table\nfrom spalipy import Spalipy\n\nsource_data = fits.getdata(\"source.fits\")\ntemplate_data = fits.getdata(\"template.fits\")\n# Run sep on each set of data\n# ...\n# source_extracted = sep.extract(...)\n# template_extracted = sep.extract(...)\nsource_det = Table(source_extracted)\ntemplate_det = Table(template_extracted)\n\nsp = Spalipy(source_data, source_det=source_det, template_det=template_det)\nsp.align()\nfits.writeto(\"source_aligned.fits\", data=sp.aligned_data)\n```\n\n### Logging\n\nWhen running interactively, all information is output in logging. To see these\none can do\n```python\nimport logging\nlogging.getLogger().setLevel(logging.INFO)  # or logging.DEBUG for more messages\n```\nprior to any of the [interactive example calls](#interactively).\n\nStatistics for the transformation goodness can also be accessed via:\n```python\nsp.log_transform_stats()\n```\n\n### Parameter tuning\n\nSeveral parameters should have the main focus of attention if an acceptable \nalignment is not being found.\n\n* If you have a small number of detections in your image overlap then\n`min_n_match` will need to be lowered from its default of `100`, but it is\nalso worth raising `n_det` so that the alignment uses all of your sources.\nSee `n_det` docstring on its float vs int format, but it is safe/easy to just\nset to some overly large value such that it won't limit your detection tables,\ne.g. `n_det=10000`.\n* `sub_tile` at a default of `2` will effectively fit an affine transformation\nin each quart of the image. On extremely distorted images even this may not be\nenough and so it can be raised to `3` (or even `4`). It is a balancing act \nthat there must still be sufficient detections in each image in each sub tile\nregion from which to make a fit. If you have a low number of detections,\nor detections are spread strongly unevenly, this should be set to `1`.\n* `spline_order` should generally only be lowered from its default of `3`. \nSetting it to zero might actually be preferable for simple alignment tasks.\nAlso, with a low number of detections, and particularly with regions of low\nnumber of detections, the splines may misbehave.\n* `max_match_dist` is the tolerance in pixels when considering a `source` \nand `template` detection as matched after the affine transform. One may \nincrease this in the case of poorly centred detections. Note that this\nhas an indirect impact on `min_sep` (set to `2 * max_match_dist` by \ndefault) - when raising `max_match_dist` then `min_sep` correspondingly\nincreases, offering some guard against ambguous cross-matching in crowded\nregions. However, raising it too high may mean that too few detections\npass the `min_sep` criterion. In crowded fields and with well-behaved\ndetection centres, reducing `max_match_dist` may be advisable.",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -700,7 +699,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13736134,
+        "last_serial": 15857160,
         "urls": [
             {
                 "comment_text": "",
@@ -719,6 +718,73 @@
                 "upload_time": "2022-05-06T17:26:52",
                 "upload_time_iso_8601": "2022-05-06T17:26:52.573281Z",
                 "url": "https://files.pythonhosted.org/packages/cb/64/a97c65045f8e4d3d0a98fb69be320ce98172a10f7295af83ea536ceb12e7/spalipy-3.2.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "3.3.0": {
+        "info": {
+            "author": "Joe Lyman",
+            "author_email": "joedlyman@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Topic :: Scientific/Engineering :: Astronomy"
+            ],
+            "description": "# spalipy\n\nDetection-based astronomical image registration.\n\nInitially built from the algorithm of\n[alipy2.0](https://obswww.unige.ch/~tewes/alipy/), `spalipy` includes an\noptional additional warping of the affine transformation via splines to \nachieve accurate registration in the case of non-homogeneous coordinate \ntransforms. This is particularly useful in the case of optically distorted \nor wide field-of-view images.\n\n## Install\n\n#### From PyPI\n```\npip install spalipy\n```\n\n#### From source\n```\ngit clone https://github.com/Lyalpha/spalipy\ncd spalipy\npip install .\n```\n\n## Quick run\n\nIf you have (geometrically) well-behaved images with a significant\noverlap, then good results can usually be obtained with a call such\nas:\n```\nalign-fits-simple source.fits source_aligned.fits template.fits\n```\nWhere `source.fits` is the image to be aligned to the supplied `template.fits`,\nand `source_aligned.fits` is where the result should be written.\n\nTo take advantage of all the dials and sliders to tweak the alignment,\ntake a look at the entire parameter descriptions via:\n```\nalign-fits -h\n```\n\nAlternatively, one can pass lower level objects to perform an alignment\ninteractively or within an external script, see running `spalipy` \n[interactively](#interactively).\n\n## Description\n\nA `source` image is transformed to the pixel-coordinate system of a\n`template` image using their respective detections as tie-points.\n\nMatching [quads](https://arxiv.org/abs/0910.2233) of detections between \nthe two catalogues are used to match corresponding detections in the two \nimages. An initial affine transformation is calculated from a quad match,\nand is applied to `source` image detections. Following this, cross-matching\nis performed within some tolerance to find corresponding detections across\nthe image. The remaining residuals between the matched detection coordinates \nare used to construct 2D spline surfaces that represent the spatially-varying \nresiduals in `x` and `y` axes. These surfaces are used to calculate the \ncorrection needed to properly register the images even in the face of \nnon-homogeneous coordinate transformation between the images. Flux \nconservation is relatively robust so long as the pixel scale between `source`\nand `template` is the same. Proper investigation with different pixel scales\nhas not been performed.\n\n*__Note:__ the affine transformation uses `scipy.interpolation.affine_transform`\nwhich doesn't handle nans properly, therefore replace all nan values\nin the `source` image prior to running `spalipy`.*\n\n\n## Examples\n\n`spalipy` can be run in two modes - via the command-line scripts or \ninteractively. The second big choice is to either provide your own detection\ncatalogues or let `spalipy` perform its own detection. Each of these scenarios\nis shown below.\n\n### via the command-line\n\n##### Using the internal detection routine\n\nWhen using the internal detection routines, there are two command-line \nscripts: `align-fits` and `align-fits-simple`. For narrow field-of-view\nimages without significant distortions, `align-fits-simple` is probabably\nentirely sufficient to get a good alignment. (`align-fits-simple` has\na significantly reduced parameter list and sets some automatically,\nfor example it will always switch off spline fitting and does not\nallow the user to pass existing detection catalogues.)\n\n```\nalign-fits-simple source.fits source_aligned.fits template.fits\n```\nor\n```\nalign-fits source.fits source_aligned.fits -tf template.fits\n```\nTake notice of the `-tf` argument in the second example, this is because \n`align-fits` offers multiple ways to provide detections, as shown in the next\nsection.\n\n##### Passing existing SExtractor detection catalogues\n\nIf one already has detection catalogues from a SExtractor run, then these can\nbe used to save repetition.\n\ne.g. create two `SExtractor` catalogues for the image:\n```\nsex -c /path/to/my/sex.config source.fits -CATALOG_NAME source.cat\nsex -c /path/to/my/sex.config template.fits -CATALOG_NAME template.cat\n```\n*__Note:__ At a minimum, the `SExtractor` catalogues __must__ contain the \ncolumns `X_IMAGE, Y_IMAGE, FLUX, FWHM_IMAGE, FLAGS`.*\n\nWe must use `align-fits` here since `align-fits-simple` does not allow us to\npass catalogues:\n\n```\nalign-fits source.fits source_aligned.fits -sc source.cat -tc template.cat\n```\n\n### Interactively\n\n##### Using the internal detection routine\n\n```python\nfrom astropy.io import fits\nfrom spalipy import Spalipy\n\nsource_data = fits.getdata(\"source.fits\")\ntemplate_data = fits.getdata(\"template.fits\")\n\nsp = Spalipy(source_data, template_data=template_data)\nsp.align()\nfits.writeto(\"source_aligned.fits\", data=sp.aligned_data)\n```\n\n##### Passing existing detection tables\n\nAnalagously to [passing `SExtractor` catalogues](#passing-existing-sextractor-detection-catalogues),\none can pass existing `astropy.Table` objects when calling `spalipy` interactively, for examples\nas the output of a prior `sep.extract()` call.\n\n*__Note:__ At a minimum, the detection tables __must__ contain the \ncolumns `x, y, flux, fwhm, flag`.*\n\n```python\nimport sep\nfrom astropy.io import fits\nfrom astropy.table import Table\nfrom spalipy import Spalipy\n\nsource_data = fits.getdata(\"source.fits\")\ntemplate_data = fits.getdata(\"template.fits\")\n# Run sep on each set of data\n# ...\n# source_extracted = sep.extract(...)\n# template_extracted = sep.extract(...)\nsource_det = Table(source_extracted)\ntemplate_det = Table(template_extracted)\n\nsp = Spalipy(source_data, source_det=source_det, template_det=template_det)\nsp.align()\nfits.writeto(\"source_aligned.fits\", data=sp.aligned_data)\n```\n\n### Logging\n\nWhen running interactively, all information is output in logging. To see these\none can do\n```python\nimport logging\nlogging.getLogger().setLevel(logging.INFO)  # or logging.DEBUG for more messages\n```\nprior to any of the [interactive example calls](#interactively).\n\nStatistics for the transformation goodness can also be accessed via:\n```python\nsp.log_transform_stats()\n```\n\n### Parameter tuning\n\nSeveral parameters should have the main focus of attention if an acceptable \nalignment is not being found.\n\n* If you have a small number of detections in your image overlap then\n`min_n_match` will need to be lowered from its default of `100`, but it is\nalso worth raising `n_det` so that the alignment uses all of your sources.\nSee `n_det` docstring on its float vs int format, but it is safe/easy to just\nset to some overly large value such that it won't limit your detection tables,\ne.g. `n_det=10000`.\n* `sub_tile` at a default of `2` will effectively fit an affine transformation\nin each quart of the image. On extremely distorted images even this may not be\nenough and so it can be raised to `3` (or even `4`). It is a balancing act \nthat there must still be sufficient detections in each image in each sub tile\nregion from which to make a fit. If you have a low number of detections,\nor detections are spread strongly unevenly, this should be set to `1`.\n* `spline_order` should generally only be lowered from its default of `3`. \nSetting it to zero might actually be preferable for simple alignment tasks.\nAlso, with a low number of detections, and particularly with regions of low\nnumber of detections, the splines may misbehave.\n* `max_match_dist` is the tolerance in pixels when considering a `source` \nand `template` detection as matched after the affine transform. One may \nincrease this in the case of poorly centred detections. Note that this\nhas an indirect impact on `min_sep` (set to `2 * max_match_dist` by \ndefault) - when raising `max_match_dist` then `min_sep` correspondingly\nincreases, offering some guard against ambguous cross-matching in crowded\nregions. However, raising it too high may mean that too few detections\npass the `min_sep` criterion. In crowded fields and with well-behaved\ndetection centres, reducing `max_match_dist` may be advisable.",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/Lyalpha/spalipy",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "spalipy",
+            "package_url": "https://pypi.org/project/spalipy/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/spalipy/",
+            "project_urls": {
+                "Homepage": "https://github.com/Lyalpha/spalipy"
+            },
+            "release_url": "https://pypi.org/project/spalipy/3.3.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Detection-based astrononmical image registration",
+            "version": "3.3.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15857160,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5f192e5cdeaf2644f7b6b089f14aca34",
+                    "sha256": "67820c1459625af61cf64a725fb913389e078a0b74c3cb6a89019eb5e9595b42"
+                },
+                "downloads": -1,
+                "filename": "spalipy-3.3.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5f192e5cdeaf2644f7b6b089f14aca34",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 38332,
+                "upload_time": "2022-11-22T17:44:18",
+                "upload_time_iso_8601": "2022-11-22T17:44:18.315326Z",
+                "url": "https://files.pythonhosted.org/packages/45/37/cc2d0528824cec0c430b17f50edf61b448170d936dd3855ad2826a8e4978/spalipy-3.3.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

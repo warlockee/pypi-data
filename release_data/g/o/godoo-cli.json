@@ -11,7 +11,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# gOdoo Dev Environment\n\n![OdooLogo](https://raw.githubusercontent.com/OpenJKSoftware/gOdoo/main/assets/odoo_logo.png)\n![ComposeLogo](https://raw.githubusercontent.com/docker/compose/v2/logo.png)\n\n**gOdoo** is short for **go Odoo**. \\\nIt is a [Vscode Devcontainer](https://code.visualstudio.com/docs/remote/containers) Environment for [Odoo](https://odoo.com/)\nwith Python CLI `godoo` convenience wrapper around `odoo-bin`.\n\nThis repository is the base source for the Python package [godoo-cli](https://pypi.org/project/godoo-cli/) and serves as\nan all batteries included development environment.\n\nMade Possible by: [WEMPE Elektronic GmbH](https://wetech.de)\n\n# gOdoo-cli\n\nPython package that provides `godoo` command line interface around `odoo-bin`.\n\nIt's build with [Typer](https://github.com/tiangolo/typer) to provide some convenience Wrappers for Odoo development and\nDeployment.\n\nMost flags can be configured by Env variables. \\\nUse `godoo --help` to find out more.\n\n# Docker\n\nThis workspace also contains Docker and Docker-Compose files. \\\n\nThey are used to provide either easy Odoo instances where the source is pulled according to\n[odoo_repospec.yml](./odoo_repospec.yml), or as a all batteries included devcontainer for VScode.\n\n## Requirements\n\n- [Docker Compose](https://github.com/docker/compose)\n- [Traefik](https://doc.traefik.io/traefik/) container running with docker provider and \"traefik\" named docker network.\n  Example: [Traefik Devproxy](https://github.com/joshkreud/traefik_devproxy)\n\n## Just wanna have a quick and easy Odoo Instance?\n\n```bash\ngit clone https://github.com/OpenJKSoftware/gOdoo\ncd godoo\ncp .env.sample .env # Change this to your liking or pass the env vars directly to the app container.\ndocker-compose build\ndocker-compose up\n# wait......\n# wait a bit mode ...\n# just a little bit longer ..\n# There we go.\n# Odoo should be reachable on 'https://godoo.docker.localhost' assuming you didn't change .env TRAEFIK_HOST_RULE or COMPOSE_PROJECT_NAME\n```\n\n# Devcontainer\n\n## Features\n\n- All batteries included [Devcontainer](https://code.visualstudio.com/docs/remote/containers) with postgres service\n  Container and local DNS resolvig managed by [Traefik](https://doc.traefik.io/traefik/).\n- Easy fully working Odoo instance by `docker-compose up` with https access.\n- `godoo` CLI wrapper around Odoo. (Most flags can be configured by Environment Variables and are already preconfigured\n  in the Containers. See [.env.sample](./.env.sample))\n- `odoo-bin` is added to PATH and can thus be invoked from every folder.\n- Odoo will run in Proxy_Mode behind a Traefik reverse proxy for easy access on\n  `https://$COMPOSE_PROJECT_NAME.docker.localhost`\n- [Odoo Pylint plugin](https://github.com/OCA/pylint-odoo) preconfigured in vscode\n- Preinstalled vscode Extensions Highlights:\n  - [SQL Tools](https://marketplace.visualstudio.com/items?itemName=mtxr.sqltools) with preconfigured connection for\n    easy Database access in the Sidebar.\n  - [Docker Extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) controls\n    container host.\n  - [Odoo Snippets](https://marketplace.visualstudio.com/items?itemName=mstuttgart.odoo-snippets)\n  - [Odoo Developments](https://marketplace.visualstudio.com/items?itemName=scapigliato.vsc-odoo-development) can Grab\n    Odoo Model information from a running Server\n  - [Todo Tree](https://marketplace.visualstudio.com/items?itemName=Gruntfuggly.todo-tree)\n\n## Usage\n\n1. For Docker on windows: Clone the repo into the WSL2 Filesystem for better IO performance\n2. Have [Traefik](https://github.com/traefik/traefik) Running on `docker.localhost`\n   [Example](https://github.com/joshkreud/traefik_devproxy) \\\n   There must be a Docker network called `traefik` that can reach traefik.\n3. Create `.env` file (see [.env.sample](.env.sample))\n4. Open Devcontianer:\n   - If you have the Devcontainer CLI: `devcontainer open .`\n   - If not open the workspace in Local Vscode. In the Command pallete search for\n     `Devcontainers: Rebuild and Reopen in container`\n5. From **within the container** start Odoo using one of the following commands:\n   - `make` -> Loads Odoo + Workspace Addons\n   - `make bare` -> Loads Odoo with ony `web` installed.\n   - `make enterprise` -> godoo launch with install script for web_enterprise\n   - The full init script is available via \"`godoo`\". (See --help for Options)\n6. Open Odoo `https://$COMPOSE_PROJECT_NAME.docker.localhost`\\\n   For example `COMPOSE_PROJECT_NAME=godoo` --> [https://godoo.docker.localhost](https://godoo.docker.localhost)\n7. Login with `admin:admin`\n8. Profit!\n\n### Access to Odoo and Thirdparty addon Source\n\nYou can access the Odoo source by opening the VsCode workspace [full.code-workspace](full.code-workspace) from within\nthe Container. This will open a [Multi-Root Workspace](https://code.visualstudio.com/docs/editor/multi-root-workspaces).\nReally waiting for https://github.com/microsoft/vscode-remote-release/issues/3665 here.\n\n## Reset Devcontainer Data\n\nWhen you screwed up so bad its time to just start Over godoo has you covered:\n\n### Automatic Reset\n\nThere are 3 Options to reset the Dev Env.\n\n1. From **Outside** the Container run `make reset` in the project root to delete docker volumes and restart the\n   container. (Vscode will prompt to reconnect if still open)\n2. From **Outside** the Container run `make reset-hard` in the project root to force rebuild the main Odoo container and\n   then do the same as `make reset`\n3. From **Inside** the Container run `make reset` to drop the DB and delete varlib and the bootstrap flag, which is way\n   quicker than the other options.\n\n### Manual Reset\n\n1. Close vscode\n2. Remove `app` and `db` container from docker.\n3. Remove volumes: `db, odoo_thirdparty, odoo_web, vscode_extensions`\n4. Restart Devcontainer\n\n## Python Debugging\n\n### VsCode Debugging\n\nDebugging doesn't reliably work with\n[Odoo Multiprocess](https://www.odoo.com/documentation/14.0/developer/misc/other/cmdline.html#multiprocessing) mode\nenabled. \\\nThe container ships with a Vscode Debug profile, that sets `--workers 0` to allow for Debugging Breakpoints. See [.vscode/launch.json](./.vscode/launch.json)\n\n### Interactive Shell\n\nUse `godoo shell` to enter an interactive shell on the Database.\n\n# Odoo Modules\n\n## Third Party Modules (repospec.yml)\n\nThe `godoo` bootstrap function, will download some modules using git. \\\nWhich Repos to download is specified in `odoo_repospec.yml` ([Default](./odoo_repospec.yml)) \\\nNot all of the cloned addons are automatically installed. \\\nInstall them via the Apps Page in Odoo using `godoo rpc modules install` or using `odoo-bin`.\\\nModules downloaded on the Odoo Marketplace can be dropped as a `.zip` archive in [./thirdparty](./thirdparty)\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -46,7 +45,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15852535,
+        "last_serial": 15853446,
         "urls": [
             {
                 "comment_text": "",
@@ -85,6 +84,98 @@
                 "upload_time": "2022-11-22T11:09:55",
                 "upload_time_iso_8601": "2022-11-22T11:09:55.702717Z",
                 "url": "https://files.pythonhosted.org/packages/af/ca/729c705fbbb260620917e8bbcfd44ce9ea5e0e47426edde9c5c2b06c3ddd/godoo_cli-0.0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.3": {
+        "info": {
+            "author": "Joshua Kreuder",
+            "author_email": "Joshua_Kreuder@outlook.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: Other/Proprietary License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# gOdoo Dev Environment\n\n![OdooLogo](https://raw.githubusercontent.com/OpenJKSoftware/gOdoo/main/assets/odoo_logo.png)\n![ComposeLogo](https://raw.githubusercontent.com/docker/compose/v2/logo.png)\n\n**gOdoo** is short for **go Odoo**. \\\nIt is a [Vscode Devcontainer](https://code.visualstudio.com/docs/remote/containers) Environment for [Odoo](https://odoo.com/)\nwith Python CLI `godoo` convenience wrapper around `odoo-bin`.\n\nThis repository is the base source for the Python package [godoo-cli](https://pypi.org/project/godoo-cli/) and serves as\nan all batteries included development environment.\n\nMade Possible by: [WEMPE Elektronic GmbH](https://wetech.de)\n\n# gOdoo-cli\n\nPython package that provides `godoo` command line interface around `odoo-bin`.\n\nIt's build with [Typer](https://github.com/tiangolo/typer) to provide some convenience Wrappers for Odoo development and\nDeployment.\n\nMost flags can be configured by Env variables. \\\nUse `godoo --help` to find out more.\n\n# Docker\n\nThis workspace also contains Docker and Docker-Compose files. \\\n\nThey are used to provide either easy Odoo instances where the source is pulled according to\n[odoo_repospec.yml](./odoo_repospec.yml), or as a all batteries included devcontainer for VScode.\n\n## Requirements\n\n- [Docker Compose](https://github.com/docker/compose)\n- [Traefik](https://doc.traefik.io/traefik/) container running with docker provider and \"traefik\" named docker network.\n  Example: [Traefik Devproxy](https://github.com/joshkreud/traefik_devproxy)\n\n## Just wanna have a quick and easy Odoo Instance?\n\n```bash\ngit clone https://github.com/OpenJKSoftware/gOdoo\ncd godoo\ncp .env.sample .env # Change this to your liking or pass the env vars directly to the app container.\ndocker-compose build\ndocker-compose up\n# wait......\n# wait a bit mode ...\n# just a little bit longer ..\n# There we go.\n# Odoo should be reachable on 'https://godoo.docker.localhost' assuming you didn't change .env TRAEFIK_HOST_RULE or COMPOSE_PROJECT_NAME\n```\n\n# Devcontainer\n\n## Features\n\n- All batteries included [Devcontainer](https://code.visualstudio.com/docs/remote/containers) with postgres service\n  Container and local DNS resolvig managed by [Traefik](https://doc.traefik.io/traefik/).\n- Easy fully working Odoo instance by `docker-compose up` with https access.\n- `godoo` CLI wrapper around Odoo. (Most flags can be configured by Environment Variables and are already preconfigured\n  in the Containers. See [.env.sample](./.env.sample))\n- `odoo-bin` is added to PATH and can thus be invoked from every folder.\n- Odoo will run in Proxy_Mode behind a Traefik reverse proxy for easy access on\n  `https://$COMPOSE_PROJECT_NAME.docker.localhost`\n- [Odoo Pylint plugin](https://github.com/OCA/pylint-odoo) preconfigured in vscode\n- Preinstalled vscode Extensions Highlights:\n  - [SQL Tools](https://marketplace.visualstudio.com/items?itemName=mtxr.sqltools) with preconfigured connection for\n    easy Database access in the Sidebar.\n  - [Docker Extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) controls\n    container host.\n  - [Odoo Snippets](https://marketplace.visualstudio.com/items?itemName=mstuttgart.odoo-snippets)\n  - [Odoo Developments](https://marketplace.visualstudio.com/items?itemName=scapigliato.vsc-odoo-development) can Grab\n    Odoo Model information from a running Server\n  - [Todo Tree](https://marketplace.visualstudio.com/items?itemName=Gruntfuggly.todo-tree)\n\n## Usage\n\n1. For Docker on windows: Clone the repo into the WSL2 Filesystem for better IO performance\n2. Have [Traefik](https://github.com/traefik/traefik) Running on `docker.localhost`\n   [Example](https://github.com/joshkreud/traefik_devproxy) \\\n   There must be a Docker network called `traefik` that can reach traefik.\n3. Create `.env` file (see [.env.sample](.env.sample))\n4. Open Devcontianer:\n   - If you have the Devcontainer CLI: `devcontainer open .`\n   - If not open the workspace in Local Vscode. In the Command pallete search for\n     `Devcontainers: Rebuild and Reopen in container`\n5. From **within the container** start Odoo using one of the following commands:\n   - `make` -> Loads Odoo + Workspace Addons\n   - `make bare` -> Loads Odoo with ony `web` installed.\n   - `make enterprise` -> godoo launch with install script for web_enterprise\n   - The full init script is available via \"`godoo`\". (See --help for Options)\n6. Open Odoo `https://$COMPOSE_PROJECT_NAME.docker.localhost`\\\n   For example `COMPOSE_PROJECT_NAME=godoo` --> [https://godoo.docker.localhost](https://godoo.docker.localhost)\n7. Login with `admin:admin`\n8. Profit!\n\n### Access to Odoo and Thirdparty addon Source\n\nYou can access the Odoo source by opening the VsCode workspace [full.code-workspace](full.code-workspace) from within\nthe Container. This will open a [Multi-Root Workspace](https://code.visualstudio.com/docs/editor/multi-root-workspaces).\nReally waiting for https://github.com/microsoft/vscode-remote-release/issues/3665 here.\n\n## Reset Devcontainer Data\n\nWhen you screwed up so bad its time to just start Over godoo has you covered:\n\n### Automatic Reset\n\nThere are 3 Options to reset the Dev Env.\n\n1. From **Outside** the Container run `make reset` in the project root to delete docker volumes and restart the\n   container. (Vscode will prompt to reconnect if still open)\n2. From **Outside** the Container run `make reset-hard` in the project root to force rebuild the main Odoo container and\n   then do the same as `make reset`\n3. From **Inside** the Container run `make reset` to drop the DB and delete varlib and the bootstrap flag, which is way\n   quicker than the other options.\n\n### Manual Reset\n\n1. Close vscode\n2. Remove `app` and `db` container from docker.\n3. Remove volumes: `db, odoo_thirdparty, odoo_web, vscode_extensions`\n4. Restart Devcontainer\n\n## Python Debugging\n\n### VsCode Debugging\n\nDebugging doesn't reliably work with\n[Odoo Multiprocess](https://www.odoo.com/documentation/14.0/developer/misc/other/cmdline.html#multiprocessing) mode\nenabled. \\\nThe container ships with a Vscode Debug profile, that sets `--workers 0` to allow for Debugging Breakpoints. See [.vscode/launch.json](./.vscode/launch.json)\n\n### Interactive Shell\n\nUse `godoo shell` to enter an interactive shell on the Database.\n\n# Odoo Modules\n\n## Third Party Modules (repospec.yml)\n\nThe `godoo` bootstrap function, will download some modules using git. \\\nWhich Repos to download is specified in `odoo_repospec.yml` ([Default](./odoo_repospec.yml)) \\\nNot all of the cloned addons are automatically installed. \\\nInstall them via the Apps Page in Odoo using `godoo rpc modules install` or using `odoo-bin`.\\\nModules downloaded on the Odoo Marketplace can be dropped as a `.zip` archive in [./thirdparty](./thirdparty)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "LGPL-3",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "godoo-cli",
+            "package_url": "https://pypi.org/project/godoo-cli/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/godoo-cli/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/godoo-cli/0.0.3/",
+            "requires_dist": [
+                "python-dotenv (==0.20.0)",
+                "ruamel-yaml (==0.17.21)",
+                "typer[all] (>=0.7.0,<0.8.0)",
+                "gitpython (==3.1.27)",
+                "rich (==12.6.0)",
+                "godoo-rpc (==0.0.2)",
+                "openupgradelib (==3.3.4)"
+            ],
+            "requires_python": ">=3.8,<3.11",
+            "summary": "Wrapper around Odoo-Bin with some convinience RPC functions.",
+            "version": "0.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15853446,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e1866988e8ac3876b77de45edbbc248f",
+                    "sha256": "ffea19c2e95cfbe3f66a3b6974a0fd5449600e4fbb4433a7ca79a7ca208271ef"
+                },
+                "downloads": -1,
+                "filename": "godoo_cli-0.0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e1866988e8ac3876b77de45edbbc248f",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<3.11",
+                "size": 35140,
+                "upload_time": "2022-11-22T12:41:56",
+                "upload_time_iso_8601": "2022-11-22T12:41:56.942210Z",
+                "url": "https://files.pythonhosted.org/packages/09/6b/6d7b4a6fd64156a08284e2d7d69524b9cf7bfea4a98d5db65228b8ef3d12/godoo_cli-0.0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "519f0c12fb28d1b84752a32b83fa9971",
+                    "sha256": "5a6a41a0c9faddad159616df0c9208888b7a7d4f808ed0d67710298a2ff4a9c1"
+                },
+                "downloads": -1,
+                "filename": "godoo_cli-0.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "519f0c12fb28d1b84752a32b83fa9971",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<3.11",
+                "size": 29778,
+                "upload_time": "2022-11-22T12:41:58",
+                "upload_time_iso_8601": "2022-11-22T12:41:58.412592Z",
+                "url": "https://files.pythonhosted.org/packages/4c/a2/b61d2f5442507eb3a69cf11e5c3256d2c507c2471f23de575eacd535c462/godoo_cli-0.0.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

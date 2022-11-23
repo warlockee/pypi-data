@@ -34,7 +34,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14655943,
+        "last_serial": 15856679,
         "urls": [
             {
                 "comment_text": "",
@@ -114,7 +114,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14655943,
+        "last_serial": 15856679,
         "urls": [
             {
                 "comment_text": "",
@@ -194,7 +194,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14655943,
+        "last_serial": 15856679,
         "urls": [
             {
                 "comment_text": "",
@@ -274,7 +274,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14655943,
+        "last_serial": 15856679,
         "urls": [
             {
                 "comment_text": "",
@@ -354,7 +354,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14655943,
+        "last_serial": 15856679,
         "urls": [
             {
                 "comment_text": "",
@@ -405,7 +405,6 @@
             "author_email": "engineering@noloco.io",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# Noloco Python SDK\n\nOur Python SDK provides CRUD operations over your Noloco Collections.\n\n## Installation\n\nThe SDK is published on PyPI and can be installed with `pip`.\n\n```\n$ pip install noloco\n```\n\n## Getting started\n\nThe examples here will be based around two example collections, one called `author` and one called `book`.\n\nThe `author` collection will have this schema:\n\n```\n{\n    'firstName': 'TEXT',\n    'lastName': 'TEXT'\n}\n```\n\nThe book collection will have the following schema:\n\n```\n{\n    'title': 'TEXT',\n    'author': 'AUTHOR',\n    'pageCount': 'INTEGER'\n}\n```\n\n### Pre-requisites\n\nYou will need to know your account API key before you can use the SDK. To find this:\n- Open your project dashboard\n- Go to the Settings page\n- Go to Integrations & API Keys\n- Copy your Account API Key\n\nYou will also need to know your project name. If you access your site via the Noloco subdomain you can just copy it from the URL as it will be [project-name].noloco.co. If you use a custom domain you will need to look it up:\n- Open your project dashboard\n- Go to the Settings page\n- Go to Domains\n- Find the Production subdomain\n- This will be [project-name].noloco.co\n\n### Building a client\n\nA client is provided in the SDK through which you can carry out CRUD operations on your collections. You can construct an instance of this client as follows:\n\n```\nfrom noloco.client import Noloco\n...\n# See pre-requisites above.\naccount_api_key = ...\nproject_name = ...\n...\nclient = Noloco(account_api_key, project_name)\n```\n\nThis construction step might take a few seconds to run. The `Noloco.__init__` method is going to do a few things. Firstly it will use your account API key to lookup your project document, it will then find your project API key from this document and validate it with Noloco. Assuming this is all OK we will cache the data types that exist on your project at the time you constructed your client. If you alter the schema of any data types in your portal, you may notice a slight delay in the next request as we fetch your new data types.\n\n### Creating a record in a collection\n\nTo create a new author and then create a new book linked to them you would write the following code:\n\n```\nauthor = client.create('author', {\n    'data': {\n        'firstName': 'Jane',\n        'lastName': 'Doe'\n    }\n})\n\nbook = client.create('book', {\n    'data': {\n        'title': 'My Biography',\n        'author': {\n            'connect': {\n                'id': author.id\n            }\n        },\n        'pageCount': 500\n    },\n    'include': {\n        'author': True\n    }\n})\n```\n\nYou might be wondering what the significance of `{'include': {'author': True}}` is... Whenever we return a record from the API we will always return all the top-level fields (including files) by default. However we do not include relationship fields unless you specifically tell the client to include them in the `options` parameters. Because this call to create a `book` is including `author` in its `options`, when the created `book` is returned, the author relationship will also be included. In an interpreter we can see this:\n\n```\n$ print(book)\n\n{\n    'id': 1,\n    'uuid': ...,\n    'createdAt': ...,\n    'updatedAt': ...,\n    'title': 'My Biography',\n    'author': {\n        'id': 2,\n        'uuid': ...,\n        'createdAt': ...,\n        'updatedAt': ...,\n        'firstName': 'Jane',\n        'lastName': 'Doe',\n        '__typename': 'Author'\n    },\n    'pageCount': 500,\n    '__typename': 'Book'\n}\n```\n\nIf we had omitted the `include` then the `book` that was returned would have just carried its top-level fields:\n\n```\n$ print(book)\n\n{\n    'id': ...,\n    'uuid': ...,\n    'createdAt': ...,\n    'updatedAt': ...,\n    'title': 'My Biography',\n    'pageCount': 500,\n    '__typename': 'Book'\n}\n```\n\n### Reading a single record from a collection\n\nIf you know the value of a unique field of a record in a collection then you can read it from the collection:\n\n```\nbook = client.findUnique('book', {\n    'where': {\n        'id': {\n            'equals': 1\n        }\n    },\n    'include': {\n        'author': True\n    }\n})\n```\n\nYou can `print` it like we did in the previous example, or you can directly access fields on the result. This is because we wrap all responses in a `Result` class that inherits from `dict`:\n\n```\n$ print(book.author.firstName)\n\nJane\n```\n\n### Reading multiple records from a collection\n\nIf you do not know the value of a unique field, or you just want to read multiple fields at once then you can do so:\n\n```\nbook_collection = client.findMany('book', {\n    'where': {\n        'pageCount': {\n            'lt': 250\n        }\n    },\n    'first': 5,\n    'order_by': {\n        'direction': 'ASC',\n        'field': 'id'\n    }\n})\n```\n\nThis will return a `CollectionResult` instance. This is a paginated set of results limited to the value of `first` at a time. You can check the total number of records that match your criteria:\n\n```\n$ print(book_collection)\n\n{\n    'total_count': 51,\n    'has_previous_page': False,\n    'has_next_page': True,\n    'data': [\n        {'id': '10', ...},\n        {'id': '14', ...},\n        {'id': '16', ...},\n        {'id': '17', ...},\n        {'id': '22', ...},\n    ]\n}\n```\n\nWe then provide two methods that let you page through the data:\n\n```\n$ print(book_collection.next_page().data)\n\n{\n    'total_count': 51,\n    'has_previous_page': True,\n    'has_next_page': True,\n    'data': [\n        {'id': '23', ...},\n        {'id': '27', ...},\n        {'id': '29', ...},\n        {'id': '30', ...},\n        {'id': '38', ...},\n    ]\n}\n\n$ print(book_collection.next_page().previous_page())\n\n{\n    'total_count': 51,\n    'has_previous_page': False,\n    'has_next_page': True,\n    'data': [\n        {'id': '10', ...},\n        {'id': '14', ...},\n        {'id': '16', ...},\n        {'id': '17', ...},\n        {'id': '22', ...},\n    ]\n}\n```\n\n### Updating a record in a collection\n\nIf you know the ID of a record in a collection then you can update it in the collection:\n\n```\nbook = client.update('book', 1, {\n    'data': {\n        'pageCount': 200\n    },\n    'include': {\n        'author': True\n    }\n})\n```\n\nYou can `print` it like we did in the previous example, or you can directly access fields on the result. This is because we wrap all responses in a `Result` class that inherits from `dict`:\n\n```\n$ print(book)\n\n{\n    'id': 1,\n    'uuid': ...,\n    'createdAt': ...,\n    'updatedAt': ...,\n    'title': 'My Biography',\n    'pageCount': 499,\n    '__typename': 'Book'\n}\n```\n\n### Setting related field values\n\nAs you saw in the `create` example, you can connect an existing record to another record when you are creating that other record. The same logic applies to updates\n\nbook = client.update('book', 1, {\n    'data': {\n        'author': {\n            'connect': {\n                'id': author.id\n            }\n        },\n    },\n    'include': {\n        'author': True\n    }\n})\n\nIf your collection has a field that accepts multiple linked records, you can set them while creating up updating the record like so: \n\nreview_1 = client.create('review', {\n     'data': {\n        'name': 'Jane',\n        'rating': 5\n    }\n})\n\nreview_2 = client.create('review', {\n     'data': {\n        'name': 'James',\n        'rating': 3\n    }\n})\n\nbook = client.update('book', 1, {\n    'data': {\n        'reviews': {\n            'connect': [\n                {\n                    'id': review_1.id\n                },\n                {\n                    'id': review_2.id\n                },\n            }\n        },\n    },\n    'include': {\n        'reviews': True\n    }\n})\n\n### Deleting a record from a collection\n\nFinally, if you know the ID of a record in a collection then you can delete it from the collection:\n\n```\nclient.delete('book', 1)\n```\n\n## Field types\n\nYou can use the following table to reference the mapping from Noloco field types onto Python types. For fields that are Python strings requiring a specific format, the format we expect is given here.\n\n| Noloco Field Type | Python Type | Expected Formats           |\n|-------------------|-------------|----------------------------|\n| Boolean           | bool        |                            |\n| Date              | str         | 'YYYY-MM-DDTHH:MM:SS.XXXZ' |\n| Decimal           | float       |                            |\n| Duration          | str         | 'HH:MM:SS'                 |\n| File/Upload       | (see below) |                            |\n| Integer           | int         |                            |\n| Multiple Option   | list        | ['SCREAMING_SNAKE_CASE']   |\n| Single Option     | str         | 'SCREAMING_SNAKE_CASE'     |\n| Text              | str         |                            |\n\n### Files\n\nNote that unlike other the types, files have a different Python type depending on whether they are being given as an input or an output.\n\nWhen you are inputting a file to the SDK to be uploaded, you need to give the SDK an opened file, for example:\n\n```\nprofile_picture = open('/Users/user/Pictures/profile_picture.jpeg', 'rb')\n```\n\nYou will need to manage the closing of this file yourself after the SDK is done with it.\n\nWhen the SDK is outputting a file to you, it will give you a dictionary with information about the file:\n\n```\n{\n    'id': '...',\n    'uuid': '...',\n    'fileType': 'IMAGE',\n    'url': 'https://app-media.noloco.app/[project-name]/...profile_picture.jpeg',\n    'name': '%2FUsers%2Fuser%2FPictures%2Fprofile_picture.jpeg'\n}\n```\n\nYou can use the URL to download the file if you need the contents.\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -435,7 +434,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14655943,
+        "last_serial": 15856679,
         "urls": [
             {
                 "comment_text": "",
@@ -474,6 +473,87 @@
                 "upload_time": "2022-08-04T17:08:36",
                 "upload_time_iso_8601": "2022-08-04T17:08:36.392020Z",
                 "url": "https://files.pythonhosted.org/packages/6c/52/86931081ac5a5b580df5ed515a70270d863eecb68e4c8640004427feba8e/noloco-0.6.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.6.1": {
+        "info": {
+            "author": "Noloco",
+            "author_email": "engineering@noloco.io",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# Noloco Python SDK\n\nOur Python SDK provides CRUD operations over your Noloco Collections.\n\n## Installation\n\nThe SDK is published on PyPI and can be installed with `pip`.\n\n```\n$ pip install noloco\n```\n\n## Getting started\n\nThe examples here will be based around two example collections, one called `author` and one called `book`.\n\nThe `author` collection will have this schema:\n\n```\n{\n    'firstName': 'TEXT',\n    'lastName': 'TEXT'\n}\n```\n\nThe book collection will have the following schema:\n\n```\n{\n    'title': 'TEXT',\n    'author': 'AUTHOR',\n    'pageCount': 'INTEGER'\n}\n```\n\n### Pre-requisites\n\nYou will need to know your account API key before you can use the SDK. To find this:\n- Open your project dashboard\n- Go to the Settings page\n- Go to Integrations & API Keys\n- Copy your Account API Key\n\nYou will also need to know your project name. If you access your site via the Noloco subdomain you can just copy it from the URL as it will be [project-name].noloco.co. If you use a custom domain you will need to look it up:\n- Open your project dashboard\n- Go to the Settings page\n- Go to Domains\n- Find the Production subdomain\n- This will be [project-name].noloco.co\n\n### Building a client\n\nA client is provided in the SDK through which you can carry out CRUD operations on your collections. You can construct an instance of this client as follows:\n\n```\nfrom noloco.client import Noloco\n...\n# See pre-requisites above.\naccount_api_key = ...\nproject_name = ...\n...\nclient = Noloco(account_api_key, project_name)\n```\n\nThis construction step might take a few seconds to run. The `Noloco.__init__` method is going to do a few things. Firstly it will use your account API key to lookup your project document, it will then find your project API key from this document and validate it with Noloco. Assuming this is all OK we will cache the data types that exist on your project at the time you constructed your client. If you alter the schema of any data types in your portal, you may notice a slight delay in the next request as we fetch your new data types.\n\n### Creating a record in a collection\n\nTo create a new author and then create a new book linked to them you would write the following code:\n\n```\nauthor = client.create('author', {\n    'data': {\n        'firstName': 'Jane',\n        'lastName': 'Doe'\n    }\n})\n\nbook = client.create('book', {\n    'data': {\n        'title': 'My Biography',\n        'author': {\n            'connect': {\n                'id': author.id\n            }\n        },\n        'pageCount': 500\n    },\n    'include': {\n        'author': True\n    }\n})\n```\n\nYou might be wondering what the significance of `{'include': {'author': True}}` is... Whenever we return a record from the API we will always return all the top-level fields (including files) by default. However we do not include relationship fields unless you specifically tell the client to include them in the `options` parameters. Because this call to create a `book` is including `author` in its `options`, when the created `book` is returned, the author relationship will also be included. In an interpreter we can see this:\n\n```\n$ print(book)\n\n{\n    'id': 1,\n    'uuid': ...,\n    'createdAt': ...,\n    'updatedAt': ...,\n    'title': 'My Biography',\n    'author': {\n        'id': 2,\n        'uuid': ...,\n        'createdAt': ...,\n        'updatedAt': ...,\n        'firstName': 'Jane',\n        'lastName': 'Doe',\n        '__typename': 'Author'\n    },\n    'pageCount': 500,\n    '__typename': 'Book'\n}\n```\n\nIf we had omitted the `include` then the `book` that was returned would have just carried its top-level fields:\n\n```\n$ print(book)\n\n{\n    'id': ...,\n    'uuid': ...,\n    'createdAt': ...,\n    'updatedAt': ...,\n    'title': 'My Biography',\n    'pageCount': 500,\n    '__typename': 'Book'\n}\n```\n\n### Reading a single record from a collection\n\nIf you know the value of a unique field of a record in a collection then you can read it from the collection:\n\n```\nbook = client.findUnique('book', {\n    'where': {\n        'id': {\n            'equals': 1\n        }\n    },\n    'include': {\n        'author': True\n    }\n})\n```\n\nYou can `print` it like we did in the previous example, or you can directly access fields on the result. This is because we wrap all responses in a `Result` class that inherits from `dict`:\n\n```\n$ print(book.author.firstName)\n\nJane\n```\n\n### Reading multiple records from a collection\n\nIf you do not know the value of a unique field, or you just want to read multiple fields at once then you can do so:\n\n```\nbook_collection = client.findMany('book', {\n    'where': {\n        'pageCount': {\n            'lt': 250\n        }\n    },\n    'first': 5,\n    'order_by': {\n        'direction': 'ASC',\n        'field': 'id'\n    }\n})\n```\n\nThis will return a `CollectionResult` instance. This is a paginated set of results limited to the value of `first` at a time. You can check the total number of records that match your criteria:\n\n```\n$ print(book_collection)\n\n{\n    'total_count': 51,\n    'has_previous_page': False,\n    'has_next_page': True,\n    'data': [\n        {'id': '10', ...},\n        {'id': '14', ...},\n        {'id': '16', ...},\n        {'id': '17', ...},\n        {'id': '22', ...},\n    ]\n}\n```\n\nWe then provide two methods that let you page through the data:\n\n```\n$ print(book_collection.next_page().data)\n\n{\n    'total_count': 51,\n    'has_previous_page': True,\n    'has_next_page': True,\n    'data': [\n        {'id': '23', ...},\n        {'id': '27', ...},\n        {'id': '29', ...},\n        {'id': '30', ...},\n        {'id': '38', ...},\n    ]\n}\n\n$ print(book_collection.next_page().previous_page())\n\n{\n    'total_count': 51,\n    'has_previous_page': False,\n    'has_next_page': True,\n    'data': [\n        {'id': '10', ...},\n        {'id': '14', ...},\n        {'id': '16', ...},\n        {'id': '17', ...},\n        {'id': '22', ...},\n    ]\n}\n```\n\n### Updating a record in a collection\n\nIf you know the ID of a record in a collection then you can update it in the collection:\n\n```\nbook = client.update('book', 1, {\n    'data': {\n        'pageCount': 200\n    },\n    'include': {\n        'author': True\n    }\n})\n```\n\nYou can `print` it like we did in the previous example, or you can directly access fields on the result. This is because we wrap all responses in a `Result` class that inherits from `dict`:\n\n```\n$ print(book)\n\n{\n    'id': 1,\n    'uuid': ...,\n    'createdAt': ...,\n    'updatedAt': ...,\n    'title': 'My Biography',\n    'pageCount': 499,\n    '__typename': 'Book'\n}\n```\n\n### Setting related field values\n\nAs you saw in the `create` example, you can connect an existing record to another record when you are creating that other record. The same logic applies to updates\n\nbook = client.update('book', 1, {\n    'data': {\n        'author': {\n            'connect': {\n                'id': author.id\n            }\n        },\n    },\n    'include': {\n        'author': True\n    }\n})\n\nIf your collection has a field that accepts multiple linked records, you can set them while creating up updating the record like so: \n\nreview_1 = client.create('review', {\n     'data': {\n        'name': 'Jane',\n        'rating': 5\n    }\n})\n\nreview_2 = client.create('review', {\n     'data': {\n        'name': 'James',\n        'rating': 3\n    }\n})\n\nbook = client.update('book', 1, {\n    'data': {\n        'reviews': {\n            'connect': [\n                {\n                    'id': review_1.id\n                },\n                {\n                    'id': review_2.id\n                },\n            }\n        },\n    },\n    'include': {\n        'reviews': True\n    }\n})\n\n### Deleting a record from a collection\n\nFinally, if you know the ID of a record in a collection then you can delete it from the collection:\n\n```\nclient.delete('book', 1)\n```\n\n## Field types\n\nYou can use the following table to reference the mapping from Noloco field types onto Python types. For fields that are Python strings requiring a specific format, the format we expect is given here.\n\n| Noloco Field Type | Python Type | Expected Formats           |\n|-------------------|-------------|----------------------------|\n| Boolean           | bool        |                            |\n| Date              | str         | 'YYYY-MM-DDTHH:MM:SS.XXXZ' |\n| Decimal           | float       |                            |\n| Duration          | str         | 'HH:MM:SS'                 |\n| File/Upload       | (see below) |                            |\n| Integer           | int         |                            |\n| Multiple Option   | list        | ['SCREAMING_SNAKE_CASE']   |\n| Single Option     | str         | 'SCREAMING_SNAKE_CASE'     |\n| Text              | str         |                            |\n\n### Files\n\nNote that unlike other the types, files have a different Python type depending on whether they are being given as an input or an output.\n\nWhen you are inputting a file to the SDK to be uploaded, you need to give the SDK an opened file, for example:\n\n```\nprofile_picture = open('/Users/user/Pictures/profile_picture.jpeg', 'rb')\n```\n\nYou will need to manage the closing of this file yourself after the SDK is done with it.\n\nWhen the SDK is outputting a file to you, it will give you a dictionary with information about the file:\n\n```\n{\n    'id': '...',\n    'uuid': '...',\n    'fileType': 'IMAGE',\n    'url': 'https://app-media.noloco.app/[project-name]/...profile_picture.jpeg',\n    'name': '%2FUsers%2Fuser%2FPictures%2Fprofile_picture.jpeg'\n}\n```\n\nYou can use the URL to download the file if you need the contents.\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "noloco",
+            "package_url": "https://pypi.org/project/noloco/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/noloco/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/noloco/0.6.1/",
+            "requires_dist": [
+                "gql[all]",
+                "pydash"
+            ],
+            "requires_python": "",
+            "summary": "CRUD operations for Noloco Collections",
+            "version": "0.6.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15856679,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3efe7cf4926f9cd5e0ca485c132e531b",
+                    "sha256": "06ca4beadd6ac6795bd0a49cabc5a4656c51f1ff2309d361c7e92e0f12e276ef"
+                },
+                "downloads": -1,
+                "filename": "noloco-0.6.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "3efe7cf4926f9cd5e0ca485c132e531b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 18076,
+                "upload_time": "2022-11-22T17:06:24",
+                "upload_time_iso_8601": "2022-11-22T17:06:24.624880Z",
+                "url": "https://files.pythonhosted.org/packages/14/6f/063aed6542f44d14b076a5656f52c75e23dbd7e35f765b6d87d3515507a2/noloco-0.6.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "aa6c2d07429c5261da6fb67a224f63a7",
+                    "sha256": "e996a949eabac033589b47460997cd4f70184605466b78fe8f80ef1a421b738d"
+                },
+                "downloads": -1,
+                "filename": "noloco-0.6.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "aa6c2d07429c5261da6fb67a224f63a7",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 18023,
+                "upload_time": "2022-11-22T17:06:27",
+                "upload_time_iso_8601": "2022-11-22T17:06:27.289013Z",
+                "url": "https://files.pythonhosted.org/packages/fe/16/d63cdc7cc259fbce85f3782296bdf5c09e5ce780ad07a8f8c3cdf255bc6c/noloco-0.6.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
