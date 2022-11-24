@@ -48,7 +48,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15801787,
+        "last_serial": 15869423,
         "urls": [
             {
                 "comment_text": "",
@@ -211,7 +211,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Software Development :: Libraries"
             ],
-            "description": "# graph_mate\n\nPython binding for the set of `graph` crates.\n\n`graph_mate` is a Python API that provides a collection of high-performant graph algorithms.\nIt provides implementations for directed and undirected graphs.\n\nGraphs can be created programatically or read from the [`Graph500`](https://graph500.org/) input format.\n\nThe library is implemented in Rust and uses [rayon](https://github.com/rayon-rs/rayon) for running graph creation and algorithm execution in parallel without holding on to the Global Interpreter Lock or using multiprocessing.\n\nThe graph itself is implemented as a Compressed-Sparse-Row (CSR) data structure which is tailored for fast and concurrent access to the graph topology.\n\n`graph_mate` provides a few graph algorithms.\nThe algorithm implementations are designed to run efficiently on large-scale graphs with billions of nodes and edges.\n\n\n**Note**: The development is mainly driven by [Neo4j](https://github.com/neo4j/neo4j) developers.\nHowever, the library is __not__ an official product of Neo4j.\n\n## Usage\n\n### Installation\n\n`graph_mate` is available on [PyPI](https://pypi.org/project/graph-mate/):\n\n```sh\npip install graph-mate\n```\n\nIt is currently build for x86_64 on Windows/Mac/Linux and as universal for Apple Silicon Macs.\n\nIf you need to use `graph_mate` for a different architecture or system, please refer to the [manual installation](#developing).\n\n### Usage\n\n#### What is a graph?\n\nA graph consists of nodes and edges where edges connect exactly two nodes.\nA graph can be either directed, i.e., an edge has a source and a target node or undirected where there is no such distinction.\n\nIn a directed graph, each node `u` has outgoing and incoming neighbors.\nAn outgoing neighbor of node `u` is any node `v` for which an edge `(u, v)` exists.\nAn incoming neighbor of node `u` is any node `v` for which an edge `(v, u)` exists.\n\nIn an undirected graph there is no distinction between source and target node.\nA neighbor of node `u` is any node `v` for which either an edge `(u,v)` or `(v, u)` exists.\n\n#### How to create graphs\n\nCurrently there are two ways to build a graph.\nYou can either `load` graphs in the [`Graph500`](https://graph500.org/?page_id=12) format, for example by downloading them from the [LDBC Graphalytics site](https://ldbcouncil.org/benchmarks/graphalytics/#data-sets).\nAlternatively, you can provide a numpy edge list using `from_numpy`.\n\n```python\nimport graph_mate as gm\nimport numpy as np\n\n# Let's load a small graph:\n#    (a)-->(b)-->(c)-->(d), (a)-->(c), (b)-->(d)\n# To load from an edge list, we need to create a 2d numpy array of `uint32`s.\nedge_list = np.array([\n    # (a)-->(b)\n    [0, 1],\n    # (a)-->(c)\n    [0, 2],\n    # (b)-->(c)\n    [1, 2],\n    # (b)-->(d)\n    [1, 3],\n    # (c)-->(d)\n    [2, 3]\n], dtype=np.uint32)\n```\n\nTo build a directed graph, you would create a `graph_mate.DiGraph` and an undirected on with `graph_mate.Graph`.\n\n```python\n# We can load a directed graph from the edge list\ndirected = gm.DiGraph.from_numpy(edge_list)\n\n# Or we can load an undirected graph\nundirected = gm.Graph.from_numpy(edge_list)\n```\n\nTo make assertions easier, we can create graphs with a sorted adjacency list by providing an optional second argument of type `graph_mate.Layout`.\n\n```python\ndirected = gm.DiGraph.from_numpy(edge_list, gm.Layout.Sorted)\n\nundirected = gm.Graph.from_numpy(edge_list, gm.Layout.Sorted)\n```\n\nWhen loading from a numpy edge list, the data is *not* shared but copied into the graph.\nThe numpy arrays can be deleted afterwards.\n\nWe can inspect the graph with a few methods.\n\n```python\nassert directed.node_count() == 4\nassert directed.edge_count() == 5\n\nassert directed.out_degree(1) == 2\nassert directed.in_degree(1) == 1\n\nassert np.array_equal(directed.out_neighbors(1), [2, 3])\nassert np.array_equal(directed.in_neighbors(1), [0])\n```\n\nNeighbors are returned as a numpy array view into the graph, which means we cannot modify the array.\n\n```python\nneighbors = directed.out_neighbors(1)\ntry:\n    neighbors[0] = 42\nexcept ValueError as e:\n    assert str(e) == \"assignment destination is read-only\"\n```\n\nIn order to use the neighbors as a Python list and not a numpy array, we can use `copy_` methods.\n\n```python\nneighbors = directed.copy_out_neighbors(1)\n\nassert neighbors == [2, 3]\nassert type(neighbors) == list\n```\n\nFor undirected graphs, we don't have directional methods for the degree or the neighbors.\n\n```python\nassert undirected.node_count() == 4\nassert undirected.edge_count() == 5\n\nassert undirected.degree(1) == 3\n\nassert np.array_equal(undirected.neighbors(1), [0, 2, 3])\n```\n\n#### How to run algorithms\n\nIn the following we will demonstrate running [Page Rank](https://en.wikipedia.org/wiki/PageRank), a graph algorithm to determine the importance of nodes in a graph based on the number and quality of their incoming edges.\nPage Rank requires a directed graph and returns the rank value for each node.\n\n```python\n# https://en.wikipedia.org/wiki/PageRank#/media/File:PageRanks-Example.svg\n\ngraph = gm.DiGraph.from_numpy(np.array([\n    (1,2), # B->C\n    (2,1), # C->B\n    (4,0), # D->A\n    (4,1), # D->B\n    (5,4), # E->D\n    (5,1), # E->B\n    (5,6), # E->F\n    (6,1), # F->B\n    (6,5), # F->E\n    (7,1), # G->B\n    (7,5), # F->E\n    (8,1), # G->B\n    (8,5), # G->E\n    (9,1), # H->B\n    (9,5), # H->E\n    (10,1), # I->B\n    (10,5), # I->E\n    (11,5), # J->B\n    (12,5), # K->B\n], dtype=np.uint32))\n\npr_result = graph.page_rank(max_iterations=10, tolerance=1e-4, damping_factor=0.85)\n\nassert pr_result.ran_iterations == 10\n\nexpected = np.array([\n    0.024064068,\n    0.3145448,\n    0.27890152,\n    0.01153846,\n    0.029471997,\n    0.06329483,\n    0.029471997,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n], dtype=np.float32)\n\nassert np.array_equal(pr_result.scores(), expected)\n```\n\n### Example Notebooks\n\nFor more examples and demos, please refer to the notebooks in the `notebooks` directory.\n\n## Developing\n\nThe Python extension is written using [PyO3](https://pyo3.rs/v0.16.2/)\ntogether with [maturin](https://github.com/PyO3/maturin).\n\n### One-time setup\n\n```\n# Run the command from the extension directory, not the git root\n# cd crates/mate\n\npython -m venv .env\nsource .env/bin/activate\npip install -r requirements/dev.txt\n```\n\n### Once-per-new-terminal setup\n\nMake sure that you're activating the venv in every new terminal where you want to develop.\n\n```\nsource .env/bin/activate\n```\n\n### Building the extension\n\nBuild in debug mode.\n\n```\nmaturin develop\n```\n\nBuild in release mode.\n\n```\nmaturin develop --release\n```\n\nRebuild the extension in release mode 2 seconds after the last file change.\nThis is an optional step.\n\n```\ncargo watch --shell 'maturin develop --release' --delay 2\n```\n\n### Testing\n\nRunning the tests\n\n```\npytest tests\n```\n\n### Formatting and linting\n\n```\n# Runs code formatter https://pypi.org/project/black/\nblack tests\n\n# Sort imports using https://pypi.org/project/isort/\nisort tests\n\n# Verify with https://pypi.org/project/flake8/\nflake8 tests\n\n# Very types using http://mypy-lang.org\nmypy .\n```\n\nLicense: MIT\n\n",
             "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
             "docs_url": null,
             "download_url": "",
@@ -243,7 +242,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15801787,
+        "last_serial": 15869423,
         "urls": [
             {
                 "comment_text": "",
@@ -382,6 +381,201 @@
                 "upload_time": "2022-11-17T13:43:33",
                 "upload_time_iso_8601": "2022-11-17T13:43:33.150088Z",
                 "url": "https://files.pythonhosted.org/packages/aa/f3/cc5fe98ed322cc41151869af6ba11057080f9c623be36dfedd833e297332/graph_mate-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.1": {
+        "info": {
+            "author": "Martin Junghanns <github@s1ck.dev>, Paul Horn <developer@knutwalker.de>",
+            "author_email": "Martin Junghanns <github@s1ck.dev>, Paul Horn <developer@knutwalker.de>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Libraries"
+            ],
+            "description": "# graph_mate\n\nPython binding for the set of `graph` crates.\n\n`graph_mate` is a Python API that provides a collection of high-performant graph algorithms.\nIt provides implementations for directed and undirected graphs.\n\nGraphs can be created programatically or read from the [`Graph500`](https://graph500.org/) input format.\n\nThe library is implemented in Rust and uses [rayon](https://github.com/rayon-rs/rayon) for running graph creation and algorithm execution in parallel without holding on to the Global Interpreter Lock or using multiprocessing.\n\nThe graph itself is implemented as a Compressed-Sparse-Row (CSR) data structure which is tailored for fast and concurrent access to the graph topology.\n\n`graph_mate` provides a few graph algorithms.\nThe algorithm implementations are designed to run efficiently on large-scale graphs with billions of nodes and edges.\n\n\n**Note**: The development is mainly driven by [Neo4j](https://github.com/neo4j/neo4j) developers.\nHowever, the library is __not__ an official product of Neo4j.\n\n## Usage\n\n### Installation\n\n`graph_mate` is available on [PyPI](https://pypi.org/project/graph-mate/):\n\n```sh\npip install graph-mate\n```\n\nIt is currently build for x86_64 on Windows/Mac/Linux and as universal for Apple Silicon Macs.\n\nIf you need to use `graph_mate` for a different architecture or system, please refer to the [manual installation](#developing).\n\n### Usage\n\n#### What is a graph?\n\nA graph consists of nodes and edges where edges connect exactly two nodes.\nA graph can be either directed, i.e., an edge has a source and a target node or undirected where there is no such distinction.\n\nIn a directed graph, each node `u` has outgoing and incoming neighbors.\nAn outgoing neighbor of node `u` is any node `v` for which an edge `(u, v)` exists.\nAn incoming neighbor of node `u` is any node `v` for which an edge `(v, u)` exists.\n\nIn an undirected graph there is no distinction between source and target node.\nA neighbor of node `u` is any node `v` for which either an edge `(u,v)` or `(v, u)` exists.\n\n#### How to create graphs\n\nCurrently there are two ways to build a graph.\nYou can either `load` graphs in the [`Graph500`](https://graph500.org/?page_id=12) format, for example by downloading them from the [LDBC Graphalytics site](https://ldbcouncil.org/benchmarks/graphalytics/#data-sets).\nAlternatively, you can provide a numpy edge list using `from_numpy`.\n\n```python\nimport graph_mate as gm\nimport numpy as np\n\n# Let's load a small graph:\n#    (a)-->(b)-->(c)-->(d), (a)-->(c), (b)-->(d)\n# To load from an edge list, we need to create a 2d numpy array of `uint32`s.\nedge_list = np.array([\n    # (a)-->(b)\n    [0, 1],\n    # (a)-->(c)\n    [0, 2],\n    # (b)-->(c)\n    [1, 2],\n    # (b)-->(d)\n    [1, 3],\n    # (c)-->(d)\n    [2, 3]\n], dtype=np.uint32)\n```\n\nTo build a directed graph, you would create a `graph_mate.DiGraph` and an undirected on with `graph_mate.Graph`.\n\n```python\n# We can load a directed graph from the edge list\ndirected = gm.DiGraph.from_numpy(edge_list)\n\n# Or we can load an undirected graph\nundirected = gm.Graph.from_numpy(edge_list)\n```\n\nTo make assertions easier, we can create graphs with a sorted adjacency list by providing an optional second argument of type `graph_mate.Layout`.\n\n```python\ndirected = gm.DiGraph.from_numpy(edge_list, gm.Layout.Sorted)\n\nundirected = gm.Graph.from_numpy(edge_list, gm.Layout.Sorted)\n```\n\nWhen loading from a numpy edge list, the data is *not* shared but copied into the graph.\nThe numpy arrays can be deleted afterwards.\n\nWe can inspect the graph with a few methods.\n\n```python\nassert directed.node_count() == 4\nassert directed.edge_count() == 5\n\nassert directed.out_degree(1) == 2\nassert directed.in_degree(1) == 1\n\nassert np.array_equal(directed.out_neighbors(1), [2, 3])\nassert np.array_equal(directed.in_neighbors(1), [0])\n```\n\nNeighbors are returned as a numpy array view into the graph, which means we cannot modify the array.\n\n```python\nneighbors = directed.out_neighbors(1)\ntry:\n    neighbors[0] = 42\nexcept ValueError as e:\n    assert str(e) == \"assignment destination is read-only\"\n```\n\nIn order to use the neighbors as a Python list and not a numpy array, we can use `copy_` methods.\n\n```python\nneighbors = directed.copy_out_neighbors(1)\n\nassert neighbors == [2, 3]\nassert type(neighbors) == list\n```\n\nFor undirected graphs, we don't have directional methods for the degree or the neighbors.\n\n```python\nassert undirected.node_count() == 4\nassert undirected.edge_count() == 5\n\nassert undirected.degree(1) == 3\n\nassert np.array_equal(undirected.neighbors(1), [0, 2, 3])\n```\n\n#### How to run algorithms\n\nIn the following we will demonstrate running [Page Rank](https://en.wikipedia.org/wiki/PageRank), a graph algorithm to determine the importance of nodes in a graph based on the number and quality of their incoming edges.\nPage Rank requires a directed graph and returns the rank value for each node.\n\n```python\n# https://en.wikipedia.org/wiki/PageRank#/media/File:PageRanks-Example.svg\n\ngraph = gm.DiGraph.from_numpy(np.array([\n    (1,2), # B->C\n    (2,1), # C->B\n    (4,0), # D->A\n    (4,1), # D->B\n    (5,4), # E->D\n    (5,1), # E->B\n    (5,6), # E->F\n    (6,1), # F->B\n    (6,5), # F->E\n    (7,1), # G->B\n    (7,5), # F->E\n    (8,1), # G->B\n    (8,5), # G->E\n    (9,1), # H->B\n    (9,5), # H->E\n    (10,1), # I->B\n    (10,5), # I->E\n    (11,5), # J->B\n    (12,5), # K->B\n], dtype=np.uint32))\n\npr_result = graph.page_rank(max_iterations=10, tolerance=1e-4, damping_factor=0.85)\n\nassert pr_result.ran_iterations == 10\n\nexpected = np.array([\n    0.024064068,\n    0.3145448,\n    0.27890152,\n    0.01153846,\n    0.029471997,\n    0.06329483,\n    0.029471997,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n    0.01153846,\n], dtype=np.float32)\n\nassert np.array_equal(pr_result.scores(), expected)\n```\n\n### Example Notebooks\n\nFor more examples and demos, please refer to the notebooks in the `notebooks` directory.\n\n## Developing\n\nThe Python extension is written using [PyO3](https://pyo3.rs/v0.16.2/)\ntogether with [maturin](https://github.com/PyO3/maturin).\n\n### One-time setup\n\n```\n# Run the command from the extension directory, not the git root\n# cd crates/mate\n\npython -m venv .env\nsource .env/bin/activate\npip install -r requirements/dev.txt\n```\n\n### Once-per-new-terminal setup\n\nMake sure that you're activating the venv in every new terminal where you want to develop.\n\n```\nsource .env/bin/activate\n```\n\n### Building the extension\n\nBuild in debug mode.\n\n```\nmaturin develop\n```\n\nBuild in release mode.\n\n```\nmaturin develop --release\n```\n\nRebuild the extension in release mode 2 seconds after the last file change.\nThis is an optional step.\n\n```\ncargo watch --shell 'maturin develop --release' --delay 2\n```\n\n### Testing\n\nRunning the tests\n\n```\npytest tests\n```\n\n### Formatting and linting\n\n```\n# Runs code formatter https://pypi.org/project/black/\nblack tests\n\n# Sort imports using https://pypi.org/project/isort/\nisort tests\n\n# Verify with https://pypi.org/project/flake8/\nflake8 tests\n\n# Very types using http://mypy-lang.org\nmypy .\n```\n\nLicense: MIT\n\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "graph,algorithms,parallel",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "graph-mate",
+            "package_url": "https://pypi.org/project/graph-mate/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/graph-mate/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/s1ck/graph/issues",
+                "Homepage": "https://github.com/s1ck/graph"
+            },
+            "release_url": "https://pypi.org/project/graph-mate/0.1.1/",
+            "requires_dist": [
+                "numpy >= 1.23.0"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "A library of high-performant graph algorithms.",
+            "version": "0.1.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15869423,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "83e7bdb34bbdb76d62e2003b320b5ae0",
+                    "sha256": "0392e41da8f03ebb86cdcbe8a49ee3f29060982a54b5f0ef988c602ad0894f56"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.1.1-cp38-abi3-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "83e7bdb34bbdb76d62e2003b320b5ae0",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 492768,
+                "upload_time": "2022-11-23T16:48:40",
+                "upload_time_iso_8601": "2022-11-23T16:48:40.392470Z",
+                "url": "https://files.pythonhosted.org/packages/48/8d/4ddcd47f5bf11627bd733b984a7de9a3e02e54aa29abea00980ec51c8f52/graph_mate-0.1.1-cp38-abi3-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d6525c12337a714df6e5c111efce9ce5",
+                    "sha256": "fe773052487e0de3c06fe49be5368051dc55004be72901d250e21bf05a18ca45"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.1.1-cp38-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "d6525c12337a714df6e5c111efce9ce5",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 952708,
+                "upload_time": "2022-11-23T16:48:41",
+                "upload_time_iso_8601": "2022-11-23T16:48:41.788309Z",
+                "url": "https://files.pythonhosted.org/packages/25/d4/41ae8b2b7b16c98884931257b9f0fc60d63bfb326f4f78caeb4113dfd621/graph_mate-0.1.1-cp38-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8e0970052cf7182d20538e9345562bd6",
+                    "sha256": "2048743560f5bf92110758ce84851bd0d32eaf56091639c09d42d341973dc440"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.1.1-cp38-abi3-manylinux_2_12_i686.manylinux2010_i686.whl",
+                "has_sig": false,
+                "md5_digest": "8e0970052cf7182d20538e9345562bd6",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 1400542,
+                "upload_time": "2022-11-23T16:48:43",
+                "upload_time_iso_8601": "2022-11-23T16:48:43.252578Z",
+                "url": "https://files.pythonhosted.org/packages/4a/ca/65faba79e82575f71a72a9cf6221060ce8938bfa457fd19ca7b7ff256fb4/graph_mate-0.1.1-cp38-abi3-manylinux_2_12_i686.manylinux2010_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "98d8aa9633a30483eba2ad5705a6e6c8",
+                    "sha256": "b0f6e4d094c5bb867ae3e247d6487409438456d03ba0cf385cacebc571fb7c7a"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.1.1-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "98d8aa9633a30483eba2ad5705a6e6c8",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 1360601,
+                "upload_time": "2022-11-23T16:48:45",
+                "upload_time_iso_8601": "2022-11-23T16:48:45.715986Z",
+                "url": "https://files.pythonhosted.org/packages/30/eb/1458458a34a5b7edf6299ba75aacc24876cfc71d21ba949bcdb9b2208463/graph_mate-0.1.1-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ba4d00e39ca57f3b60bf52a739ed953b",
+                    "sha256": "bb89d656b871979da47289ffb6c9f57d6d4c3dc1445b8bbe21db1de078a699ce"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.1.1-cp38-abi3-win32.whl",
+                "has_sig": false,
+                "md5_digest": "ba4d00e39ca57f3b60bf52a739ed953b",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 323577,
+                "upload_time": "2022-11-23T16:48:47",
+                "upload_time_iso_8601": "2022-11-23T16:48:47.689910Z",
+                "url": "https://files.pythonhosted.org/packages/a8/a8/9950175a97bdca3c59dd0bc42db646011a63ab0c608eacd7b4322f6080f5/graph_mate-0.1.1-cp38-abi3-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6fb31a6f68bed4f2960517167e16ad66",
+                    "sha256": "e0d4a684d91e8518dc746b8f4a60c86b91e3e13bfd8dca6945ad2952a75334db"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.1.1-cp38-abi3-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "6fb31a6f68bed4f2960517167e16ad66",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 345920,
+                "upload_time": "2022-11-23T16:48:49",
+                "upload_time_iso_8601": "2022-11-23T16:48:49.481160Z",
+                "url": "https://files.pythonhosted.org/packages/39/6d/4dab1aca22eadcf64acf659ad993671b4a9e2bc44174ebae5eb2e96f33a6/graph_mate-0.1.1-cp38-abi3-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "20a648d718d53bda9dbc0fa6b8330d71",
+                    "sha256": "e7ad8c16d5b5eaa00dc3aabdaa130ab00deffe85393a442ac42d6a61ec902290"
+                },
+                "downloads": -1,
+                "filename": "graph_mate-0.1.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "20a648d718d53bda9dbc0fa6b8330d71",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 83602,
+                "upload_time": "2022-11-23T16:48:51",
+                "upload_time_iso_8601": "2022-11-23T16:48:51.203576Z",
+                "url": "https://files.pythonhosted.org/packages/75/91/5a95c795b81422ef8d9831db9069a52ab93e0175731fbbe1588b510e3012/graph_mate-0.1.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

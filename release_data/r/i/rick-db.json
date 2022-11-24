@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15677395,
+        "last_serial": 15869536,
         "urls": [
             {
                 "comment_text": "",
@@ -136,7 +136,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15677395,
+        "last_serial": 15869536,
         "urls": [
             {
                 "comment_text": "",
@@ -208,7 +208,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15677395,
+        "last_serial": 15869536,
         "urls": [
             {
                 "comment_text": "",
@@ -301,7 +301,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15677395,
+        "last_serial": 15869536,
         "urls": [
             {
                 "comment_text": "",
@@ -394,7 +394,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15677395,
+        "last_serial": 15869536,
         "urls": [
             {
                 "comment_text": "",
@@ -485,7 +485,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15677395,
+        "last_serial": 15869536,
         "urls": [
             {
                 "comment_text": "",
@@ -556,7 +556,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15677395,
+        "last_serial": 15869536,
         "urls": [
             {
                 "comment_text": "",
@@ -627,7 +627,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15677395,
+        "last_serial": 15869536,
         "urls": [
             {
                 "comment_text": "",
@@ -698,7 +698,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15677395,
+        "last_serial": 15869536,
         "urls": [
             {
                 "comment_text": "",
@@ -741,7 +741,6 @@
                 "Topic :: Software Development :: Libraries :: Application Frameworks",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "rick_db - Simple SQL database layer\n--\n[![Tests](https://github.com/oddbit-project/rick_db/workflows/Tests/badge.svg?branch=master)](https://github.com/oddbit-project/rick_db/actions)\n[![pypi](https://img.shields.io/pypi/v/rick-db.svg)](https://pypi.org/project/rick-db/)\n[![license](https://img.shields.io/pypi/l/rick-db.svg)](https://github.com/oddbit-project/rick_db/blob/master/LICENSE)\n\n\nrick_db is a simple SQL database layer for Python3. It includes connection management, Object Mapper, Query Builder,\nand a Repository pattern implementation. It is **not** an ORM, and it's not meant to replace one. \n\n## Features\n- Object Mapper;\n- Fluent Sql Query builder;\n- High level connectors for PostgreSQL, SqlLite3;\n- Pluggable SQL query profiler; \n- Simple migration manager for SQL files;\n\n## Usage scenarios\n\nrick_db was built to cater to a schema-first approach: Database schema is built and managed directly with SQL DDL commands,\nand the application layer has no responsibility on the structure of the database.\n\n\n## Installation\n```\n$ pip3 install rick-db\n```\n## Documentation\n\nProject documentation can be found on the [Documentation](https://oddbit-project.github.io/rick_db/) website.\n\n\n## TL;DR; example\n\nShowcasing the Connection, DTO, Repository and Query Builder objects: \n\n```python\nfrom rick_db import fieldmapper, Repository\nfrom rick_db.conn.pg import PgConnection\nfrom rick_db.sql import Select, Literal\n\n\n@fieldmapper(tablename='publisher', pk='id_publisher')\nclass Publisher:\n    id = 'id_publisher'\n    name = 'name'\n\n\n@fieldmapper(tablename='book', pk='id_book')\nclass Book:\n    id = 'id_book'\n    title = 'title'\n    total_pages = 'total_pages'\n    rating = 'rating'\n    isbn = 'isbn'\n    published = 'published_date'\n    fk_publisher = 'fk_publisher'\n\n\n@fieldmapper(tablename='author', pk='id_author')\nclass Author:\n    id = 'id_author'\n    first_name = 'first_name'\n    middle_name = 'middle_name'\n    last_name = 'last_name'\n\n\n@fieldmapper(tablename='book_author', pk='id_book_author')\nclass BookAuthor:\n    id = 'id_book_author'\n    fk_book = 'fk_book'\n    fk_author = 'fk_author'\n\n\nclass AuthorRepository(Repository):\n\n    def __init__(self, db):\n        super().__init__(db, Author)\n\n    def calc_avg_rating(self, id_author: int):\n        \"\"\"\n        Calculate average rating for a given author\n        :param id_author: author id\n        :return: average rating, if any\n        \"\"\"\n        \n        # generated query:\n        # SELECT avg(rating) AS \"rating\" FROM \"book\" INNER JOIN \"book_author\" ON \n        # \"book\".\"id_book\"=\"book_author\".\"fk_book\" WHERE (\"fk_author\" = %s)\n        qry = Select(self._dialect). \\\n            from_(Book, {Literal(\"avg({})\".format(Book.rating)): 'rating'}). \\\n            join(BookAuthor, BookAuthor.fk_book, Book, Book.id). \\\n            where(BookAuthor.fk_author, '=', id_author)\n        \n        # retrieve result as list of type Book (to get the rating field)\n        rset = self.fetch(qry, cls=Book)\n        if len(rset) > 0:\n            return rset.pop(0).rating\n        return 0\n\n    def books(self, id_author: int) -> list[Book]:\n        \"\"\"\n        Retrieve all books for the given author\n        :return: list[Book]\n        \"\"\"\n        \n        qry = Select(self._dialect). \\\n            from_(Book). \\\n            join(BookAuthor, BookAuthor.fk_book, Book, Book.id). \\\n            where(BookAuthor.fk_author, '=', id_author)\n\n        return self.fetch(qry, cls=Book)\n\n\ndef dump_author_rating(repo: AuthorRepository):\n    for author in repo.fetch_all():\n        \n        # calculate average\n        rating = repo.calc_avg_rating(author.id)\n        \n        # print book list\n        print(\"Books by {firstname} {lastname}:\".format(firstname=author.first_name, lastname=author.last_name))\n        for book in repo.books(author.id):\n            print(book.title)\n        \n        # print average rating           \n        print(\"Average rating for {firstname} {lastname} is {rating}\".\n              format(firstname=author.first_name, lastname=author.last_name, rating=rating))\n\n        \nif __name__ == '__main__':\n    db_cfg = {\n        'dbname': \"rickdb-bookstore\",\n        'user': \"rickdb_user\",\n        'password': \"rickdb_pass\",\n        'host': \"localhost\",\n        'port': 5432,\n        'sslmode': 'require'        \n    }\n\n    conn = PgConnection(**db_cfg)\n    repo = AuthorRepository(conn)\n    dump_author_rating(repo)\n```\n\n## Running tests\n\nTo run the tests, you should have both tox and tox-docker, as well as a local docker daemon. Make sure the current user has\naccess to the docker daemon.\n```python\n$ pip3 install -r requirements-dev.txt\n$ tox \n```",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -770,7 +769,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15677395,
+        "last_serial": 15869536,
         "urls": [
             {
                 "comment_text": "",
@@ -789,6 +788,78 @@
                 "upload_time": "2022-11-06T21:27:42",
                 "upload_time_iso_8601": "2022-11-06T21:27:42.706019Z",
                 "url": "https://files.pythonhosted.org/packages/42/d5/260a8ef9c6f83f4fff54c002a2f89e766b2ee7ec8169ff9897f9b8fa1163/rick-db-1.0.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.7": {
+        "info": {
+            "author": "Joao Pinheiro",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Programming Language :: SQL",
+                "Topic :: Database",
+                "Topic :: Software Development :: Libraries :: Application Frameworks",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "rick_db - Simple SQL database layer\n--\n[![Tests](https://github.com/oddbit-project/rick_db/workflows/Tests/badge.svg?branch=master)](https://github.com/oddbit-project/rick_db/actions)\n[![pypi](https://img.shields.io/pypi/v/rick-db.svg)](https://pypi.org/project/rick-db/)\n[![license](https://img.shields.io/pypi/l/rick-db.svg)](https://github.com/oddbit-project/rick_db/blob/master/LICENSE)\n\n\nrick_db is a simple SQL database layer for Python3. It includes connection management, Object Mapper, Query Builder,\nand a Repository pattern implementation. It is **not** an ORM, and it's not meant to replace one. \n\n## Features\n- Object Mapper;\n- Fluent Sql Query builder;\n- High level connectors for PostgreSQL, SqlLite3;\n- Pluggable SQL query profiler; \n- Simple migration manager for SQL files;\n\n## Usage scenarios\n\nrick_db was built to cater to a schema-first approach: Database schema is built and managed directly with SQL DDL commands,\nand the application layer has no responsibility on the structure of the database.\n\n\n## Installation\n```\n$ pip3 install rick-db\n```\n## Documentation\n\nProject documentation can be found on the [Documentation](https://oddbit-project.github.io/rick_db/) website.\n\n\n## TL;DR; example\n\nShowcasing the Connection, DTO, Repository and Query Builder objects: \n\n```python\nfrom rick_db import fieldmapper, Repository\nfrom rick_db.conn.pg import PgConnection\nfrom rick_db.sql import Select, Literal\n\n\n@fieldmapper(tablename='publisher', pk='id_publisher')\nclass Publisher:\n    id = 'id_publisher'\n    name = 'name'\n\n\n@fieldmapper(tablename='book', pk='id_book')\nclass Book:\n    id = 'id_book'\n    title = 'title'\n    total_pages = 'total_pages'\n    rating = 'rating'\n    isbn = 'isbn'\n    published = 'published_date'\n    fk_publisher = 'fk_publisher'\n\n\n@fieldmapper(tablename='author', pk='id_author')\nclass Author:\n    id = 'id_author'\n    first_name = 'first_name'\n    middle_name = 'middle_name'\n    last_name = 'last_name'\n\n\n@fieldmapper(tablename='book_author', pk='id_book_author')\nclass BookAuthor:\n    id = 'id_book_author'\n    fk_book = 'fk_book'\n    fk_author = 'fk_author'\n\n\nclass AuthorRepository(Repository):\n\n    def __init__(self, db):\n        super().__init__(db, Author)\n\n    def calc_avg_rating(self, id_author: int):\n        \"\"\"\n        Calculate average rating for a given author\n        :param id_author: author id\n        :return: average rating, if any\n        \"\"\"\n        \n        # generated query:\n        # SELECT avg(rating) AS \"rating\" FROM \"book\" INNER JOIN \"book_author\" ON \n        # \"book\".\"id_book\"=\"book_author\".\"fk_book\" WHERE (\"fk_author\" = %s)\n        qry = Select(self._dialect). \\\n            from_(Book, {Literal(\"avg({})\".format(Book.rating)): 'rating'}). \\\n            join(BookAuthor, BookAuthor.fk_book, Book, Book.id). \\\n            where(BookAuthor.fk_author, '=', id_author)\n        \n        # retrieve result as list of type Book (to get the rating field)\n        rset = self.fetch(qry, cls=Book)\n        if len(rset) > 0:\n            return rset.pop(0).rating\n        return 0\n\n    def books(self, id_author: int) -> list[Book]:\n        \"\"\"\n        Retrieve all books for the given author\n        :return: list[Book]\n        \"\"\"\n        \n        qry = Select(self._dialect). \\\n            from_(Book). \\\n            join(BookAuthor, BookAuthor.fk_book, Book, Book.id). \\\n            where(BookAuthor.fk_author, '=', id_author)\n\n        return self.fetch(qry, cls=Book)\n\n\ndef dump_author_rating(repo: AuthorRepository):\n    for author in repo.fetch_all():\n        \n        # calculate average\n        rating = repo.calc_avg_rating(author.id)\n        \n        # print book list\n        print(\"Books by {firstname} {lastname}:\".format(firstname=author.first_name, lastname=author.last_name))\n        for book in repo.books(author.id):\n            print(book.title)\n        \n        # print average rating           \n        print(\"Average rating for {firstname} {lastname} is {rating}\".\n              format(firstname=author.first_name, lastname=author.last_name, rating=rating))\n\n        \nif __name__ == '__main__':\n    db_cfg = {\n        'dbname': \"rickdb-bookstore\",\n        'user': \"rickdb_user\",\n        'password': \"rickdb_pass\",\n        'host': \"localhost\",\n        'port': 5432,\n        'sslmode': 'require'        \n    }\n\n    conn = PgConnection(**db_cfg)\n    repo = AuthorRepository(conn)\n    dump_author_rating(repo)\n```\n\n## Running tests\n\nTo run the tests, you should have both tox and tox-docker, as well as a local docker daemon. Make sure the current user has\naccess to the docker daemon.\n```python\n$ pip3 install -r requirements-dev.txt\n$ tox \n```\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/oddbit-project/rick_db",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "rick-db",
+            "package_url": "https://pypi.org/project/rick-db/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/rick-db/",
+            "project_urls": {
+                "Homepage": "https://github.com/oddbit-project/rick_db"
+            },
+            "release_url": "https://pypi.org/project/rick-db/1.0.7/",
+            "requires_dist": null,
+            "requires_python": ">=3.8",
+            "summary": "SQL database layer",
+            "version": "1.0.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15869536,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f0d62a29262c6ce106176c39418bf119",
+                    "sha256": "9eaaf93d1d520496afc3e01770e4d77fa4b3fcf7677306438cb53bfddadb0ca4"
+                },
+                "downloads": -1,
+                "filename": "rick-db-1.0.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "f0d62a29262c6ce106176c39418bf119",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 57743,
+                "upload_time": "2022-11-23T17:00:59",
+                "upload_time_iso_8601": "2022-11-23T17:00:59.155381Z",
+                "url": "https://files.pythonhosted.org/packages/0b/46/be615b2b82c93b5461a0bcd39ed7e20ac90900f9ca5905e7fefa8e7a6156/rick-db-1.0.7.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
