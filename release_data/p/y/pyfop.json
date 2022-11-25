@@ -38,7 +38,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14517945,
+        "last_serial": 15887329,
         "urls": [
             {
                 "comment_text": "",
@@ -122,7 +122,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14517945,
+        "last_serial": 15887329,
         "urls": [
             {
                 "comment_text": "",
@@ -206,7 +206,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14517945,
+        "last_serial": 15887329,
         "urls": [
             {
                 "comment_text": "",
@@ -290,7 +290,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14517945,
+        "last_serial": 15887329,
         "urls": [
             {
                 "comment_text": "",
@@ -376,7 +376,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14517945,
+        "last_serial": 15887329,
         "urls": [
             {
                 "comment_text": "",
@@ -462,7 +462,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14517945,
+        "last_serial": 15887329,
         "urls": [
             {
                 "comment_text": "",
@@ -548,7 +548,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14517945,
+        "last_serial": 15887329,
         "urls": [
             {
                 "comment_text": "",
@@ -604,7 +604,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# pyfop\nA novel forward-oriented programming paradigm for Python.\n\n![build](https://github.com/maniospas/pyfop/actions/workflows/tests.yml/badge.svg)\n[![codecov](https://codecov.io/gh/maniospas/pyfop/branch/main/graph/badge.svg?token=MCsMLyteqD)](https://codecov.io/gh/maniospas/pyfop)\n[![Downloads](https://static.pepy.tech/personalized-badge/pyfop?period=total&units=international_system&left_color=black&right_color=orange&left_text=Downloads)](https://pepy.tech/project/pyfop)\n\n**Dependencies:** None<br/>\n**Developer:** Emmanouil (Manios) Krasanakis<br/>\n**Contant:** maniospas@hotmail.com\n\n# About\n`pyfop` is a package that introduces the concept\nof forward-oriented programming in Python. This\naims to simplify development by\nsharing parameters across multiple components\nand defining those after main business logic\ndefinition.\n\n# Features\n* Simplified code that focuses on business logic.\n* Value sharing between arguments.\n* Non-intrusive API (minimal changes to source code).\n* Priority-based conflict resolution.\n* Scoped method modification.\n* Cached optimization.\n\n# Quickstart\nOverall, there are three steps to using the library:\n1. wrapping some components with a lazy execution decorator\n2. assigning some arguments of these components as aspects\n3. calling components\n\nTo see these in action,\nlet us create a system where we transform (e.g. normalize) \n`numpy` arrays and then compare them with known data mining\nmeasures. We will make this system modular by allowing\ncombination of various transformation and comparison components.\n\nFirst, we define a couple of single-input\narray transformation methods `tautology` and `normalize`, \nas well as two pairwise array comparison methods\n`dot` and `KLdivergence`. In addition to array inputs,\nsome of these methods also make use of optional\nparameter values, such as `norm` to indicate\nthe type of normalization and `epsilon` to offset\ndivision with or logarithms of zero.\n\nWe make arguments share-able by name between\nobjects by wrapping their default values with the\n`@pyfop.Aspect` class. For example, if `normalize`\nand `KLdivergence` are used together in the same\ncall, their `norm` argument would obtain the same value.\nThis value is either determined through the priority \ndefaults (the package would throw an\nerror if the same priorities tried to set different\nvalues with the same priorities)\nand can be customized during calls.\n\nTo parse aspects as values, we also need to set up our\nmethods for lazy execution required by the package.\nThis is achieved by adding a `@pyfop.lazy` decorator.\n\n\n```python\nimport pyfop as pfp\nimport numpy as np\n\n@pfp.lazy\ndef tautology(x):\n    return x\n\n@pfp.lazy\ndef normalize(x, norm=pfp.Aspect(2)):\n    return x / (np.sum(x**norm))**(1./norm)\n\n@pfp.lazy\ndef dot(x, y):\n    return np.sum(x*y)\n\n@pfp.lazy\ndef KLdivergence(x, y, \n                 norm=pfp.Aspect(1, priority=pfp.Priority.INCREASED), \n                 epsilon=pfp.Aspect(np.finfo(float).eps)):\n    if norm != 1:\n        raise Exception(\"KLDivergence should not work on non-L1 normalizations\")\n    return np.sum(-x*np.log(x/(y+epsilon)+epsilon))\n```\n\nWe finally bring together various normalization and comparison\nstrategies in the following class. This stores lazy execution\nmethods as well as any additional keyword arguments `kwargs`\nto be used for aspect values. Then, when comparing arrays,\nit runs the lazy execution with these arguments. \n\n```python\nclass Comparator :\n    def __init__(self, transform, measure, **kwargs):\n        self.transform = transform\n        self.measure = measure\n        self.kwargs = kwargs\n\n    def __call__(self, x, y):\n        transformed_x = self.transform(x)\n        transformed_y = self.transform(y)\n        return self.measure(transformed_x, transformed_y).call(**self.kwargs)\n```\n\nFor example, we can write the following expression to\ncompute the cosine similarity between two arrays. \n\n```python\nx = np.array([1., 1., 1.])\ny = np.array([1., 1., 1.])\nprint(Comparator(normalize, dot, norm=2)(x, y))\n```\n\nIf we did not provide a `norm` argument to the constructor\nto be eventually passed to lazy execution, the first\ndefault value would be inferred (in this case, `norm=2` \nbased on the default of normalization). \n\nThis default can change depending on what is being executed.\nFor example, the following code automatically infers `norm=1`\nbased on priority conflict resolution.\n\n```python\nprint(Comparator(normalize, KLdivergence, epsilon=0)(x, y))\n```\n\n`pyfop` makes error checking trivial; we just needed to add\nthe normalization aspect to KLdivergence and check for the\nshared value. For example, adding a `norm=2` argument to the\nprevious command will throw an error. There is no need for\nconditional checks at other parts of the code.\n\nAs a final remark, lazy execution employs caching to prevent\nleaks in large programs that reuse the same methods. This\nkeeps references to all method input arguments that prevent\nthe garbage collector from destroying objcets no longer in\nmemory. Leaks can be\navoided by generating cache scope contexts, in which lazy evaluations\nare not recomputed for the same arguments, but which will allow the \ngarbage collector to run upon exit. For example, the previous\ncall could run in a cache scope per:\n\n```python\nfrom pyfop import CacheScope\n\nwith CacheScope():\n    print(Comparator(normalize, KLdivergence, epsilon=0)(x, y))\n```\n\n\n# Functionalities\nMaking a method lazily execute can be achieved with the `@pyfop.lazy` decorator.\nAspect variables are assigned as `pfp.Aspect` variables. These can have a \ndefault value. Aspect values can change after lazy methods are first called.\n\n```python\nimport pyfop as pfp\n\n@pfp.lazy\ndef increase(x, inc=pfp.Aspect(1)):\n    return x + inc\n\ny = increase(2)\nassert y.call() == 3\nassert y.call(inc=2) == 4\n```\n\nFor minimal intrusiveness, a `@pyfop.aytoaspects` is provided\ncan turn all default arguments into aspects. In the above snippet,\nthe method definition could change to the one bellow. \nNote that lazy decorators should remain the topmost ones.\n\n```python\n@pfp.lazy\n@pfp.autoaspects\ndef increase(x, inc=1):\n    return x + inc\n```\n\nCaching (also known as memoization) \nis automatically supported to prevent lazy calls from re-running\nfor the exact same inputs. It is based on object identifiers,\nbut it prevents the garbage collector from running on past\nmethod inputs. To clear the garbage collector after operations,\nthese can run withing a cached scope, which is available in the form\nof the context. This can be achieved per the following code:\n\n\n```python\nimport pyfop as pfp\n\n@pfp.eager\n@pfp.autoaspects\ndef zeros(length=10):\n    return [0] * length\n\nwith pfp.CacheScope():\n    id1 = id(zeros(10))\n    assert id1 == id(zeros(10))\n\nassert id1 != id(zeros(10))\n```\n\nIn the above example, the `@pyfop.eager` decorator defines\nimmediately runnable methods that support lazy execution arguments.\nCalling methods decorated this way is equivalent \nto calling lazy executions without arguments. \nAll aspects should obtain values at least once,\neither via defaults or through normal pythonic argument parsing.\n\n```python\nimport pyfop as pfp\n\n@pfp.lazy\ndef add(x, permutation=pfp.Aspect()):\n    return x + permutation\n\n@pfp.eager\ndef mult(x, permutation=pfp.Aspect()):\n    return x * permutation\n\nassert mult(add(1, 3)) == 12\nassert mult(add(1), 3) == 12\n```\n\nAs a final remark on caching, you can also use the\ndecorator `@pyfop.lazy_no_cache` to prevent caching\nfor specific functions.\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -635,7 +634,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14517945,
+        "last_serial": 15887329,
         "urls": [
             {
                 "comment_text": "",
@@ -674,6 +673,93 @@
                 "upload_time": "2022-07-22T15:48:48",
                 "upload_time_iso_8601": "2022-07-22T15:48:48.575601Z",
                 "url": "https://files.pythonhosted.org/packages/d1/af/b5b42fe647e3e7c687a046ec1a35031b5b3ed2802c34703a4488e80d4342/pyfop-0.2.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.2": {
+        "info": {
+            "author": "Emmanouil Krasanakis",
+            "author_email": "maniospas@hotmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 1 - Planning",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# pyfop\nA novel forward-oriented programming paradigm for Python.\n\n![build](https://github.com/maniospas/pyfop/actions/workflows/tests.yml/badge.svg)\n[![codecov](https://codecov.io/gh/maniospas/pyfop/branch/main/graph/badge.svg?token=MCsMLyteqD)](https://codecov.io/gh/maniospas/pyfop)\n[![Downloads](https://static.pepy.tech/personalized-badge/pyfop?period=total&units=international_system&left_color=black&right_color=orange&left_text=Downloads)](https://pepy.tech/project/pyfop)\n\n**Dependencies:** None<br/>\n**Developer:** Emmanouil (Manios) Krasanakis<br/>\n**Contant:** maniospas@hotmail.com\n\n# About\n`pyfop` is a package that introduces the concept\nof forward-oriented programming in Python. This\naims to simplify development by\nsharing parameters across multiple components\nand defining those *after* main business logic.\n\n# Features\n* Simplified code that focuses on business logic.\n* Value sharing between arguments.\n* Non-intrusive API (minimal changes to source code).\n* Priority-based conflict resolution.\n* Scoped method modification.\n* Cached optimization.\n* Lazy calls with internal eager calls.\n\n# Quickstart\nOverall, there are three steps to using the library:\n1. wrapping some components with a lazy execution decorator\n2. assigning some arguments of these components as aspects\n3. calling components\n\nTo see these in action,\nlet us create a system where we transform (e.g. normalize) \n`numpy` arrays and then compare them with known data mining\nmeasures. We will make this system modular by allowing\ncombination of various transformation and comparison components.\n\nFirst, we define a couple of single-input\narray transformations `tautology` and `normalize`, \nas well as two pairwise array comparisons\n`dot` and `KLdivergence`. In addition to array inputs,\nsome of these methods also make use of optional\nparameter values, such as `norm` to indicate\nthe type of normalization and `epsilon` to offset\ndivision with or logarithms of zero.\n\nWe make arguments share-able by name between\nobjects by wrapping their default values with the\n`@pyfop.Aspect` class. For example, if `normalize`\nand `KLdivergence` are used together in the same\ncall, their `norm` argument would obtain the same value.\nThis value is either determined through the priority \ndefaults (the package would throw an\nerror if the same priorities tried to set different\nvalues with the same priorities)\nand can be customized during calls.\n\nTo parse aspects as values, we also need to set up our\nmethods for lazy execution required by the package.\nThis is achieved by adding a `@pyfop.lazy` decorator.\n\n\n```python\nimport pyfop as pfp\nimport numpy as np\n\n@pfp.lazy\ndef tautology(x):\n    return x\n\n@pfp.lazy\ndef normalize(x, norm=pfp.Aspect(2)):\n    return x / (np.sum(x**norm))**(1./norm)\n\n@pfp.lazy\ndef dot(x, y):\n    return np.sum(x*y)\n\n@pfp.lazy\ndef KLdivergence(x, y, \n                 norm=pfp.Aspect(1, priority=pfp.Priority.INCREASED), \n                 epsilon=pfp.Aspect(np.finfo(float).eps)):\n    if norm != 1:\n        raise Exception(\"KLDivergence should not work on non-L1 normalizations\")\n    return np.sum(-x*np.log(x/(y+epsilon)+epsilon))\n```\n\nWe finally bring together various normalization and comparison\nstrategies in the following class. This stores lazy execution\nmethods as well as any additional keyword arguments `kwargs`\nto be used for aspect values. Then, when comparing arrays,\nit runs the lazy execution with these arguments. \n\n```python\nclass Comparator :\n    def __init__(self, transform, measure, **kwargs):\n        self.transform = transform\n        self.measure = measure\n        self.kwargs = kwargs\n\n    def __call__(self, x, y):\n        transformed_x = self.transform(x)\n        transformed_y = self.transform(y)\n        return self.measure(transformed_x, transformed_y).call(**self.kwargs)\n```\n\nFor example, we can write the following expression to\ncompute the cosine similarity between two arrays. \n\n```python\nx = np.array([1., 1., 1.])\ny = np.array([1., 1., 1.])\nprint(Comparator(normalize, dot, norm=2)(x, y))\n```\n\nIf we did not provide a `norm` argument to the constructor\nto be eventually passed to lazy execution, the first\ndefault value would be inferred (in this case, `norm=2` \nbased on the default of normalization). \n\nThis default can change depending on what is being executed.\nFor example, the following code automatically infers `norm=1`\nbased on priority conflict resolution.\n\n```python\nprint(Comparator(normalize, KLdivergence, epsilon=0)(x, y))\n```\n\n`pyfop` makes error checking trivial; we just needed to add\nthe normalization aspect to KLdivergence and check for the\nshared value. For example, adding a `norm=2` argument to the\nprevious command will throw an error. There is no need for\nconditional checks at other parts of the code.\n\nAs a final remark, lazy execution employs caching to prevent\nleaks in large programs that reuse the same methods. This\nkeeps references to all method input arguments that prevent\nthe garbage collector from destroying objcets no longer in\nmemory. Leaks can be\navoided by generating cache scope contexts, in which lazy evaluations\nare not recomputed for the same arguments, but which will allow the \ngarbage collector to run upon exit. For example, the previous\ncall could run in a cache scope per:\n\n```python\nfrom pyfop import CacheScope\n\nwith CacheScope():\n    print(Comparator(normalize, KLdivergence, epsilon=0)(x, y))\n```\n\n\n# Functionalities\nMaking a method lazily execute can be achieved with the `@pyfop.lazy` decorator.\nAspect variables are assigned as `pfp.Aspect` variables. These can have a \ndefault value. Aspect values can change after lazy methods are first called.\n\n```python\nimport pyfop as pfp\n\n@pfp.lazy\ndef increase(x, inc=pfp.Aspect(1)):\n    return x + inc\n\ny = increase(2)\nassert y.call() == 3\nassert y.call(inc=2) == 4\n```\n\nFor minimal intrusiveness, a `@pyfop.aytoaspects` is provided\ncan turn all default arguments into aspects. In the above snippet,\nthe method definition could change to the one bellow. \nNote that lazy decorators should remain the topmost ones.\n\n```python\n@pfp.lazy\n@pfp.autoaspects\ndef increase(x, inc=1):\n    return x + inc\n```\n\nCaching (also known as memoization) \nis automatically supported to prevent lazy calls from re-running\nfor the exact same inputs. It is based on object identifiers,\nbut it prevents the garbage collector from running on past\nmethod inputs. To clear the garbage collector after operations,\nthese can run withing a cached scope, which is available in the form\nof the context. This can be achieved per the following code:\n\n\n```python\nimport pyfop as pfp\n\n@pfp.eager\n@pfp.autoaspects\ndef zeros(length=10):\n    return [0] * length\n\nwith pfp.CacheScope():\n    id1 = id(zeros(10))\n    assert id1 == id(zeros(10))\n\nassert id1 != id(zeros(10))\n```\n\nIn the above example, the `@pyfop.eager` decorator defines\nimmediately runnable methods that support lazy execution arguments.\nCalling methods decorated this way is equivalent \nto calling lazy executions without arguments. \nAll aspects should obtain values at least once,\neither via defaults or through normal pythonic argument parsing.\n\n```python\nimport pyfop as pfp\n\n@pfp.lazy\ndef add(x, permutation=pfp.Aspect()):\n    return x + permutation\n\n@pfp.eager\ndef mult(x, permutation=pfp.Aspect()):\n    return x * permutation\n\nassert mult(add(1, 3)) == 12\nassert mult(add(1), 3) == 12\n```\n\nAs a final remark on caching, you can also use the\ndecorator `@pyfop.lazy_no_cache` to prevent caching\nfor specific functions.\n\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/maniospas/pyfop",
+            "keywords": "metaprogramming,component-based programming,software as a service",
+            "license": "Apache 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pyfop",
+            "package_url": "https://pypi.org/project/pyfop/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pyfop/",
+            "project_urls": {
+                "Homepage": "https://github.com/maniospas/pyfop"
+            },
+            "release_url": "https://pypi.org/project/pyfop/0.2.2/",
+            "requires_dist": [
+                "makefun"
+            ],
+            "requires_python": "",
+            "summary": "A forward-oriented programming paradigm for Python.",
+            "version": "0.2.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15887329,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "463169cbdb0b6ef15d8d5f1506881687",
+                    "sha256": "860a8c0fd989a7559a35c6caa2f4c03820f63e5e3b3faa75f0b0cd777ff4d895"
+                },
+                "downloads": -1,
+                "filename": "pyfop-0.2.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "463169cbdb0b6ef15d8d5f1506881687",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 17205,
+                "upload_time": "2022-11-25T08:22:29",
+                "upload_time_iso_8601": "2022-11-25T08:22:29.129281Z",
+                "url": "https://files.pythonhosted.org/packages/ef/1f/662fac720be4033588e6fc0665ceffe606b3e298158abd38fa21a4223eaf/pyfop-0.2.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1edbdf47d59f30353308d2f4dc644d56",
+                    "sha256": "35f8f34c922e80c629c4a469daa742c2516cfb7d3c33708fbceab9a0dc91e996"
+                },
+                "downloads": -1,
+                "filename": "pyfop-0.2.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "1edbdf47d59f30353308d2f4dc644d56",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 17531,
+                "upload_time": "2022-11-25T08:22:35",
+                "upload_time_iso_8601": "2022-11-25T08:22:35.592261Z",
+                "url": "https://files.pythonhosted.org/packages/bd/9e/631a415f33197e5aca30d485cc87fab93e6c9624efa142fa7cb8fcb325a3/pyfop-0.2.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
