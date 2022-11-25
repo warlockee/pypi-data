@@ -39,7 +39,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15517809,
+        "last_serial": 15883428,
         "urls": [
             {
                 "comment_text": null,
@@ -395,7 +395,6 @@
                 "Topic :: Scientific/Engineering :: Astronomy",
                 "Topic :: Scientific/Engineering :: Physics"
             ],
-            "description": "# hifitime 3\n\nScientifically accurate date and time handling with guaranteed nanosecond precision for 32,768 years _before_ 01 January 1900 and 32,767 years _after_ that reference epoch.\nFormally verified to not crash on operations on epochs and durations using the [`Kani`](https://model-checking.github.io/kani/) model checking.\n\n[![hifitime on crates.io][cratesio-image]][cratesio]\n[![Build Status](https://github.com/nyx-space/hifitime/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/nyx-space/hifitime/actions)\n[![hifitime on docs.rs][docsrs-image]][docsrs]\n[![minimum rustc: 1.58](https://img.shields.io/badge/minimum%20rustc-1.58-yellowgreen?logo=rust)](https://www.whatrustisit.com)\n\n[cratesio-image]: https://img.shields.io/crates/v/hifitime.svg\n[cratesio]: https://crates.io/crates/hifitime\n[docsrs-image]: https://docs.rs/hifitime/badge.svg\n[docsrs]: https://docs.rs/hifitime/\n\n\n# Features\n\n * [x] Initialize a high precision Epoch from the system time in UTC\n * [x] Leap seconds (as announced by the IETF on a yearly basis)\n * [x] UTC representation with ISO8601 and RFC3339 formatting and blazing fast parsing (45 nanoseconds)\n * [x] Trivial support of time arithmetic: addition (e.g. `2.hours() + 3.seconds()`), subtraction (e.g. `2.hours() - 3.seconds()`), round/floor/ceil operations (e.g. `2.hours().round(3.seconds())`)\n * [x] Supports ranges of Epochs and TimeSeries (linspace of `Epoch`s and `Duration`s)\n * [x] Trivial conversion between many time scales\n * [x] High fidelity Ephemeris Time / Dynamic Barycentric Time (TDB) computations from [ESA's Navipedia](https://gssc.esa.int/navipedia/index.php/Transformations_between_Time_Systems#TDT_-_TDB.2C_TCB)\n * [x] Julian dates and Modified Julian dates\n * [x] Embedded device friendly: `no-std` and `const fn` where possible\n\nThis library is validated against NASA/NAIF SPICE for the Ephemeris Time to Universal Coordinated Time computations: there are exactly zero nanoseconds of difference between SPICE and hifitime for the computation of ET and UTC after 01 January 1972. Refer to the [leap second](#leap-second-support) section for details. Other examples are validated with external references, as detailed on a test-by-test basis.\n\n## Supported time scales\n\n+ Temps Atomique International (TAI)\n+ Universal Coordinated Time (UTC)\n+ Terrestrial Time (TT)\n+ Ephemeris Time (ET) without the small perturbations as per NASA/NAIF SPICE leap seconds kernel\n+ Dynamic Barycentric Time (TDB), a higher fidelity ephemeris time\n+ Global Positioning System (GPST)\n+ Galileo System Time (GST)\n+ BaiDou Time (BDT)\n+ UNIX\n## Non-features\n* Time-agnostic / date-only epochs. Hifitime only supports the combination of date and time, but the `Epoch::{at_midnight, at_noon}` is provided as a helper function.\n\n# Usage\n\nPut this in your `Cargo.toml`:\n\n```toml\n[dependencies]\nhifitime = \"3.6\"\n```\n\n## Examples:\n### Time creation\n```rust\nuse hifitime::{Epoch, Unit, TimeUnits};\nuse core::str::FromStr;\n\n#[cfg(feature = \"std\")]\n{\n// Initialization from system time is only available when std feature is enabled\nlet now = Epoch::now().unwrap();\nprintln!(\"{}\", now);\n}\n\nlet mut santa = Epoch::from_gregorian_utc_hms(2017, 12, 25, 01, 02, 14);\nassert_eq!(santa.to_mjd_utc_days(), 58112.043217592590);\nassert_eq!(santa.to_jde_utc_days(), 2458112.5432175924);\n\nassert_eq!(\n    santa + 3600 * Unit::Second,\n    Epoch::from_gregorian_utc_hms(2017, 12, 25, 02, 02, 14),\n    \"Could not add one hour to Christmas\"\n);\n\nassert_eq!(\n    santa + 60.0.minutes(),\n    Epoch::from_gregorian_utc_hms(2017, 12, 25, 02, 02, 14),\n    \"Could not add one hour to Christmas\"\n);\n\nassert_eq!(\n    santa + 1.hours(),\n    Epoch::from_gregorian_utc_hms(2017, 12, 25, 02, 02, 14),\n    \"Could not add one hour to Christmas\"\n);\n\nlet dt = Epoch::from_gregorian_utc_hms(2017, 1, 14, 0, 31, 55);\nassert_eq!(dt, Epoch::from_str(\"2017-01-14T00:31:55 UTC\").unwrap());\n// And you can print it too, although by default it will print in UTC\nassert_eq!(format!(\"{}\", dt), \"2017-01-14T00:31:55 UTC\".to_string());\n\n```\n### Time differences, time unit, and duration handling\n\nComparing times will lead to a Duration type. Printing that will automatically select the unit.\n\n```rust\nuse hifitime::{Epoch, Unit, Duration, TimeUnits};\n\nlet at_midnight = Epoch::from_gregorian_utc_at_midnight(2020, 11, 2);\nlet at_noon = Epoch::from_gregorian_utc_at_noon(2020, 11, 2);\nassert_eq!(at_noon - at_midnight, 12 * Unit::Hour);\nassert_eq!(at_noon - at_midnight, 1 * Unit::Day / 2);\nassert_eq!(at_midnight - at_noon, -1.days() / 2);\n\nlet delta_time = at_noon - at_midnight;\nassert_eq!(format!(\"{}\", delta_time), \"12 h\".to_string());\n// And we can multiply durations by a scalar...\nlet delta2 = 2 * delta_time;\nassert_eq!(format!(\"{}\", delta2), \"1 days\".to_string());\n// Or divide them by a scalar.\nassert_eq!(format!(\"{}\", delta2 / 2.0), \"12 h\".to_string());\n\n// And of course, these comparisons account for differences in time scales\nlet at_midnight_utc = Epoch::from_gregorian_utc_at_midnight(2020, 11, 2);\nlet at_noon_tai = Epoch::from_gregorian_tai_at_noon(2020, 11, 2);\nassert_eq!(format!(\"{}\", at_noon_tai - at_midnight_utc), \"11 h 59 min 23 s\".to_string());\n```\n\nTimeunits and frequency units are trivially supported. Hifitime only supports up to nanosecond precision (but guarantees it for 64 millenia), so any duration less than one nanosecond is truncated.\n\n```rust\nuse hifitime::{Epoch, Unit, Freq, Duration, TimeUnits};\n\n// One can compare durations\nassert!(10.seconds() > 5.seconds());\nassert!(10.days() + 1.nanoseconds() > 10.days());\n\n// Those durations are more precise than floating point since this is integer math in nanoseconds\nlet d: Duration = 1.0.hours() / 3 - 20.minutes();\nassert!(d.abs() < Unit::Nanosecond);\nassert_eq!(3 * 20.minutes(), Unit::Hour);\n\n// And also frequencies but note that frequencies are converted to Durations!\n// So the duration of that frequency is compared, hence the following:\nassert!(10 * Freq::Hertz < 5 * Freq::Hertz);\nassert!(4 * Freq::MegaHertz > 5 * Freq::MegaHertz);\n\n// And asserts on the units themselves\nassert!(Freq::GigaHertz < Freq::MegaHertz);\nassert!(Unit::Second > Unit::Millisecond);\n```\n\n### Iterating over times (\"linspace\" of epochs)\nFinally, something which may come in very handy, line spaces between times with a given step.\n\n```rust\nuse hifitime::{Epoch, Unit, TimeSeries};\nlet start = Epoch::from_gregorian_utc_at_midnight(2017, 1, 14);\nlet end = Epoch::from_gregorian_utc_at_noon(2017, 1, 14);\nlet step = 2 * Unit::Hour;\nlet time_series = TimeSeries::inclusive(start, end, step);\nlet mut cnt = 0;\nfor epoch in time_series {\n    println!(\"{}\", epoch);\n    cnt += 1\n}\n// Check that there are indeed six two-hour periods in a half a day,\n// including start and end times.\nassert_eq!(cnt, 7)\n```\n\n# Design\nNo software is perfect, so please report any issue or bugs on [Github](https://github.com/nyx-space/hifitime/issues/new).\n\n## Duration\nUnder the hood, a Duration is represented as a 16 bit signed integer of centuries (`i16`) and a 64 bit unsigned integer (`u64`) of the nanoseconds past that century. The overflowing and underflowing of nanoseconds is handled by changing the number of centuries such that the nanoseconds number never represents more than one century (just over four centuries can be stored in 64 bits).\n\nAdvantages:\n1. Exact precision of a duration: using a floating point value would cause large durations (e.g. Julian Dates) to have less precision than smaller durations. Durations in hifitime have exactly one nanosecond of precision for 65,536 years.\n2. Skipping floating point operations allows this library to be used in embedded devices without a floating point unit.\n3. Duration arithmetics are exact, e.g. one third of an hour is exactly twenty minutes and not \"0.33333 hours.\"\n\nDisadvantages:\n1. Most astrodynamics applications require the computation of a duration in floating point values such as when querying an ephemeris. This design leads to an overhead of about 5.2 nanoseconds according to the benchmarks (`Duration to f64 seconds` benchmark). You may run the benchmarks with `cargo bench`.\n\n### Printing and parsing\n\nWhen Durations are printed, only the units whose value is non-zero is printed. For example, `5.hours() + 256.0.milliseconds() + 1.0.nanoseconds()` will be printed as \"5 h 256 ms 1 ns\".\n\n```rust\nuse hifitime::{Duration, Unit, TimeUnits};\nuse core::str::FromStr;\n\nassert_eq!(\n    format!(\n        \"{}\",\n        5.hours() + 256.0.milliseconds() + 1.0.nanoseconds()\n    ),\n    \"5 h 256 ms 1 ns\"\n);\n\nassert_eq!(\n    format!(\n        \"{}\",\n        5.days() + 1.0.nanoseconds()\n    ),\n    \"5 days 1 ns\"\n);\n\n\nassert_eq!(\n    Duration::from_str(\"5 h 256 ms 1 ns\").unwrap(),\n    5 * Unit::Hour + 256 * Unit::Millisecond + Unit::Nanosecond\n);\n```\n\n## Epoch\nThe Epoch is simply a wrapper around a Duration. All epochs are stored in TAI duration with respect to 01 January 1900 at noon (the official TAI epoch). The choice of TAI meets the [Standard of Fundamental Astronomy (SOFA)](https://www.iausofa.org/) recommendation of opting for a glitch-free time scale (i.e. without discontinuities like leap seconds or non-uniform seconds like TDB).\n\n### Printing and parsing\n\nEpochs can be formatted and parsed in the following time scales:\n\n+ UTC: `{epoch}`\n+ TAI: `{epoch:x}`\n+ TT: `{epoch:X}`\n+ TDB: `{epoch:e}`\n+ ET: `{epoch:E}`\n+ UNIX: `{epoch:p}`\n+ GPS: `{epoch:o}`\n\n```rust\nuse hifitime::{Epoch, TimeScale};\nuse core::str::FromStr;\n\nlet epoch = Epoch::from_gregorian_utc_hms(2022, 9, 6, 23, 24, 29);\n\nassert_eq!(format!(\"{epoch}\"), \"2022-09-06T23:24:29 UTC\");\nassert_eq!(format!(\"{epoch:x}\"), \"2022-09-06T23:25:06 TAI\");\nassert_eq!(format!(\"{epoch:X}\"), \"2022-09-06T23:25:38.184000000 TT\");\nassert_eq!(format!(\"{epoch:E}\"), \"2022-09-06T23:25:38.182538909 ET\");\nassert_eq!(format!(\"{epoch:e}\"), \"2022-09-06T23:25:38.182541259 TDB\");\nassert_eq!(format!(\"{epoch:p}\"), \"1662506669\"); // UNIX seconds\nassert_eq!(format!(\"{epoch:o}\"), \"1346541887000000000\"); // GPS nanoseconds\n\n// RFC3339 parsing with time scales\nassert_eq!(\n    Epoch::from_gregorian_utc_hms(1994, 11, 5, 13, 15, 30),\n    Epoch::from_str(\"1994-11-05T08:15:30-05:00\").unwrap()\n);\nassert_eq!(\n    Epoch::from_gregorian_utc_hms(1994, 11, 5, 13, 15, 30),\n    Epoch::from_str(\"1994-11-05T13:15:30Z\").unwrap()\n);\n// Same test with different time systems\n// TAI\nassert_eq!(\n    Epoch::from_gregorian_tai_hms(1994, 11, 5, 13, 15, 30),\n    Epoch::from_str(\"1994-11-05T08:15:30-05:00 TAI\").unwrap()\n);\nassert_eq!(\n    Epoch::from_gregorian_tai_hms(1994, 11, 5, 13, 15, 30),\n    Epoch::from_str(\"1994-11-05T13:15:30Z TAI\").unwrap()\n);\n// TDB\nassert_eq!(\n    Epoch::from_gregorian_hms(1994, 11, 5, 13, 15, 30, TimeScale::TDB),\n    Epoch::from_str(\"1994-11-05T08:15:30-05:00 TDB\").unwrap()\n);\nassert_eq!(\n    Epoch::from_gregorian_hms(1994, 11, 5, 13, 15, 30, TimeScale::TDB),\n    Epoch::from_str(\"1994-11-05T13:15:30Z TDB\").unwrap()\n);\n```\n\n## Leap second support\n\nLeap seconds allow TAI (the absolute time reference) and UTC (the civil time reference) to not drift too much. In short, UTC allows humans to see the sun at zenith at noon, whereas TAI does not worry about that. Leap seconds are introduced to allow for UTC to catch up with the absolute time reference of TAI. Specifically, UTC clocks are \"stopped\" for one second to make up for the accumulated difference between TAI and UTC. These leap seconds are announced several months in advance by IERS, cf. in the [IETF leap second reference](https://www.ietf.org/timezones/data/leap-seconds.list).\n\nThe \"placement\" of these leap seconds in the formatting of a UTC date is left up to the software: there is no common way to handle this. Some software prevents a second tick, i.e. at 23:59:59 the UTC clock will tick for _two seconds_ (instead of one) before hoping to 00:00:00. Some software, like hifitime, allow UTC dates to be formatted as 23:59:60 on strictly the days when a leap second is inserted. For example, the date `2016-12-31 23:59:60 UTC` is a valid date in hifitime because a leap second was inserted on 01 Jan 2017.\n\n### Important\nPrior to the first leap second, NAIF SPICE claims that there were nine seconds of difference between TAI and UTC: this is different from the [Standard of Fundamental Astronomy (SOFA)](https://www.iausofa.org/). SOFA's `iauDat` function will return non-integer leap seconds from 1960 to 1972. It will return an error for dates prior to 1960. **Hifitime only accounts for leap seconds announced by [IERS](https://www.ietf.org/timezones/data/leap-seconds.list)** in its computations: there is a ten (10) second jump between TAI and UTC on 01 January 1972. This allows the computation of UNIX time to be a specific offset of TAI in hifitime. However, the prehistoric (pre-1972) leap seconds as returned by SOFA are available in the `leap_seconds()` method of an epoch if the `iers_only` parameter is set to false.\n\n## Ephemeris Time vs Dynamic Barycentric Time (TDB)\nIn theory, as of January 2000, ET and TDB should now be identical. _However_, the NASA NAIF leap seconds files (e.g. [naif00012.tls](./naif00012.tls)) use a simplified algorithm to compute the TDB:\n> Equation \\[4\\], which ignores small-period fluctuations, is accurate to about 0.000030 seconds.\n\nIn order to provide full interoperability with NAIF, hifitime uses the NAIF algorithm for \"ephemeris time\" and the [ESA algorithm](https://gssc.esa.int/navipedia/index.php/Transformations_between_Time_Systems#TDT_-_TDB.2C_TCB) for \"dynamical barycentric time.\" Hence, if exact NAIF behavior is needed, use all of the functions marked as `et` instead of the `tdb` functions, such as `epoch.to_et_seconds()` instead of `epoch.to_tdb_seconds()`.\n\n\n# Changelog\n\n## 3.6.0\n+ Galileo System Time and BeiDou Time are now supported, huge thanks to [@gwbres](https://github.com/gwbres) for all that work!\n+ Significant speed improvement in the initialization of Epochs from their Gregorian representation, thanks [@conradludgate](https://github.com/conradludgate) for [#160](https://github.com/nyx-space/hifitime/pull/160).\n+ Epoch and Duration now have a `min` and `max` function which respectively returns a copy of the epoch/duration that is the smallest or the largest between `self` and `other`, cf. [#164](https://github.com/nyx-space/hifitime/issues/164).\n+ [Python] Duration and Epochs now support the operators `>`, `>=`, `<`, `<=`, `==`, and `!=`. Epoch now supports `init_from_gregorian` with a time scape, like in Rust. Epochs can also be subtracted from one another using the `timedelta` function, cf. [#162](https://github.com/nyx-space/hifitime/issues/162).\n+ TimeSeries can now be formatted in different time scales, cf. [#163](https://github.com/nyx-space/hifitime/issues/163)\n\n## 3.5.0\n+ Epoch now store the time scale that they were defined in: this allows durations to be added in their respective time scales. For example, adding 36 hours to 1971-12-31 at noon when the Epoch is initialized in UTC will lead to a different epoch than adding that same duration to an epoch initialized at the same time in TAI (because the first leap second announced by IERS was on 1972-01-01), cf. the `test_add_durations_over_leap_seconds` test.\n+ RFC3339 and ISO8601 fully supported for initialization of an Epoch, including the offset, e.g. `Epoch::from_str(\"1994-11-05T08:15:30-05:00\")`, cf. [#73](https://github.com/nyx-space/hifitime/issues/73).\n+ Python package available on PyPI! To build the Python package, you must first install `maturin` and then build with the `python` feature flag. For example, `maturin develop -F python && python` will build the Python package in debug mode and start a new shell where the package can be imported.\n+ Fix bug when printing Duration::MIN (or any duration whose centuries are minimizing the number of centuries).\n+ TimeSeries can now be formatted\n+ Epoch can now be `ceil`-ed, `floor`-ed, and `round`-ed according to the time scale they were initialized in, cf. [#145](https://github.com/nyx-space/hifitime/issues/145).\n+ Epoch can now be initialized from Gregorian when specifying the time system: `from_gregorian`, `from_gregorian_hms`, `from_gregorian_at_noon`, `from_gregorian_at_midnight`.\n+ Fix bug in Duration when performing operations on durations very close to `Duration::MIN` (i.e. minus thirty-two centuries).\n+ Duration parsing now supports multiple units in a string and does not use regular expressions. THis allows it to work with `no-std`.\n+ Epoch parsing no longer requires `regex`.\n+ Functions are not more idiomatic: all of the `as_*` functions become `to_*` and `in_*` also becomes `to_*`, cf.  [#155](https://github.com/nyx-space/hifitime/issues/155).\n\n## 3.4.0\n+ Ephemeris Time and Dynamical Barycentric Time fixed to use the J2000 reference epoch instead of the J1900 reference epoch. This is a **potentially breaking change** if you relied on the previous one century error when converting from/to ET/TDB into/from UTC _and storing the data as a string_. There is **no difference** if the original representation was used.\n+ Ephemeris Time now **strictly** matches NAIF SPICE: **the error between SPICE and hifitime is now zero nanoseconds.** after the introduction of the first leap second. Prior to the first leap second, NAIF SPICE claims that there were nine seconds of difference between TAI and UTC: this is different from SOFA. Hifitime instead does not account for leap seconds in prehistoric (pre-1972) computations at all.\n+ The [_Standard of Fundamentals of Astronomy_ (SOFA)](https://www.iausofa.org/2021_0512_C.html) leap seconds from 1960 to 1972 are now available with the `leap_seconds() -> Option<f64>` function on an instance of Epoch. **Importantly**, no difference in the behavior of hifitime should be noticed here: the prehistoric leap seconds are ignored in all calculations in hifitime and only provided to meet the SOFA calculations.\n+ `Epoch` and `Duration` now have the C memory representation to allow for hifitime to be embedded in C more easily.\n+ `Epoch` and `Duration` can now be encoded or decoded as ASN1 DER with the `asn1der` crate feature (disabled by default).\n\n## 3.3.0\n+ Formal verification of the normalization operation on `Duration`, which in turn guarantees that `Epoch` operations cannot panic, cf. [#127](https://github.com/nyx-space/hifitime/issues/127)\n+ Fix `len` and `size_hint` for `TimeSeries`, cf. [#131](https://github.com/nyx-space/hifitime/issues/131), reported by [@d3v-null](https://github.com/d3v-null), thanks for the find!\n+ `Epoch` now implements `Eq` and `Ord`, cf. [#133](https://github.com/nyx-space/hifitime/pull/133), thanks [@mkolopanis](https://github.com/mkolopanis) for the PR!\n+ `Epoch` can now be printed in different time systems with format modifiers, cf. [#130](https://github.com/nyx-space/hifitime/issues/130)\n+ (minor) `as_utc_duration` in `Epoch` is now public, cf. [#129](https://github.com/nyx-space/hifitime/issues/129)\n+ (minor) The whole crate now uses `num-traits` thereby skipping the explicit use of `libm`. Basically, operations on `f64` look like normal Rust again, cf. [#128](https://github.com/nyx-space/hifitime/issues/128)\n+ (minor) Move the tests to their own folder to make it obvious that this is thoroughly tested\n\n## 3.2.0\n+ Fix no-std implementation by using `libm` for non-core f64 operations\n+ Add UNIX timestamp, thanks [@mkolopanis](https://github.com/mkolopanis)\n+ Enums now derive `Eq` and some derive `Ord` (where relevant) [#118](https://github.com/nyx-space/hifitime/issues/118)\n+ Use const fn where possible and switch to references where possible [#119](https://github.com/nyx-space/hifitime/issues/119)\n+ Allow extracting the centuries and nanoseconds of a `Duration` and `Epoch`, respectively with to_parts and to_tai_parts [#122](https://github.com/nyx-space/hifitime/issues/122)\n+ Add `ceil`, `floor`, `round` operations to `Epoch` and `Duration`\n## 3.1.0\n+ Add `#![no_std]` support\n+ Add `to_parts` to `Duration` to extract the centuries and nanoseconds of a duration\n+ Allow building an `Epoch` from its duration and parts in TAI system\n+ Add pure nanosecond (`u64`) constructor and getter for GPST since GPS based clocks will count in nanoseconds\n### Possibly breaking change\n+ `Errors::ParseError` no longer contains a `String` but an enum `ParsingErrors` instead. This is considered possibly breaking because it would only break code in the cases where a datetime parsing or unit parsing was caught and handled (uncommon). Moreover, the output is still `Display`-able.\n## 3.0.0\n+ Backend rewritten from TwoFloat to a struct of the centuries in `i16` and nanoseconds in `u64`. Thanks to [@pwnorbitals](https://github.com/pwnorbitals) for proposing the idea in #[107](https://github.com/nyx-space/hifitime/issues/107) and writing the proof of concept. This leads to at least a 2x speed up in most calculations, cf. [this comment](https://github.com/nyx-space/hifitime/pull/107#issuecomment-1040702004).\n+ Fix GPS epoch, and addition of a helper functions in `Epoch` by [@cjordan](https://github.com/cjordan)\n\n## 2.2.3\n+ More deterministic `as_jde_tdb_days()` in `Epoch`. In version 2.2.1, the ephemeris time and TDB _days_ were identical down to machine precision. After a number of validation cases in the rotation equations of the IAU Earth to Earth Mean Equator J2000 frame, the new formulation was shown to lead to less rounding errors when requesting the days. These rounding errors prevented otherwise trivial test cases. However, it adds an error of **40.2 nanoseconds** when initializing an Epoch with the days in ET and requesting the TDB days.\n\n_Note:_ this was originally published as 2.2.2 but I'd forgotten to update one of the tests with the 40.2 ns error.\n",
             "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
             "docs_url": null,
             "download_url": null,
@@ -425,7 +424,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15517809,
+        "last_serial": 15883428,
         "urls": [
             {
                 "comment_text": null,
@@ -490,6 +489,26 @@
             {
                 "comment_text": null,
                 "digests": {
+                    "md5": "9494c6c38fb920bec41ad553615993fd",
+                    "sha256": "29b492f34f7b7cb4d437d3fff91043ce2a012bcda3140a3f2bf6d38258e5e7b2"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.6.0-cp311-cp311-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "9494c6c38fb920bec41ad553615993fd",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 824832,
+                "upload_time": "2022-11-24T21:55:44",
+                "upload_time_iso_8601": "2022-11-24T21:55:44.897704Z",
+                "url": "https://files.pythonhosted.org/packages/09/d9/207d1ab35b5582ae40e879a5ec6efdfe77f79d329b91e63ab2731af51ff7/hifitime-3.6.0-cp311-cp311-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
                     "md5": "5bc0857f3e71c545ce1367a4362b13b5",
                     "sha256": "853d38b3c53bb252ed3ef28011d19f51f0ac89e901e6db79c97a97028ca30ca6"
                 },
@@ -504,6 +523,26 @@
                 "upload_time": "2022-10-25T03:13:02",
                 "upload_time_iso_8601": "2022-10-25T03:13:02.229785Z",
                 "url": "https://files.pythonhosted.org/packages/07/f1/b2452bb5b455e006cd9e88d9e7985fb8134887870c40c5dccb1beb3af4e2/hifitime-3.6.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "7391e30da55980fd6bb44ecf2aa6efc1",
+                    "sha256": "5553aa637b06b40bdcf5018b55c6d967ec7ea60356306ba731fc781787368feb"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.6.0-cp311-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "7391e30da55980fd6bb44ecf2aa6efc1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 306500,
+                "upload_time": "2022-11-24T21:55:47",
+                "upload_time_iso_8601": "2022-11-24T21:55:47.423283Z",
+                "url": "https://files.pythonhosted.org/packages/72/70/c1730a70ba2e81cce71e0675dff8e566c362fe8cefc93ff709205fc53247/hifitime-3.6.0-cp311-none-win_amd64.whl",
                 "yanked": false,
                 "yanked_reason": null
             },
@@ -764,6 +803,432 @@
                 "upload_time": "2022-10-25T03:13:24",
                 "upload_time_iso_8601": "2022-10-25T03:13:24.926644Z",
                 "url": "https://files.pythonhosted.org/packages/ac/50/52a19af4b5a33574332b29c76daa16a6b1ace8f80cae658f4928cc9f2140/hifitime-3.6.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "3.7.0": {
+        "info": {
+            "author": "Christopher Rabotin <christopher.rabotin@gmail.com>",
+            "author_email": "Christopher Rabotin <christopher.rabotin@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Science/Research",
+                "Topic :: Scientific/Engineering :: Astronomy",
+                "Topic :: Scientific/Engineering :: Physics"
+            ],
+            "description": "# hifitime 3\n\nScientifically accurate date and time handling with guaranteed nanosecond precision for 32,768 years _before_ 01 January 1900 and 32,767 years _after_ that reference epoch.\nFormally verified to not crash on operations on epochs and durations using the [`Kani`](https://model-checking.github.io/kani/) model checking.\n\n[![hifitime on crates.io][cratesio-image]][cratesio]\n[![Build Status](https://github.com/nyx-space/hifitime/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/nyx-space/hifitime/actions)\n[![hifitime on docs.rs][docsrs-image]][docsrs]\n[![minimum rustc: 1.58](https://img.shields.io/badge/minimum%20rustc-1.58-yellowgreen?logo=rust)](https://www.whatrustisit.com)\n\n[cratesio-image]: https://img.shields.io/crates/v/hifitime.svg\n[cratesio]: https://crates.io/crates/hifitime\n[docsrs-image]: https://docs.rs/hifitime/badge.svg\n[docsrs]: https://docs.rs/hifitime/\n\n\n# Features\n\n * [x] Initialize a high precision Epoch from the system time in UTC\n * [x] Leap seconds (as announced by the IETF on a yearly basis)\n * [x] UTC representation with ISO8601 and RFC3339 formatting and blazing fast parsing (45 nanoseconds)\n * [x] Trivial support of time arithmetic: addition (e.g. `2.hours() + 3.seconds()`), subtraction (e.g. `2.hours() - 3.seconds()`), round/floor/ceil operations (e.g. `2.hours().round(3.seconds())`)\n * [x] Supports ranges of Epochs and TimeSeries (linspace of `Epoch`s and `Duration`s)\n * [x] Trivial conversion between many time scales\n * [x] High fidelity Ephemeris Time / Dynamic Barycentric Time (TDB) computations from [ESA's Navipedia](https://gssc.esa.int/navipedia/index.php/Transformations_between_Time_Systems#TDT_-_TDB.2C_TCB)\n * [x] Julian dates and Modified Julian dates\n * [x] Embedded device friendly: `no-std` and `const fn` where possible\n\nThis library is validated against NASA/NAIF SPICE for the Ephemeris Time to Universal Coordinated Time computations: there are exactly zero nanoseconds of difference between SPICE and hifitime for the computation of ET and UTC after 01 January 1972. Refer to the [leap second](#leap-second-support) section for details. Other examples are validated with external references, as detailed on a test-by-test basis.\n\n## Supported time scales\n\n+ Temps Atomique International (TAI)\n+ Universal Coordinated Time (UTC)\n+ Terrestrial Time (TT)\n+ Ephemeris Time (ET) without the small perturbations as per NASA/NAIF SPICE leap seconds kernel\n+ Dynamic Barycentric Time (TDB), a higher fidelity ephemeris time\n+ Global Positioning System (GPST)\n+ Galileo System Time (GST)\n+ BeiDou Time (BDT)\n+ UNIX\n## Non-features\n* Time-agnostic / date-only epochs. Hifitime only supports the combination of date and time, but the `Epoch::{at_midnight, at_noon}` is provided as a helper function.\n\n# Usage\n\nPut this in your `Cargo.toml`:\n\n```toml\n[dependencies]\nhifitime = \"3.7\"\n```\n\n## Examples:\n### Time creation\n```rust\nuse hifitime::{Epoch, Unit, TimeUnits};\nuse core::str::FromStr;\n\n#[cfg(feature = \"std\")]\n{\n// Initialization from system time is only available when std feature is enabled\nlet now = Epoch::now().unwrap();\nprintln!(\"{}\", now);\n}\n\nlet mut santa = Epoch::from_gregorian_utc_hms(2017, 12, 25, 01, 02, 14);\nassert_eq!(santa.to_mjd_utc_days(), 58112.043217592590);\nassert_eq!(santa.to_jde_utc_days(), 2458112.5432175924);\n\nassert_eq!(\n    santa + 3600 * Unit::Second,\n    Epoch::from_gregorian_utc_hms(2017, 12, 25, 02, 02, 14),\n    \"Could not add one hour to Christmas\"\n);\n\nassert_eq!(\n    santa + 60.0.minutes(),\n    Epoch::from_gregorian_utc_hms(2017, 12, 25, 02, 02, 14),\n    \"Could not add one hour to Christmas\"\n);\n\nassert_eq!(\n    santa + 1.hours(),\n    Epoch::from_gregorian_utc_hms(2017, 12, 25, 02, 02, 14),\n    \"Could not add one hour to Christmas\"\n);\n\nlet dt = Epoch::from_gregorian_utc_hms(2017, 1, 14, 0, 31, 55);\nassert_eq!(dt, Epoch::from_str(\"2017-01-14T00:31:55 UTC\").unwrap());\n// And you can print it too, although by default it will print in UTC\nassert_eq!(format!(\"{}\", dt), \"2017-01-14T00:31:55 UTC\".to_string());\n\n```\n### Time differences, time unit, and duration handling\n\nComparing times will lead to a Duration type. Printing that will automatically select the unit.\n\n```rust\nuse hifitime::{Epoch, Unit, Duration, TimeUnits};\n\nlet at_midnight = Epoch::from_gregorian_utc_at_midnight(2020, 11, 2);\nlet at_noon = Epoch::from_gregorian_utc_at_noon(2020, 11, 2);\nassert_eq!(at_noon - at_midnight, 12 * Unit::Hour);\nassert_eq!(at_noon - at_midnight, 1 * Unit::Day / 2);\nassert_eq!(at_midnight - at_noon, -1.days() / 2);\n\nlet delta_time = at_noon - at_midnight;\nassert_eq!(format!(\"{}\", delta_time), \"12 h\".to_string());\n// And we can multiply durations by a scalar...\nlet delta2 = 2 * delta_time;\nassert_eq!(format!(\"{}\", delta2), \"1 days\".to_string());\n// Or divide them by a scalar.\nassert_eq!(format!(\"{}\", delta2 / 2.0), \"12 h\".to_string());\n\n// And of course, these comparisons account for differences in time scales\nlet at_midnight_utc = Epoch::from_gregorian_utc_at_midnight(2020, 11, 2);\nlet at_noon_tai = Epoch::from_gregorian_tai_at_noon(2020, 11, 2);\nassert_eq!(format!(\"{}\", at_noon_tai - at_midnight_utc), \"11 h 59 min 23 s\".to_string());\n```\n\nTimeunits and frequency units are trivially supported. Hifitime only supports up to nanosecond precision (but guarantees it for 64 millenia), so any duration less than one nanosecond is truncated.\n\n```rust\nuse hifitime::{Epoch, Unit, Freq, Duration, TimeUnits};\n\n// One can compare durations\nassert!(10.seconds() > 5.seconds());\nassert!(10.days() + 1.nanoseconds() > 10.days());\n\n// Those durations are more precise than floating point since this is integer math in nanoseconds\nlet d: Duration = 1.0.hours() / 3 - 20.minutes();\nassert!(d.abs() < Unit::Nanosecond);\nassert_eq!(3 * 20.minutes(), Unit::Hour);\n\n// And also frequencies but note that frequencies are converted to Durations!\n// So the duration of that frequency is compared, hence the following:\nassert!(10 * Freq::Hertz < 5 * Freq::Hertz);\nassert!(4 * Freq::MegaHertz > 5 * Freq::MegaHertz);\n\n// And asserts on the units themselves\nassert!(Freq::GigaHertz < Freq::MegaHertz);\nassert!(Unit::Second > Unit::Millisecond);\n```\n\n### Iterating over times (\"linspace\" of epochs)\nFinally, something which may come in very handy, line spaces between times with a given step.\n\n```rust\nuse hifitime::{Epoch, Unit, TimeSeries};\nlet start = Epoch::from_gregorian_utc_at_midnight(2017, 1, 14);\nlet end = Epoch::from_gregorian_utc_at_noon(2017, 1, 14);\nlet step = 2 * Unit::Hour;\nlet time_series = TimeSeries::inclusive(start, end, step);\nlet mut cnt = 0;\nfor epoch in time_series {\n    println!(\"{}\", epoch);\n    cnt += 1\n}\n// Check that there are indeed six two-hour periods in a half a day,\n// including start and end times.\nassert_eq!(cnt, 7)\n```\n\n# Design\nNo software is perfect, so please report any issue or bugs on [Github](https://github.com/nyx-space/hifitime/issues/new).\n\n## Duration\nUnder the hood, a Duration is represented as a 16 bit signed integer of centuries (`i16`) and a 64 bit unsigned integer (`u64`) of the nanoseconds past that century. The overflowing and underflowing of nanoseconds is handled by changing the number of centuries such that the nanoseconds number never represents more than one century (just over four centuries can be stored in 64 bits).\n\nAdvantages:\n1. Exact precision of a duration: using a floating point value would cause large durations (e.g. Julian Dates) to have less precision than smaller durations. Durations in hifitime have exactly one nanosecond of precision for 65,536 years.\n2. Skipping floating point operations allows this library to be used in embedded devices without a floating point unit.\n3. Duration arithmetics are exact, e.g. one third of an hour is exactly twenty minutes and not \"0.33333 hours.\"\n\nDisadvantages:\n1. Most astrodynamics applications require the computation of a duration in floating point values such as when querying an ephemeris. This design leads to an overhead of about 5.2 nanoseconds according to the benchmarks (`Duration to f64 seconds` benchmark). You may run the benchmarks with `cargo bench`.\n\n### Printing and parsing\n\nWhen Durations are printed, only the units whose value is non-zero is printed. For example, `5.hours() + 256.0.milliseconds() + 1.0.nanoseconds()` will be printed as \"5 h 256 ms 1 ns\".\n\n```rust\nuse hifitime::{Duration, Unit, TimeUnits};\nuse core::str::FromStr;\n\nassert_eq!(\n    format!(\n        \"{}\",\n        5.hours() + 256.0.milliseconds() + 1.0.nanoseconds()\n    ),\n    \"5 h 256 ms 1 ns\"\n);\n\nassert_eq!(\n    format!(\n        \"{}\",\n        5.days() + 1.0.nanoseconds()\n    ),\n    \"5 days 1 ns\"\n);\n\n\nassert_eq!(\n    Duration::from_str(\"5 h 256 ms 1 ns\").unwrap(),\n    5 * Unit::Hour + 256 * Unit::Millisecond + Unit::Nanosecond\n);\n```\n\n## Epoch\nThe Epoch is simply a wrapper around a Duration. All epochs are stored in TAI duration with respect to 01 January 1900 at noon (the official TAI epoch). The choice of TAI meets the [Standard of Fundamental Astronomy (SOFA)](https://www.iausofa.org/) recommendation of opting for a glitch-free time scale (i.e. without discontinuities like leap seconds or non-uniform seconds like TDB).\n\n### Printing and parsing\n\nEpochs can be formatted and parsed in the following time scales:\n\n+ UTC: `{epoch}`\n+ TAI: `{epoch:x}`\n+ TT: `{epoch:X}`\n+ TDB: `{epoch:e}`\n+ ET: `{epoch:E}`\n+ UNIX: `{epoch:p}`\n+ GPS: `{epoch:o}`\n\n```rust\nuse hifitime::{Epoch, TimeScale};\nuse core::str::FromStr;\n\nlet epoch = Epoch::from_gregorian_utc_hms(2022, 9, 6, 23, 24, 29);\n\nassert_eq!(format!(\"{epoch}\"), \"2022-09-06T23:24:29 UTC\");\nassert_eq!(format!(\"{epoch:x}\"), \"2022-09-06T23:25:06 TAI\");\nassert_eq!(format!(\"{epoch:X}\"), \"2022-09-06T23:25:38.184000000 TT\");\nassert_eq!(format!(\"{epoch:E}\"), \"2022-09-06T23:25:38.182538909 ET\");\nassert_eq!(format!(\"{epoch:e}\"), \"2022-09-06T23:25:38.182541259 TDB\");\nassert_eq!(format!(\"{epoch:p}\"), \"1662506669\"); // UNIX seconds\nassert_eq!(format!(\"{epoch:o}\"), \"1346541887000000000\"); // GPS nanoseconds\n\n// RFC3339 parsing with time scales\nassert_eq!(\n    Epoch::from_gregorian_utc_hms(1994, 11, 5, 13, 15, 30),\n    Epoch::from_str(\"1994-11-05T08:15:30-05:00\").unwrap()\n);\nassert_eq!(\n    Epoch::from_gregorian_utc_hms(1994, 11, 5, 13, 15, 30),\n    Epoch::from_str(\"1994-11-05T13:15:30Z\").unwrap()\n);\n// Same test with different time systems\n// TAI\nassert_eq!(\n    Epoch::from_gregorian_tai_hms(1994, 11, 5, 13, 15, 30),\n    Epoch::from_str(\"1994-11-05T08:15:30-05:00 TAI\").unwrap()\n);\nassert_eq!(\n    Epoch::from_gregorian_tai_hms(1994, 11, 5, 13, 15, 30),\n    Epoch::from_str(\"1994-11-05T13:15:30Z TAI\").unwrap()\n);\n// TDB\nassert_eq!(\n    Epoch::from_gregorian_hms(1994, 11, 5, 13, 15, 30, TimeScale::TDB),\n    Epoch::from_str(\"1994-11-05T08:15:30-05:00 TDB\").unwrap()\n);\nassert_eq!(\n    Epoch::from_gregorian_hms(1994, 11, 5, 13, 15, 30, TimeScale::TDB),\n    Epoch::from_str(\"1994-11-05T13:15:30Z TDB\").unwrap()\n);\n```\n\n## Leap second support\n\nLeap seconds allow TAI (the absolute time reference) and UTC (the civil time reference) to not drift too much. In short, UTC allows humans to see the sun at zenith at noon, whereas TAI does not worry about that. Leap seconds are introduced to allow for UTC to catch up with the absolute time reference of TAI. Specifically, UTC clocks are \"stopped\" for one second to make up for the accumulated difference between TAI and UTC. These leap seconds are announced several months in advance by IERS, cf. in the [IETF leap second reference](https://www.ietf.org/timezones/data/leap-seconds.list).\n\nThe \"placement\" of these leap seconds in the formatting of a UTC date is left up to the software: there is no common way to handle this. Some software prevents a second tick, i.e. at 23:59:59 the UTC clock will tick for _two seconds_ (instead of one) before hoping to 00:00:00. Some software, like hifitime, allow UTC dates to be formatted as 23:59:60 on strictly the days when a leap second is inserted. For example, the date `2016-12-31 23:59:60 UTC` is a valid date in hifitime because a leap second was inserted on 01 Jan 2017.\n\n### Important\nPrior to the first leap second, NAIF SPICE claims that there were nine seconds of difference between TAI and UTC: this is different from the [Standard of Fundamental Astronomy (SOFA)](https://www.iausofa.org/). SOFA's `iauDat` function will return non-integer leap seconds from 1960 to 1972. It will return an error for dates prior to 1960. **Hifitime only accounts for leap seconds announced by [IERS](https://www.ietf.org/timezones/data/leap-seconds.list)** in its computations: there is a ten (10) second jump between TAI and UTC on 01 January 1972. This allows the computation of UNIX time to be a specific offset of TAI in hifitime. However, the prehistoric (pre-1972) leap seconds as returned by SOFA are available in the `leap_seconds()` method of an epoch if the `iers_only` parameter is set to false.\n\n## Ephemeris Time vs Dynamic Barycentric Time (TDB)\nIn theory, as of January 2000, ET and TDB should now be identical. _However_, the NASA NAIF leap seconds files (e.g. [naif00012.tls](./naif00012.tls)) use a simplified algorithm to compute the TDB:\n> Equation \\[4\\], which ignores small-period fluctuations, is accurate to about 0.000030 seconds.\n\nIn order to provide full interoperability with NAIF, hifitime uses the NAIF algorithm for \"ephemeris time\" and the [ESA algorithm](https://gssc.esa.int/navipedia/index.php/Transformations_between_Time_Systems#TDT_-_TDB.2C_TCB) for \"dynamical barycentric time.\" Hence, if exact NAIF behavior is needed, use all of the functions marked as `et` instead of the `tdb` functions, such as `epoch.to_et_seconds()` instead of `epoch.to_tdb_seconds()`.\n\n\n# Changelog\n\n## 3.7.0\nHuge thanks to [@gwbres](https://github.com/gwbres) who put in all of the work for this release. These usability changes allow [Rinex](https://crates.io/crates/rinex) to use hifitime, check out this work.\n+ timescale.rs: derive serdes traits when feasible by @gwbres in https://github.com/nyx-space/hifitime/pull/167\n+ timecale.rs: introduce format/display by @gwbres in https://github.com/nyx-space/hifitime/pull/168\n+ readme: fix BeiDou typo by @gwbres in https://github.com/nyx-space/hifitime/pull/169\n+ epoch: derive Hash by @gwbres in https://github.com/nyx-space/hifitime/pull/170\n+ timescale: identify GNSS timescales from standard 3 letter codes by @gwbres in https://github.com/nyx-space/hifitime/pull/171\n+ timescale: standard formatting is now available by @gwbres in https://github.com/nyx-space/hifitime/pull/174\n+ epoch, duration: improve and fix serdes feature by @gwbres in https://github.com/nyx-space/hifitime/pull/175\n+ epoch, timescale: implement default trait by @gwbres in https://github.com/nyx-space/hifitime/pull/176\n\n## 3.6.0\n+ Galileo System Time and BeiDou Time are now supported, huge thanks to [@gwbres](https://github.com/gwbres) for all that work!\n+ Significant speed improvement in the initialization of Epochs from their Gregorian representation, thanks [@conradludgate](https://github.com/conradludgate) for [#160](https://github.com/nyx-space/hifitime/pull/160).\n+ Epoch and Duration now have a `min` and `max` function which respectively returns a copy of the epoch/duration that is the smallest or the largest between `self` and `other`, cf. [#164](https://github.com/nyx-space/hifitime/issues/164).\n+ [Python] Duration and Epochs now support the operators `>`, `>=`, `<`, `<=`, `==`, and `!=`. Epoch now supports `init_from_gregorian` with a time scape, like in Rust. Epochs can also be subtracted from one another using the `timedelta` function, cf. [#162](https://github.com/nyx-space/hifitime/issues/162).\n+ TimeSeries can now be formatted in different time scales, cf. [#163](https://github.com/nyx-space/hifitime/issues/163)\n\n## 3.5.0\n+ Epoch now store the time scale that they were defined in: this allows durations to be added in their respective time scales. For example, adding 36 hours to 1971-12-31 at noon when the Epoch is initialized in UTC will lead to a different epoch than adding that same duration to an epoch initialized at the same time in TAI (because the first leap second announced by IERS was on 1972-01-01), cf. the `test_add_durations_over_leap_seconds` test.\n+ RFC3339 and ISO8601 fully supported for initialization of an Epoch, including the offset, e.g. `Epoch::from_str(\"1994-11-05T08:15:30-05:00\")`, cf. [#73](https://github.com/nyx-space/hifitime/issues/73).\n+ Python package available on PyPI! To build the Python package, you must first install `maturin` and then build with the `python` feature flag. For example, `maturin develop -F python && python` will build the Python package in debug mode and start a new shell where the package can be imported.\n+ Fix bug when printing Duration::MIN (or any duration whose centuries are minimizing the number of centuries).\n+ TimeSeries can now be formatted\n+ Epoch can now be `ceil`-ed, `floor`-ed, and `round`-ed according to the time scale they were initialized in, cf. [#145](https://github.com/nyx-space/hifitime/issues/145).\n+ Epoch can now be initialized from Gregorian when specifying the time system: `from_gregorian`, `from_gregorian_hms`, `from_gregorian_at_noon`, `from_gregorian_at_midnight`.\n+ Fix bug in Duration when performing operations on durations very close to `Duration::MIN` (i.e. minus thirty-two centuries).\n+ Duration parsing now supports multiple units in a string and does not use regular expressions. THis allows it to work with `no-std`.\n+ Epoch parsing no longer requires `regex`.\n+ Functions are not more idiomatic: all of the `as_*` functions become `to_*` and `in_*` also becomes `to_*`, cf.  [#155](https://github.com/nyx-space/hifitime/issues/155).\n\n## 3.4.0\n+ Ephemeris Time and Dynamical Barycentric Time fixed to use the J2000 reference epoch instead of the J1900 reference epoch. This is a **potentially breaking change** if you relied on the previous one century error when converting from/to ET/TDB into/from UTC _and storing the data as a string_. There is **no difference** if the original representation was used.\n+ Ephemeris Time now **strictly** matches NAIF SPICE: **the error between SPICE and hifitime is now zero nanoseconds.** after the introduction of the first leap second. Prior to the first leap second, NAIF SPICE claims that there were nine seconds of difference between TAI and UTC: this is different from SOFA. Hifitime instead does not account for leap seconds in prehistoric (pre-1972) computations at all.\n+ The [_Standard of Fundamentals of Astronomy_ (SOFA)](https://www.iausofa.org/2021_0512_C.html) leap seconds from 1960 to 1972 are now available with the `leap_seconds() -> Option<f64>` function on an instance of Epoch. **Importantly**, no difference in the behavior of hifitime should be noticed here: the prehistoric leap seconds are ignored in all calculations in hifitime and only provided to meet the SOFA calculations.\n+ `Epoch` and `Duration` now have the C memory representation to allow for hifitime to be embedded in C more easily.\n+ `Epoch` and `Duration` can now be encoded or decoded as ASN1 DER with the `asn1der` crate feature (disabled by default).\n\n## 3.3.0\n+ Formal verification of the normalization operation on `Duration`, which in turn guarantees that `Epoch` operations cannot panic, cf. [#127](https://github.com/nyx-space/hifitime/issues/127)\n+ Fix `len` and `size_hint` for `TimeSeries`, cf. [#131](https://github.com/nyx-space/hifitime/issues/131), reported by [@d3v-null](https://github.com/d3v-null), thanks for the find!\n+ `Epoch` now implements `Eq` and `Ord`, cf. [#133](https://github.com/nyx-space/hifitime/pull/133), thanks [@mkolopanis](https://github.com/mkolopanis) for the PR!\n+ `Epoch` can now be printed in different time systems with format modifiers, cf. [#130](https://github.com/nyx-space/hifitime/issues/130)\n+ (minor) `as_utc_duration` in `Epoch` is now public, cf. [#129](https://github.com/nyx-space/hifitime/issues/129)\n+ (minor) The whole crate now uses `num-traits` thereby skipping the explicit use of `libm`. Basically, operations on `f64` look like normal Rust again, cf. [#128](https://github.com/nyx-space/hifitime/issues/128)\n+ (minor) Move the tests to their own folder to make it obvious that this is thoroughly tested\n\n## 3.2.0\n+ Fix no-std implementation by using `libm` for non-core f64 operations\n+ Add UNIX timestamp, thanks [@mkolopanis](https://github.com/mkolopanis)\n+ Enums now derive `Eq` and some derive `Ord` (where relevant) [#118](https://github.com/nyx-space/hifitime/issues/118)\n+ Use const fn where possible and switch to references where possible [#119](https://github.com/nyx-space/hifitime/issues/119)\n+ Allow extracting the centuries and nanoseconds of a `Duration` and `Epoch`, respectively with to_parts and to_tai_parts [#122](https://github.com/nyx-space/hifitime/issues/122)\n+ Add `ceil`, `floor`, `round` operations to `Epoch` and `Duration`\n## 3.1.0\n+ Add `#![no_std]` support\n+ Add `to_parts` to `Duration` to extract the centuries and nanoseconds of a duration\n+ Allow building an `Epoch` from its duration and parts in TAI system\n+ Add pure nanosecond (`u64`) constructor and getter for GPST since GPS based clocks will count in nanoseconds\n### Possibly breaking change\n+ `Errors::ParseError` no longer contains a `String` but an enum `ParsingErrors` instead. This is considered possibly breaking because it would only break code in the cases where a datetime parsing or unit parsing was caught and handled (uncommon). Moreover, the output is still `Display`-able.\n## 3.0.0\n+ Backend rewritten from TwoFloat to a struct of the centuries in `i16` and nanoseconds in `u64`. Thanks to [@pwnorbitals](https://github.com/pwnorbitals) for proposing the idea in #[107](https://github.com/nyx-space/hifitime/issues/107) and writing the proof of concept. This leads to at least a 2x speed up in most calculations, cf. [this comment](https://github.com/nyx-space/hifitime/pull/107#issuecomment-1040702004).\n+ Fix GPS epoch, and addition of a helper functions in `Epoch` by [@cjordan](https://github.com/cjordan)\n\n## 2.2.3\n+ More deterministic `as_jde_tdb_days()` in `Epoch`. In version 2.2.1, the ephemeris time and TDB _days_ were identical down to machine precision. After a number of validation cases in the rotation equations of the IAU Earth to Earth Mean Equator J2000 frame, the new formulation was shown to lead to less rounding errors when requesting the days. These rounding errors prevented otherwise trivial test cases. However, it adds an error of **40.2 nanoseconds** when initializing an Epoch with the days in ET and requesting the TDB days.\n\n_Note:_ this was originally published as 2.2.2 but I'd forgotten to update one of the tests with the 40.2 ns error.\n\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": null,
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://nyxspace.com/",
+            "keywords": "date,time,science,leap-second,no-std",
+            "license": "Apache-2.0",
+            "maintainer": null,
+            "maintainer_email": null,
+            "name": "hifitime",
+            "package_url": "https://pypi.org/project/hifitime/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/hifitime/",
+            "project_urls": {
+                "Homepage": "https://nyxspace.com/",
+                "Source Code": "https://github.com/nyx-space/hifitime"
+            },
+            "release_url": "https://pypi.org/project/hifitime/3.7.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "Ultra-precise date and time handling in Rust for scientific applications with leap second support",
+            "version": "3.7.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15883428,
+        "urls": [
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "72aa878de5c528c8fd84fd4fbedafd68",
+                    "sha256": "5e1e969bc102a99a0388ccdd8444a8346e90c2d330fba0f36c41c7bc1f24fc62"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp310-cp310-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "72aa878de5c528c8fd84fd4fbedafd68",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 825105,
+                "upload_time": "2022-11-24T22:18:10",
+                "upload_time_iso_8601": "2022-11-24T22:18:10.932734Z",
+                "url": "https://files.pythonhosted.org/packages/e0/ea/c870bef68b0bfa5a53d1c39f5d1e1f914ae2a19331a575875d69da3f1178/hifitime-3.7.0-cp310-cp310-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "8b85dc0bfd6f2c5b741812ea918d6712",
+                    "sha256": "379637bcf56dce5e96fcf99b6aa8f9722e383c69312c32dd36bbefaaaa30e1a6"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "8b85dc0bfd6f2c5b741812ea918d6712",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 1255603,
+                "upload_time": "2022-11-24T22:18:13",
+                "upload_time_iso_8601": "2022-11-24T22:18:13.572529Z",
+                "url": "https://files.pythonhosted.org/packages/13/e0/607149b8becea13f73202eb5ec467c96502186a8e5d019ca5e353b8fd4db/hifitime-3.7.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "d09a70bf86c20d5759a80052cf6df110",
+                    "sha256": "565a16efc634b463e3e244515e0fa63993b12083b453bfc2013e2a24d4e6f078"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp310-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "d09a70bf86c20d5759a80052cf6df110",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 305703,
+                "upload_time": "2022-11-24T22:18:16",
+                "upload_time_iso_8601": "2022-11-24T22:18:16.148942Z",
+                "url": "https://files.pythonhosted.org/packages/af/35/0a2714dce22aae77e4de4f344ded0b2027c21b810b28696cb496777761d9/hifitime-3.7.0-cp310-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "dc49fdfd8c2af6c324afae078c90235a",
+                    "sha256": "d95887be8444b1370e6785a27b250aa553558c83bead328ddd75db14176c0697"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp311-cp311-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "dc49fdfd8c2af6c324afae078c90235a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 825112,
+                "upload_time": "2022-11-24T22:18:18",
+                "upload_time_iso_8601": "2022-11-24T22:18:18.174061Z",
+                "url": "https://files.pythonhosted.org/packages/c4/58/aaa8f435e40f97714d2b712ddc105405bbc4805b3ef5d929f68d6d73c615/hifitime-3.7.0-cp311-cp311-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "cf2c44a1f98c25f147f6c2bb6e3f5a56",
+                    "sha256": "80868bdbcf9a35456aa0859a97d1993ab48437b1ddbac86962882e7bee6b1d5b"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "cf2c44a1f98c25f147f6c2bb6e3f5a56",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 1255607,
+                "upload_time": "2022-11-24T22:18:20",
+                "upload_time_iso_8601": "2022-11-24T22:18:20.549125Z",
+                "url": "https://files.pythonhosted.org/packages/a7/eb/7be9a6efa063676f30ad3504fa5a781cf0a0e43f46d4b2b68b3a81f63791/hifitime-3.7.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "7996961993d7f17c2aa4db41ce2b6e78",
+                    "sha256": "38b7f8b7777033576b95baa9713284862b5165e7f955121e2f54f073028988db"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp311-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "7996961993d7f17c2aa4db41ce2b6e78",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 305701,
+                "upload_time": "2022-11-24T22:18:22",
+                "upload_time_iso_8601": "2022-11-24T22:18:22.824319Z",
+                "url": "https://files.pythonhosted.org/packages/43/ef/5324c3837c0c958307866e798a0076f90a90759e8c6af6a0789d3ee0c35e/hifitime-3.7.0-cp311-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "c275eb424862337e1a2da9b3e9911154",
+                    "sha256": "a5738191dcc980c1162e77be6a72e75c7736fa7c33559215c57e74ca2dac3c83"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp37-cp37m-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "c275eb424862337e1a2da9b3e9911154",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 824824,
+                "upload_time": "2022-11-24T22:18:25",
+                "upload_time_iso_8601": "2022-11-24T22:18:25.255111Z",
+                "url": "https://files.pythonhosted.org/packages/a9/d0/80866e211ab86dcad66ea232231f82fd2ce236e9d24f56ba2e44efce9418/hifitime-3.7.0-cp37-cp37m-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "3eb942627a244b368eff49af08d02643",
+                    "sha256": "e60057da3250c1a2194d8f99cc2c8863addd58ba09116ac2bb165e20f9a0713e"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "3eb942627a244b368eff49af08d02643",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 1255069,
+                "upload_time": "2022-11-24T22:18:28",
+                "upload_time_iso_8601": "2022-11-24T22:18:28.036458Z",
+                "url": "https://files.pythonhosted.org/packages/e0/00/3974d8f24f4fa1dba924b2b71da940f9085e4542c6628a6b9536217f6f63/hifitime-3.7.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "8a8f3f762d9231b2adc3e56ca9132549",
+                    "sha256": "2d2d1ccccdcd0bd055bf38161cc398d44657a338f1a33f0f99e38d8220b1a30e"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp37-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "8a8f3f762d9231b2adc3e56ca9132549",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 306144,
+                "upload_time": "2022-11-24T22:18:30",
+                "upload_time_iso_8601": "2022-11-24T22:18:30.276032Z",
+                "url": "https://files.pythonhosted.org/packages/a6/3c/3ecb3da7220268172c1075725854a195f0e8182e8a186896393fba120e97/hifitime-3.7.0-cp37-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "a53e1f51471b69052d73025b5a2521ce",
+                    "sha256": "402d4321ca38198f0dc2725585e9b3961975282a8ce072769f0b2b155937529a"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp38-cp38-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "a53e1f51471b69052d73025b5a2521ce",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 824959,
+                "upload_time": "2022-11-24T22:18:32",
+                "upload_time_iso_8601": "2022-11-24T22:18:32.692723Z",
+                "url": "https://files.pythonhosted.org/packages/a1/f9/996a58b160a4d3dc7b3145401a7aa662b96d077d7c14efd0e3a5ab1fd3b6/hifitime-3.7.0-cp38-cp38-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "10fe4739df5a14da019bebbaaa971e5f",
+                    "sha256": "522357c9b2fb4d248b5d82b2dabae1f27175777220998b7d85d607dcd239b1e7"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "10fe4739df5a14da019bebbaaa971e5f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 1254977,
+                "upload_time": "2022-11-24T22:18:34",
+                "upload_time_iso_8601": "2022-11-24T22:18:34.851891Z",
+                "url": "https://files.pythonhosted.org/packages/34/e2/8f2c279d3ec7b3087300e53e19520ff31bb11e0c13a26fb6b8ccd7f69c35/hifitime-3.7.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "1b74919959fd83e79d20a7907a780ae9",
+                    "sha256": "c14bc34f372a214a6216450577e0d0d3e88e0be8955b29d5aa19d96baf8d90ee"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp38-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "1b74919959fd83e79d20a7907a780ae9",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 305978,
+                "upload_time": "2022-11-24T22:18:36",
+                "upload_time_iso_8601": "2022-11-24T22:18:36.544309Z",
+                "url": "https://files.pythonhosted.org/packages/9a/60/0705335b672d03679375eeef8a9f8147b5cb4b94fb168b18645cfa976472/hifitime-3.7.0-cp38-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "5a000261b45d8da1e499755fb4116380",
+                    "sha256": "649ccbd5d6fdb6124aa4ddaa9c7c73f29c82aa034ac2131a678f2c00a0994bf6"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp39-cp39-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "5a000261b45d8da1e499755fb4116380",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 825956,
+                "upload_time": "2022-11-24T22:18:38",
+                "upload_time_iso_8601": "2022-11-24T22:18:38.694104Z",
+                "url": "https://files.pythonhosted.org/packages/2d/b7/f3a0ea597c05657fc19371e19ae17b4ab9e27b6f58f7a6ec551fa1ca84d1/hifitime-3.7.0-cp39-cp39-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "6be7060962470dd2633e64035d7e626b",
+                    "sha256": "660bbd4f26d0d8a50a60abfd663433f58d879c550a23de1457e4e8ec84a8be53"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "6be7060962470dd2633e64035d7e626b",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 1255906,
+                "upload_time": "2022-11-24T22:18:40",
+                "upload_time_iso_8601": "2022-11-24T22:18:40.881605Z",
+                "url": "https://files.pythonhosted.org/packages/ab/e2/be3ea48b3d0f1dec6fcea672ec91513ee6ff97d79dd81ed5f199bf9376b8/hifitime-3.7.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "dfcb859a8a1dd150ea2dd729be84cb78",
+                    "sha256": "1b4aa2c57ba2a6109d171f08ba404e2b365d23637ec7c96be1ae1e1799b96fbd"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-cp39-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "dfcb859a8a1dd150ea2dd729be84cb78",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 306030,
+                "upload_time": "2022-11-24T22:18:42",
+                "upload_time_iso_8601": "2022-11-24T22:18:42.590888Z",
+                "url": "https://files.pythonhosted.org/packages/f8/5d/5be54949d95ad6a3ed07142174fbe8db6729a455ac25cde287438fd64e73/hifitime-3.7.0-cp39-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "1c2afeb4a3e533dcb8286f331a3bfe15",
+                    "sha256": "b551e94ebcaf613b6575f8fa532d384f709a0bd6799737c615634e2bc7809ff4"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "1c2afeb4a3e533dcb8286f331a3bfe15",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp37",
+                "requires_python": ">=3.7",
+                "size": 1258715,
+                "upload_time": "2022-11-24T22:18:44",
+                "upload_time_iso_8601": "2022-11-24T22:18:44.418240Z",
+                "url": "https://files.pythonhosted.org/packages/12/3f/c0b03ae88a0e34ef47981d32e5b39ab3456e1ab22f0d736b5d34f0d79fc4/hifitime-3.7.0-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "16106ad9bdfea1415ca686aed1fb94d4",
+                    "sha256": "97245f2ccd3b22783b33cc8ea29024e991df165f8c131909c03284dd330e85dc"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "16106ad9bdfea1415ca686aed1fb94d4",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp38",
+                "requires_python": ">=3.7",
+                "size": 1255479,
+                "upload_time": "2022-11-24T22:18:46",
+                "upload_time_iso_8601": "2022-11-24T22:18:46.302708Z",
+                "url": "https://files.pythonhosted.org/packages/20/84/746a940bf4ffacc057f8f09a9fdaa20a89835553b15a8989e80583919add/hifitime-3.7.0-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "18ba6830d81c572c321b1fa28649bcc9",
+                    "sha256": "36e38df4759cd62e66ef540b204b349b5d88478d5c3419ea63817d155acce8c8"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "18ba6830d81c572c321b1fa28649bcc9",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp39",
+                "requires_python": ">=3.7",
+                "size": 1255068,
+                "upload_time": "2022-11-24T22:18:49",
+                "upload_time_iso_8601": "2022-11-24T22:18:49.048244Z",
+                "url": "https://files.pythonhosted.org/packages/cd/17/a57bd2bfe4162a837ddb1b6c2374455eb42db23522c7eea54d3ef73b3468/hifitime-3.7.0-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "162a027da3fcded52549dec5658187c4",
+                    "sha256": "9c2423caf4159f3a99076a576955a96886fbf32bab122d11258e5757dcfe943c"
+                },
+                "downloads": -1,
+                "filename": "hifitime-3.7.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "162a027da3fcded52549dec5658187c4",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 83461,
+                "upload_time": "2022-11-24T22:18:50",
+                "upload_time_iso_8601": "2022-11-24T22:18:50.810885Z",
+                "url": "https://files.pythonhosted.org/packages/b2/20/a9c5bece3144956dfc919a20c3b87c9aa8ed7eaf8763ea3682fe54d07351/hifitime-3.7.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

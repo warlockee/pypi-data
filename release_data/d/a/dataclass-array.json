@@ -34,7 +34,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15436393,
+        "last_serial": 15880759,
         "urls": [
             {
                 "comment_text": "",
@@ -133,7 +133,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15436393,
+        "last_serial": 15880759,
         "urls": [
             {
                 "comment_text": "",
@@ -232,7 +232,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15436393,
+        "last_serial": 15880759,
         "urls": [
             {
                 "comment_text": "",
@@ -289,7 +289,6 @@
                 "Programming Language :: Python :: 3 :: Only",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "# Dataclass Array\n\n[![Unittests](https://github.com/google-research/dataclass_array/actions/workflows/pytest_and_autopublish.yml/badge.svg)](https://github.com/google-research/visu3d/actions/workflows/pytest_and_autopublish.yml)\n[![PyPI version](https://badge.fury.io/py/dataclass_array.svg)](https://badge.fury.io/py/dataclass_array)\n\n`DataclassArray` are dataclasses which behave like numpy-like arrays (can be\nbatched, reshaped, sliced,...), compatible with Jax, TensorFlow, and numpy (with\ntorch support planned).\n\nThis reduce boilerplate and improve readability. See the\n[motivating examples](#motivating-examples) section bellow.\n\nTo view an example of dataclass arrays used in practice, see\n[visu3d](https://github.com/google-research/visu3d).\n\n## Documentation\n\n### Definition\n\nTo create a `dca.DataclassArray`, take a frozen dataclass and:\n\n*   Inherit from `dca.DataclassArray`\n*   Annotate the fields with `dataclass_array.typing` to specify the inner shape\n    and dtype of the array (see below for static or nested dataclass fields).\n    The array types are an alias from\n    [`etils.array_types`](https://github.com/google/etils/blob/main/etils/array_types/README.md).\n\n```python\nimport dataclass_array as dca\nfrom dataclass_array.typing import FloatArray\n\n\n@dataclasses.dataclass(frozen=True)\nclass Ray(dca.DataclassArray):\n  pos: FloatArray['*batch_shape 3']\n  dir: FloatArray['*batch_shape 3']\n```\n\n### Usage\n\nAfterwards, the dataclass can be used as a numpy array:\n\n```python\nray = Ray(pos=jnp.zeros((3, 3)), dir=jnp.eye(3))\n\n\nray.shape == (3,)  # 3 rays batched together\nray.pos.shape == (3, 3)  # Individual fields still available\n\n# Numpy slicing/indexing/masking\nray = ray[..., 1:2]\nray = ray[norm(ray.dir) > 1e-7]\n\n# Shape transformation\nray = ray.reshape((1, 3))\nray = ray.reshape('h w -> w h')  # Native einops support\nray = ray.flatten()\n\n# Stack multiple dataclass arrays together\nray = dca.stack([ray0, ray1, ...])\n\n# Supports TF, Jax, Numpy (torch planned) and can be easily converted\nray = ray.as_jax()  # as_np(), as_tf()\nray.xnp == jax.numpy  # `numpy`, `jax.numpy`, `tf.experimental.numpy`\n\n# Compatibility `with jax.tree_util`, `jax.vmap`,..\nray = jax.tree_util.tree_map(lambda x: x+1, ray)\n```\n\nA `DataclassArray` has 2 types of fields:\n\n*   Array fields: Fields batched like numpy arrays, with reshape, slicing,...\n    Can be `xnp.ndarray` or nested `dca.DataclassArray`.\n*   Static fields: Other non-numpy field. Are not modified by reshaping,...\n    Static fields are also ignored in `jax.tree_map`.\n\n```python\n@dataclasses.dataclass(frozen=True)\nclass MyArray(dca.DataclassArray):\n  # Array fields\n  a: FloatArray['*batch_shape 3']  # Defined by `etils.array_types`\n  b: FloatArray['*batch_shape _ _']  # Dynamic shape\n  c: Ray  # Nested DataclassArray (equivalent to `Ray['*batch_shape']`)\n  d: Ray['*batch_shape 6']\n\n  # Array fields explicitly defined\n  e: Any = dca.field(shape=(3,), dtype=np.float32)\n  f: Any = dca.field(shape=(None,  None), dtype=np.float32)  # Dynamic shape\n  g: Ray = dca.field(shape=(3,), dtype=Ray)  # Nested DataclassArray\n\n  # Static field (everything not defined as above)\n  static0: float\n  static1: np.array\n```\n\n### Vectorization\n\n`@dca.vectorize_method` allow your dataclass method to automatically support\nbatching:\n\n1.  Implement method as if `self.shape == ()`\n2.  Decorate the method with `dca.vectorize_method`\n\n```python\n@dataclasses.dataclass(frozen=True)\nclass Camera(dca.DataclassArray):\n  K: FloatArray['*batch_shape 4 4']\n  resolution = tuple[int, int]\n\n  @dca.vectorize_method\n  def rays(self) -> Ray:\n    # Inside `@dca.vectorize_method` shape is always guarantee to be `()`\n    assert self.shape == ()\n    assert self.K.shape == (4, 4)\n\n    # Compute the ray as if there was only a single camera\n    return Ray(pos=..., dir=...)\n```\n\nAfterward, we can generate rays for multiple camera batched together:\n\n```python\ncams = Camera(K=K)  # K.shape == (num_cams, 4, 4)\nrays = cams.rays()  # Generate the rays for all the cameras\n\ncams.shape == (num_cams,)\nrays.shape == (num_cams, h, w)\n```\n\n`@dca.vectorize_method` is similar to `jax.vmap` but:\n\n*   Only work on `dca.DataclassArray` methods\n*   Instead of vectorizing a single axis, `@dca.vectorize_method` will vectorize\n    over `*self.shape` (not just `self.shape[0]`). This is like if `vmap` was\n    applied to `self.flatten()`\n*   When multiple arguments, axis with dimension `1` are brodcasted.\n\nFor example, with `__matmul__(self, x: T) -> T`:\n\n```python\n() @ (*x,) -> (*x,)\n(b,) @ (b, *x) -> (b, *x)\n(b,) @ (1, *x) -> (b, *x)\n(1,) @ (b, *x) -> (b, *x)\n(b, h, w) @ (b, h, w, *x) -> (b, h, w, *x)\n(1, h, w) @ (b, 1, 1, *x) -> (b, h, w, *x)\n(a, *x) @ (b, *x) -> Error: Incompatible a != b\n```\n\nTo test on Colab, see the `visu3d` dataclass\n[Colab tutorial](https://colab.research.google.com/github/google-research/visu3d/blob/main/docs/dataclass.ipynb).\n\n## Motivating examples\n\n`dca.DataclassArray` improve readability by simplifying common patterns:\n\n*   Reshaping all fields of a dataclass:\n\n    Before (`rays` is simple `dataclass`):\n\n    ```python\n    num_rays = math.prod(rays.origins.shape[:-1])\n    rays = jax.tree_map(lambda r: r.reshape((num_rays, -1)), rays)\n    ```\n\n    After (`rays` is `DataclassArray`):\n\n    ```python\n    rays = rays.flatten()  # (b, h, w) -> (b*h*w,)\n    ```\n\n*   Rendering a video:\n\n    Before (`cams: list[Camera]`):\n\n    ```python\n    img = cams[0].render(scene)\n    imgs = np.stack([cam.render(scene) for cam in cams[::2]])\n    imgs = np.stack([cam.render(scene) for cam in cams])\n    ```\n\n    After (`cams: Camera` with `cams.shape == (num_cams,)`):\n\n    ```python\n    img = cams[0].render(scene)  # Render only the first camera (to debug)\n    imgs = cams[::2].render(scene)  # Render 1/2 frames (for quicker iteration)\n    imgs = cams.render(scene)  # Render all cameras at once\n    ```\n\n## Installation\n\n```sh\npip install dataclass_array\n```\n\n*This is not an official Google product*\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -332,7 +331,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15436393,
+        "last_serial": 15880759,
         "urls": [
             {
                 "comment_text": "",
@@ -371,6 +370,106 @@
                 "upload_time": "2022-10-17T13:09:21",
                 "upload_time_iso_8601": "2022-10-17T13:09:21.464715Z",
                 "url": "https://files.pythonhosted.org/packages/e7/2d/3dc26639344d5f92c2d8ff1d4559d3990f5e20c13c7bfa280705f996b59f/dataclass_array-1.2.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.2.1": {
+        "info": {
+            "author": "",
+            "author_email": "dataclass_array team <dataclass_array@google.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: Apache Software License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "# Dataclass Array\n\n[![Unittests](https://github.com/google-research/dataclass_array/actions/workflows/pytest_and_autopublish.yml/badge.svg)](https://github.com/google-research/visu3d/actions/workflows/pytest_and_autopublish.yml)\n[![PyPI version](https://badge.fury.io/py/dataclass_array.svg)](https://badge.fury.io/py/dataclass_array)\n\n`DataclassArray` are dataclasses which behave like numpy-like arrays (can be\nbatched, reshaped, sliced,...), compatible with Jax, TensorFlow, and numpy (with\ntorch support planned).\n\nThis reduce boilerplate and improve readability. See the\n[motivating examples](#motivating-examples) section bellow.\n\nTo view an example of dataclass arrays used in practice, see\n[visu3d](https://github.com/google-research/visu3d).\n\n## Documentation\n\n### Definition\n\nTo create a `dca.DataclassArray`, take a frozen dataclass and:\n\n*   Inherit from `dca.DataclassArray`\n*   Annotate the fields with `dataclass_array.typing` to specify the inner shape\n    and dtype of the array (see below for static or nested dataclass fields).\n    The array types are an alias from\n    [`etils.array_types`](https://github.com/google/etils/blob/main/etils/array_types/README.md).\n\n```python\nimport dataclass_array as dca\nfrom dataclass_array.typing import FloatArray\n\n\n@dataclasses.dataclass(frozen=True)\nclass Ray(dca.DataclassArray):\n  pos: FloatArray['*batch_shape 3']\n  dir: FloatArray['*batch_shape 3']\n```\n\n### Usage\n\nAfterwards, the dataclass can be used as a numpy array:\n\n```python\nray = Ray(pos=jnp.zeros((3, 3)), dir=jnp.eye(3))\n\n\nray.shape == (3,)  # 3 rays batched together\nray.pos.shape == (3, 3)  # Individual fields still available\n\n# Numpy slicing/indexing/masking\nray = ray[..., 1:2]\nray = ray[norm(ray.dir) > 1e-7]\n\n# Shape transformation\nray = ray.reshape((1, 3))\nray = ray.reshape('h w -> w h')  # Native einops support\nray = ray.flatten()\n\n# Stack multiple dataclass arrays together\nray = dca.stack([ray0, ray1, ...])\n\n# Supports TF, Jax, Numpy (torch planned) and can be easily converted\nray = ray.as_jax()  # as_np(), as_tf()\nray.xnp == jax.numpy  # `numpy`, `jax.numpy`, `tf.experimental.numpy`\n\n# Compatibility `with jax.tree_util`, `jax.vmap`,..\nray = jax.tree_util.tree_map(lambda x: x+1, ray)\n```\n\nA `DataclassArray` has 2 types of fields:\n\n*   Array fields: Fields batched like numpy arrays, with reshape, slicing,...\n    Can be `xnp.ndarray` or nested `dca.DataclassArray`.\n*   Static fields: Other non-numpy field. Are not modified by reshaping,...\n    Static fields are also ignored in `jax.tree_map`.\n\n```python\n@dataclasses.dataclass(frozen=True)\nclass MyArray(dca.DataclassArray):\n  # Array fields\n  a: FloatArray['*batch_shape 3']  # Defined by `etils.array_types`\n  b: FloatArray['*batch_shape _ _']  # Dynamic shape\n  c: Ray  # Nested DataclassArray (equivalent to `Ray['*batch_shape']`)\n  d: Ray['*batch_shape 6']\n\n  # Array fields explicitly defined\n  e: Any = dca.field(shape=(3,), dtype=np.float32)\n  f: Any = dca.field(shape=(None,  None), dtype=np.float32)  # Dynamic shape\n  g: Ray = dca.field(shape=(3,), dtype=Ray)  # Nested DataclassArray\n\n  # Static field (everything not defined as above)\n  static0: float\n  static1: np.array\n```\n\n### Vectorization\n\n`@dca.vectorize_method` allow your dataclass method to automatically support\nbatching:\n\n1.  Implement method as if `self.shape == ()`\n2.  Decorate the method with `dca.vectorize_method`\n\n```python\n@dataclasses.dataclass(frozen=True)\nclass Camera(dca.DataclassArray):\n  K: FloatArray['*batch_shape 4 4']\n  resolution = tuple[int, int]\n\n  @dca.vectorize_method\n  def rays(self) -> Ray:\n    # Inside `@dca.vectorize_method` shape is always guarantee to be `()`\n    assert self.shape == ()\n    assert self.K.shape == (4, 4)\n\n    # Compute the ray as if there was only a single camera\n    return Ray(pos=..., dir=...)\n```\n\nAfterward, we can generate rays for multiple camera batched together:\n\n```python\ncams = Camera(K=K)  # K.shape == (num_cams, 4, 4)\nrays = cams.rays()  # Generate the rays for all the cameras\n\ncams.shape == (num_cams,)\nrays.shape == (num_cams, h, w)\n```\n\n`@dca.vectorize_method` is similar to `jax.vmap` but:\n\n*   Only work on `dca.DataclassArray` methods\n*   Instead of vectorizing a single axis, `@dca.vectorize_method` will vectorize\n    over `*self.shape` (not just `self.shape[0]`). This is like if `vmap` was\n    applied to `self.flatten()`\n*   When multiple arguments, axis with dimension `1` are brodcasted.\n\nFor example, with `__matmul__(self, x: T) -> T`:\n\n```python\n() @ (*x,) -> (*x,)\n(b,) @ (b, *x) -> (b, *x)\n(b,) @ (1, *x) -> (b, *x)\n(1,) @ (b, *x) -> (b, *x)\n(b, h, w) @ (b, h, w, *x) -> (b, h, w, *x)\n(1, h, w) @ (b, 1, 1, *x) -> (b, h, w, *x)\n(a, *x) @ (b, *x) -> Error: Incompatible a != b\n```\n\nTo test on Colab, see the `visu3d` dataclass\n[Colab tutorial](https://colab.research.google.com/github/google-research/visu3d/blob/main/docs/dataclass.ipynb).\n\n## Motivating examples\n\n`dca.DataclassArray` improve readability by simplifying common patterns:\n\n*   Reshaping all fields of a dataclass:\n\n    Before (`rays` is simple `dataclass`):\n\n    ```python\n    num_rays = math.prod(rays.origins.shape[:-1])\n    rays = jax.tree_map(lambda r: r.reshape((num_rays, -1)), rays)\n    ```\n\n    After (`rays` is `DataclassArray`):\n\n    ```python\n    rays = rays.flatten()  # (b, h, w) -> (b*h*w,)\n    ```\n\n*   Rendering a video:\n\n    Before (`cams: list[Camera]`):\n\n    ```python\n    img = cams[0].render(scene)\n    imgs = np.stack([cam.render(scene) for cam in cams[::2]])\n    imgs = np.stack([cam.render(scene) for cam in cams])\n    ```\n\n    After (`cams: Camera` with `cams.shape == (num_cams,)`):\n\n    ```python\n    img = cams[0].render(scene)  # Render only the first camera (to debug)\n    imgs = cams[::2].render(scene)  # Render 1/2 frames (for quicker iteration)\n    imgs = cams.render(scene)  # Render all cameras at once\n    ```\n\n## Installation\n\n```sh\npip install dataclass_array\n```\n\n*This is not an official Google product*\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "dataclass,dataclasses,numpy,jax,tensorflow,array",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "dataclass-array",
+            "package_url": "https://pypi.org/project/dataclass-array/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/dataclass-array/",
+            "project_urls": {
+                "homepage": "https://github.com/google-research/dataclass_array",
+                "repository": "https://github.com/google-research/dataclass_array"
+            },
+            "release_url": "https://pypi.org/project/dataclass-array/1.2.1/",
+            "requires_dist": [
+                "einops",
+                "etils[edc,enp,epath,epy,etree]",
+                "lark",
+                "numpy",
+                "typing_extensions",
+                "pytest ; extra == \"dev\"",
+                "pytest-xdist ; extra == \"dev\"",
+                "pylint>=2.6.0 ; extra == \"dev\"",
+                "yapf ; extra == \"dev\"",
+                "chex ; extra == \"dev\"",
+                "jax[cpu] ; extra == \"dev\"",
+                "tf-nightly ; extra == \"dev\""
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Dataclasses that behave like numpy arrays (with indexing, slicing, vectorization).",
+            "version": "1.2.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15880759,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b5e27303588f3bb41e9e525766106d64",
+                    "sha256": "0a9f852ee7d5c0f21f7981962d5ef2a06e5215be41e956ba694e66f4cb879160"
+                },
+                "downloads": -1,
+                "filename": "dataclass_array-1.2.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b5e27303588f3bb41e9e525766106d64",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 52003,
+                "upload_time": "2022-11-24T16:03:26",
+                "upload_time_iso_8601": "2022-11-24T16:03:26.314272Z",
+                "url": "https://files.pythonhosted.org/packages/eb/6d/3df9c46365dd2fc3bb18cd6902f8f614a08face0fee0c33805869d0ad055/dataclass_array-1.2.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d9cc794b042ebbd837e8eec0fed64d6e",
+                    "sha256": "365cb348db40cb073ea8a45ff4c35e993b46bd3d4ff5e997b55b118807e426f3"
+                },
+                "downloads": -1,
+                "filename": "dataclass_array-1.2.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d9cc794b042ebbd837e8eec0fed64d6e",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 38145,
+                "upload_time": "2022-11-24T16:03:27",
+                "upload_time_iso_8601": "2022-11-24T16:03:27.874701Z",
+                "url": "https://files.pythonhosted.org/packages/cf/5d/75700cad107b9d3f48f288790303709d83d61b028333d31729949d01f5fa/dataclass_array-1.2.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
