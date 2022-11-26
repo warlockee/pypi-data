@@ -42,7 +42,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15887401,
+        "last_serial": 15896616,
         "urls": [
             {
                 "comment_text": "",
@@ -130,7 +130,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15887401,
+        "last_serial": 15896616,
         "urls": [
             {
                 "comment_text": "",
@@ -188,7 +188,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Topic :: Software Development :: Libraries"
             ],
-            "description": "# Tdb Overview\n\nTdb \u201cText DataBase\u201d format is a plain text human readable typed database\nstorage format.\n\nTdb provides a superior alternative to CSV. In particular, Tdb tables are\nnamed and Tdb fields are strictly typed. Also, there is a clear distinction\nbetween field names and data values, and strings respect whitespace\n(including newlines) and have no problems with commas, quotes, etc.\nPerhaps best of all, a single Tdb file may contain one\u2014or more\u2014tables.\n\n- [Datatypes](#datatypes)\n- [Examples](#examples)\n    - [CSV](#csv)\n    - [Database](#database)\n    - [Minimal Tdb Files](#minimal-tdb-files)\n    - [Metadata](#metadata)\n- [Libraries](#libraries)\n\t- [Go](#go)\n\t- [Python](#py)\n- [BNF](#bnf)\n- [Supplementary](#supplementary)\n    - [Vim Support](#vim-support)\n    - [Tdb Logo](#tdb-logo)\n\n## Datatypes\n\nTdb supports the following seven built-in datatypes.\n\n|**Type**<a name=\"table-of-built-in-types\"></a>|**Sentinal**|**Example(s)**|**Notes**|\n|-----------|----------------------|--|--|\n|`bool`     ||`F` `T`|No sentinal. A Tdb reader should also accept 'f', 'N', 'n', 't', 'Y', 'y'|\n|`bytes`    ||`(20AC 65 66 48)`|No sentinal; use `()` empty. There must be an even number of case-insensitive hex digits; whitespace (spaces, newlines, etc.) optional.|\n|`date`     |`1808-08-08`   |`2022-04-01`|Basic ISO8601 YYYY-MM-DD format.|\n|`datetime` |`1808-08-08T08:08:08`|`2022-04-01T16:11:51`|ISO8601 YYYY-MM-DDTHH[:MM[:SS]] format; 1-sec resolution no timezone support.|\n|`int`      |`-1808080808`|`-192` `+234` `7891409`|Standard integers with optional sign.|\n|`real`     |`-1808080808.0808`|`0.15` `0.7e-9` `2245.389`|Standard and scientific notation.|\n|`str`      ||`<Some text which may include newlines>`|No sentinal; use `<>` empty. For &, <, >, use \\&amp;, \\&lt;, \\&gt; respectively.|\n\nAll fields are _not null_ and must contain a valid value of the field's\ntype. For `date`, `datetime`, `int`, and `real` fields there is a sentinal\nvalue (signified with `!`) which can be used (e.g., to indicate an unknown\nvalue).\n\nStrings may not include `&`, `<` or `>`, so if they are needed, they must be\nreplaced by the XML/HTML escapes `&amp;`, `&lt;`, and `&gt;` respectively.\nStrings respect any whitespace they contain, including newlines.\n\nEach field value is separated from its neighbor by whitespace, and\nconventionally records are separated by newlines. However, in practice,\nsince every field in every record must be present (even if only a sentinal\nvalue or an empty bytes or string), records may be laid out however you\nlike.\n\nWhere whitespace is allowed (or required) it may consist of one or more\nspaces, tabs, or newlines in any combination.\n\n## Examples\n\n### CSV\n\nAlthough widely used, the CSV format is not standardized and has a number of\nproblems. Tdb is a standardized alternative that can distinguish fieldnames\nfrom data records, can handle multiline text (including text with commas and\nquotes) without formality, and can store one\u2014or more\u2014tables in a single Tdb\nfile.\n\nHere's a simple CSV file:\n\n    Date,Price,Quantity,ID,Description\n    \"2022-09-21\",3.99,2,\"CH1-A2\",\"Chisels (pair), 1in & 1\u00bcin\"\n    \"2022-10-02\",4.49,1,\"HV2-K9\",\"Hammer, 2lb\"\n    \"2022-10-02\",5.89,1,\"SX4-D1\",\"Eversure Sealant, 13-floz\"\n\nHere's a Tdb equivalent:\n\n    [PriceList Date date Price real Quantity int ID str Description str\n    %\n    2022-09-21 3.99 2 <CH1-A2> <Chisels (pair), 1in &amp; 1\u00bcin> \n    2022-10-02 4.49 1 <HV2-K9> <Hammer, 2lb> \n    2022-10-02 5.89 1 <SX4-D1> <Eversure Sealant, 13-floz> \n    ]\n\nEvery table starts with a tablename followed by one or more fields. Each\nfield consists of a fieldname and a type.\n\nSuperficially this may not seem much of an improvement on CSV (apart from\nTbd's superior string handling and strong typing), but as the next example\nshows, a Tdb file can contain one _or more_ tables, not just one like CSV.\n\n### Database\n\nDatabase files aren't normally human readable and usually require\nspecialized tools to read and modify their contents. Yet many databases are\nrelatively small (both in size and number of tables), and would be more\nconvenient to work with if human readable. For these, Tdb format provides a\nviable alternative. For example:\n\n    [Customers CID int Company str Address str Contact str Email str\n    %\n    50 <Best People> <123 Somewhere> <John Doe> <j@doe.com> \n    19 <Supersuppliers> <> <Jane Doe> <jane@super.com> \n    ]\n    [Invoices INUM int CID int Raised_Date date Due_Date date Paid bool Description str\n    %\n    152 50 2022-01-17 2022-02-17 no <COD> \n    153 19 2022-01-19 2022-02-19 yes <>\n    ]\n    [Items IID int INUM int Delivery_Date date Unit_Price real Quantity int Description str\n    %\n    1839 152 2022-01-16 29.99 2 <Bales of hay> \n    1840 152 2022-01-16 5.98 3 <Straps> \n    1620 153 2022-01-19 11.5 1 <Washers (1-in)> \n    ]\n\nIn the Customers table the second customer's Address and in the Invoices\ntable, the second invoice's Description both have empty strings as their\nvalues.\n\n### Minimal Tdb Files\n\n\t[T f int\n\t%\n\t]\n\nThis file has a single table called `T` which has a single field called `f`\nof type `int`, and no records.\n\n\t[T f int\n\t%\n\t0\n\t]\n\nThis is like the previous table but now with one record containing the value\n`0`.\n\n\t[T f int\n\t%\n\t0\n\t!\n\t]\n\nAgain like the previous table, but now with two records, the first\ncontaining the value `0`, and the second containing the `int` type's\nsentinal value of `-1808080808`.\n\n### Metadata\n\nIf comments or metadata are required, simply create an additional table to\nstore this data and add it to the Tdb.\n\n## Libraries\n\n|**Library**|**Language**|**Notes**                    |\n|-----------|------------|-----------------------------|\n|tdb-go|Go|https://pkg.go.dev/github.com/mark-summerfield/tdb-go|\n|tdb-py|Python|https://pkg.go.dev/github.com/mark-summerfield/tdb-py|\n\nWe will happily add links to implementations in other languages if they pass\nthe tests. (Tdb is a relatively simple format to parse and write.) \n\n## BNF\n\nA Tdb file consists of one or more tables.\n\n    TDB         ::= TABLE+\n    TABLE       ::= OWS '[' OWS TABLEDEF OWS '%' OWS RECORD* OWS ']' OWS\n    TABLEDEF    ::= IDENFIFIER (RWS FIELDDEF)+ # IDENFIFIER is the tablename\n    FIELDDEF    ::= IDENFIFIER RWS TYPE # IDENFIFIER is the fieldname\n    TYPE        ::= 'bool' | 'bytes' | 'date' | 'datetime' | 'int' | 'real' | 'str'\n    RECORD      ::= OWS FIELD (RWS FIELD)*\n    FIELD       ::= BOOL | BYTES | DATE | DATETIME | INT | REAL | STR\n    BOOL        ::= /[FfTtYyNn]/\n    BYTES       ::= '(' (OWS [A-Fa-f0-9]{2})* OWS ')'\n    DATE        ::= /\\d\\d\\d\\d-\\d\\d-\\d\\d/ | SENTINAL # basic ISO8601 YYYY-MM-DD format\n    DATETIME    ::= /\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d(\\d\\d(\\d\\d)?)?/ | SENTINAL\n    INT         ::= /[-+]?\\d+/ | SENTINAL\n    REAL        ::= ... | SENTINAL # standard or scientific notation\n    STR         ::= /[<][^<>]*?[>]/ # newlines allowed, and &amp; &lt; &gt; supported i.e., XML\n    SENTINAL    ::= '!'\n    IDENFIFIER  ::= /[_\\p{L}]\\w{0,31}/ # Must start with a letter or underscore; may not be a built-in constant\n    OWS         ::= /[\\s\\n]*/\n    RWS         ::= /[\\s\\n]+/ # in some cases RWS is actually optional\n\n_Notes_\n\n- Every field is _not null_ and must contain a valid value of the field's\n  type. For `date`, `datetime`, `int`, and `real` fields there is a sentinal\n  value (signified with `!`) which can be used (e.g., to indicate an unknown\n  value).\n- A Tdb file _must_ contain at least one table even if it is empty, i.e.,\n  has no records.\n- A Tdb writer should always write ``bool``s as `F` or `T`; but a Tdb reader\n  should accept any of `F`, `f`, `N`, `n`, for false, and any of `T`,\n  `t`, `Y`, `y`, for true.\n- Within any `.tdb` file each tablename must be unique, and within each\n  table each fieldname must be unique.\n- No tablename or fieldname (i.e., no identifier) may be the same as a\n  built-in constant or `bool` value:  \n  `bool`, `bytes`, `date`, `datetime`, `f`, `F`, `int`, `n`, `N`, `real`, `str`, `t`, `T`, `y`, `Y`\n\n## Supplementary\n\n### Vim Support\n\nIf you use the vim editor, simple color syntax highlighting is available.\nCopy `tdb.vim` into your `$VIM/syntax/` folder and add this line (or\nsimilar) to your `.vimrc` or `.gvimrc` file:\n\n    au BufRead,BufNewFile,BufEnter *.tdb set ft=tdb|set expandtab|set textwidth=80\n\n### Tdb Logo\n\n![tdb logo](tdb.svg)\n\n---\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -219,7 +218,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15887401,
+        "last_serial": 15896616,
         "urls": [
             {
                 "comment_text": "",
@@ -258,6 +257,95 @@
                 "upload_time": "2022-11-25T08:30:11",
                 "upload_time_iso_8601": "2022-11-25T08:30:11.373564Z",
                 "url": "https://files.pythonhosted.org/packages/5e/38/f6643f8e08096fbe8bea3dacd1dfb8dd374700c496ee527960be4085e912/tdb-py-0.6.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.7.0": {
+        "info": {
+            "author": "Mark Summerfield",
+            "author_email": "mark@qtrac.eu",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.8",
+                "Topic :: Software Development :: Libraries"
+            ],
+            "description": "# Tdb Overview\n\nTdb \u201cText DataBase\u201d format is a plain text human readable typed database\nstorage format.\n\nTdb provides a superior alternative to CSV. In particular, Tdb tables are\nnamed and Tdb fields are strictly typed. Also, there is a clear distinction\nbetween field names and data values, and strings respect whitespace\n(including newlines) and have no problems with commas, quotes, etc.\nPerhaps best of all, a single Tdb file may contain one\u2014or more\u2014tables.\n\n- [Datatypes](#datatypes)\n- [Examples](#examples)\n    - [CSV](#csv)\n    - [Database](#database)\n    - [Minimal Tdb Files](#minimal-tdb-files)\n    - [Metadata](#metadata)\n- [Libraries](#libraries)\n\t- [Go](#go)\n\t- [Python](#py)\n- [BNF](#bnf)\n- [Supplementary](#supplementary)\n    - [Vim Support](#vim-support)\n    - [Tdb Logo](#tdb-logo)\n\n## Datatypes\n\nTdb supports the following seven built-in datatypes.\n\n|**Type**<a name=\"table-of-built-in-types\"></a>|**Sentinal**|**Example(s)**|**Notes**|\n|-----------|----------------------|--|--|\n|`bool`     ||`F` `T`|No sentinal. A Tdb reader should also accept 'f', 'N', 'n', 't', 'Y', 'y', '0', '1'|\n|`bytes`    ||`(20AC 65 66 48)`|No sentinal; use `()` empty. There must be an even number of case-insensitive hex digits; whitespace (spaces, newlines, etc.) optional.|\n|`date`     |`1808-08-08`   |`2022-04-01`|Basic ISO8601 YYYY-MM-DD format.|\n|`datetime` |`1808-08-08T08:08:08`|`2022-04-01T16:11:51`|ISO8601 YYYY-MM-DDTHH[:MM[:SS]] format; 1-sec resolution no timezone support.|\n|`int`      |`-1808080808`|`-192` `+234` `7891409`|Standard integers with optional sign.|\n|`real`     |`-1808080808.0808`|`0.15` `0.7e-9` `2245.389`|Standard and scientific notation.|\n|`str`      ||`<Some text which may include newlines>`|No sentinal; use `<>` empty. For &, <, >, use \\&amp;, \\&lt;, \\&gt; respectively.|\n\nAll fields are _not null_ and must contain a valid value of the field's\ntype. For `date`, `datetime`, `int`, and `real` fields there is a sentinal\nvalue (signified with `!`) which can be used (e.g., to indicate an unknown\nvalue).\n\nStrings may not include `&`, `<` or `>`, so if they are needed, they must be\nreplaced by the XML/HTML escapes `&amp;`, `&lt;`, and `&gt;` respectively.\nStrings respect any whitespace they contain, including newlines.\n\nEach field value is separated from its neighbor by whitespace, and\nconventionally records are separated by newlines. However, in practice,\nsince every field in every record must be present (even if only a sentinal\nvalue or an empty bytes or string), records may be laid out however you\nlike.\n\nWhere whitespace is allowed (or required) it may consist of one or more\nspaces, tabs, or newlines in any combination.\n\n## Examples\n\n### CSV\n\nAlthough widely used, the CSV format is not standardized and has a number of\nproblems. Tdb is a standardized alternative that can distinguish fieldnames\nfrom data records, can handle multiline text (including text with commas and\nquotes) without formality, and can store one\u2014or more\u2014tables in a single Tdb\nfile.\n\nHere's a simple CSV file:\n\n    Date,Price,Quantity,ID,Description\n    \"2022-09-21\",3.99,2,\"CH1-A2\",\"Chisels (pair), 1in & 1\u00bcin\"\n    \"2022-10-02\",4.49,1,\"HV2-K9\",\"Hammer, 2lb\"\n    \"2022-10-02\",5.89,1,\"SX4-D1\",\"Eversure Sealant, 13-floz\"\n\nHere's a Tdb equivalent:\n\n    [PriceList Date date Price real Quantity int ID str Description str\n    %\n    2022-09-21 3.99 2 <CH1-A2> <Chisels (pair), 1in &amp; 1\u00bcin> \n    2022-10-02 4.49 1 <HV2-K9> <Hammer, 2lb> \n    2022-10-02 5.89 1 <SX4-D1> <Eversure Sealant, 13-floz> \n    ]\n\nEvery table starts with a tablename followed by one or more fields. Each\nfield consists of a fieldname and a type.\n\nSuperficially this may not seem much of an improvement on CSV (apart from\nTbd's superior string handling and strong typing), but as the next example\nshows, a Tdb file can contain one _or more_ tables, not just one like CSV.\n\n### Database\n\nDatabase files aren't normally human readable and usually require\nspecialized tools to read and modify their contents. Yet many databases are\nrelatively small (both in size and number of tables), and would be more\nconvenient to work with if human readable. For these, Tdb format provides a\nviable alternative. For example:\n\n    [Customers CID int Company str Address str Contact str Email str\n    %\n    50 <Best People> <123 Somewhere> <John Doe> <j@doe.com> \n    19 <Supersuppliers> <> <Jane Doe> <jane@super.com> \n    ]\n    [Invoices INUM int CID int Raised_Date date Due_Date date Paid bool Description str\n    %\n    152 50 2022-01-17 2022-02-17 no <COD> \n    153 19 2022-01-19 2022-02-19 yes <>\n    ]\n    [Items IID int INUM int Delivery_Date date Unit_Price real Quantity int Description str\n    %\n    1839 152 2022-01-16 29.99 2 <Bales of hay> \n    1840 152 2022-01-16 5.98 3 <Straps> \n    1620 153 2022-01-19 11.5 1 <Washers (1-in)> \n    ]\n\nIn the Customers table the second customer's Address and in the Invoices\ntable, the second invoice's Description both have empty strings as their\nvalues.\n\n### Minimal Tdb Files\n\n\t[T f int\n\t%\n\t]\n\nThis file has a single table called `T` which has a single field called `f`\nof type `int`, and no records.\n\n\t[T f int\n\t%\n\t0\n\t]\n\nThis is like the previous table but now with one record containing the value\n`0`.\n\n\t[T f int\n\t%\n\t0\n\t!\n\t]\n\nAgain like the previous table, but now with two records, the first\ncontaining the value `0`, and the second containing the `int` type's\nsentinal value of `-1808080808`.\n\n### Metadata\n\nIf comments or metadata are required, simply create an additional table to\nstore this data and add it to the Tdb.\n\n## Libraries\n\n|**Library**|**Language**|**Notes**                    |\n|-----------|------------|-----------------------------|\n|tdb-go|Go|https://pkg.go.dev/github.com/mark-summerfield/tdb-go|\n|tdb-py|Python|https://pkg.go.dev/github.com/mark-summerfield/tdb-py|\n\nWe will happily add links to implementations in other languages if they pass\nthe tests. (Tdb is a relatively simple format to parse and write.) \n\n## BNF\n\nA Tdb file consists of one or more tables.\n\n    TDB         ::= TABLE+\n    TABLE       ::= OWS '[' OWS TABLEDEF OWS '%' OWS RECORD* OWS ']' OWS\n    TABLEDEF    ::= IDENFIFIER (RWS FIELDDEF)+ # IDENFIFIER is the tablename\n    FIELDDEF    ::= IDENFIFIER RWS TYPE # IDENFIFIER is the fieldname\n    TYPE        ::= 'bool' | 'bytes' | 'date' | 'datetime' | 'int' | 'real' | 'str'\n    RECORD      ::= OWS FIELD (RWS FIELD)*\n    FIELD       ::= BOOL | BYTES | DATE | DATETIME | INT | REAL | STR\n    BOOL        ::= /[FfTtYyNn01]/\n    BYTES       ::= '(' (OWS [A-Fa-f0-9]{2})* OWS ')'\n    DATE        ::= /\\d\\d\\d\\d-\\d\\d-\\d\\d/ | SENTINAL # basic ISO8601 YYYY-MM-DD format\n    DATETIME    ::= /\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d(\\d\\d(\\d\\d)?)?/ | SENTINAL\n    INT         ::= /[-+]?\\d+/ | SENTINAL\n    REAL        ::= ... | SENTINAL # standard or scientific notation\n    STR         ::= /[<][^<>]*?[>]/ # newlines allowed, and &amp; &lt; &gt; supported i.e., XML\n    SENTINAL    ::= '!'\n    IDENFIFIER  ::= /[_\\p{L}]\\w{0,31}/ # Must start with a letter or underscore; may not be a built-in constant\n    OWS         ::= /[\\s\\n]*/\n    RWS         ::= /[\\s\\n]+/ # in some cases RWS is actually optional\n\n_Notes_\n\n- Every field is _not null_ and must contain a valid value of the field's\n  type. For `date`, `datetime`, `int`, and `real` fields there is a sentinal\n  value (signified with `!`) which can be used (e.g., to indicate an unknown\n  value).\n- A Tdb file _must_ contain at least one table even if it is empty, i.e.,\n  has no records.\n- A Tdb writer should always write ``bool``s as `F` or `T`; but a Tdb reader\n  should accept any of `F`, `f`, `N`, `n`, `0`, for false, and any of `T`,\n  `t`, `Y`, `y`, `1`, for true.\n- Within any `.tdb` file each tablename must be unique, and within each\n  table each fieldname must be unique.\n- No tablename or fieldname (i.e., no identifier) may be the same as a\n  built-in constant or `bool` value:  \n  `bool`, `bytes`, `date`, `datetime`, `f`, `F`, `int`, `n`, `N`, `real`, `str`, `t`, `T`, `y`, `Y`\n\n## Supplementary\n\n### Vim Support\n\nIf you use the vim editor, simple color syntax highlighting is available.\nCopy `tdb.vim` into your `$VIM/syntax/` folder and add this line (or\nsimilar) to your `.vimrc` or `.gvimrc` file:\n\n    au BufRead,BufNewFile,BufEnter *.tdb set ft=tdb|set expandtab|set textwidth=80\n\n### Tdb Logo\n\n![tdb logo](tdb.svg)\n\n---\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/mark-summerfield/tdb-py",
+            "keywords": "",
+            "license": "GPLv3",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "tdb-py",
+            "package_url": "https://pypi.org/project/tdb-py/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/tdb-py/",
+            "project_urls": {
+                "Homepage": "https://github.com/mark-summerfield/tdb-py"
+            },
+            "release_url": "https://pypi.org/project/tdb-py/0.7.0/",
+            "requires_dist": [
+                "editabletuple"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "A pure Python library supporting Tdb \u201cText DataBase\u201d format, a plain text human readable typed database storage format superior to CSV.",
+            "version": "0.7.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15896616,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "55957cf4c44691a649fc061a2751beba",
+                    "sha256": "bf1efb67e5a7c646ac672b257237b040f7274e9d15c2847ee8412228b180612c"
+                },
+                "downloads": -1,
+                "filename": "tdb_py-0.7.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "55957cf4c44691a649fc061a2751beba",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 20828,
+                "upload_time": "2022-11-26T10:23:41",
+                "upload_time_iso_8601": "2022-11-26T10:23:41.878806Z",
+                "url": "https://files.pythonhosted.org/packages/8b/25/d54096c9aa788d7276c4f64cd2ee8b39f138a6ff3d7096e204c1c8f762a1/tdb_py-0.7.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7a761c9a8cba42263e510bb44c99f5c6",
+                    "sha256": "417b67e19e422a3b3e21191874a0ed7ffddc2f74c8f6d0c1055505c037617a61"
+                },
+                "downloads": -1,
+                "filename": "tdb-py-0.7.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7a761c9a8cba42263e510bb44c99f5c6",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 12415,
+                "upload_time": "2022-11-26T10:23:44",
+                "upload_time_iso_8601": "2022-11-26T10:23:44.453567Z",
+                "url": "https://files.pythonhosted.org/packages/35/a5/c8d574eb54ec6f0fe8758e9f790e38d317c17f43135287f55de18b6f077b/tdb-py-0.7.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
