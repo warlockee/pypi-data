@@ -1,0 +1,109 @@
+{
+    "0.3.0": {
+        "info": {
+            "author": null,
+            "author_email": "John Gunstone <gunstone.john@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 2 - Pre-Alpha",
+                "Intended Audience :: Developers",
+                "Natural Language :: English",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# ipyautoui\n\n[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/maxfordham/ipyautoui/HEAD)\n[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)\n\n![](docs/logo.png)\n\n## Try in online! \n\nlaunch [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/maxfordham/ipyautoui/HEAD).\n\n## Installation\n\n```{warning}\n`ipyautoui` is a working-beta. Implementation details may change leading to breaking changes\nin future versions.\n```\n\n```\n# TODO: do this! WARNING ipyautoui is WIP is not yet packaged and distrubuted \n#       so the commands below don't work.\n\nmamba install ipyautoui -c conda-forge  # mamba ...\nconda install ipyautoui -c conda-forge  # or conda ...\npip install ipyautoui  # or pip ...\n```\n\n## Intro\n\nA high-level wrapper library that sits on top of [__ipywidgets__](https://github.com/jupyter-widgets/ipywidgets) (and other ipy- widget libraries), [__pydantic__](https://github.com/samuelcolvin/pydantic/) \nand Jupyter rich display system to template and automate the creation of widget forms / user-interfaces. The core user-facing classes in this library are __AutoUi__, __AutoVjsf__ and __AutoDisplay__:\n\n```python\nfrom ipyautoui import AutoUi, AutoVjsf, AutoDisplay\n```\nipyautoui aims to give you as much as possible out-the-box, whilst also supporting a simple workflow to extend and customise the interface to specific user requirements. \n\n## Summary of main features\n\n### AutoUi\n\n```python\nfrom pydantic import BaseModel, Field\nfrom ipyautoui import AutoUi\n\nclass LineGraph(BaseModel):\n    \"\"\"parameters to define a simple `y=m*x + c` line graph\"\"\"\n    title: str = Field(default='line equation', description='add chart title here')\n    m: float = Field(default=2, description='gradient')\n    c: float = Field(default=5, description='intercept')\n    x_range: tuple[int, int] = Field(default=(0,5), ge=0, le=50, description='x-range for chart')\n    y_range: tuple[int, int] = Field(default=(0,5), ge=0, le=50, description='y-range for chart')\n    \nlg = LineGraph()\nui = AutoUi(schema=lg)\nui\n```\n![](images/autoui-linegraph.png)\n\n```python\n\nui.value  # there is a `value` trait that is always kept in-sync with the widget input form\n# {'title': 'line equation',\n#  'm': 2,\n#  'c': 5,\n#  'x_range': (0, 5),\n#  'y_range': (0, 5)}\n\n#  methods / stored values\nui.file #  file data to .json file\nui.value #  input form value dict\nui.pydantic_obj #  input form pydantic model (note. value is created from this on_change)\nAutoUi.create_displayfile_renderer #  creates a json-serializable pointer \nAutoUi.parse_file #  init ui with data from .json file\n```\n\n- AutoUi uses [__pydantic__](https://github.com/samuelcolvin/pydantic/) to define the schema of User Input form, and then infers the widget to use based on type and user-directives\n- `ipyautoui.custom.` provides useful widgets (e.g. iterable) that aren't included within the core ipywidgets library\n- ipyautoui defines a best practice for creating and integrating custom widgets, and as default includes some widgets from other popular widget libraries (e.g. ipydatagrid, ipyfilechooser). \n- ipyautoui handles observing the values, and maintains a stateful and validated `.value` parameter for the whole user input form.  \n- TODO: AutoUi also allows the user to specify the usage of [__ipyvuetify__](https://github.com/widgetti/ipyvuetify) and \n    - __note__. this is the recommended approach for simple and generic input forms. Where custom UI objects are required these can be built using the ipyautoui core library.\n\n### AutoVjsf\n\n`AutoVjsf` works in exactly the same way as `AutoUi`, but instead of using `ipywidgets` to render the JSON schema it uses [ipyvuetify](https://github.com/widgetti/ipyvuetify) and [vuetify-jsonschema-form](https://github.com/koumoul-dev/vuetify-jsonschema-form).\n\n### Should I use AutoUi or AutoVjsf?\n\n#### AutoVjsf\n\nThe excellent documentation for [__vuetify-jsonschema-form__](https://koumoul-dev.github.io/vuetify-jsonschema-form/latest/) can be used to create your schema. Anything possible\nin vjsf is therefore possible using AutoVjsf (TODO: implement markdown editor). This has a much more complete coverage of the json-schema specification, as well as the added\nbenefit of out-the-box support of mobile applications. It falls down if you want to specify custom renderer objects.\n\n```{note}\nwhen you're using pydantic to make the schema, \"-\" cannot be used field names, \nbut vuetify-jsonschema-form requires them (e.g. \"x-display\");\nuse \"x_display\" instead and AutoVjsf does the conversion). \n```\n\n#### AutoUi\n\nThe main benefit of AutoUi (and main the reason for continuing to develop it), is that it makes it simple to create custom renderers for specific parts of the json-schema, facilitating the bespoke the requirements of a custom project. See [custom-renderers](custom-renderers.ipynb).\n\n### AutoDisplay\n\n- AutoDisplay uses Jupyter's rich display system and large ecosystem of 3rd party packages to create a simple and unified display wrapper to various filetypes.\n- The renderer for a given file is inferred from the file extension.\n  - TODO: where the datasource is not a file, the extension is a mapping code that maps a renderer to the datastructure of the data. \n- Custom renderer's can be passed to `AutoDisplay` allowing it to display user-defined filetypes (or compound extension filetypes)\n\n\n## How it works:\n\n- Make a pydantic model (or json schema) that defines the UI\n- Pass the model to `AutoUi` or `AutoVjsf` to generate an user-interface\n- Save the UI fields to file\n- Assign a compound-json filetype to the schema and generate `AutoDisplay` rendererer\n- Use `AutoDisplay` to display the json file using the AutoUi interface\n\n## Dependencies\n\nThis package intends to be high-level, and unifies many other ipy- libraries under a simple and familiar API. \n\n- [pydantic](https://github.com/samuelcolvin/pydantic/) \n- [ipywidgets](https://github.com/jupyter-widgets/ipywidgets)\n- [ipydatagrid](https://github.com/bloomberg/ipydatagrid)\n- [ipyfilechooser](https://github.com/crahan/ipyfilechooser)\n- [ipyvuetify](https://github.com/widgetti/ipyvuetify)\n- [vuetify-jsonschema-form](https://github.com/koumoul-dev/vuetify-jsonschema-form)\n- [Plotly](https://github.com/plotly/plotly.py) (for viewing `.plotly.json` files. note. this needs to be added by the user)\n\nIt is also obviously wholly dependent on the excellent json-schema specification:\n- [json-schema](https://json-schema.org/)\n\n## Development installation\n\n```sh\n$ git clone https://github.com/maxfordham/ipyautoui\n$ cd ipyautoui\n\n# assuming that you have `mamba` installed: \n$ mamba env create -f environment-dev.yml\n\n# run tests\n$ pytest\n```\n\n## Contributions\n\nAutoVjsf is a very thin wrapper where ipyvuetify and vuetify-jsonschema-form are doing all the work.\nMany thanks to @mariobuikhuizen for providing me with the [boiler-plate code](https://github.com/widgetti/ipyvuetify/issues/182).\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": null,
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": null,
+            "keywords": "ipyautoui",
+            "license": null,
+            "maintainer": null,
+            "maintainer_email": null,
+            "name": "ipyautoui",
+            "package_url": "https://pypi.org/project/ipyautoui/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/ipyautoui/",
+            "project_urls": {
+                "Homepage": "https://github.com/maxfordham/ipyautoui"
+            },
+            "release_url": "https://pypi.org/project/ipyautoui/0.3.0/",
+            "requires_dist": [
+                "immutables",
+                "ipydatagrid",
+                "ipyfilechooser",
+                "ipython",
+                "ipyvuetify",
+                "ipywidgets",
+                "markdown",
+                "numpy",
+                "openpyxl",
+                "pandas",
+                "pydantic",
+                "pytest",
+                "pyyaml",
+                "requests",
+                "seedir",
+                "setuptools",
+                "stringcase",
+                "traitlets",
+                "traitlets-paths",
+                "wcmatch",
+                "xmltodict"
+            ],
+            "requires_python": null,
+            "summary": "wrapper that sits on top of ipywidgets and other ipy widget libraries to template / automate the creation of widget forms. Uses pydantic to create defined data-container and serialisation to JSON. Includes example patterns for adding new custom widgets.",
+            "version": "0.3.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15892549,
+        "urls": [
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "cfd7ef2edfa5bac187f6d6168cfe083d",
+                    "sha256": "307239af668ba232a6b94f9829d01b0b394797d337d54bfb3a64f3c76937f331"
+                },
+                "downloads": -1,
+                "filename": "ipyautoui-0.3.0-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "cfd7ef2edfa5bac187f6d6168cfe083d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": null,
+                "size": 101465,
+                "upload_time": "2022-11-25T17:33:49",
+                "upload_time_iso_8601": "2022-11-25T17:33:49.111956Z",
+                "url": "https://files.pythonhosted.org/packages/3f/5b/e6651f149f6a9935cb40e7ce782af6375e8d015634dc7359e58a0a1a1397/ipyautoui-0.3.0-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "88ee13df2f0ad7d8e223edc703c25665",
+                    "sha256": "f8d5c6fa2de70b2345f56941cba331511c5090ca99a709b982150317881ada58"
+                },
+                "downloads": -1,
+                "filename": "ipyautoui-0.3.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "88ee13df2f0ad7d8e223edc703c25665",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 77562,
+                "upload_time": "2022-11-25T17:33:51",
+                "upload_time_iso_8601": "2022-11-25T17:33:51.629730Z",
+                "url": "https://files.pythonhosted.org/packages/18/ad/77e5ff725b2a452a825f64b5a44de7f6c3949328c1de422d93f8926f139f/ipyautoui-0.3.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
