@@ -5,7 +5,6 @@
             "author_email": "",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "### discord-ext-hybrid-menus\n\nThis branch is a \"drop-in\" replacement for discord-ext-menus, integrating functionality of [discord-ext-menus-views](https://github.com/oliver-ni/discord-ext-menus-views).\n\nYou can change the environment variable `DISCORD_EXT_MENUS_USE_VIEWS` to choose if you would like Reaction-based menus or View-based menus. The default is `True`. This is not ideal.\n\nAn experimental extension menu that makes working with reaction menus a bit easier.\n\n**Available on PyPI as `discord-ext-hybrid-menus`**\n\nDesigned for `enhanced-discord.py`, but does not provide as a dependency.\n\n## Installing\n\nInstalling is done purely via git:\n\n```py\npython -m pip install -U git+https://github.com/Rapptz/discord-ext-menus\n```\n\n## Getting Started\n\nTo whet your appetite, the following examples show the fundamentals on how to create menus.\n\nThe first example shows a basic menu that has a stop button and two reply buttons:\n\n```py\nfrom discord.ext import menus\n\n\nclass MyMenu(menus.ReactionMenu):\n    async def send_initial_message(self, ctx, channel):\n        return await channel.send(f'Hello {ctx.author}')\n\n    @menus.button('\\N{THUMBS UP SIGN}')\n    async def on_thumbs_up(self, payload):\n        await self.message.edit(content=f'Thanks {self.ctx.author}!')\n\n    @menus.button('\\N{THUMBS DOWN SIGN}')\n    async def on_thumbs_down(self, payload):\n        await self.message.edit(content=f\"That's not nice {self.ctx.author}...\")\n\n    @menus.button('\\N{BLACK SQUARE FOR STOP}\\ufe0f')\n    async def on_stop(self, payload):\n        self.stop()\n```\n\nNow, within a command we just instantiate it and we start it like so:\n\n```py\n@bot.command()\nasync def menu_example(ctx):\n    m = MyMenu()\n    await m.start(ctx)\n```\n\nIf an error happens then an exception of type `menus.MenuError` is raised.\n\nThis second example shows a confirmation menu and how we can compose it and use it later:\n\n```py\nfrom discord.ext import menus\n\n\nclass Confirm(menus.ReactionMenu):\n    def __init__(self, msg):\n        super().__init__(timeout=30.0, delete_message_after=True)\n        self.msg = msg\n        self.result = None\n\n    async def send_initial_message(self, ctx, channel):\n        return await channel.send(self.msg)\n\n    @menus.button('\\N{WHITE HEAVY CHECK MARK}')\n    async def do_confirm(self, payload):\n        self.result = True\n        self.stop()\n\n    @menus.button('\\N{CROSS MARK}')\n    async def do_deny(self, payload):\n        self.result = False\n        self.stop()\n\n    async def prompt(self, ctx):\n        await self.start(ctx, wait=True)\n        return self.result\n```\n\nThen when it comes time to use it we can do it like so:\n\n```py\n@bot.command()\nasync def delete_things(ctx):\n    confirm = await Confirm('Delete everything?').prompt(ctx)\n    if confirm:\n        await ctx.send('deleted...')\n```\n\n### Pagination\n\nThe meat of the library is the `ReactionMenu` class but a `ReactionMenuPages` class is provided for the common use case of actually making a pagination session.\n\nThe `ReactionMenuPages` works similar to `ReactionMenu` except things are separated into a `PageSource`. The actual `ReactionMenuPages` rarely needs to be modified, instead we pass in a `PageSource` that deals with the data representation and formatting of the data we want to paginate.\n\nThe library comes with a few built-in page sources:\n\n- `ListPageSource`: The basic source that deals with a list of items.\n- `GroupByPageSource`: A page source that groups a list into multiple sublists similar to `itertools.groupby`.\n- `AsyncIteratorPageSource`: A page source that works with async iterators for lazy fetching of data.\n\nNone of these page sources deal with formatting of data, leaving that up to you.\n\nFor the sake of example, here's a basic list source that is paginated:\n\n```py\nfrom discord.ext import menus\n\n\nclass MySource(menus.ListPageSource):\n    def __init__(self, data):\n        super().__init__(data, per_page=4)\n\n    async def format_page(self, menu, entries):\n        offset = menu.current_page * self.per_page\n        return '\\n'.join(f'{i}. {v}' for i, v in enumerate(entries, start=offset))\n\n\n# somewhere else:\npages = menus.ReactionMenuPages(source=MySource(range(1, 100)), clear_reactions_after=True)\nawait pages.start(ctx)\n```\n\nThe `format_page` can return either a `str` for content, `discord.Embed` for an embed, or a `dict` to pass into the kwargs of `Message.edit`.\n\nSome more examples using `GroupByPageSource`:\n\n```py\nfrom discord.ext import menus\n\n\nclass Test:\n    def __init__(self, key, value):\n        self.key = key\n        self.value = value\n\n\ndata = [\n    Test(key=key, value=value)\n    for key in ['test', 'other', 'okay']\n    for value in range(20)\n]\n\n\nclass Source(menus.GroupByPageSource):\n    async def format_page(self, menu, entry):\n        joined = '\\n'.join(f'{i}. <Test value={v.value}>' for i, v in enumerate(entry.items, start=1))\n        return f'**{entry.key}**\\n{joined}\\nPage {menu.current_page + 1}/{self.get_max_pages()}'\n\n\npages = menus.ReactionMenuPages(source=Source(data, key=lambda t: t.key, per_page=12), clear_reactions_after=True)\nawait pages.start(ctx)\n```\n\nAnother one showing `AsyncIteratorPageSource`:\n\n```py\nfrom discord.ext import menus\n\n\nclass Test:\n    def __init__(self, value):\n        self.value = value\n\n    def __repr__(self):\n        return f'<Test value={self.value}>'\n\n\nasync def generate(number):\n    for i in range(number):\n        yield Test(i)\n\n\nclass Source(menus.AsyncIteratorPageSource):\n    def __init__(self):\n        super().__init__(generate(9), per_page=4)\n\n    async def format_page(self, menu, entries):\n        start = menu.current_page * self.per_page\n        return f'\\n'.join(f'{i}. {v!r}' for i, v in enumerate(entries, start=start))\n\n\npages = menus.ReactionMenuPages(source=Source(), clear_reactions_after=True)\nawait pages.start(ctx)\n```\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -34,7 +33,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13472222,
+        "last_serial": 15899183,
         "urls": [
             {
                 "comment_text": "",
@@ -73,6 +72,145 @@
                 "upload_time": "2022-04-10T23:18:51",
                 "upload_time_iso_8601": "2022-04-10T23:18:51.778192Z",
                 "url": "https://files.pythonhosted.org/packages/15/ee/c0e147fb4a22f7d4c02b109226cf520cfee30922b8ce1d2d0425ffc4f148/discord-ext-hybrid-menus-1.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.2": {
+        "info": {
+            "author": "Rapptz",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/regulad/discord-ext-hybrid-menus",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "discord-ext-hybrid-menus",
+            "package_url": "https://pypi.org/project/discord-ext-hybrid-menus/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/discord-ext-hybrid-menus/",
+            "project_urls": {
+                "Homepage": "https://github.com/regulad/discord-ext-hybrid-menus"
+            },
+            "release_url": "https://pypi.org/project/discord-ext-hybrid-menus/1.0.2/",
+            "requires_dist": null,
+            "requires_python": ">=3.8.0",
+            "summary": "An extension module to make reaction based menus with discord.py",
+            "version": "1.0.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15899183,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2960ae78a91e691af24f6f28d172f793",
+                    "sha256": "edc2089ff1f6622661fc74ac0946d3be523cf1aa5980a5f47d963b981471c527"
+                },
+                "downloads": -1,
+                "filename": "discord_ext_hybrid_menus-1.0.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "2960ae78a91e691af24f6f28d172f793",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8.0",
+                "size": 13905,
+                "upload_time": "2022-11-26T18:53:29",
+                "upload_time_iso_8601": "2022-11-26T18:53:29.173378Z",
+                "url": "https://files.pythonhosted.org/packages/fc/42/40ea3c717e76a0690d53fc65ed3be398937a297fd9d025aa7bb958201248/discord_ext_hybrid_menus-1.0.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.3": {
+        "info": {
+            "author": "Rapptz",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/regulad/discord-ext-hybrid-menus",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "discord-ext-hybrid-menus",
+            "package_url": "https://pypi.org/project/discord-ext-hybrid-menus/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/discord-ext-hybrid-menus/",
+            "project_urls": {
+                "Homepage": "https://github.com/regulad/discord-ext-hybrid-menus"
+            },
+            "release_url": "https://pypi.org/project/discord-ext-hybrid-menus/1.0.3/",
+            "requires_dist": null,
+            "requires_python": ">=3.8.0",
+            "summary": "An extension module to make reaction based menus with discord.py",
+            "version": "1.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15899183,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2b2b732e5f8c93f62ddc2445ecb1b03d",
+                    "sha256": "f75491329626899ccdd2b5f17f4ad59b5d2228fd955288c30025ccc1eaa8e775"
+                },
+                "downloads": -1,
+                "filename": "discord_ext_hybrid_menus-1.0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "2b2b732e5f8c93f62ddc2445ecb1b03d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8.0",
+                "size": 13897,
+                "upload_time": "2022-11-26T19:35:53",
+                "upload_time_iso_8601": "2022-11-26T19:35:53.374589Z",
+                "url": "https://files.pythonhosted.org/packages/f3/ac/e50af2989914d1fbc19deee4df8f7427c7d91412feb009333f48924ce116/discord_ext_hybrid_menus-1.0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "03377522a3644574ec465bebcf52a809",
+                    "sha256": "736475db1d36a2128011b6ef7d5a99c402180240be08440581d4f2bdeb9ae5b8"
+                },
+                "downloads": -1,
+                "filename": "discord-ext-hybrid-menus-1.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "03377522a3644574ec465bebcf52a809",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8.0",
+                "size": 15178,
+                "upload_time": "2022-11-26T19:35:54",
+                "upload_time_iso_8601": "2022-11-26T19:35:54.630235Z",
+                "url": "https://files.pythonhosted.org/packages/82/91/ca024b33a559d67e8c707edb110154c2717ab928d52486defb16566d09ad/discord-ext-hybrid-menus-1.0.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
