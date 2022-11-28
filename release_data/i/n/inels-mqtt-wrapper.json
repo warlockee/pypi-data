@@ -41,7 +41,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15800316,
+        "last_serial": 15906774,
         "urls": [
             {
                 "comment_text": "",
@@ -129,7 +129,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15800316,
+        "last_serial": 15906774,
         "urls": [
             {
                 "comment_text": "",
@@ -217,7 +217,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15800316,
+        "last_serial": 15906774,
         "urls": [
             {
                 "comment_text": "",
@@ -305,7 +305,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15800316,
+        "last_serial": 15906774,
         "urls": [
             {
                 "comment_text": "",
@@ -393,7 +393,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15800316,
+        "last_serial": 15906774,
         "urls": [
             {
                 "comment_text": "",
@@ -481,7 +481,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15800316,
+        "last_serial": 15906774,
         "urls": [
             {
                 "comment_text": "",
@@ -569,7 +569,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15800316,
+        "last_serial": 15906774,
         "urls": [
             {
                 "comment_text": "",
@@ -657,7 +657,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15800316,
+        "last_serial": 15906774,
         "urls": [
             {
                 "comment_text": "",
@@ -715,7 +715,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# Inels MQTT wrapper\n\nA Python library to work with Inels smart home devices over MQTT (using Asyncio).\n\n> **WARNING**: THIS PACKAGE IS PUBLISHED ONLY FOR TESTING AND IS NOT READY FOR PRODUCTION USE. \n> MOST OF THE FEATURES HAVE NOT RECEIVED ANY TESTING YET.\n\n---\n\n## Interface\n\nThe library provides a set of Python classes to interact with devices. Some devices share the same MQTT \ncommand interface according to the specification. All the interfaces share some common code. Thus, the following \nclass hierarchy:\n\nAbstractDeviceInterface -> AbstractDeviceSupportsStatus, AbstractDeviceSupportsSet -> DeviceInterfaceXX -> Concrete \ndevice class\n\nThe users are meant to work with one of the following in their code:\n1. Concrete device class (e.g. RFDAC71B and others);\n2. Concrete DeviceInterface (e.g. DeviceInterface05 and others).\n\nConcrete device classes inherit from the concrete device interface implementations without any changes. Concrete device \nclasses are meant to be a convenient way for a developer to find the needed implementation to work with by the name \nof the device's model. It might not always be clear which interface (device type) the device implements, so using the \nconcrete device class is recommended.\n\n> Later in this documentation both device interfaces and concrete devices will be referred to as \"device classes\" as \n> there is no practical difference between them.\n\nAll the device classes have a set of public methods unique to each device type for interaction with it. The public \nmethods are made to be as user-friendly as possible having clear names and accepting human-readable values. Each \nmethod has a detailed docstring describing the method itself and each of its parameters as well as the return value. \nThe library is type annotated throughout.\n\n## Technical details\n\nDevice types, that are able to work through MQTT use 3 topics for that. The first topic is 'connected' - the device \nsends heartbeats in it. Device reads commands and settings from the 'set' topic. Topic 'status' is used by the \ndevice to publish its status - the measurements of the sensors, current settings, etc.\n\nAccording to the specification, all the devices support the 'connected' topic. 'Status' topic is known to be \nimplemented for most of the devices. Some devices lack support for the 'set' topic as it is not necessary \nsince they do not accept any commands (sensors and such).\n\nAny device class will subscribe to the 'connected' channel asynchronously and start a listener process in the \nbackground Immediately after it is initialized. No additional actions required. As soon as the first heartbeat is \nreceived - the `is_connected` field of the device class will be set to `True`. \n\nSame applies to the device classes, supporting the communication via the 'status' topic. The latest known status of \nthe device can be accessed from the 'status' property of the device. The 'status' property holds a dictionary with  \ndevice-specific keys. Accessing this attribute before the first status message is received will raise \nDeviceStatusUnknownError. Example of the device-specific status dict can be found in the docstring of the concrete \nimplementation's `_decode_status()` method. Devices that support the 'status' topic publishing inherit from the \n'AbstractDeviceSupportsStatus' base class. `await_state_change` async method is also provided to wait for a status \nupdate with a timeout. Returns `True` if the state changes within the set timeout or `False` if the timeout occurs \nearlier.\n\nFinally, device classes, that support the communication via the 'set' MQTT topic provide public methods to send \ncommands and settings to the device. All such device classes inherit from the 'AbstractDeviceSupportsSet' base class \nor from both 'AbstractDeviceSupportsSet' and  'AbstractDeviceSupportsStatus' if they support all three MQTT topics.\n\n## Demo code\n\nBelow is a simple code snippet to demonstrate the basic interaction with this library.\n\n```python\nimport asyncio\n\nimport asyncio_mqtt as aiomqtt\n\nfrom inels_mqtt_wrapper import RFDAC71B, DeviceStatusUnknownError\n\n\nasync def main() -> None:\n    \"\"\"Entrypoint\"\"\"\n\n    async with aiomqtt.Client(\"localhost\") as client:\n        device = RFDAC71B(\n            mac_address=\"00:00:00:00:00:00\",  # Your gateway's MAC address\n            device_address=\"01207D\",  # Your device's address (found on the device's top case)\n            mqtt_client=client,  # An instance of asyncio_mqtt.Client\n        )\n        print(\"Connected:\", device.is_connected)  # True\n\n        try:\n            print(device.status)  # A dict containing device-specific status data\n        except DeviceStatusUnknownError as e:\n            print(e)  # Print the error if the device status is unknown\n\n        await device.set_brightness_percentage(50)  # Set the device's brightness to 50%\n        await asyncio.sleep(3)  # Wait for 3 seconds\n        await device.toggle_switch()  # Switch off the device\n\n        try:\n            print(device.status)  # Check the device status again\n        except DeviceStatusUnknownError as e:\n            print(e)  # Print the error if the device status is unknown\n\n\nif __name__ == \"__main__\":\n    asyncio.run(main())\n```\n\n## Contribution\n\nCreate issues in this repository if there are any problems with this app or if you want to communicate a feature \nrequest. Fork this repository and file a pull request to contribute to the app development.\n\nThis project complies with the code formatting guidelines defined in the provided .pre-commit-config.yaml file.\n\nThis repository uses semantic versioning and conventional commits to describe its updates.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -746,7 +745,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15800316,
+        "last_serial": 15906774,
         "urls": [
             {
                 "comment_text": "",
@@ -785,6 +784,95 @@
                 "upload_time": "2022-11-17T11:36:07",
                 "upload_time_iso_8601": "2022-11-17T11:36:07.757959Z",
                 "url": "https://files.pythonhosted.org/packages/7d/4a/cfe01b6dd608235604f5e62970d1d97463894357631f1d50ece112f7d61f/inels_mqtt_wrapper-0.4.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.2": {
+        "info": {
+            "author": "arseniiarsenii",
+            "author_email": "arseniivelichko2@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: Other/Proprietary License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# Inels MQTT wrapper\n\nA Python library to work with Inels smart home devices over MQTT (using Asyncio).\n\n> **WARNING**: THIS PACKAGE IS PUBLISHED ONLY FOR TESTING AND IS NOT READY FOR PRODUCTION USE. \n> MOST OF THE FEATURES HAVE NOT RECEIVED ANY TESTING YET.\n\n---\n\n## Interface\n\nThe library provides a set of Python classes to interact with devices. Some devices share the same MQTT \ncommand interface according to the specification. All the interfaces share some common code. Thus, the following \nclass hierarchy:\n\nAbstractDeviceInterface -> AbstractDeviceSupportsStatus, AbstractDeviceSupportsSet -> DeviceInterfaceXX -> Concrete \ndevice class\n\nThe users are meant to work with one of the following in their code:\n1. Concrete device class (e.g. RFDAC71B and others);\n2. Concrete DeviceInterface (e.g. DeviceInterface05 and others).\n\nConcrete device classes inherit from the concrete device interface implementations without any changes. Concrete device \nclasses are meant to be a convenient way for a developer to find the needed implementation to work with by the name \nof the device's model. It might not always be clear which interface (device type) the device implements, so using the \nconcrete device class is recommended.\n\n> Later in this documentation both device interfaces and concrete devices will be referred to as \"device classes\" as \n> there is no practical difference between them.\n\nAll the device classes have a set of public methods unique to each device type for interaction with it. The public \nmethods are made to be as user-friendly as possible having clear names and accepting human-readable values. Each \nmethod has a detailed docstring describing the method itself and each of its parameters as well as the return value. \nThe library is type annotated throughout.\n\n## Technical details\n\nDevice types, that are able to work through MQTT use 3 topics for that. The first topic is 'connected' - the device \nsends heartbeats in it. Device reads commands and settings from the 'set' topic. Topic 'status' is used by the \ndevice to publish its status - the measurements of the sensors, current settings, etc.\n\nAccording to the specification, all the devices support the 'connected' topic. 'Status' topic is known to be \nimplemented for most of the devices. Some devices lack support for the 'set' topic as it is not necessary \nsince they do not accept any commands (sensors and such).\n\nAny device class will subscribe to the 'connected' channel asynchronously and start a listener process in the \nbackground Immediately after it is initialized. No additional actions required. As soon as the first heartbeat is \nreceived - the `is_connected` field of the device class will be set to `True`. \n\nSame applies to the device classes, supporting the communication via the 'status' topic. The latest known status of \nthe device can be accessed from the 'status' property of the device. The 'status' property holds a dictionary with  \ndevice-specific keys. Accessing this attribute before the first status message is received will raise \nDeviceStatusUnknownError. Example of the device-specific status dict can be found in the docstring of the concrete \nimplementation's `_decode_status()` method. Devices that support the 'status' topic publishing inherit from the \n'AbstractDeviceSupportsStatus' base class. `await_state_change` async method is also provided to wait for a status \nupdate with a timeout. Returns `True` if the state changes within the set timeout or `False` if the timeout occurs \nearlier.\n\nFinally, device classes, that support the communication via the 'set' MQTT topic provide public methods to send \ncommands and settings to the device. All such device classes inherit from the 'AbstractDeviceSupportsSet' base class \nor from both 'AbstractDeviceSupportsSet' and  'AbstractDeviceSupportsStatus' if they support all three MQTT topics.\n\n## Demo code\n\nBelow is a simple code snippet to demonstrate the basic interaction with this library.\n\n```python\nimport asyncio\n\nimport asyncio_mqtt as aiomqtt\n\nfrom inels_mqtt_wrapper import RFDAC71B, DeviceStatusUnknownError\n\n\nasync def main() -> None:\n    \"\"\"Entrypoint\"\"\"\n\n    async with aiomqtt.Client(\"localhost\") as client:\n        device = RFDAC71B(\n            mac_address=\"00:00:00:00:00:00\",  # Your gateway's MAC address\n            device_address=\"01207D\",  # Your device's address (found on the device's top case)\n            mqtt_client=client,  # An instance of asyncio_mqtt.Client\n        )\n        print(\"Connected:\", device.is_connected)  # True\n\n        try:\n            print(device.status)  # A dict containing device-specific status data\n        except DeviceStatusUnknownError as e:\n            print(e)  # Print the error if the device status is unknown\n\n        await device.set_brightness_percentage(50)  # Set the device's brightness to 50%\n        await asyncio.sleep(3)  # Wait for 3 seconds\n        await device.toggle_switch()  # Switch off the device\n\n        try:\n            print(device.status)  # Check the device status again\n        except DeviceStatusUnknownError as e:\n            print(e)  # Print the error if the device status is unknown\n\n\nif __name__ == \"__main__\":\n    asyncio.run(main())\n```\n\n## Contribution\n\nCreate issues in this repository if there are any problems with this app or if you want to communicate a feature \nrequest. Fork this repository and file a pull request to contribute to the app development.\n\nThis project complies with the code formatting guidelines defined in the provided .pre-commit-config.yaml file.\n\nThis repository uses semantic versioning and conventional commits to describe its updates.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/Multi-Agent-io/inels-mqtt-wrapper",
+            "keywords": "",
+            "license": "Apache 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "inels-mqtt-wrapper",
+            "package_url": "https://pypi.org/project/inels-mqtt-wrapper/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/inels-mqtt-wrapper/",
+            "project_urls": {
+                "Homepage": "https://github.com/Multi-Agent-io/inels-mqtt-wrapper"
+            },
+            "release_url": "https://pypi.org/project/inels-mqtt-wrapper/0.4.2/",
+            "requires_dist": [
+                "asyncio-mqtt (>=0.13.0,<0.14.0)"
+            ],
+            "requires_python": ">=3.8,<4.0",
+            "summary": "A Python library to work with Inels devices over MQTT (using Asyncio)",
+            "version": "0.4.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15906774,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a8281b1f3cd540926a3ab138a24df3c9",
+                    "sha256": "291b7f2dad44c7acc7b4187bb8684a87207e45e30d03828c3728898b5cbbc347"
+                },
+                "downloads": -1,
+                "filename": "inels_mqtt_wrapper-0.4.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "a8281b1f3cd540926a3ab138a24df3c9",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<4.0",
+                "size": 22324,
+                "upload_time": "2022-11-27T20:12:14",
+                "upload_time_iso_8601": "2022-11-27T20:12:14.471024Z",
+                "url": "https://files.pythonhosted.org/packages/a3/e0/a4f0236a2beb5df550c8121649eeb5562e335eeb5c0d2e5c65c07f13e3e3/inels_mqtt_wrapper-0.4.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "29be5e951a8a3054b723d6cfbca97649",
+                    "sha256": "4bcb7942bf28ab532ea3e86280bcc9c295e706c4e8883ffd14fad9fa72863e92"
+                },
+                "downloads": -1,
+                "filename": "inels_mqtt_wrapper-0.4.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "29be5e951a8a3054b723d6cfbca97649",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<4.0",
+                "size": 17053,
+                "upload_time": "2022-11-27T20:12:15",
+                "upload_time_iso_8601": "2022-11-27T20:12:15.682563Z",
+                "url": "https://files.pythonhosted.org/packages/9c/0c/b2e219b5fa9badc044413c32011dd4ed46ddb601c135b78e313f7588a20b/inels_mqtt_wrapper-0.4.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

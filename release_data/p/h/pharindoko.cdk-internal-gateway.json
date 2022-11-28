@@ -52,7 +52,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15772624,
+        "last_serial": 15903917,
         "urls": [
             {
                 "comment_text": "",
@@ -150,7 +150,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15772624,
+        "last_serial": 15903917,
         "urls": [
             {
                 "comment_text": "",
@@ -248,7 +248,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15772624,
+        "last_serial": 15903917,
         "urls": [
             {
                 "comment_text": "",
@@ -311,7 +311,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Typing :: Typed"
             ],
-            "description": "[![npm version](https://badge.fury.io/js/cdk-internal-gateway.svg)](https://badge.fury.io/js/cdk-internal-gateway)\n[![PyPI version](https://badge.fury.io/py/pharindoko.cdk-internal-gateway.svg)](https://badge.fury.io/py/pharindoko.cdk-internal-gateway)\n[![Release](https://github.com/pharindoko/cdk-internal-gateway/actions/workflows/release.yml/badge.svg)](https://github.com/pharindoko/cdk-internal-gateway/actions/workflows/release.yml)\n[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/pharindoko/cdk-internal-gateway/blob/main/LICENSE)\n\n# CDK Internal Gateway\n\nUse this CDK construct to create **internal serverless applications**.\n\nUseful for larger companies to create internal  serverless applications that are not exposed to the internet and only accessible from the internal network.\n\n## Installation\n\nUsing Typescript for aws cdk\n\n```bash\nnpm i cdk-internal-gateway\n```\n\nUsing Python for aws cdk\n\n```bash\npip install pharindoko.cdk-internal-gateway\n```\n\n## Architecture\n\n![cdk-internal-gateway-architecture](cdk-internal-gateway.drawio.png)\n\n### Technical Details\n\n* creates an internal application loadbalancer\n\n  * forwards traffic to VPC endpoint for execute-api\n  * redirect http to https\n* provides a securely configured apigateway resource out of the box\n\n  * attach your aws components to the internal apigateway resource\n  * sets api gateway to PRIVATE mode\n  * sets resource policies to only allow traffic from vpc endpoint\n* generates and attaches custom domains to the API Gateway\n* generates and attaches certificates to the the API Gateway and the loadbalancer\n* modularized approach with separate constructs\n\n  * add multiple internal api gateways to the same internal service to save costs and keep flexibility\n\n## Requirements\n\n* CDK V2 (2.46.0)\n* A VPC\n* A VPC Endpoint for execute-api\n* A Hosted Zone\n* Internally accessible subnets (for the load balancer)\n\n## Usage\n\n> Let`s assume we create a simple internal api for our company and start with a single lambda function...\n\n1. Create a file called `/lib/my-new-stack.ts`\n\n   ```python\n   import { aws_apigateway as apigateway, aws_ec2 as ec2, aws_lambda as lambda, aws_route53 as route53, Stack, StackProps } from 'aws-cdk-lib';\n   import { HttpMethod } from 'aws-cdk-lib/aws-events';\n   import { InternalApiGateway, InternalApiGatewayProps, InternalService } from 'cdk-internal-gateway';\n   import { Construct } from 'constructs';\n   import * as path from 'path';\n\n   // Create a new stack that inherits from the InternalApiGateway Construct\n   export class ServerlessStack extends InternalApiGateway {\n       constructor(scope: Construct, id: string, props: InternalApiGatewayProps) {\n           super(scope, id, props);\n\n           // The internal api gateway is available as member variable\n           // Attach your lambda function to the this.apiGateway\n           const defaultLambdaJavascript = this.apiGateway.root.resourceForPath(\"hey-js\");\n           const defaultHandlerJavascript = new lambda.Function(\n               this,\n               `backendLambdaJavascript`,\n               {\n                   functionName: `js-lambda`,\n                   runtime: lambda.Runtime.NODEJS_14_X,\n                   handler: \"index.handler\",\n                   code: lambda.Code.fromAsset(path.join(__dirname, \"../src\")),\n               }\n           );\n\n           defaultLambdaJavascript.addMethod(\n               HttpMethod.GET,\n               new apigateway.LambdaIntegration(defaultHandlerJavascript)\n           );\n       }\n   }\n\n   // Create a new stack that contains the whole service with all nested stacks\n   export class ServiceStack extends Stack {\n       constructor(scope: Construct, id: string, props: StackProps) {\n           super(scope, id, props);\n\n           // get all parameters to create the internal service stack\n           const vpc = ec2.Vpc.fromLookup(this, 'vpcLookup', { vpcId: 'vpc-1234567890' });\n           const subnetSelection = {\n               subnets: ['subnet-0b1e1c6c7d8e9f0a2', 'subnet-0b1e1c6c7d8e9f0a3'].map((ip, index) =>\n                   ec2.Subnet.fromSubnetId(this, `Subnet${index}`, ip),\n               ),\n           };\n           const hostedZone = route53.HostedZone.fromLookup(this, 'hostedzone', {\n               domainName: 'test.aws1234.com',\n               privateZone: true,\n               vpcId: vpc.vpcId,\n           });\n           const vpcEndpoint =\n               ec2.InterfaceVpcEndpoint.fromInterfaceVpcEndpointAttributes(\n                   this,\n                   'vpcEndpoint',\n                   {\n                       port: 443,\n                       vpcEndpointId: 'vpce-1234567890',\n                   },\n               );\n\n           // create the internal service stack\n           const serviceStack = new InternalService(this, 'InternalServiceStack', {\n               hostedZone: hostedZone,\n               subnetSelection: subnetSelection,\n               vpcEndpointIPAddresses: ['192.168.2.1', '192.168.2.2'],\n               vpc: vpc,\n               subjectAlternativeNames: ['internal.example.com'],\n               subDomain: \"internal-service\"\n           })\n\n           // create your stack that inherits from the InternalApiGateway\n           new ServerlessStack(this, 'MyProjectStack', {\n               domains: serviceStack.domains,\n               stage: \"dev\",\n               vpcEndpoint: vpcEndpoint,\n           })\n\n           // create another stack that inherits from the InternalApiGateway\n           ...\n           ...\n       }\n   }\n   ```\n2. Reference the newly created `ServiceStack` in the default `/bin/{project}.ts` file e.g. like this\n\n   ```python\n   new ServiceStack(app, 'MyProjectStack', {\n   env:\n   {\n       account: process.env.CDK_DEPLOY_ACCOUNT || process.env.CDK_DEFAULT_ACCOUNT,\n       region: process.env.CDK_DEPLOY_REGION || process.env.CDK_DEFAULT_REGION\n   }\n   ```\n\n## Costs\n\nYou have to expect basic infra costs for 2 components in this setup:\n\n| Count |  Type |  Estimated Costs |\n|---|---|---|\n|1 x| application load balancer  | 20 $  |\n|2 x| network interfaces for the vpc endpoint  | 16 $  |\n\nA shared vpc can lower the costs as vpc endpoint and their network interfaces can be used together...\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -347,7 +346,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15772624,
+        "last_serial": 15903917,
         "urls": [
             {
                 "comment_text": "",
@@ -386,6 +385,105 @@
                 "upload_time": "2022-11-15T09:11:08",
                 "upload_time_iso_8601": "2022-11-15T09:11:08.238987Z",
                 "url": "https://files.pythonhosted.org/packages/f0/cd/65a50ab7b9ab56386f33aca3e1425d6a55a7fd35a78d1298920d95eb9f1a/pharindoko.cdk-internal-gateway-0.1.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.9": {
+        "info": {
+            "author": "Florian Fu\u00df",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved",
+                "Operating System :: OS Independent",
+                "Programming Language :: JavaScript",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Typing :: Typed"
+            ],
+            "description": "[![npm version](https://badge.fury.io/js/cdk-internal-gateway.svg)](https://badge.fury.io/js/cdk-internal-gateway)\n[![PyPI version](https://badge.fury.io/py/pharindoko.cdk-internal-gateway.svg)](https://badge.fury.io/py/pharindoko.cdk-internal-gateway)\n[![Release](https://github.com/pharindoko/cdk-internal-gateway/actions/workflows/release.yml/badge.svg)](https://github.com/pharindoko/cdk-internal-gateway/actions/workflows/release.yml)\n[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/pharindoko/cdk-internal-gateway/blob/main/LICENSE)\n\n# CDK Internal Gateway\n\nUse this CDK construct to create **internal serverless applications**.\n\nUseful for larger companies to create internal  serverless applications that are not exposed to the internet and only accessible from the internal network.\n\n## Installation\n\nUsing Typescript for aws cdk\n\n```bash\nnpm i cdk-internal-gateway\n```\n\nUsing Python for aws cdk\n\n```bash\npip install pharindoko.cdk-internal-gateway\n```\n\n## Architecture\n\n![cdk-internal-gateway-architecture](cdk-internal-gateway.drawio.png)\n\n### Technical Details\n\n* creates an internal application loadbalancer\n\n  * forwards traffic to VPC endpoint for execute-api\n  * redirect http to https\n* provides a securely configured apigateway resource out of the box\n\n  * attach your aws components to the internal apigateway resource\n  * sets api gateway to PRIVATE mode\n  * sets resource policies to only allow traffic from vpc endpoint\n* generates and attaches custom domains to the API Gateway\n* generates and attaches certificates to the the API Gateway and the loadbalancer\n* modularized approach with separate constructs\n\n  * add multiple internal api gateways to the same internal service to save costs and keep flexibility\n\n## Requirements\n\n* CDK V2 (2.46.0)\n* A VPC\n* A VPC Endpoint for execute-api\n* A Hosted Zone\n* Internally accessible subnets (for the load balancer)\n\n## Usage\n\n> Let`s assume we create a simple internal api for our company and start with a single lambda function...\n\n1. Create a file called `/lib/my-new-stack.ts`\n\n   ```python\n   import { aws_apigateway as apigateway, aws_ec2 as ec2, aws_lambda as lambda, aws_route53 as route53, Stack, StackProps } from 'aws-cdk-lib';\n   import { HttpMethod } from 'aws-cdk-lib/aws-events';\n   import { InternalApiGateway, InternalApiGatewayProps, InternalService } from 'cdk-internal-gateway';\n   import { Construct } from 'constructs';\n   import * as path from 'path';\n\n   // Create a new stack that inherits from the InternalApiGateway Construct\n   export class ServerlessStack extends InternalApiGateway {\n       constructor(scope: Construct, id: string, props: InternalApiGatewayProps) {\n           super(scope, id, props);\n\n           // The internal api gateway is available as member variable\n           // Attach your lambda function to the this.apiGateway\n           const defaultLambdaJavascript = this.apiGateway.root.resourceForPath(\"hey-js\");\n           const defaultHandlerJavascript = new lambda.Function(\n               this,\n               `backendLambdaJavascript`,\n               {\n                   functionName: `js-lambda`,\n                   runtime: lambda.Runtime.NODEJS_14_X,\n                   handler: \"index.handler\",\n                   code: lambda.Code.fromAsset(path.join(__dirname, \"../src\")),\n               }\n           );\n\n           defaultLambdaJavascript.addMethod(\n               HttpMethod.GET,\n               new apigateway.LambdaIntegration(defaultHandlerJavascript)\n           );\n       }\n   }\n\n   // Create a new stack that contains the whole service with all nested stacks\n   export class ServiceStack extends Stack {\n       constructor(scope: Construct, id: string, props: StackProps) {\n           super(scope, id, props);\n\n           // get all parameters to create the internal service stack\n           const vpc = ec2.Vpc.fromLookup(this, 'vpcLookup', { vpcId: 'vpc-1234567890' });\n           const subnetSelection = {\n               subnets: ['subnet-0b1e1c6c7d8e9f0a2', 'subnet-0b1e1c6c7d8e9f0a3'].map((ip, index) =>\n                   ec2.Subnet.fromSubnetId(this, `Subnet${index}`, ip),\n               ),\n           };\n           const hostedZone = route53.HostedZone.fromLookup(this, 'hostedzone', {\n               domainName: 'test.aws1234.com',\n               privateZone: true,\n               vpcId: vpc.vpcId,\n           });\n           const vpcEndpoint =\n               ec2.InterfaceVpcEndpoint.fromInterfaceVpcEndpointAttributes(\n                   this,\n                   'vpcEndpoint',\n                   {\n                       port: 443,\n                       vpcEndpointId: 'vpce-1234567890',\n                   },\n               );\n\n           // create the internal service stack\n           const serviceStack = new InternalService(this, 'InternalServiceStack', {\n               hostedZone: hostedZone,\n               subnetSelection: subnetSelection,\n               vpcEndpointIPAddresses: ['192.168.2.1', '192.168.2.2'],\n               vpc: vpc,\n               subjectAlternativeNames: ['internal.example.com'],\n               subDomain: \"internal-service\"\n           })\n\n           // create your stack that inherits from the InternalApiGateway\n           new ServerlessStack(this, 'MyProjectStack', {\n               domains: serviceStack.domains,\n               stage: \"dev\",\n               vpcEndpoint: vpcEndpoint,\n           })\n\n           // create another stack that inherits from the InternalApiGateway\n           ...\n           ...\n       }\n   }\n   ```\n2. Reference the newly created `ServiceStack` in the default `/bin/{project}.ts` file e.g. like this\n\n   ```python\n   new ServiceStack(app, 'MyProjectStack', {\n   env:\n   {\n       account: process.env.CDK_DEPLOY_ACCOUNT || process.env.CDK_DEFAULT_ACCOUNT,\n       region: process.env.CDK_DEPLOY_REGION || process.env.CDK_DEFAULT_REGION\n   }\n   ```\n\n## Costs\n\nYou have to expect basic infra costs for 2 components in this setup:\n\n| Count |  Type |  Estimated Costs |\n|---|---|---|\n|1 x| application load balancer  | 20 $  |\n|2 x| network interfaces for the vpc endpoint  | 16 $  |\n\nA shared vpc can lower the costs as vpc endpoint and their network interfaces can be used together...\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/pharindoko/cdk-internal-gateway.git",
+            "keywords": "",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pharindoko.cdk-internal-gateway",
+            "package_url": "https://pypi.org/project/pharindoko.cdk-internal-gateway/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pharindoko.cdk-internal-gateway/",
+            "project_urls": {
+                "Homepage": "https://github.com/pharindoko/cdk-internal-gateway.git",
+                "Source": "https://github.com/pharindoko/cdk-internal-gateway.git"
+            },
+            "release_url": "https://pypi.org/project/pharindoko.cdk-internal-gateway/0.1.9/",
+            "requires_dist": [
+                "aws-cdk-lib (<3.0.0,>=2.46.0)",
+                "constructs (<11.0.0,>=10.0.5)",
+                "jsii (<2.0.0,>=1.71.0)",
+                "publication (>=0.0.3)",
+                "typeguard (~=2.13.3)"
+            ],
+            "requires_python": "~=3.7",
+            "summary": "CDK construct to create to create internal serverless applications.",
+            "version": "0.1.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15903917,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "15389accd49dab1561aa6f0641b1c460",
+                    "sha256": "cb6a4b29fb579b614e223f99d741b916646f3c0ae0c2327f013aa9ae0ae34e7f"
+                },
+                "downloads": -1,
+                "filename": "pharindoko.cdk_internal_gateway-0.1.9-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "15389accd49dab1561aa6f0641b1c460",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": "~=3.7",
+                "size": 166745,
+                "upload_time": "2022-11-27T13:12:49",
+                "upload_time_iso_8601": "2022-11-27T13:12:49.581847Z",
+                "url": "https://files.pythonhosted.org/packages/12/6d/93730637a15159539e1190a88c99f643744def86dda3b746652f6cc760a4/pharindoko.cdk_internal_gateway-0.1.9-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d11e415f70924597cfa54c44449df642",
+                    "sha256": "e76b1ec64a83a5235d8d3fd156f39f6ca867b95db6b3f47a2e8e0a45221348b4"
+                },
+                "downloads": -1,
+                "filename": "pharindoko.cdk-internal-gateway-0.1.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d11e415f70924597cfa54c44449df642",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": "~=3.7",
+                "size": 168577,
+                "upload_time": "2022-11-27T13:12:50",
+                "upload_time_iso_8601": "2022-11-27T13:12:50.814762Z",
+                "url": "https://files.pythonhosted.org/packages/91/96/38208ce85ffbf4d7b352441d9091ef4f196f6b1b684365eb3c368eda9c39/pharindoko.cdk-internal-gateway-0.1.9.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15898089,
+        "last_serial": 15904945,
         "urls": [
             {
                 "comment_text": "",
@@ -132,7 +132,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15898089,
+        "last_serial": 15904945,
         "urls": [
             {
                 "comment_text": "",
@@ -221,7 +221,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15898089,
+        "last_serial": 15904945,
         "urls": [
             {
                 "comment_text": "",
@@ -310,7 +310,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15898089,
+        "last_serial": 15904945,
         "urls": [
             {
                 "comment_text": "",
@@ -399,7 +399,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15898089,
+        "last_serial": 15904945,
         "urls": [
             {
                 "comment_text": "",
@@ -488,7 +488,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15898089,
+        "last_serial": 15904945,
         "urls": [
             {
                 "comment_text": "",
@@ -577,7 +577,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15898089,
+        "last_serial": 15904945,
         "urls": [
             {
                 "comment_text": "",
@@ -638,7 +638,6 @@
                 "Topic :: Software Development :: Libraries",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "# TrueGrad\n\nPyTorch interface for TrueGrad-AdamW\n\n## Getting Started\n\n### Installation\n\n```BASH\npython3 -m pip install truegrad\n```\n\n## Examples\n\n### BackPack\n\nThe preferred method to integrate TrueGrad is using [BackPack](https://github.com/f-dangel/backpack). BackPack is a\nthird-party library that automatically computes the sum of gradient squares and works for most models by implementing\ncustom backward rules for many `torch.nn.Module`'s.\n\n```PYTHON\nimport backpack\nimport torch\nfrom torch.nn import CrossEntropyLoss\nfrom truegrad.optim import TGAdamW\nfrom torchvision.models import alexnet\n\nmodel = alexnet()\noptim = TGAdamW(model.parameters(), lr=1e-7, weight_decay=0)\n\n# backpack can't handle inplace ops like nn.ReLU(inplace=True) and `x += y`\nfor mod in model.modules():\n    if hasattr(mod, \"inplace\"):\n        mod.inplace = False\n\n# backpack relies on module-level pytorch hooks\nmodel = backpack.extend(model)\nlossfunc = backpack.extend(CrossEntropyLoss())\n\n# constant input/output to overfit\ninp = torch.randn((2, 3, 224, 224))\ntgt = torch.randint(0, 1000, (2,))\n\n# standard training loop\ni = 0\nwhile True:\n    # \"SumGradSquared\" computes the sum of the squared gradient\n    with backpack.backpack(backpack.extensions.SumGradSquared()):\n        loss = lossfunc(model(inp), tgt)\n        loss.backward()\n    optim.step()\n    i += 1\n    if i % 5 == 0:\n        print(i, loss.item())\n```\n\nIf you're using custom modules with self-defined parameters, this method will not work. Additionally, note that, if\nyour model has any layer called `.output` or you're using PyTorch >= 1.13, you will need to install\n[BackPack-HF](https://github.com/ClashLuke/backpack-hf) via\n`python3 -m pip install git+https://github.com/ClashLuke/backpack-hf`.\n\n### Patch Custom Models\n\nAnother option to integrate TrueGrad into existing models is to patch them using `truegrad.utils.patch_model()`.\n`patch_model()` will go through all`torch.nn.Module`'s in PyTorch model and convert their `torch.nn.Parameter`'s to\n`truegrad.nn.TrueGradParameter`'s. A `TrueGradParameter` acts largely the same as a `torch.nn.Parameter`, but adds\nrequired operations into the model's backward pass.\\\nImportantly, be aware that this does not work for fused functions, such as `torch.nn.LayerNorm`\nand `torch.nn.MultiheadAttention`. However, unfused functions which directly access a parameter, such as multiplication\nand work well. Therefore, torch.nn.Linear and HuggingFace's attention work as expected.\n\n```PYTHON\nimport transformers\nfrom truegrad.utils import patch_model\nfrom truegrad.optim import TGAdamW\n\nmodel = transformers.BertModel.from_pretrained(\"google/bert_uncased_L-2_H-128_A-2\")  # any existing model\ntokenizer = transformers.BertTokenizer.from_pretrained(\"google/bert_uncased_L-2_H-128_A-2\")\n\npatch_model(model)  # replace torch.nn.Parameter with truegrad.nn.Parameter\noptim = TGAdamW(model.parameters())  # truegrad.optim.TGAdamW instead of torch.optim.AdamW\n\n# training loop as normal\nfor sample in [\"Hello\", \"World\", \"!\"]:\n    out = model(**tokenizer([sample], return_tensors=\"pt\"))\n    out[0].mean().backward()\n    optim.step()\n```\n\n### nn\n\nPatching existing PyTorch computation graphs on the fly might add unnecessary memory and computation or even fail\nunexpectedly. That's why a pre-patched alternative of `torch.nn` with hand-crafted gradients exists alongside the\n`truegrad.utils` module. Compared to `truegrad.utils.patch_model()`, `truegrad.nn` offers higher speeds and lower\nmemory usage, although it might require code alterations and doesn't support all models. You cannot (currently) use\n`truegrad.nn` with `truegrad.utils`, as both use different ways to arrive at the same value. However, you can\ncombine `torch.nn.Modules` and `truegrad.nn.Modules` and use the truegrad information only where it is available (\nsee [Partial TrueGrad](#Partial-TrueGrad)).\n\n```PYTHON\nimport torch\nfrom truegrad import nn\nfrom truegrad.optim import TGAdamW\n\n# define model by mixing truegrad.nn and torch.nn\nmodel = torch.nn.Sequential(nn.Linear(1, 10),\n                            nn.LayerNorm([1, 10]),\n                            torch.nn.ReLU(),\n                            nn.Linear(10, 1))\noptim = TGAdamW(model.parameters())  # truegrad.optim.TGAdamW instead of torch.optim.AdamW\n\n# standard training loop \nwhile True:\n    input = torch.randn((16, 1))\n    model(input).mean().backward()\n    optim.step()\n```\n\n### Partial TrueGrad\n\nUnfortunately, it's not always sensible to apply TrueGrad, as some backward passes are too slow, and sometimes it's\nimpossible to avoid a fused function.\nTherefore, it can be an option to use TGAdamW only on specific subsections of the model. To do so, you can\nspecify `default_to_adam=True` to TGAdamW. Adding this option allows TGAdamW to fall back to AdamW if there is\nno `sum_grad_squared` attribute available.\nFor example, the code from [#nn](#nn) could be extended in the following way:\n\n```PYTHON\nimport torch\nfrom truegrad import nn\nfrom truegrad.optim import TGAdamW\n\nmodel = torch.nn.Sequential(nn.Linear(1, 10),  # Weights coming from truegrad.nn \n                            nn.LayerNorm([1, 10]),\n                            torch.nn.ReLU(),\n                            torch.nn.Linear(10, 1))  # Weights coming torch.nn\n\noptim = TGAdamW(model.parameters(), default_to_adam=True)\n\n# standard training loop\nwhile True:\n    input = torch.randn((16, 1))\n    model(input).mean().backward()\n    optim.step()\n```\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -667,7 +666,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15898089,
+        "last_serial": 15904945,
         "urls": [
             {
                 "comment_text": "",
@@ -706,6 +705,185 @@
                 "upload_time": "2022-11-26T15:54:57",
                 "upload_time_iso_8601": "2022-11-26T15:54:57.115261Z",
                 "url": "https://files.pythonhosted.org/packages/c7/e5/f970d4bc73a9043e4c5dfa10fc02f715caa545b8604f3f9941a6f507996b/truegrad-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.0": {
+        "info": {
+            "author": "Lucas Nestler",
+            "author_email": "github.truegrad@nestler.sh",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Libraries",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/clashluke/truegrad",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "truegrad",
+            "package_url": "https://pypi.org/project/truegrad/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/truegrad/",
+            "project_urls": {
+                "Homepage": "https://github.com/clashluke/truegrad"
+            },
+            "release_url": "https://pypi.org/project/truegrad/1.0.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "PyTorch interface for TrueGrad-AdamW",
+            "version": "1.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15904945,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b7a2332cb4cb3013451006d2a07a48fe",
+                    "sha256": "5cd5273780b0882084c6d0428c78c46bb4d9558bf638ba3e761b9ea0cf7dc91e"
+                },
+                "downloads": -1,
+                "filename": "truegrad-1.0.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b7a2332cb4cb3013451006d2a07a48fe",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 23877,
+                "upload_time": "2022-11-27T14:25:19",
+                "upload_time_iso_8601": "2022-11-27T14:25:19.876182Z",
+                "url": "https://files.pythonhosted.org/packages/c8/d8/f1b0596a3fab83a2f60341b23d0230ed6d08f15557695990634ef9d2f23b/truegrad-1.0.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "733b83adea151657a43a6b0676f43cdb",
+                    "sha256": "9a13ee9c138e6094bb5b8137e7917c02e6c0851739fe213256ac9580152f3489"
+                },
+                "downloads": -1,
+                "filename": "truegrad-1.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "733b83adea151657a43a6b0676f43cdb",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 23917,
+                "upload_time": "2022-11-27T14:25:21",
+                "upload_time_iso_8601": "2022-11-27T14:25:21.455429Z",
+                "url": "https://files.pythonhosted.org/packages/11/9a/440a2ca386187fcf0ed45411ff1c670dd855eecd45cfa745e581245b1536/truegrad-1.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.0.0": {
+        "info": {
+            "author": "Lucas Nestler",
+            "author_email": "github.truegrad@nestler.sh",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Libraries",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "# TrueGrad\n\nPyTorch interface for TrueGrad-AdamW\n\n## Getting Started\n\n### Installation\n\n```BASH\npython3 -m pip install truegrad\n```\n\n## Examples\n\nTrueGrad supports various backends, each with their own tradeoffs:\n\n| Name                                               | Advantages                                                                                                                                                                                      | Disadvantages                                                                           |\n|----------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|\n| [truegrad.nn](#nn)                                 | * What you see is what you get - Modules not in truegrad.nn and truegrad.nn.functional are not supported<br/>* Custom forward/backward for some fused functions<br/>* Optimized backward passes | * Limited applicability - custom modules can't be used<br/>* Requires code modification |\n| [truegrad.utils.patch_torch](#patch-torch)         | * Uses truegrad.nn under the hood<br/>* Works for many (off-the-shelf!) torch models<br/>* No code modification necessary                                                                       | * Uncertainty if model is compatible                                                    |\n| [backpack](#backpack)                              | * Highest stability<br/>* Loud warnings and errors<br/>* Battle-tested<br/>* Simple to extend further                                                                                           | * High memory usage<br/>* High compute usage<br/>* Sparse support for torch operations  |\n| [truegrad.utils.patch_model](#patch-custom-models) | * Best compatibility                                                                                                                                                                            | * Fails silently on fused functions<br/>* More costly than truegrad.nn                  |\n\nBelow, you'll find examples for each of these backends, as well as a [general strategy](#partial-truegrad) allowing\npartial application of TrueGrad.\n\n### nn\n\nThe preferred method of using TrueGrad is by replacing `torch.nn` with performant `truegrad.nn` modules. While other\nmethods add compute and memory overheads, `truegrad.nn` and `truegrad.nn.functional` have hand-crafted gradients. This\nis the most powerful method, although it requires code modifications.\n\n```PYTHON\nimport torch\nfrom truegrad import nn\nfrom truegrad.optim import TGAdamW\n\n# define model by mixing truegrad.nn and torch.nn\nmodel = torch.nn.Sequential(nn.Linear(1, 10),\n                            nn.LayerNorm([1, 10]),\n                            torch.nn.ReLU(),\n                            nn.Linear(10, 1))\noptim = TGAdamW(model.parameters())  # truegrad.optim.TGAdamW instead of torch.optim.AdamW\n\n# standard training loop \nwhile True:\n    input = torch.randn((16, 1))\n    model(input).mean().backward()\n    optim.step()\n```\n\n### Patch Torch\n\nIn some cases, you can't modify the model's source. For example, when importing models from `torchvision`. If that's the\ncase, or if you simply want to try out TrueGrad, you can use `truegrad.utils.patch_torch()`, to\nreplace `torch.nn.Module`'s with `truegrad.nn.Module`'s where possible. For example, the code below can be used to train\na ResNet-18:\n\n```PYTHON\nimport torch\nfrom torchvision.models import resnet18\n\nfrom truegrad.optim import TGAdamW\nfrom truegrad.utils import patch_torch\n\npatch_torch()  # call before model creation, otherwise complete freedom\nmodel = resnet18().cuda()\noptim = TGAdamW(model.parameters(), lr=1e-7, weight_decay=0)\n\n# constant input/output to overfit\ninp = torch.randn((2, 3, 224, 224)).cuda()\ntgt = torch.randint(0, 1000, (2,)).cuda()\n\n# standard training loop\ni = 0\nwhile True:\n    loss = torch.nn.functional.cross_entropy(model(inp), tgt)\n    loss.backward()\n    optim.step()\n    i += 1\n    if i % 5 == 0:\n        print(i, loss.item())\n```\n\n### BackPack\n\nThe most stable although also memory hungry method to compute TrueGrad statistics is to use\n[BackPack](https://github.com/f-dangel/backpack). BackPack is a third-party library that automatically computes the sum\nof gradient squares and works for most models by implementing custom backward rules for many `torch.nn.Module`'s.\n\n```PYTHON\nimport backpack\nimport torch\nfrom torch.nn import CrossEntropyLoss\nfrom truegrad.optim import TGAdamW\nfrom torchvision.models import alexnet\n\nmodel = alexnet()  # BatchNorm and in-place ops (like ResNet's residual path) aren't supported\noptim = TGAdamW(model.parameters(), lr=1e-7, weight_decay=0)\n\n# replace inplace ops like nn.ReLU(inplace=True) where possible\nfor mod in model.modules():\n    if hasattr(mod, \"inplace\"):\n        mod.inplace = False\n\n# backpack relies on module-level pytorch hooks\nmodel = backpack.extend(model)\nlossfunc = backpack.extend(CrossEntropyLoss())\n\n# constant input/output to overfit\ninp = torch.randn((2, 3, 224, 224))\ntgt = torch.randint(0, 1000, (2,))\n\n# standard training loop\ni = 0\nwhile True:\n    # \"SumGradSquared\" computes the sum of the squared gradient\n    with backpack.backpack(backpack.extensions.SumGradSquared()):\n        loss = lossfunc(model(inp), tgt)\n        loss.backward()\n    optim.step()\n    i += 1\n    if i % 5 == 0:\n        print(i, loss.item())\n```\n\nIf you're using custom modules with self-defined parameters, this method will not work. Additionally, note that, if\nyour model has any layer called `.output` or you're using PyTorch >= 1.13, you will need to install\n[BackPack-HF](https://github.com/ClashLuke/backpack-hf) via\n`python3 -m pip install git+https://github.com/ClashLuke/backpack-hf`.\n\n### Patch Custom Models\n\nAnother option to integrate TrueGrad into existing models is to patch them using `truegrad.utils.patch_model()`.\n`patch_model()` will go through all `torch.nn.Module`'s in PyTorch model and convert their `torch.nn.Parameter`'s to\n`truegrad.nn.TrueGradParameter`'s. A `TrueGradParameter` acts largely the same as a `torch.nn.Parameter`, but adds\nrequired operations into the model's backward pass. Note that this doesn't give the most effective computation graph,\nbut works well for many custom models.\\\nImportantly, be aware that this does not work for fused functions, such as `torch.nn.LayerNorm`\nand `torch.nn.MultiheadAttention`. However, unfused functions which directly access a parameter, such as multiplication,\nwork well. Therefore, torch.nn.Linear and HuggingFace's attention work as expected.\n\n```PYTHON\nimport transformers\nfrom truegrad.utils import patch_model\nfrom truegrad.optim import TGAdamW\n\nmodel = transformers.BertModel.from_pretrained(\"google/bert_uncased_L-2_H-128_A-2\")  # any existing model\ntokenizer = transformers.BertTokenizer.from_pretrained(\"google/bert_uncased_L-2_H-128_A-2\")\n\npatch_model(model)  # replace torch.nn.Parameter with truegrad.nn.Parameter\noptim = TGAdamW(model.parameters())  # truegrad.optim.TGAdamW instead of torch.optim.AdamW\n\n# training loop as normal\nfor sample in [\"Hello\", \"World\", \"!\"]:\n    out = model(**tokenizer([sample], return_tensors=\"pt\"))\n    out[0].mean().backward()\n    optim.step()\n```\n\n### Partial TrueGrad\n\nUnfortunately, it's not always sensible to apply TrueGrad, as some backward passes are too slow, and sometimes it's\nimpossible to avoid a fused function.\nTherefore, it can be an option to use TGAdamW only on specific subsections of the model. To do so, you can\nspecify `default_to_adam=True` to TGAdamW. Adding this option allows TGAdamW to fall back to AdamW if there is\nno `sum_grad_squared` attribute available.\nFor example, the code from [#nn](#nn) could be extended in the following way:\n\n```PYTHON\nimport torch\nfrom truegrad import nn\nfrom truegrad.optim import TGAdamW\n\nmodel = torch.nn.Sequential(nn.Linear(1, 10),  # Weights coming from truegrad.nn \n                            nn.LayerNorm([1, 10]),\n                            torch.nn.ReLU(),\n                            torch.nn.Linear(10, 1))  # Weights coming torch.nn\n\noptim = TGAdamW(model.parameters(), default_to_adam=True)\n\n# standard training loop\ni = 0\nwhile True:\n    input = torch.randn((16, 1))\n    loss = model(input).mean()\n    loss.backward()\n    optim.step()\n    i += 1\n    if i % 5 == 0:\n        print(i, loss.item())\n```\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/clashluke/truegrad",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "truegrad",
+            "package_url": "https://pypi.org/project/truegrad/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/truegrad/",
+            "project_urls": {
+                "Homepage": "https://github.com/clashluke/truegrad"
+            },
+            "release_url": "https://pypi.org/project/truegrad/2.0.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "PyTorch interface for TrueGrad-AdamW",
+            "version": "2.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15904945,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "befbd574644bc548a959296c47fe905f",
+                    "sha256": "9c28630cdd05249d61b60acb54de3c1c97c358e0d3b2c424312e48e44eae1db4"
+                },
+                "downloads": -1,
+                "filename": "truegrad-2.0.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "befbd574644bc548a959296c47fe905f",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 24185,
+                "upload_time": "2022-11-27T15:07:33",
+                "upload_time_iso_8601": "2022-11-27T15:07:33.269747Z",
+                "url": "https://files.pythonhosted.org/packages/59/71/e8a26e7f49694a11ea4064751731e5e13ffbab67a9c95a5b08dee8440053/truegrad-2.0.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "94b092ba5060e5d2340c1516232b7fda",
+                    "sha256": "e583eb65e032ca7d19389a08b43643d7845fd8348d52bbccbcad7e04f7b9eec1"
+                },
+                "downloads": -1,
+                "filename": "truegrad-2.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "94b092ba5060e5d2340c1516232b7fda",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 24177,
+                "upload_time": "2022-11-27T15:07:35",
+                "upload_time_iso_8601": "2022-11-27T15:07:35.231866Z",
+                "url": "https://files.pythonhosted.org/packages/a0/29/58b13a6dcf8197f8ac9b0a7d7d9e8ecdf05e8c181d770263c03fef7a34f0/truegrad-2.0.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
