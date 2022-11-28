@@ -1,0 +1,104 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "Gianluca Detommaso",
+            "author_email": "gianluca.detommaso@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "Fortuna\n#######\nA Library for Uncertainty Quantification\n========================================\nProper estimation of predictive uncertainty is fundamental in applications that involve critical decisions.\nIt can be used to assess reliability of model predictions, trigger human intervention,\nor decide whether a model can be safely deployed in the wild.\n\nFortuna is a library for uncertainty quantification that makes it easy for users to run benchmarks and bring uncertainty to production systems.\nFortuna provides calibration and conformal methods starting from pre-trained models written in any framework,\nand it further supports several Bayesian inference methods starting from deep learning models written in `Flax <https://flax.readthedocs.io/en/latest/index.html>`_.\nThe language is designed to be intuitive for practitioners unfamiliar with uncertainty quantification,\nand is highly configurable.\n\nUsage modes\n===========\nFortuna offers three different usage modes:\n`From uncertainty estimates <https://github.com/awslabs/fortuna#from-uncertainty-estimates>`_,\n`From model outputs <https://github.com/awslabs/fortuna#from-model-outputs>`_ and\n`From Flax models <https://github.com/awslabs/fortuna#from-flax-models>`_.\nThese serve users according to the constraints dictated by their own applications.\nTheir pipelines are depicted in the following figure, each starting from one of the green panels.\n\n.. figure:: docs/source/_static/pipeline.png\n\nFrom uncertainty estimates\n---------------------------\nStarting from uncertainty estimates has minimal compatibility requirements and it is the quickest level of interaction with the library.\nThis usage mode offers conformal prediction methods for both classification and regression.\nThese take uncertainty estimates in input, and return rigorous sets of predictions.\nIn one-dimensional regression tasks, conformal sets may be thought as calibrated intervals of confidence or credible intervals.\n\nMind that if the uncertainty estimates that you provide in inputs are inaccurate,\nconformal sets might be large and unusable.\nFor this reason, if your application allows it,\nplease consider the `From model outputs <https://github.com/awslabs/fortuna#from-model-outputs>`_ and\n`From Flax models <https://github.com/awslabs/fortuna#from-flax-models>`_ usage modes.\n\n**Example.** Suppose you want to calibrate credible intervals with coverage error :code:`error`,\neach corresponding to a different test input variable.\nWe assume that credible intervals are passed as arrays of lower and upper bounds,\nrespectively :code:`test_lower_bounds` and :code:`test_upper_bounds`.\nYou also have lower and upper bounds of credible intervals computed for several validation inputs,\nrespectively :code:`val_lower_bounds` and :code:`val_upper_bounds`.\nThe corresponding array of validation targets is denoted by :code:`val_targets`.\nThe following code produces *conformal prediction intervals*,\ni.e. calibrated versions of you test credible intervals.\n\n.. code-block:: python\n\n from fortuna.conformal.regression import QuantileConformalRegressor\n conformal_intervals = QuantileConformalRegressor().conformal_interval(\n      val_lower_bounds=val_lower_bounds, val_upper_bounds=val_upper_bounds,\n      test_lower_bounds=test_lower_bounds, test_upper_bounds=test_upper_bounds,\n      val_targets=val_targets, error=error)\n\nFrom model outputs\n------------------\nStarting from model outputs assumes you have already trained a model in some framework,\nand arrive to Fortuna with model outputs in :code:`numpy.ndarray` format for each input data point.\nThis usage mode allows you to calibrate your model outputs, estimate uncertainty,\ncompute metrics and obtain conformal sets.\n\nCompared to the `From uncertainty estimates <https://github.com/awslabs/fortuna#from-uncertainty-estimates>`_ usage mode,\nthis one offers better control,\nas it can make sure uncertainty estimates have been appropriately calibrated.\nHowever, if the model had been trained with classical methods,\nthe resulting quantification of model (a.k.a. epistemic) uncertainty may be poor.\nTo mitigate this problem, please consider the `From Flax models <https://github.com/awslabs/fortuna#from-flax-models>`_\nusage mode.\n\n**Example.**\nSuppose you have validation and test model outputs,\nrespectively :code:`val_outputs` and :code:`test_outputs`.\nFurthermore, you have some arrays of validation and target variables,\nrespectively :code:`val_targets` and :code:`test_targets`.\nThe following code provides a minimal classification example to get calibrated predictive entropy estimates.\n\n.. code-block:: python\n\n  from fortuna.calib_model import CalibClassifier\n  calib_model = CalibClassifier()\n  status = calib_model.calibrate(outputs=val_outputs, targets=val_targets)\n  test_entropies = calib_model.predictive.entropy(outputs=test_outputs)\n\nFrom Flax models\n--------------------------\nStarting from Flax models has higher compatibility requirements than the\n`From uncertainty estimates <https://github.com/awslabs/fortuna#from-uncertainty-estimates>`_\nand `From model outputs <https://github.com/awslabs/fortuna#from-model-outputs>`_ usage modes,\nas it requires deep learning models written in `Flax <https://flax.readthedocs.io/en/latest/index.html>`_.\nHowever, it enables you to replace standard model training with scalable Bayesian inference procedures,\nwhich may significantly improve the quantification of predictive uncertainty.\n\n**Example.** Suppose you have a Flax classification deep learning model :code:`model` from inputs to logits, with output\ndimension given by :code:`output_dim`. Furthermore,\nyou have some training, validation and calibration TensorFlow data loader :code:`train_data_loader`, :code:`val_data_loader`\nand :code:`test_data_loader`, respectively.\nThe following code provides a minimal classification example to get calibrated probability estimates.\n\n.. code-block:: python\n\n  from fortuna.data import DataLoader\n  train_data_loader = DataLoader.from_tensorflow_data_loader(train_data_loader)\n  calib_data_loader = DataLoader.from_tensorflow_data_loader(val_data_loader)\n  test_data_loader = DataLoader.from_tensorflow_data_loader(test_data_loader)\n\n  from fortuna.prob_model import ProbClassifier\n  prob_model = ProbClassifier(model=model)\n  status = prob_model.train(train_data_loader=train_data_loader, calib_data_loader=calib_data_loader)\n  test_means = prob_model.predictive.mean(inputs_loader=test_data_loader.to_inputs_loader())\n\n\nInstallation\n============\n**NOTE:** Before installing Fortuna, you are required to `install JAX <https://github.com/google/jax#installation>`_ in your virtual environment.\n\nYou can install Fortuna by typing\n\n.. code-block::\n\n    pip install aws-fortuna\n\nExamples\n========\nSeveral usage examples are found in the\n`/examples <https://github.com/awslabs/fortuna/tree/main/examples>`_\ndirectory.\n\nContributing\n============\nIf you wish to contribute to the project, please refer to our `contribution guidelines <https://github.com/awslabs/fortuna/blob/main/CONTRIBUTING.md>`_.\n\n\nLicense\n=======\nThis project is licensed under the Apache-2.0 License.\nSee `LICENSE <https://github.com/awslabs/fortuna/blob/main/LICENSE>`_ for more information.\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "fortuna-uq",
+            "package_url": "https://pypi.org/project/fortuna-uq/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/fortuna-uq/",
+            "project_urls": {
+                "Documentation": "https://aws-fortuna.readthedocs.io/en/latest/"
+            },
+            "release_url": "https://pypi.org/project/fortuna-uq/0.1.0/",
+            "requires_dist": [
+                "flax (>=0.6.2,<0.7.0)",
+                "optax (>=0.1.3,<0.2.0)",
+                "tensorflow-datasets (>=4.7.0,<5.0.0)",
+                "matplotlib (>=3.6.2,<4.0.0)",
+                "jupyter (>=1.0.0,<2.0.0)",
+                "ipykernel (>=6.17.1,<7.0.0)",
+                "Sphinx (>=5.3.0,<6.0.0)",
+                "sphinx-autodoc-typehints (>=1.19.5,<2.0.0)",
+                "nbsphinx (>=0.8.10,<0.9.0)",
+                "sphinx-gallery (>=0.11.1,<0.12.0)",
+                "sphinxawesome-theme (>=3.3.7,<4.0.0)",
+                "nbsphinx-link (>=1.3.0,<2.0.0)",
+                "tqdm (>=4.64.1,<5.0.0)",
+                "numpy (>=1.23.4,<2.0.0)",
+                "tensorflow (>=2.11.0,<3.0.0)"
+            ],
+            "requires_python": ">=3.8,<3.11",
+            "summary": "A Library for Uncertainty Quantification.",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15913217,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b596e29b274f567ec0f30bd455be46bf",
+                    "sha256": "2f3fd20c400244aa4d859d1f8f3f93b76bf12b838b711464221e4dc436ce7221"
+                },
+                "downloads": -1,
+                "filename": "fortuna_uq-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b596e29b274f567ec0f30bd455be46bf",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<3.11",
+                "size": 161696,
+                "upload_time": "2022-11-28T11:54:31",
+                "upload_time_iso_8601": "2022-11-28T11:54:31.163116Z",
+                "url": "https://files.pythonhosted.org/packages/74/13/6337e131e9cacc008cfbc4803ae29c625082db3b8b36675eb1c4e19ea2b6/fortuna_uq-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5472d9b524f8033eb6d0e4073b8874b3",
+                    "sha256": "7840ce1e6976cc9e3a2e0ab92d959ff27657e4a4ba9c31aa0650203606e154a9"
+                },
+                "downloads": -1,
+                "filename": "fortuna_uq-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5472d9b524f8033eb6d0e4073b8874b3",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<3.11",
+                "size": 108521,
+                "upload_time": "2022-11-28T11:54:33",
+                "upload_time_iso_8601": "2022-11-28T11:54:33.924819Z",
+                "url": "https://files.pythonhosted.org/packages/7d/be/8f571eb4482111a852048769b43746e928643c30400c0b9707b5a72ed3fb/fortuna_uq-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
