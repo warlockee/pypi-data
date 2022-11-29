@@ -36,7 +36,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15656617,
+        "last_serial": 15925141,
         "urls": [
             {
                 "comment_text": "",
@@ -118,7 +118,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15656617,
+        "last_serial": 15925141,
         "urls": [
             {
                 "comment_text": "",
@@ -200,7 +200,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15656617,
+        "last_serial": 15925141,
         "urls": [
             {
                 "comment_text": "",
@@ -282,7 +282,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15656617,
+        "last_serial": 15925141,
         "urls": [
             {
                 "comment_text": "",
@@ -364,7 +364,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15656617,
+        "last_serial": 15925141,
         "urls": [
             {
                 "comment_text": "",
@@ -446,7 +446,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15656617,
+        "last_serial": 15925141,
         "urls": [
             {
                 "comment_text": "",
@@ -528,7 +528,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15656617,
+        "last_serial": 15925141,
         "urls": [
             {
                 "comment_text": "",
@@ -579,7 +579,6 @@
             "author_email": "juangamella@gmail.com",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# GnIES Algorithm for Causal Discovery\n\nThis repository contains a python implementation of the GnIES algorithm from the paper [*\"<TODO: Title>\"*](<TODO: arxiv link>) by Juan L. Gamella, Armeen Taeb, Christina Heinze-Deml and Peter B\u00fchlmann.\n\n### Installation\n\nYou can clone this repo or install the python package via pip:\n\n```bash\npip install gnies\n```\n\nThere was an effort to keep dependencies on other packages to a minimum. As a result the package only depends on [`numpy`](https://numpy.org/) and [`ges`](https://github.com/juangamella/ges) (with the former being the only dependency of the latter).\n\n## Running the algorithm\n\nGnIES can be run through the function `gnies.fit`:\n\n```python\ndef fit(\n    data,\n    lmbda=None,\n    known_targets=set(),\n    approach=\"greedy\",\n    # Parameters used for greedy approach\n    I0=set(),\n    phases=[\"forward\", \"backward\"],\n    # Parameters used for rank approach\n    direction=\"forward\",\n    # Parameters used by inner-procedure (modified GES)\n    ges_iterate=True,\n    ges_phases=[\"forward\", \"backward\", \"turning\"],\n    debug=0\n)\n```\n\nA detailed documentation can be found in the function's [docstring](https://github.com/juangamella/gnies/blob/develop/gnies/main.py#L40). The most important parameters are:\n\n- **data** (`list of numpy.ndarray`): A list with the samples from the different environments, where each sample is an array with columns corresponding to variables and rows to observations.\n- **lmbda** (`float, default=None`): The penalization parameter for the penalized-likelihood score. If `None`, the BIC penalization is chosen, that is, `0.5 * log(N)` where `N` is the total number of observations from all environments.\n- **approach** (`{'greedy', 'rank'}, default='greedy'`): The approach used by the outer procedure of GnIES. With `'greedy'` targets are added and/or removed until the score does not improve; this corresponds to the results from figures 1,2 and 3 in the paper. With `'rank'`, the faster ranking procedure is run, at a small cost in the accuracy of the estimates (see figure <TODO: figure> in the paper). The two procedures are implemented in `gnies.main.fit_greedy` and `gnies.main.fit_rank`, respectively.\n\n\n### Example using the greedy approach\n\nHere [sempler](https://github.com/juangamella/sempler) is used to generate interventional data from a Gaussian SCM, but is not a dependency of the package.\n\n```python\nimport sempler, sempler.generators\nimport gnies\n\n# Generate a random SCM using sempler\nW = sempler.generators.dag_avg_deg(10, 2.1, 0.5, 1, random_state=42)\nscm = sempler.LGANM(W, (0, 0), (1, 2), random_state=42)\n\n# Generate interventional data\nn = 1000\ndata = [\n    scm.sample(n, random_state=42),\n    scm.sample(n, noise_interventions={1: (0, 11)}, random_state=42),\n    scm.sample(n, noise_interventions={2: (0, 12), 3: (0, 13)}, random_state=42),\n]\n\n# Run GnIES\n_score, icpdag, I = gnies.fit(data)\nprint(icpdag, I)\n\n# Output:\n# [[0 1 0 0 0 1 0 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]\n#  [0 1 0 0 0 0 0 0 0 0]\n#  [0 1 0 0 0 0 1 0 0 1]\n#  [1 0 1 0 0 0 0 0 0 0]\n#  [0 1 1 0 0 0 0 0 0 0]\n#  [0 0 0 0 0 0 1 0 0 1]\n#  [0 1 0 1 0 0 1 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]] {1, 2, 3}\n```\n\n### Example using the faster ranking approach\n\n```python\n# Run GnIES (on the same data as above)\n_score, icpdag, I = gnies.fit(data, approach='rank')\nprint(icpdag, I)\n\n# Output:\n# [[0 1 0 0 0 1 0 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]\n#  [0 1 0 0 0 0 0 0 0 0]\n#  [0 1 0 0 0 0 1 0 0 1]\n#  [1 0 1 0 0 0 0 0 0 0]\n#  [0 1 1 0 0 0 0 0 0 0]\n#  [0 0 0 0 0 0 1 0 0 1]\n#  [0 1 0 1 0 0 1 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]] {1, 2, 3}\n```\n\n## Code Structure\n\nThe source code modules can be found inside the `gnies/` directory. These include:\n\n  - [`gnies.main`](gnies/main.py) which is the main module with the calls to start GnIES.\n  - [`gnies.utils`](gnies/utils.py) contains auxiliary functions and the modified completion algorithm to transform PDAGs into a I-CPDAG, in the function `pdag_to_icpdag`.\n  - `scores/` contains the modules with the score classes:\n      - [`ges.scores.decomposable_score`](gnies/scores/decomposable_score.py) contains the base class for decomposable score classes (see that module for more details).\n      - [`ges.scores.gnies_score`](gnies/scores/gnies_score.py) contains an implementation of the cached GnIES score, as described in section 4 of the paper.\n   - `test/` contains the unit tests of the scores and other components.\n\n## Tests\n\nAll components come with unit tests to match, and some property-based tests. Of course, this doesn't mean there are no bugs, but hopefully it means *they are less likely* :)\n\nThe tests can be run with `make test`. You can add `SUITE=<module_name>` to run a particular module only. There is, however, the additional dependency of the [`sempler`](https://github.com/juangamella/sempler) package to run the tests. You can find the details in [`requirements_tests.txt`](requirements_tests.txt).\n\n## Feedback\n\nI hope you find this useful! Feedback and (constructive) criticism is always welcome, just shoot me an [email](mailto:juan.gamella@stat.math.ethz.ch) :)\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -611,7 +610,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15656617,
+        "last_serial": 15925141,
         "urls": [
             {
                 "comment_text": "",
@@ -650,6 +649,89 @@
                 "upload_time": "2022-11-04T15:12:51",
                 "upload_time_iso_8601": "2022-11-04T15:12:51.727558Z",
                 "url": "https://files.pythonhosted.org/packages/73/59/396d5638801ff077069118c3a46386c825106154b80190c9973ab3b67bbc/gnies-0.3.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.2": {
+        "info": {
+            "author": "Juan L. Gamella",
+            "author_email": "juangamella@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# GnIES Algorithm for Causal Discovery\n\nThis repository contains a python implementation of the GnIES algorithm from the paper [*\"Characterization and Greedy Learning of Gaussian Structural Causal Models under Unknown Interventions\"*](https://arxiv.org/abs/2211.14897) by Juan L. Gamella, Armeen Taeb, Christina Heinze-Deml and Peter B\u00fchlmann.\n\nIf you find this code useful, please consider citing:\n\n```\n@article{gamella2022characterization,\n  title={Characterization and Greedy Learning of Gaussian Structural Causal Models under Unknown Interventions},\n  author={Gamella, Juan L. and Taeb, Armeen and Heinze-Deml, Christina and B\\\"uhlmann, Peter},\n  journal={arXiv preprint arXiv:2211.14897},\n  year={2022}\n}\n```\n\n### Installation\n\nYou can clone this repo or install the python package via pip:\n\n```bash\npip install gnies\n```\n\nThere was an effort to keep dependencies on other packages to a minimum. As a result the package only depends on [`numpy`](https://numpy.org/) and [`ges`](https://github.com/juangamella/ges) (with the former being the only dependency of the latter).\n\n## Running the algorithm\n\nGnIES can be run through the function `gnies.fit`:\n\n```python\ndef fit(\n    data,\n    lmbda=None,\n    known_targets=set(),\n    approach=\"greedy\",\n    # Parameters used for greedy approach\n    I0=set(),\n    phases=[\"forward\", \"backward\"],\n    # Parameters used for rank approach\n    direction=\"forward\",\n    # Parameters used by inner-procedure (modified GES)\n    ges_iterate=True,\n    ges_phases=[\"forward\", \"backward\", \"turning\"],\n    debug=0\n)\n```\n\nA detailed documentation can be found in the function's [docstring](https://github.com/juangamella/gnies/blob/develop/gnies/main.py#L40). The most important parameters are:\n\n- **data** (`list of numpy.ndarray`): A list with the samples from the different environments, where each sample is an array with columns corresponding to variables and rows to observations.\n- **lmbda** (`float, default=None`): The penalization parameter for the penalized-likelihood score. If `None`, the BIC penalization is chosen, that is, `0.5 * log(N)` where `N` is the total number of observations from all environments.\n- **approach** (`{'greedy', 'rank'}, default='greedy'`): The approach used by the outer procedure of GnIES. With `'greedy'` targets are added and/or removed until the score does not improve; this corresponds to the results from figures 1,2 and 3 in the paper. With `'rank'`, the faster ranking procedure is run, at a small cost in the accuracy of the estimates (see figure 7 in the paper). The two procedures are implemented in `gnies.main.fit_greedy` and `gnies.main.fit_rank`, respectively.\n\n\n### Example using the greedy approach\n\nHere [sempler](https://github.com/juangamella/sempler) is used to generate interventional data from a Gaussian SCM, but is not a dependency of the package.\n\n```python\nimport sempler, sempler.generators\nimport gnies\n\n# Generate a random SCM using sempler\nW = sempler.generators.dag_avg_deg(10, 2.1, 0.5, 1, random_state=42)\nscm = sempler.LGANM(W, (0, 0), (1, 2), random_state=42)\n\n# Generate interventional data\nn = 1000\ndata = [\n    scm.sample(n, random_state=42),\n    scm.sample(n, noise_interventions={1: (0, 11)}, random_state=42),\n    scm.sample(n, noise_interventions={2: (0, 12), 3: (0, 13)}, random_state=42),\n]\n\n# Run GnIES\n_score, icpdag, I = gnies.fit(data)\nprint(icpdag, I)\n\n# Output:\n# [[0 1 0 0 0 1 0 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]\n#  [0 1 0 0 0 0 0 0 0 0]\n#  [0 1 0 0 0 0 1 0 0 1]\n#  [1 0 1 0 0 0 0 0 0 0]\n#  [0 1 1 0 0 0 0 0 0 0]\n#  [0 0 0 0 0 0 1 0 0 1]\n#  [0 1 0 1 0 0 1 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]] {1, 2, 3}\n```\n\n### Example using the faster ranking approach\n\n```python\n# Run GnIES (on the same data as above)\n_score, icpdag, I = gnies.fit(data, approach='rank')\nprint(icpdag, I)\n\n# Output:\n# [[0 1 0 0 0 1 0 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]\n#  [0 1 0 0 0 0 0 0 0 0]\n#  [0 1 0 0 0 0 1 0 0 1]\n#  [1 0 1 0 0 0 0 0 0 0]\n#  [0 1 1 0 0 0 0 0 0 0]\n#  [0 0 0 0 0 0 1 0 0 1]\n#  [0 1 0 1 0 0 1 0 0 0]\n#  [0 0 0 0 0 0 0 0 0 0]] {1, 2, 3}\n```\n\n## Code Structure\n\nThe source code modules can be found inside the `gnies/` directory. These include:\n\n  - [`gnies.main`](gnies/main.py) which is the main module with the calls to start GnIES.\n  - [`gnies.utils`](gnies/utils.py) contains auxiliary functions and the modified completion algorithm to transform PDAGs into a I-CPDAG, in the function `pdag_to_icpdag`.\n  - `scores/` contains the modules with the score classes:\n      - [`ges.scores.decomposable_score`](gnies/scores/decomposable_score.py) contains the base class for decomposable score classes (see that module for more details).\n      - [`ges.scores.gnies_score`](gnies/scores/gnies_score.py) contains an implementation of the cached GnIES score, as described in section 4 of the paper.\n   - `test/` contains the unit tests of the scores and other components.\n\n## Tests\n\nAll components come with unit tests to match, and some property-based tests. Of course, this doesn't mean there are no bugs, but hopefully it means *they are less likely* :)\n\nThe tests can be run with `make test`. You can add `SUITE=<module_name>` to run a particular module only. There is, however, the additional dependency of the [`sempler`](https://github.com/juangamella/sempler) package to run the tests. You can find the details in [`requirements_tests.txt`](requirements_tests.txt).\n\n## Feedback\n\nI hope you find this useful! Feedback and (constructive) criticism is always welcome, just shoot me an [email](mailto:juan.gamella@stat.math.ethz.ch) :)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/juangamella/gnies",
+            "keywords": "",
+            "license": "BSD 3-Clause License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "gnies",
+            "package_url": "https://pypi.org/project/gnies/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/gnies/",
+            "project_urls": {
+                "Homepage": "https://github.com/juangamella/gnies"
+            },
+            "release_url": "https://pypi.org/project/gnies/0.3.2/",
+            "requires_dist": [
+                "numpy (>=1.17.0)",
+                "ges (>=1.1.0)"
+            ],
+            "requires_python": "",
+            "summary": "",
+            "version": "0.3.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15925141,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "94f0d3ffb1328fd26fbb0799778a1d92",
+                    "sha256": "bf07af54be750a78ee52b8239f52ef4fd0ae4f501542dd3ace151fea0c5b3814"
+                },
+                "downloads": -1,
+                "filename": "gnies-0.3.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "94f0d3ffb1328fd26fbb0799778a1d92",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 42709,
+                "upload_time": "2022-11-29T08:48:46",
+                "upload_time_iso_8601": "2022-11-29T08:48:46.737569Z",
+                "url": "https://files.pythonhosted.org/packages/c1/56/1c01553a013a4b37c95c47efb99f74f0fbb9f0b3d8ebff411d1bd23267a6/gnies-0.3.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "56bc4cff4e7ea7a49709fd44ac5dc152",
+                    "sha256": "17b43de2bd3a86807bda89e66de1fd3d4f928de4427756070244ce3126e288a8"
+                },
+                "downloads": -1,
+                "filename": "gnies-0.3.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "56bc4cff4e7ea7a49709fd44ac5dc152",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 32719,
+                "upload_time": "2022-11-29T08:48:51",
+                "upload_time_iso_8601": "2022-11-29T08:48:51.727584Z",
+                "url": "https://files.pythonhosted.org/packages/db/c4/7e71a837dd91c842f6b9aff2a4c4dd62c637036b2fd0faa887e21f73ee7c/gnies-0.3.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

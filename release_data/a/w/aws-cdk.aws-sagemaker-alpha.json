@@ -54,7 +54,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15907511,
+        "last_serial": 15923417,
         "urls": [
             {
                 "comment_text": "",
@@ -154,7 +154,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15907511,
+        "last_serial": 15923417,
         "urls": [
             {
                 "comment_text": "",
@@ -219,7 +219,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Typing :: Typed"
             ],
-            "description": "# Amazon SageMaker Construct Library\n\n<!--BEGIN STABILITY BANNER-->---\n\n\n![cdk-constructs: Experimental](https://img.shields.io/badge/cdk--constructs-experimental-important.svg?style=for-the-badge)\n\n> The APIs of higher level constructs in this module are experimental and under active development.\n> They are subject to non-backward compatible changes or removal in any future version. These are\n> not subject to the [Semantic Versioning](https://semver.org/) model and breaking changes will be\n> announced in the release notes. This means that while you may use them, you may need to update\n> your source code when upgrading to a newer version of this package.\n\n---\n<!--END STABILITY BANNER-->\n\nAmazon SageMaker provides every developer and data scientist with the ability to build, train, and\ndeploy machine learning models quickly. Amazon SageMaker is a fully-managed service that covers the\nentire machine learning workflow to label and prepare your data, choose an algorithm, train the\nmodel, tune and optimize it for deployment, make predictions, and take action. Your models get to\nproduction faster with much less effort and lower cost.\n\n## Installation\n\nInstall the module:\n\n```console\n$ npm i @aws-cdk/aws-sagemaker\n```\n\nImport it into your code:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\n```\n\n## Model\n\nTo create a machine learning model with Amazon Sagemaker, use the `Model` construct. This construct\nincludes properties that can be configured to define model components, including the model inference\ncode as a Docker image and an optional set of separate model data artifacts. See the [AWS\ndocumentation](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-marketplace-develop.html)\nto learn more about SageMaker models.\n\n### Single Container Model\n\nIn the event that a single container is sufficient for your inference use-case, you can define a\nsingle-container model:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\nimport path as path\n\n\nimage = sagemaker.ContainerImage.from_asset(path.join(\"path\", \"to\", \"Dockerfile\", \"directory\"))\nmodel_data = sagemaker.ModelData.from_asset(path.join(\"path\", \"to\", \"artifact\", \"file.tar.gz\"))\n\nmodel = sagemaker.Model(self, \"PrimaryContainerModel\",\n    containers=[sagemaker.ContainerDefinition(\n        image=image,\n        model_data=model_data\n    )\n    ]\n)\n```\n\n### Inference Pipeline Model\n\nAn inference pipeline is an Amazon SageMaker model that is composed of a linear sequence of multiple\ncontainers that process requests for inferences on data. See the [AWS\ndocumentation](https://docs.aws.amazon.com/sagemaker/latest/dg/inference-pipelines.html) to learn\nmore about SageMaker inference pipelines. To define an inference pipeline, you can provide\nadditional containers for your model:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\n\n# image1: sagemaker.ContainerImage\n# model_data1: sagemaker.ModelData\n# image2: sagemaker.ContainerImage\n# model_data2: sagemaker.ModelData\n# image3: sagemaker.ContainerImage\n# model_data3: sagemaker.ModelData\n\n\nmodel = sagemaker.Model(self, \"InferencePipelineModel\",\n    containers=[sagemaker.ContainerDefinition(image=image1, model_data=model_data1), sagemaker.ContainerDefinition(image=image2, model_data=model_data2), sagemaker.ContainerDefinition(image=image3, model_data=model_data3)\n    ]\n)\n```\n\n### Container Images\n\nInference code can be stored in the Amazon EC2 Container Registry (Amazon ECR), which is specified\nvia `ContainerDefinition`'s `image` property which accepts a class that extends the `ContainerImage`\nabstract base class.\n\n#### Asset Image\n\nReference a local directory containing a Dockerfile:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\nimport path as path\n\n\nimage = sagemaker.ContainerImage.from_asset(path.join(\"path\", \"to\", \"Dockerfile\", \"directory\"))\n```\n\n#### ECR Image\n\nReference an image available within ECR:\n\n```python\nimport aws_cdk.aws_ecr as ecr\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\n\n\nrepository = ecr.Repository.from_repository_name(self, \"Repository\", \"repo\")\nimage = sagemaker.ContainerImage.from_ecr_repository(repository, \"tag\")\n```\n\n### Model Artifacts\n\nIf you choose to decouple your model artifacts from your inference code (as is natural given\ndifferent rates of change between inference code and model artifacts), the artifacts can be\nspecified via the `modelData` property which accepts a class that extends the `ModelData` abstract\nbase class. The default is to have no model artifacts associated with a model.\n\n#### Asset Model Data\n\nReference local model data:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\nimport path as path\n\n\nmodel_data = sagemaker.ModelData.from_asset(path.join(\"path\", \"to\", \"artifact\", \"file.tar.gz\"))\n```\n\n#### S3 Model Data\n\nReference an S3 bucket and object key as the artifacts for a model:\n\n```python\nimport aws_cdk.aws_s3 as s3\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\n\n\nbucket = s3.Bucket(self, \"MyBucket\")\nmodel_data = sagemaker.ModelData.from_bucket(bucket, \"path/to/artifact/file.tar.gz\")\n```\n\n## Model Hosting\n\nAmazon SageMaker provides model hosting services for model deployment. Amazon SageMaker provides an\nHTTPS endpoint where your machine learning model is available to provide inferences.\n\n### Endpoint Configuration\n\nBy using the `EndpointConfig` construct, you can define a set of endpoint configuration which can be\nused to provision one or more endpoints. In this configuration, you identify one or more models to\ndeploy and the resources that you want Amazon SageMaker to provision. You define one or more\nproduction variants, each of which identifies a model. Each production variant also describes the\nresources that you want Amazon SageMaker to provision. If you are hosting multiple models, you also\nassign a variant weight to specify how much traffic you want to allocate to each model. For example,\nsuppose that you want to host two models, A and B, and you assign traffic weight 2 for model A and 1\nfor model B. Amazon SageMaker distributes two-thirds of the traffic to Model A, and one-third to\nmodel B:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\n\n# model_a: sagemaker.Model\n# model_b: sagemaker.Model\n\n\nendpoint_config = sagemaker.EndpointConfig(self, \"EndpointConfig\",\n    instance_production_variants=[sagemaker.InstanceProductionVariantProps(\n        model=model_a,\n        variant_name=\"modelA\",\n        initial_variant_weight=2\n    ), sagemaker.InstanceProductionVariantProps(\n        model=model_b,\n        variant_name=\"variantB\",\n        initial_variant_weight=1\n    )\n    ]\n)\n```\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -255,7 +254,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15907511,
+        "last_serial": 15923417,
         "urls": [
             {
                 "comment_text": "",
@@ -294,6 +293,207 @@
                 "upload_time": "2022-11-27T22:40:22",
                 "upload_time_iso_8601": "2022-11-27T22:40:22.801601Z",
                 "url": "https://files.pythonhosted.org/packages/85/59/f3b572b454cf21cc8202e9bea5c842e413eb32c9e5349bee391cc46933e3/aws-cdk.aws-sagemaker-alpha-2.52.0a0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.52.1a0": {
+        "info": {
+            "author": "Amazon Web Services",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Framework :: AWS CDK",
+                "Framework :: AWS CDK :: 2",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved",
+                "Operating System :: OS Independent",
+                "Programming Language :: JavaScript",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Typing :: Typed"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/aws/aws-cdk",
+            "keywords": "",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "aws-cdk.aws-sagemaker-alpha",
+            "package_url": "https://pypi.org/project/aws-cdk.aws-sagemaker-alpha/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/aws-cdk.aws-sagemaker-alpha/",
+            "project_urls": {
+                "Homepage": "https://github.com/aws/aws-cdk",
+                "Source": "https://github.com/aws/aws-cdk.git"
+            },
+            "release_url": "https://pypi.org/project/aws-cdk.aws-sagemaker-alpha/2.52.1a0/",
+            "requires_dist": [
+                "aws-cdk-lib (<3.0.0,>=2.52.1)",
+                "constructs (<11.0.0,>=10.0.0)",
+                "jsii (<2.0.0,>=1.71.0)",
+                "publication (>=0.0.3)",
+                "typeguard (~=2.13.3)"
+            ],
+            "requires_python": "~=3.7",
+            "summary": "The CDK Construct Library for AWS::SageMaker",
+            "version": "2.52.1a0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15923417,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3d2e36ccb7e276ee52ad00c878be5b05",
+                    "sha256": "b2c2971f16557a9a9ad67e866e9e8d7f38782b2a25980e5e564c457e134d7aea"
+                },
+                "downloads": -1,
+                "filename": "aws_cdk.aws_sagemaker_alpha-2.52.1a0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "3d2e36ccb7e276ee52ad00c878be5b05",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": "~=3.7",
+                "size": 96737,
+                "upload_time": "2022-11-29T01:52:25",
+                "upload_time_iso_8601": "2022-11-29T01:52:25.620558Z",
+                "url": "https://files.pythonhosted.org/packages/51/d4/54bb6d3b5845e1c53ddff002db1d51d28b6d9abd77cb73376170842646c7/aws_cdk.aws_sagemaker_alpha-2.52.1a0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "33b63d1c8efc141e1c054d39a998d44c",
+                    "sha256": "8efee31dc774dbff0065d52fa439861969ca6c3b267323e9e8dc1d2607c515dc"
+                },
+                "downloads": -1,
+                "filename": "aws-cdk.aws-sagemaker-alpha-2.52.1a0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "33b63d1c8efc141e1c054d39a998d44c",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": "~=3.7",
+                "size": 97328,
+                "upload_time": "2022-11-29T01:53:16",
+                "upload_time_iso_8601": "2022-11-29T01:53:16.173889Z",
+                "url": "https://files.pythonhosted.org/packages/d8/71/aaec55816dcba03434033a87d8089b0def73bcb377d7f22f1fece5e2a364/aws-cdk.aws-sagemaker-alpha-2.52.1a0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.53.0a0": {
+        "info": {
+            "author": "Amazon Web Services",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Framework :: AWS CDK",
+                "Framework :: AWS CDK :: 2",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved",
+                "Operating System :: OS Independent",
+                "Programming Language :: JavaScript",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Typing :: Typed"
+            ],
+            "description": "# Amazon SageMaker Construct Library\n\n<!--BEGIN STABILITY BANNER-->---\n\n\n![cdk-constructs: Experimental](https://img.shields.io/badge/cdk--constructs-experimental-important.svg?style=for-the-badge)\n\n> The APIs of higher level constructs in this module are experimental and under active development.\n> They are subject to non-backward compatible changes or removal in any future version. These are\n> not subject to the [Semantic Versioning](https://semver.org/) model and breaking changes will be\n> announced in the release notes. This means that while you may use them, you may need to update\n> your source code when upgrading to a newer version of this package.\n\n---\n<!--END STABILITY BANNER-->\n\nAmazon SageMaker provides every developer and data scientist with the ability to build, train, and\ndeploy machine learning models quickly. Amazon SageMaker is a fully-managed service that covers the\nentire machine learning workflow to label and prepare your data, choose an algorithm, train the\nmodel, tune and optimize it for deployment, make predictions, and take action. Your models get to\nproduction faster with much less effort and lower cost.\n\n## Installation\n\nInstall the module:\n\n```console\n$ npm i @aws-cdk/aws-sagemaker\n```\n\nImport it into your code:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\n```\n\n## Model\n\nTo create a machine learning model with Amazon Sagemaker, use the `Model` construct. This construct\nincludes properties that can be configured to define model components, including the model inference\ncode as a Docker image and an optional set of separate model data artifacts. See the [AWS\ndocumentation](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-marketplace-develop.html)\nto learn more about SageMaker models.\n\n### Single Container Model\n\nIn the event that a single container is sufficient for your inference use-case, you can define a\nsingle-container model:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\nimport path as path\n\n\nimage = sagemaker.ContainerImage.from_asset(path.join(\"path\", \"to\", \"Dockerfile\", \"directory\"))\nmodel_data = sagemaker.ModelData.from_asset(path.join(\"path\", \"to\", \"artifact\", \"file.tar.gz\"))\n\nmodel = sagemaker.Model(self, \"PrimaryContainerModel\",\n    containers=[sagemaker.ContainerDefinition(\n        image=image,\n        model_data=model_data\n    )\n    ]\n)\n```\n\n### Inference Pipeline Model\n\nAn inference pipeline is an Amazon SageMaker model that is composed of a linear sequence of multiple\ncontainers that process requests for inferences on data. See the [AWS\ndocumentation](https://docs.aws.amazon.com/sagemaker/latest/dg/inference-pipelines.html) to learn\nmore about SageMaker inference pipelines. To define an inference pipeline, you can provide\nadditional containers for your model:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\n\n# image1: sagemaker.ContainerImage\n# model_data1: sagemaker.ModelData\n# image2: sagemaker.ContainerImage\n# model_data2: sagemaker.ModelData\n# image3: sagemaker.ContainerImage\n# model_data3: sagemaker.ModelData\n\n\nmodel = sagemaker.Model(self, \"InferencePipelineModel\",\n    containers=[sagemaker.ContainerDefinition(image=image1, model_data=model_data1), sagemaker.ContainerDefinition(image=image2, model_data=model_data2), sagemaker.ContainerDefinition(image=image3, model_data=model_data3)\n    ]\n)\n```\n\n### Container Images\n\nInference code can be stored in the Amazon EC2 Container Registry (Amazon ECR), which is specified\nvia `ContainerDefinition`'s `image` property which accepts a class that extends the `ContainerImage`\nabstract base class.\n\n#### Asset Image\n\nReference a local directory containing a Dockerfile:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\nimport path as path\n\n\nimage = sagemaker.ContainerImage.from_asset(path.join(\"path\", \"to\", \"Dockerfile\", \"directory\"))\n```\n\n#### ECR Image\n\nReference an image available within ECR:\n\n```python\nimport aws_cdk.aws_ecr as ecr\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\n\n\nrepository = ecr.Repository.from_repository_name(self, \"Repository\", \"repo\")\nimage = sagemaker.ContainerImage.from_ecr_repository(repository, \"tag\")\n```\n\n### Model Artifacts\n\nIf you choose to decouple your model artifacts from your inference code (as is natural given\ndifferent rates of change between inference code and model artifacts), the artifacts can be\nspecified via the `modelData` property which accepts a class that extends the `ModelData` abstract\nbase class. The default is to have no model artifacts associated with a model.\n\n#### Asset Model Data\n\nReference local model data:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\nimport path as path\n\n\nmodel_data = sagemaker.ModelData.from_asset(path.join(\"path\", \"to\", \"artifact\", \"file.tar.gz\"))\n```\n\n#### S3 Model Data\n\nReference an S3 bucket and object key as the artifacts for a model:\n\n```python\nimport aws_cdk.aws_s3 as s3\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\n\n\nbucket = s3.Bucket(self, \"MyBucket\")\nmodel_data = sagemaker.ModelData.from_bucket(bucket, \"path/to/artifact/file.tar.gz\")\n```\n\n## Model Hosting\n\nAmazon SageMaker provides model hosting services for model deployment. Amazon SageMaker provides an\nHTTPS endpoint where your machine learning model is available to provide inferences.\n\n### Endpoint Configuration\n\nBy using the `EndpointConfig` construct, you can define a set of endpoint configuration which can be\nused to provision one or more endpoints. In this configuration, you identify one or more models to\ndeploy and the resources that you want Amazon SageMaker to provision. You define one or more\nproduction variants, each of which identifies a model. Each production variant also describes the\nresources that you want Amazon SageMaker to provision. If you are hosting multiple models, you also\nassign a variant weight to specify how much traffic you want to allocate to each model. For example,\nsuppose that you want to host two models, A and B, and you assign traffic weight 2 for model A and 1\nfor model B. Amazon SageMaker distributes two-thirds of the traffic to Model A, and one-third to\nmodel B:\n\n```python\nimport aws_cdk.aws_sagemaker_alpha as sagemaker\n\n# model_a: sagemaker.Model\n# model_b: sagemaker.Model\n\n\nendpoint_config = sagemaker.EndpointConfig(self, \"EndpointConfig\",\n    instance_production_variants=[sagemaker.InstanceProductionVariantProps(\n        model=model_a,\n        variant_name=\"modelA\",\n        initial_variant_weight=2\n    ), sagemaker.InstanceProductionVariantProps(\n        model=model_b,\n        variant_name=\"variantB\",\n        initial_variant_weight=1\n    )\n    ]\n)\n```\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/aws/aws-cdk",
+            "keywords": "",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "aws-cdk.aws-sagemaker-alpha",
+            "package_url": "https://pypi.org/project/aws-cdk.aws-sagemaker-alpha/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/aws-cdk.aws-sagemaker-alpha/",
+            "project_urls": {
+                "Homepage": "https://github.com/aws/aws-cdk",
+                "Source": "https://github.com/aws/aws-cdk.git"
+            },
+            "release_url": "https://pypi.org/project/aws-cdk.aws-sagemaker-alpha/2.53.0a0/",
+            "requires_dist": [
+                "aws-cdk-lib (<3.0.0,>=2.53.0)",
+                "constructs (<11.0.0,>=10.0.0)",
+                "jsii (<2.0.0,>=1.71.0)",
+                "publication (>=0.0.3)",
+                "typeguard (~=2.13.3)"
+            ],
+            "requires_python": "~=3.7",
+            "summary": "The CDK Construct Library for AWS::SageMaker",
+            "version": "2.53.0a0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15923417,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d390a425aeb9d6b0ad365a5bf5e957c0",
+                    "sha256": "b3fb7fa384dd99f31cf6a96436414996b3f04c0f568067f4035e39027c547c39"
+                },
+                "downloads": -1,
+                "filename": "aws_cdk.aws_sagemaker_alpha-2.53.0a0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "d390a425aeb9d6b0ad365a5bf5e957c0",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": "~=3.7",
+                "size": 96739,
+                "upload_time": "2022-11-29T06:15:12",
+                "upload_time_iso_8601": "2022-11-29T06:15:12.474557Z",
+                "url": "https://files.pythonhosted.org/packages/95/9b/070699d8089eadb66f11f4f52cb079164c753f0010673ef02e2a248895fb/aws_cdk.aws_sagemaker_alpha-2.53.0a0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ef8ad5081592b694d2d5641f26dc7163",
+                    "sha256": "1efdfa5d2b5b66778d330db0a4d50884d939ce060ef5151dfb0b1cce1a9abd16"
+                },
+                "downloads": -1,
+                "filename": "aws-cdk.aws-sagemaker-alpha-2.53.0a0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ef8ad5081592b694d2d5641f26dc7163",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": "~=3.7",
+                "size": 97324,
+                "upload_time": "2022-11-29T06:16:05",
+                "upload_time_iso_8601": "2022-11-29T06:16:05.910806Z",
+                "url": "https://files.pythonhosted.org/packages/96/80/8297f910b405df96107c70429489b845aecf80bd9f93cf2eea962a01284c/aws-cdk.aws-sagemaker-alpha-2.53.0a0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

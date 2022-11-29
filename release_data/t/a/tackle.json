@@ -31,10 +31,10 @@
             "requires_python": null,
             "summary": "Another WSGI framework aiming for simplicity and flexibility",
             "version": "0.0.1",
-            "yanked": false,
+            "yanked": true,
             "yanked_reason": null
         },
-        "last_serial": 15919021,
+        "last_serial": 15926132,
         "urls": [
             {
                 "comment_text": "built for Darwin-15.2.0",
@@ -53,7 +53,7 @@
                 "upload_time": "2016-02-12T00:40:18",
                 "upload_time_iso_8601": "2016-02-12T00:40:18.083026Z",
                 "url": "https://files.pythonhosted.org/packages/c8/6d/43b21e92fea660410264e5f1c07af7bf4609215567f145354f3093744290/tackle-0.0.1.macosx-10.11-intel.tar.gz",
-                "yanked": false,
+                "yanked": true,
                 "yanked_reason": null
             },
             {
@@ -73,7 +73,7 @@
                 "upload_time": "2016-02-12T00:40:25",
                 "upload_time_iso_8601": "2016-02-12T00:40:25.406308Z",
                 "url": "https://files.pythonhosted.org/packages/f0/ae/bb89e7ec484fa2154594297e357306fe4fcd497ca2d2c6621934c890d217/tackle-0.0.1-py2.7.egg",
-                "yanked": false,
+                "yanked": true,
                 "yanked_reason": null
             },
             {
@@ -93,7 +93,7 @@
                 "upload_time": "2016-02-12T00:40:09",
                 "upload_time_iso_8601": "2016-02-12T00:40:09.460848Z",
                 "url": "https://files.pythonhosted.org/packages/bc/fb/b5fb717c39252d022fa9e288db0c6d8a728c0260775d82e15942b640c278/tackle-0.0.1.tar.gz",
-                "yanked": false,
+                "yanked": true,
                 "yanked_reason": null
             }
         ],
@@ -105,7 +105,6 @@
             "author_email": "sam.briesemeister@gmail.com",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "WSGI Tackle\n===========\n\nThis is a WSGI framework originated by Sam Briesemeister, derived from\nwork in personal projects and products still in development, which\nneeded a very light WSGI abstraction.\n\nIt adopts some inspiration, paradigms and design components from other\nWSGI environments, including webapp2 (Google AppEngine), but aims to\nmaintain a degree of compatibility with core WSGI architecture.\n\nIt's currently tested and working in combination with Flask. No\ndependencies on a particular WSGI server, e.g. ``gevent``, are currently\nrequired.\n\nWhy does the world need another WSGI framework?\n-----------------------------------------------\n\nFrankly *the world* probably doesn't, but in spite of the `abundance of\navailable\nframeworks <http://wsgi.readthedocs.org/en/latest/frameworks.html>`__,\nnone quite fit my taste.\n\nThe name: tackle, `the equipment used to in a particular\nsport <http://www.thefreedictionary.com/tackle>`__.\n\nDependencies\n------------\n\n-  webob\n\nFeatures\n========\n\n-  `Virtual Host Routing <#virtualhost>`__ based on hostname\n-  `URL Routing <#routing>`__ with regular expressions to simplify\n   RESTful interface design (which most modern WSGI frameworks also\n   claim)\n-  `Middleware Class <#middleware>`__ for easily mixing features, in\n   generic fashion, with existing WSGI applications.\n-  `Static File Preemptive Route <#staticfiles-middleware>`__\n-  `Rule-based Redirection <#redirection-middleware>`__\n\nVirtual Host Routing \n---------------------\n\nIn case you're using a very simplistic hosting environment which offers\nyou a single WSGI instance, such as Gandi's Simple Hosting, you may need\nto integrate multiple WSGI applications from several domains.\n\n.. code:: python\n\n    from tackle import WSGIService\n    from myapp import example_com\n    from myapp import otherhost_com\n\n    # Pass any WSGI-compliant callable as a hander for any host.\n\n    service = WSGIService(\n      ('www.example.com', example_com)\n      ('www.otherhost.com', otherhost_com)\n    )\n\n    # Register a single WSGI callable for multiple hosts\n    service.register(another_app, 'abc.com', 'xyz.com')\n\nURL Routing \n------------\n\n| This model probably isn't new to you, it's echoed in many frameworks,\n  in various styles.\n| Register a RequestHandler for a particular URL pattern.\n\n.. code:: python\n\n    from tackle import WSGIApplication, WSGIRequestHandler\n\n    app = WSGIApplication()\n\n    @app.route('/resource/<resource_id>')\n    class ResourceHandler(WSGIHandler):\n\n      def get(self, resource_id):\n        \"\"\" retrieve the resource's content \"\"\"\n        # self.response is a webob.Response\n        self.response.headers['Content-Type'] = 'text/plain'\n        return \"Looking for resource %r\" % resource_id\n\n      def post(self, resource_id):\n        \"\"\" update the resource based on request body \"\"\"\n        # self.request is a webob.Request\n        update_prop = self.request.params.get('resource_name')\n        pass\n\nCurrently there are no artificial constraints on HTTP verbs that will be\nattempted as methods on the request handler.\n\nMiddleware \n-----------\n\nA simple, generic Middleware model is provided. Any middleware derived\nfrom this class can implement one or both of the methods illustrated\nbelow, ``run_before`` or ``run_after``.\n\n.. code:: python\n\n    from tackle import Middleware, WSGIApplication\n\n    class CustomMiddleware(Middleware):\n\n      def run_before(self, environ, start_response):\n        # any aspects accessible to downstream applications need to be added to environ.\n        # a return value from this method will override (prevent) the downstream app from handling the request.\n        pass\n\n      def run_after(self, environ, start_response, previous_result):\n        # `previous_result` is the return value from the app, or any intervening Middleware.\n        # this method should return previous_result, if unmodified, or return a modified form of it (a replacement).\n        return previous_result\n\n      \n    # Prepare your core WSGI application.\n    myapp = WSGIApplication(...)\n\n    # Constructs a new WSGI callable. \n    # If you reassign `app` with this value, you may lose reference to your original app's properties. \n    wrapped_app = CustomMiddleware(option = \"value\").wsgi(myapp)\n\nStatic File Preemptive Route \n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nThis middleware acts as a preemptor to a primary application. When a\nrequest matches the given URL prefix, the remaining URL path is resolved\nwithin a given local directory, and served directly with a simple\ncaching directive.\n\n.. code:: python\n\n    from tackle import WSGIApplication, StaticFileMiddleware\n\n    # All requests in \"/static/\" should resolve within \"./local/app/static\"\n    # e.g. GET /static/site.css will resolve to \"local/app/static/site.css\"\n    static = StaticFileMiddleware('local/app/static', '/static/')\n\n    app = WSGIApplication()\n    app = static.wsgi(app)\n\nRule-Based Redirection \n~~~~~~~~~~~~~~~~~~~~~~~\n\nThe Redirection middleware operates preemptively, intercepting requests\nto matched URLs and responding with HTTP 301 or 302 redirects.\n\n| Two options are provided to incorporate common behaviors;\n  ``retain_path`` will first copy the path from the original request\n  into the redirect's destination; and ``retain_query`` will first copy\n  the query from the original request into the redirect's destination.\n| These options will override statically-defined path or query\n  components of the configured target. Variations can be achieved using\n  regular expressions and destination templates.\n\n.. code:: python\n\n    from tackle import WSGIApplication, RedirectionMiddleware\n\n    app = WSGIApplication()\n\n    redir = RedirectionMiddleware(retain_path = False, retain_query = True) # defaults\n    redir.redirect(\"/help/(.*)\", \"http://help.mysite.com/{1}\")\n\n    # named captures are also supported.\n    redir.redirect(\"/help/(?P<article>.*)\", \"http://help.mysite.com/{article}\")\n\n    app = redir.wsgi(app)\n\n",
             "description_content_type": null,
             "docs_url": null,
             "download_url": "UNKNOWN",
@@ -132,10 +131,10 @@
             "requires_python": null,
             "summary": "Another WSGI framework aiming for simplicity and flexibility",
             "version": "0.0.1b0",
-            "yanked": false,
+            "yanked": true,
             "yanked_reason": null
         },
-        "last_serial": 15919021,
+        "last_serial": 15926132,
         "urls": [
             {
                 "comment_text": "built for Darwin-15.2.0",
@@ -154,7 +153,7 @@
                 "upload_time": "2016-02-12T00:50:33",
                 "upload_time_iso_8601": "2016-02-12T00:50:33.460823Z",
                 "url": "https://files.pythonhosted.org/packages/6c/5f/855727959de2a805f6363e049e98932f1216a225646e1b0133f5d8f28bfd/tackle-0.0.1b0.macosx-10.11-intel.tar.gz",
-                "yanked": false,
+                "yanked": true,
                 "yanked_reason": null
             },
             {
@@ -174,7 +173,7 @@
                 "upload_time": "2016-02-12T00:50:38",
                 "upload_time_iso_8601": "2016-02-12T00:50:38.890436Z",
                 "url": "https://files.pythonhosted.org/packages/94/1b/5e2e1e7c8f24f14b4df7a3403561ea0df73fc9b102fcc7d410f50a5c0052/tackle-0.0.1b0-py2.7.egg",
-                "yanked": false,
+                "yanked": true,
                 "yanked_reason": null
             },
             {
@@ -194,6 +193,138 @@
                 "upload_time": "2016-02-12T00:50:26",
                 "upload_time_iso_8601": "2016-02-12T00:50:26.483172Z",
                 "url": "https://files.pythonhosted.org/packages/4f/04/91837a91d230acd41d7dd9d0fc6da2ff1b950382d3aa6c1f3ecf2c7b0434/tackle-0.0.1b0.tar.gz",
+                "yanked": true,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.3": {
+        "info": {
+            "author": "Rob Cannon",
+            "author_email": "robc.io.opensource@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Natural Language :: English",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Python :: Implementation :: PyPy",
+                "Topic :: Software Development"
+            ],
+            "description": "<img align=\"right\" width=\"280\" height=\"280\" src=\"https://raw.githubusercontent.com/robcxyz/tackle/main/docs/assets/logo-box.png\">\n\n# tackle\n\n[![pypi](https://img.shields.io/pypi/v/tackle.svg)](https://pypi.python.org/pypi/tackle)\n[![python](https://img.shields.io/pypi/pyversions/tackle.svg)](https://pypi.python.org/pypi/tackle)\n[![codecov](https://codecov.io/gh/robcxyz/tackle/branch/main/graphs/badge.svg?branch=main)](https://codecov.io/github/robcxyz/tackle?branch=main)\n[![codeql](https://github.com/robcxyz/tackle/actions/workflows/codeql.yml/badge.svg)](https://github.com/robcxyz/tackle/actions/workflows/codeql.yml)\n[![Foresight Docs](https://api-public.service.runforesight.com/api/v1/badge/success?repoId=4abde40b-565a-4557-afc0-983461857bb4)](https://docs.runforesight.com/)\n[![Foresight Docs](https://api-public.service.runforesight.com/api/v1/badge/test?repoId=4abde40b-565a-4557-afc0-983461857bb4)](https://docs.runforesight.com/)\n[![Foresight Docs](https://api-public.service.runforesight.com/api/v1/badge/utilization?repoId=4abde40b-565a-4557-afc0-983461857bb4)](https://docs.runforesight.com/)\n\n[//]: # ([![main-tests]&#40;https://github.com/robcxyz/tackle/actions/workflows/main.yml/badge.svg&#41;]&#40;https://github.com/robcxyz/tackle/actions&#41;)\n\n* [Documentation](https://robcxyz.github.io/tackle)\n* [Discord](https://discord.gg/7uVUfUVD7K)\n* [PyPI](https://pypi.org/project/tackle/)\n* [BSD License](LICENSE)\n\n[//]: # (* [Slack]&#40;https://join.slack.com/t/slack-y748219/shared_invite/zt-1cqreswyd-5qDBE53QlY97mQOI6DhcKw&#41;)\n\nTackle is an experimental DSL for building modular code generators and declarative CLIs. Built as a fork of [cookiecutter](https://github.com/cookiecutter/cookiecutter), it can make any config file dynamic or into a CLI with both strong and weakly typed programmable flow control common to a general purpose programming language. Basically you can write a fully functional Turing-complete program out of a config file. It's wild.\n\n**With tackle, you can build:**\n- Modular code generators / repo scaffolding tools that can be updated over time\n- Interactive glue code for infrastructure-as-code deployment strategies\n- Generic utilities like SSH registries and dotfile managers\n- Combinations of all of the above and anything else you can think of\n\n[//]: # (- Declarative makefile alternatives for advanced toolchain management)\n\n> If this project gets enough adoption / stars, it will be re-written in a compiled language. \n\n### Features\n\n- Makes arbitrary yaml / json / toml [dynamic](https://robcxyz.github.io/tackle/hook-methods/)\n  - Embed loops, conditionals, and other custom logic\n  - Self documenting CLI to call logic\n- Ships with a collection of over [100 hooks](https://robcxyz.github.io/tackle) that act like plugins within your config file\n  - [Prompt user for inputs](https://robcxyz.github.io/tackle)\n  - [Generate code from templates](https://robcxyz.github.io/tackle/providers/Generate/)\n  - Read and write [yaml](https://robcxyz.github.io/tackle/providers/Yaml/) / [toml](https://robcxyz.github.io/tackle/providers/Toml/) / [json](https://robcxyz.github.io/tackle/providers/Json/) [files](https://robcxyz.github.io/tackle/providers/Files/)\n  - [Make http calls](https://robcxyz.github.io/tackle/providers/Web/)\n  - [Run arbitrary system commands](https://robcxyz.github.io/tackle/providers/Command/)\n  - [Manipulate the context](https://robcxyz.github.io/tackle/providers/Context/)\n  - [Run other tackle files](https://robcxyz.github.io/tackle/providers/Tackle/tackle/)\n- Modular design allows creating / importing new hooks easy\n  - Supports both [python](https://robcxyz.github.io/tackle/python-hooks/) and [declarative](https://robcxyz.github.io/tackle/declarative-hooks/) hooks which can be imported / called / defined in-line or within jinja templates\n\n### Install\n\n> Note: tackle can install dependencies on its own. Check [docs](https://robcxyz.github.io/tackle/installation#best-installation-method) for advanced installation methods to isolate tackle from your system python.\n\n```shell\npython -m venv env && source env/bin/activate\npip install tackle\n```\n\n**Quick Demo:** `tackle robcxyz/tackle-hello-world`\n\n### Hello world\n\nCheck out the [docs](https://robcxyz.github.io/tackle/hello-worlds/) for >10 hello worlds that demonstrate the various aspects of the syntax with the simplest one using the [print](https://robcxyz.github.io/tackle/providers/Console/print/) hook, one of [>100 hooks](https://robcxyz.github.io/tackle/installation#best-installation-method).\n\n**hello.yaml**\n```yaml\n# Any time a key ends with `->`, we are calling a hook\nhw->: print Hello world!\n```\n\nTo run, call `tackle hello.yaml`. Can also be [version controlled](https://robcxyz.github.io/tackle/creating-providers/) -> [`tackle robcxyz/tackle-hello-world`](https://github.com/robcxyz/tackle-hello-world).\n\nCan also use [loops, conditionals, and other base methods](https://robcxyz.github.io/tackle/hook-methods/).\n\n**hello.yaml**\n```yaml\nthe:\n  words:\n    - Hello\n    - cruel\n    - world!\none liner->: print --for the.words --if \"item != 'cruel'\" {{item}}\nmultiple lines:\n  ->: print\n  for:\n    - Hello\n    - world!\n# Or combinations of the above with other methods like try/except\n```\n\nNew hooks can be [made in python](https://robcxyz.github.io/tackle/python-hooks/)\n which under the hood is a [pydantic](https://github.com/pydantic/pydantic) model.\n\n```python\nfrom tackle import BaseHook\n\nclass Greeter(BaseHook):\n    hook_type: str = \"greeter\"\n    target: str\n    args: list = ['target']\n    def exec(self):\n      expression = f\"Hello {self.target}\"\n      print(expression)\n      return expression\n```\n\nOr can be [defined inline within your tackle file.](https://robcxyz.github.io/tackle/declarative-hooks/).\n\n```yaml\n# Keys ending with `<-` mean we are creating a hook / method\ngreeter<-:\n  target: str\n  args: ['target']\n  exec<-:\n    expression: Hello {{target}}\n    p->: print {{expression}}\n  return: expression\n```\n\nAnd both can be [called in the same way](https://robcxyz.github.io/tackle/writing-tackle-files/).\n\n```yaml\nhello: world!\nWith a flag->: greeter --target {{hello}}\nTarget in argument->: greeter {{hello}}\nExpanded fields:\n  ->: greeter\n  target: {{hello}}\nJinja template->: {{ greeter(hello) }}\n# Or combinations jinja and compact / expanded hooks allowing chaining of hook calls.  \n```\n\nWith the declarative hooks being callable from the command line:\n\n```shell\ntackle hello.yaml --target world!\n# Or from a github repo\ntackle robcxyz/tackle-hello-world --checkout v0.1.0\n```\n\nDocumentation can be embedded into the hooks.\n\n```yaml\n<-:\n  help: This is the default hook\n  target:\n    type: str\n    default->: input\n    description: The thing to say hello to\n  exec<-:\n    greeting->: select Who to greet? --choices ['world',target]\n    hi->: greeter --target {{greeting}}\n  greeting-method<-:\n    help: A method that greets\n    # ... Greeting options / logic\ngreeter<-:\n  help: A reusable greeter object\n  target: str\n  exec<-:\n    hi->: print Hello {{target}}\n```\n\nWhich when running `tackle hello.yaml help` produces its own help screen.\n\n```text\nusage: tackle hello.yaml [--target]\n\nThis is the default hook\n\noptions:\n    --target [str] The thing to say hello to\nmethods:\n    greeting-method     A method that greets\n    greeter     A reusable greeter object\n```\n\nHooks can be imported, linked, and/or combined creating a web of CLIs.\n\n### Use Cases\n\n- [Code Generation](https://robcxyz.github.io/tackle/tutorials/code-generation/)\n\n**WIP Tutorials**\n\n- [Declarative Utilities]()\n- [Infrastructure-as-Code Management]()\n- [Kubernetes Manifest Management]()\n- [Toolchain Management]()\n\n[//]: # (- [Repo Management]&#40;&#41; - wip)\n\n### Topics\n\n- [Writing Tackle Files](https://robcxyz.github.io/tackle/writing-tackle-files/)\n- [Creating Providers](https://robcxyz.github.io/tackle/creating-providers/)\n- [Python Hooks](https://robcxyz.github.io/tackle/python-hooks/)\n- [Declarative Hooks](https://robcxyz.github.io/tackle/declarative-hooks/)\n- [Blocks](https://robcxyz.github.io/tackle/writing-tackle-files/#blocks) and [Flow Control](https://robcxyz.github.io/tackle/hook-methods/)\n- [Memory Management](https://robcxyz.github.io/tackle/memory-management/)\n- [Special Variables](https://robcxyz.github.io/tackle/special-variables/)\n- [Declarative CLIs](https://robcxyz.github.io/tackle/declarative-cli/)\n\n### Contributing\n\nContributions are welcome but please be advised of the following notes.\n\n- This project uses [conventional commits](https://www.conventionalcommits.org/) which generates the [changelog](./CHANGELOG.md) with [release-please-action]() in the [release]() CI workflow. If commits have been made outside of this convention they will be squashed accordingly.\n- For making changes to providers, please include test coverage using the existing fixtures and patterns from prior tests or communicate any suggestions that deviate from this style. Tests should be runnable from the test's directory and via `make test`.\n- For making changes to the core parser, please create a proposal first outlining your suggestions with examples before spending time working on code.\n\nIt is very easy to create new providers / hooks with tackle. Over time, it will adopt the same import pattern of what Ansible does where all provider / hooks (modules) are stored in version controlled locations. In the meantime, please feel free to contribute to this repository for hooks that have general applicability or create your own hooks in other repositories that are more bespoke / opinionated in nature.\n\n### Code of Conduct\n\nEveryone interacting in the tackle project's codebases, issue trackers, chat rooms, and mailing lists is expected to follow the [PyPA Code of Conduct](https://www.pypa.io/en/latest/code-of-conduct/).\n\n## Credit\n\nSpecial thanks to the [cookiecutter](https://github.com/cookiecutter/cookiecutter) community for laying the basis for this project.\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/robcxyz/tackle",
+            "keywords": "cookiecutter,tackle,tackle-box,tacklebox,tackle box,Python,projects,project templates,Jinja2,skeleton,scaffolding,project directory,package,packaging,kubernetes",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "tackle",
+            "package_url": "https://pypi.org/project/tackle/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/tackle/",
+            "project_urls": {
+                "Homepage": "https://github.com/robcxyz/tackle"
+            },
+            "release_url": "https://pypi.org/project/tackle/0.4.3/",
+            "requires_dist": [
+                "Jinja2 (>3.0.0)",
+                "pydantic (>=1.8.0)",
+                "InquirerPy (>=0.3.3)",
+                "ruamel.yaml (>=0.17.0)",
+                "rich (>=12.6.0)",
+                "xdg (==5.1.1)",
+                "pytest ; extra == 'all'",
+                "freezegun ; extra == 'all'",
+                "GitPython ; extra == 'all'",
+                "psycopg2-binary ; extra == 'all'",
+                "toml (>=0.10.0) ; extra == 'all'",
+                "requests ; extra == 'all'",
+                "tox ; extra == 'all'",
+                "rich ; extra == 'all'",
+                "pytest-mock ; extra == 'all'",
+                "kubernetes ; extra == 'all'",
+                "pytest-asyncio ; extra == 'all'",
+                "flake8 ; extra == 'all'",
+                "ptyprocess ; extra == 'all'",
+                "pytest-cov ; extra == 'all'",
+                "rich ; extra == 'console'",
+                "pytest ; extra == 'dev'",
+                "freezegun ; extra == 'dev'",
+                "requests ; extra == 'dev'",
+                "tox ; extra == 'dev'",
+                "pytest-mock ; extra == 'dev'",
+                "pytest-asyncio ; extra == 'dev'",
+                "flake8 ; extra == 'dev'",
+                "ptyprocess ; extra == 'dev'",
+                "pytest-cov ; extra == 'dev'",
+                "GitPython ; extra == 'git'",
+                "kubernetes ; extra == 'kubernetes'",
+                "psycopg2-binary ; extra == 'postgres'",
+                "toml (>=0.10.0) ; extra == 'toml'",
+                "requests ; extra == 'web'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Tackle is a declarative DSL for building modular workflows and code generators. Tool is plugins based and can easily be extended by writing additional hooks or importing external providers that can be turned into a self documenting CLI, all out of yaml, json, toml.",
+            "version": "0.4.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15926132,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f3efbb3dc91a20af0be07a4718e9b294",
+                    "sha256": "6912014017c46c468275145df46e7ccafae228eac519872e5ab9d43ca7934e7d"
+                },
+                "downloads": -1,
+                "filename": "tackle-0.4.3-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f3efbb3dc91a20af0be07a4718e9b294",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": ">=3.7",
+                "size": 252337,
+                "upload_time": "2022-11-29T10:34:57",
+                "upload_time_iso_8601": "2022-11-29T10:34:57.610380Z",
+                "url": "https://files.pythonhosted.org/packages/a8/dd/b0bd9fc49e96355ea40a87e2ceac9f4235f9b1801f70f6ec4531e0ecc968/tackle-0.4.3-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "12f88c360af595c3ff0ba96fe7080015",
+                    "sha256": "de5ded54fc64379085e4ca62d9f58f2e454650e7383a45ae85ce175979ff536c"
+                },
+                "downloads": -1,
+                "filename": "tackle-0.4.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "12f88c360af595c3ff0ba96fe7080015",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 182055,
+                "upload_time": "2022-11-29T10:34:59",
+                "upload_time_iso_8601": "2022-11-29T10:34:59.209626Z",
+                "url": "https://files.pythonhosted.org/packages/51/5d/6c568c654949becc5d5aa5507cf0f375ecad6c2a5d6fc15eb48429c64dd5/tackle-0.4.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

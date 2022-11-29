@@ -1,0 +1,84 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "Avnet Embedded GmbH",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "***************\nThe Scotty tool\n***************\n\nScotty\n======\n\n``SimpleCore open technology tool for you`` or short ``Scotty`` is a tool used to\noperate with the SimpleCore BSP, helping to download sources and build BSP images. It\nrelies on docker to provide a reproducible build environment.\n\n``Scotty`` can either be used as a single command to build a full image or as an\nhelper to setup Yocto sources and open a shell with a Yocto environment.\n\nGetting started\n---------------\n\nThe scotty tool relies on a docker container to embed as much as possible the\nsoftware dependencies it relies on. As a consequence, you will need to make sure\nto install `Docker<https://www.docker.com/>` on your system and make sure your\nuser has rights to use docker.\nThe scotty tool also needs `OpenSSL<https://www.openssl.org/>` to function properly.\n\nOn Ubuntu 20.04 platforms, they can be installed with following commands::\n\n    $ sudo apt install docker.io openssl\n    $ sudo gpasswd -a ${USER} docker\n\nIn addition, if you plan to use QEMU images, it is advised to make sure the\ncurrent user is able to use `KVM <https://www.linux-kvm.org/page/Main_Page>`_,\nhaving write permissions to ``/dev/kvm``. On Ubuntu 20.04, this can be done by\nadding your user to the ``kvm`` group, with the following command::\n\n    $ sudo gpasswd -a ${USER} kvm\n\n.. note::\n    After adding your user to the docker or kvm group with the ``gpasswd``\n    command, you will need to open a new session to apply your new privileges.\n\nInstalling the scotty tool can be easily done with ``pip``\n\n.. code:: shell\n\n  pip install --user avnet-scotty\n\nupgrading an existing installation can be done with\n\n.. code:: shell\n\n  pip install --user --upgrade avnet-scotty\n\n\nAlternatively, the current development version can be obtained by cloning\n`<https://github.com/avnet-embedded/simplecore-tools>`_.\n\n.. note:: Remove the following paragraph once the BSP is open-sourced.\n\nTo allow ``scotty`` to download the associated docker image, you will need to run\na docker login command, as documented on\n`<https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry>`_\n\n\nScotty subcommands\n------------------\n\nSeveral commands are supported by Scotty, with different goals:\n  - ``update``: download or update the Yocto sources. Will be triggered\n    implicitly with default parameters if no sources are found.\n  - ``setup``: Setup the build directory. Will be triggered implicitly with\n    default parameters if the build directory has not been setup.\n  - ``bitbake``: Build a Yocto target.\n  - ``shell``: Run a shell in the Yocto build environment.\n  - ``command``: Run a command in the Yocto build environment.\n  - ``docker-update``: Update Scotty build container.\n\nBuilding a full image\n---------------------\n\nA single command is enough to download the sources and build an image:\n\n.. code-block:: bash\n\n   $ scotty bitbake core-image-minimal\n\nBuilt images can then be found in ``build/build/tmp/deploy/images/``.\n\nThe build target can be customized:\n\n.. code-block:: bash\n\n   $ scotty bitbake core-image-minimal\n   $ scotty bitbake -- core-image-minimal -c populate_sdk\n\nUsing Scotty as an helper\n-------------------------\n\n``Scotty`` can be used to open a shell with a sourced Yocto environment:\n\n.. code-block:: bash\n\n   $ scotty shell\n\nIt can also be used to run a single command without opening a shell:\n\n.. code-block:: bash\n\n   # This is equivalent to scotty bitbake core-image-minimal\n   $ scotty command bitbake core-image-minimal\n\n   $ scotty command bitbake-layers show-appends\n\nUpdating sources\n----------------\n\nScotty will not modify downloaded sources by itself after the initial setup.\nBuilding an image with up-to-date sources can be done using following commands:\n\n.. code-block:: bash\n\n   $ scotty update\n   $ scotty bitbake core-image-minimal\n\nAdvanced configuration\n----------------------\n\nScotty can be used to download extra sources, add additional layers or tweak the\nconfiguration.\n\nSupported update arguments\n^^^^^^^^^^^^^^^^^^^^^^^^^^\n- ``--manifest-branch``: Set repo branch used for repo init.\n- ``--manifest-url``: Set repo url used for repo init.\n- ``--manifest-name``: Set repo manifest used for repo init.\n- ``--extra-download``: Add an extra git to download. If this is a layer, it can\n  then be used in setup with ``--extra-layer``.\n\nSupported setup arguments\n^^^^^^^^^^^^^^^^^^^^^^^^^\n- ``--build-dir``: Set build subdirectory, subdirectory of ``build``. Can be\n  used to have different builds in the same ``build`` folder.\n- ``--machine-dir``: specify the directories where scotty should look for\n  supported machines.\n- ``--extra-layer``: Add an extra local layer.\n- ``--extra-conf``: Add an extra configuration entry in local.conf.\n- ``--extra-env``: Pass on additional environment variables.\n- ``--sstate-mirrors``: Do use any sstate mirror (default = false).\n- ``--features-layers-set``: The set of Avnet Embedded extra layers to use.\n  Supported values are:\n  - ``bsp``: Only BSP related layers.\n  - ``distro``: BSP and distro related layers.\n  - ``examples``: All above layers and example layers.\n  - ``simpleswitch``: BSP, distro and simpleswitch related layers.\n  - ``simpleswitch_examples``: All above layers and example layers.\n- ``--machine-dir``: specify the directories where scotty should look for\n  supported machines.\n\nSupported bitbake, shell and command arguments\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n- ``--build-dir``: Set build subdirectory, subdirectory of ``build``. Can be\n  used to have different builds in the same ``build`` folder.\n\nScripting configuration\n-----------------------\n\nIt might be useful to skip the configuration menu, so Scotty can be used in a\nscripted way. To help with this, most configuration can be set either through\narguments or environment variables.\n\nSupported arguments\n^^^^^^^^^^^^^^^^^^^\n\nThe ``--features-layers-set`` of the ``setup`` subcommand can be used to bypass\nlayer sets selection.\n\n\nSupported environment variables\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n- ``DISTRO``: Can be used to select the Yocto distro and skip selection menu.\n- ``MACHINE``: Can be used to select the Yocto machine and skip selection menu.\n- ``ACCEPT_FSL_EULA``: Can be used to set the Freescale/NXP EULA status and skip\n  selection menu if applicable).\n\nExample\n^^^^^^^\n\n.. code-block:: bash\n\n   $ export ACCEPT_FSL_EULA=1\n   $ DISTRO=simplecore-distro MACHINE=sm2s-imx8plus scotty setup --features-layers-set distro\n   $ scotty bitbake core-image-minimal\n\nIn addition, it is possible to tweak Scotty behaviour using the environment:\n\n- ``SCOTTY_WHITELIST``: The list of host environment variables exposed in Yocto\n  environment.\n- ``DOCKER_EXTRA_ARGS``: Additional parameters for docker.\n\nExample\n\n.. code-block:: bash\n\n   $ export DOCKER_EXTRA_ARGS=\"-v /home/downloads:/home/scotty/build/downloads -v /home/sstate-cache:/home/scotty/build/sstate-cache\"\n   $ scotty bitbake core-image-minimal\n\n\nUsing Scotty on Windows\n-----------------------\n\nScotty has been tested on Windows with WSL2 and `Docker Desktop`_.  It is not\npossible to build in a Windows NTFS partition, and you need to build it in an\nEXT partition (for example, in your WSL2 home directory).\n\nBuilding on Windows WSL2+Docker is as fast as building on Linux.  However,\nWindows can become quite unresponsive:\n\n* The task manager can stop refreshing,\n* The terminal may not refresh often,\n* Shortcuts like ``Win+R`` and ``Ctrl+Alt+Del`` can trigger several seconds\n  late.\n\n.. _Docker Desktop: https://docs.docker.com/docker-for-windows/install/\n\nUsing Scotty without Docker\n---------------------------\n\nIf needed, Scotty can be used without docker. In this case, you are in charge of\nproviding a fully configured environment. This can be done by setting the\n``SCOTTY_USE_DOCKER`` environment variable::\n\n    $ SCOTTY_USE_DOCKER=0 scotty bitbake core-image-minimal\n\nScotty Runqemu\n==============\n\n``Scotty Runqemu`` is an additional tool allowing to start QEMU to run a QEMU targeted build.\n\nRunqemu Example\n---------------\n\n.. code-block:: bash\n\n   $ export DISTRO=simplecore-distro MACHINE=qemux86-64\n   $ scotty setup --features-layers-set examples\n   $ scotty bitbake simplecore-weston-demo-image\n   $ scotty-runqemu simplecore-weston-demo-image\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/avnet-embedded/simplecore-tools",
+            "keywords": "",
+            "license": "GPL-3.0-only",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "avnet-scotty",
+            "package_url": "https://pypi.org/project/avnet-scotty/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/avnet-scotty/",
+            "project_urls": {
+                "Homepage": "https://github.com/avnet-embedded/simplecore-tools"
+            },
+            "release_url": "https://pypi.org/project/avnet-scotty/0.0.1/",
+            "requires_dist": [
+                "GitPython (<4.0,>=3.1)"
+            ],
+            "requires_python": "",
+            "summary": "scotty: S(imple)C(ore) O(pen) T(echnology) T(ool for) Y(ou)",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15923161,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "940f27ae69fc0743a97e8890f3382146",
+                    "sha256": "29992a0a7f62c035674436f39b2f31e49c3194b0c0b435facee9036cd5b1719b"
+                },
+                "downloads": -1,
+                "filename": "avnet_scotty-0.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "940f27ae69fc0743a97e8890f3382146",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 22290,
+                "upload_time": "2022-11-29T05:57:19",
+                "upload_time_iso_8601": "2022-11-29T05:57:19.976352Z",
+                "url": "https://files.pythonhosted.org/packages/15/8c/3562e6ae41e9ad513802fd79a9b7bd201c0c2e8d427117588778c1deafe0/avnet_scotty-0.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b565c0551b294dca32d11f5e780a3402",
+                    "sha256": "28d5d8e5863bba7b35a77df46d1a44e28f3b1a889f55891dc7b5fd7d5e23bd76"
+                },
+                "downloads": -1,
+                "filename": "avnet-scotty-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "b565c0551b294dca32d11f5e780a3402",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 20478,
+                "upload_time": "2022-11-29T05:57:21",
+                "upload_time_iso_8601": "2022-11-29T05:57:21.878371Z",
+                "url": "https://files.pythonhosted.org/packages/0d/a5/81d5103208e760dea0f870be316933403116694b472eb1b64811457789c8/avnet-scotty-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
