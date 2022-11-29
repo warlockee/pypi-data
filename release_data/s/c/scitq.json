@@ -53,7 +53,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15912343,
+        "last_serial": 15915752,
         "urls": [
             {
                 "comment_text": "",
@@ -109,7 +109,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# scitq : a distributed scientific task queue\n\n**scitq** is a simple task queue in python. It is a distributed task queue system. While quite generalist, it was primarily designed for scientific jobs, relatively heavy tasks that can be expressed as a Unix shell instruction. It also has a specificity of relatively feebly interdependent tasks.\n\nIt has a few added capabilities apart from strict task distribution:\n- First it has the capacity to manage cloud instance life cycle (as for now \nOpenStack (OVH), but others to follow shortly) - Note that you can still use \nscitq without using that functionality, and you may use it in a mixed environment\n(with one or several static server plus extra temporary servers recruited on the\ncloud). \n- next, scitq has the capacity to download and upload specific data (notably \nusing s3 buckets as data exchange medium, but simple ftp is also possible,\nand even some more exotic stuff like IBM Aspera, last a very specific protocol for \nbioinformatics dedicated to downloading public FASTQs (DNA sequence) from EBI or\n NCBI),\n- next, usage of docker is integrated so that data input slots or data output slots \nare always in the same place (/input or /output) (in non-dockerized environment,\nshell environment variable INPUT and OUTPUT hold the dedicated directories for\nthese, so docker remains non-mandatory in scitq).\n\n\n## Introduction\n\n**scitq** is a Task Queue system based on the following model:\n- a server hosts a series of (shell) tasks to be executed,\n- some workers connect to the server, fetch some tasks according to their capacity\n(which is very simply managed by the maximum number of parallel process they can\nhandle, a.k.a. \"concurrency\"),\n- The stdout/stderr of the command is regularly (all 5s or so) sent to the\nserver. A task may be executed several times (for instance if it fails). While\nthis is not automatic, it is easy to trigger and each execution of the task is\nremembered.\n\n### Quick start\n\n```bash\ncd src\npython ./setup.py install\n```\nNow in one shell, run the server:\n```\nFLASK_APP=scitq.server flask run\n```\n\nIn a another shell, launch the worker:\n```bash\nscitq-worker 127.0.0.1 1\n```\n\nIn a third shell, queue some tasks:\n```bash\nscitq-launch echo 'Hello world!'\n```\nYou're done!\n\nOptionally look on http://127.0.0.1:5000/ui/ to see what happened.\n\nLook into the more detailed flask/README.md to learn\nabout the different options.\n\n### Special thanks\n\nSpecial thanks to R\u00e9mi Tan who did a great job on the UI of scitq, and also on the command line\nmanager (scitq-manage) and on the library resilience (scitq.lib).\n\nSpecial thanks to Sibylle de Lahond\u00e8s, my daughter, who created scitq favicon and logo.\n\nAnd also to all people of GMT Science team who believe in this project and have\nmade it possible: Etienne Formstecher, Edi Prifti, Michel Laborde, Florian Plaza-O\u00f1ate,\nVadim Puller, Baptiste Hennecart (our more active user, thank you, Baptiste!) and \nThomas Moncion. Last and not least big up to Benjamin Duplan who by his enthusiasm \nand commitment has helped us in lots of ways to achieve this project.\n\nMany thanks also to the OVH startup team who accepted us in their program and\nhave thus helped this project in a major way. Special thanks to Christopher Ap\u00e9do!\nThanks also to OVH support team for their help.\n\nFor GMT Science team, Raynald\n\n\n### Motivation\n\nBefore coming to that we have tried several solutions at GMT Science:\n\n- Nextflow and other BioIT specialized tools : (only Nextflow was tried) while\nthese tools have a lot of qualities, they have several defaults: they have their\nown scripting language (which in the case of Nextflow is Groovy and is clearly\na bad point for us, debugging proved quite difficult). As debugging is difficult, \none tends to make universal workflows with options (which are a lot easier to \nmaintain), but the required flexibility is cumbersome and the result is hard to\nread, and then less easy to maintain... Last in the context of Kubernetes (which\nis one of two solutions when you are multicloud), Nextflow performs very poorly \n(this is due to the complexity of Kubernetes, and the fact that Kubernetes \nphilosophy is rather for continuous web loads than one-shot heavy scientific \nloads)\n\n- slurm : while slurm is certainly the king of open source HPC solutions, it is \nnot installed quickly and simply. It makes sense when you buy or rent for long \nsome hardware. It has the capability to operate in a mixed environment with extra\nworkforce on the cloud, so I heard, but it remains a complex system to set up in\nmy opinion. Disclaimer: we had little apetance to invest real time in slurm so \nit was never production tested by us. The simple size of documentation makes it \nimpossible to grasp quickly. I think the main flaw of slurm is the complexity\nof the specifications: to be able to execute any tasks based on resource\nconsumption (which scitq does not do: it has much (too?) simpler model of \nconcurrency per worker - see below for details and now if you think this too \nsimple for you, look really deeper into slurm).\n\n- Celery : Celery is... almost perfect. It is certainly very simple (the quick\nstart can really work in a matter of minutes), a polished and neat solution which\nhas been around for years. Why not Celery then? We tried, we had a lot of successes\nwith Celery BUT we were disappointed in a particular occasion. But first Celery\nqualities:\n  - it is based on a simple concurrency model where each worker can perform \n  a fixed number of tasks in parallel. It is remarkably adapted to having \n  relatively similar servers rented on the internet (you tend to rent prototyped machines),\n  yet if you have some variations, it handles them nicely. This is much simpler \n  than resource management because sometimes identifying the resource requirements\n  of certain tasks may be daunting and only trial and error will tell. Nextflow \n  resource management is simply not rich enough (what if the bottleneck is disk\n  speed?) and Slurm is too complex. So a simple model like that is extremely clever.\n  Plus you can change each worker concurrency with a nice UI (flower).\n  - You can add tasks in different ways, but usually a very simple python script\n  can do the job (so no other language to learn),\n  - The system is very light, super easy to deploy, and consume very little \n  resources.\n\nNow the defaults:\n  - It was invented mainly to do some simple asynchronous background tasks for \n  websites (it is the recommended way to do so with Flask), so maybe it was not \n  thought to monitor heavy scientific load: so it can handle tons of tasks (reason\n  why it is very light) but it does not remember details if all went well. It tends\n  to forget things (like when you relaunch Flower, you lose a lot of details).\n  - It does not show remaining tasks: this seems almost unbelievable, you told the\n  system to do 100 precious tasks and you cannot know how much are done, how much \n  remains, how much failed or succeeded. Flower shows part of that (but not \n  remaining tasks), but most of the information is lost if Flower crashes...\n  - If you launch the tasks in a python console and keep it open, you can have\n  a more stable memory and management tool for your tasks (but again if you lose\n  the console, you will lose information), this is in fact the only way to know\n  the remaining tasks. But it does not refresh... When you try to refresh, you\n  always get the 'Pending' status, which in Celery language means: \"I don't know\".\n\nNow most Celery flaws source from the fact there is no server, just a message queue. It\nis a design choice and I understand it: if you already have a database for your \nwebsite, you don't want to have another database just for your website background\nmanagement. And if you have tons of tasks maybe a database is not the right tool.\n\nBut, now this is not our problem, we're scientists. We have a reasonable amount\nof very precious tasks. We can afford a database, which is less sexy than RabbitMQ\nbut much easier to access and query, and then we can afford a server that dispatch\nthe tasks (in Celery being sure that a task was acknowledged, claimed by a specific\nworker is really a challenge because there is no server, so a specific algorithm \nis needed to achieve that, it can be specifically tuned but it is the source of\nsome useless complexity in our case where the server less paradigm is not required)\n\n## Design choice\n\nSo we want\n- A simple server with a super standard method: a simple REST server with Flask\nseems perfectly suited for that, and Flask-RESTX package make the writing of such\na server easy... and autodocumented, which is almost a miracle... (Django-Rest is\nnot as good, we've tried both)\n- The server has a main thread (nb: not a process, Flask is not process friendly)\nthat distribute the task, so contrarily to Celery, this is not democracy, this is\ndespotism, the server says, the workers obey.\n- A simple database management tool: Flask use SQLAlchemy with a dedicated package,\nFlask-SQLAlchemy, one more time, very easy and straight forward. Sqlite is ideal \nas a database: it is instantly created from scratch, you can copy it for later if\nyou wish, etc. At least that's what we thought, now with heavier loads, PostgreSQL\nis recommended (concurrency has its limits with sqlite), and is now the default.\n- A simple multiprocess worker (if you read multithread, re-read the sentence), \nwith a clever management of output flow. Asyncio was the solution here (process.poll()\nwith stdout.readline() is not performant enough if you have heavy output).\n- A nice UI (like Celery Flower) : now this nice UI must update its display very\noften you do not want to reload the page to refresh (Flower is smart enough for \nthat): I did write a very small game in Python with Flask and I had had a go with\nSocketIO with quite a success, so I tried here and it fits the case. I compared\nwith basic jQuery and it performed better so scitq uses SocketIO (and a nice\nFlask package: Flask-SocketIO)\n\nFor now, UI and server live in the same Flask application which makes deploy\nvery easy.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -153,7 +152,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15912343,
+        "last_serial": 15915752,
         "urls": [
             {
                 "comment_text": "",
@@ -192,6 +191,403 @@
                 "upload_time": "2022-11-28T10:13:26",
                 "upload_time_iso_8601": "2022-11-28T10:13:26.411701Z",
                 "url": "https://files.pythonhosted.org/packages/3c/74/3a245c117ff46504c0b1cc67c8d930a1b3ec3824648736e29f11f6729b00/scitq-1.0b3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0b4": {
+        "info": {
+            "author": "Raynald de Lahond\u00e8s, R\u00e9mi Tan",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "scitq",
+            "package_url": "https://pypi.org/project/scitq/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/scitq/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/gmtsciencedev/scitq/issues",
+                "Documentation": "https://scitq.readthedocs.io/",
+                "Homepage": "https://github.com/gmtsciencedev/scitq"
+            },
+            "release_url": "https://pypi.org/project/scitq/1.0b4/",
+            "requires_dist": [
+                "Flask (<2.2)",
+                "sqlalchemy (<=1.5)",
+                "flask-sqlalchemy (<3.0.0)",
+                "flask-restx",
+                "flask-socketio (>=5.2.0)",
+                "requests",
+                "psutil",
+                "tabulate",
+                "psycopg2-binary",
+                "awscli (>=1.25.22)",
+                "awscli-plugin-endpoint",
+                "boto3 (>=1.24.22)"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "A (distributed) scientific task queue",
+            "version": "1.0b4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15915752,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "705b656dca2118edc36b781994d6be29",
+                    "sha256": "247836d4ab3cb00864c9d55d1f89b0d4e018a81e24e8b2ad82de05a961f270ae"
+                },
+                "downloads": -1,
+                "filename": "scitq-1.0b4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "705b656dca2118edc36b781994d6be29",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 458146,
+                "upload_time": "2022-11-28T13:50:36",
+                "upload_time_iso_8601": "2022-11-28T13:50:36.569909Z",
+                "url": "https://files.pythonhosted.org/packages/e7/72/a644e8f7b6071278674e7977fbc7b0139ab750a69d38e554e122749edd90/scitq-1.0b4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3190ca4e69ecf850475b12fac72af2f9",
+                    "sha256": "f0221ef1d5069f20b7a88d05b531e20a3e5bdc62091fb222f9978c97730c889f"
+                },
+                "downloads": -1,
+                "filename": "scitq-1.0b4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "3190ca4e69ecf850475b12fac72af2f9",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 442619,
+                "upload_time": "2022-11-28T13:50:40",
+                "upload_time_iso_8601": "2022-11-28T13:50:40.712935Z",
+                "url": "https://files.pythonhosted.org/packages/58/0e/803839378e1c9b963c31114e440d8efe1f564de9eb2d7078e4a5dbfec020/scitq-1.0b4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0b5": {
+        "info": {
+            "author": "Raynald de Lahond\u00e8s, R\u00e9mi Tan",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "scitq",
+            "package_url": "https://pypi.org/project/scitq/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/scitq/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/gmtsciencedev/scitq/issues",
+                "Documentation": "https://scitq.readthedocs.io/",
+                "Homepage": "https://github.com/gmtsciencedev/scitq"
+            },
+            "release_url": "https://pypi.org/project/scitq/1.0b5/",
+            "requires_dist": [
+                "Flask (<2.2)",
+                "sqlalchemy (<=1.5)",
+                "flask-sqlalchemy (<3.0.0)",
+                "flask-restx",
+                "flask-socketio (>=5.2.0)",
+                "requests",
+                "psutil",
+                "tabulate",
+                "psycopg2-binary",
+                "awscli (>=1.25.22)",
+                "awscli-plugin-endpoint",
+                "boto3 (>=1.24.22)"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "A (distributed) scientific task queue",
+            "version": "1.0b5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15915752,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6e750928ee0c715ead39a40183a3d023",
+                    "sha256": "d4b77edd618949b8cfa816cf54d4055fd30c224985ff17e8045f1f8110b931e1"
+                },
+                "downloads": -1,
+                "filename": "scitq-1.0b5-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "6e750928ee0c715ead39a40183a3d023",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 458130,
+                "upload_time": "2022-11-28T14:44:10",
+                "upload_time_iso_8601": "2022-11-28T14:44:10.695881Z",
+                "url": "https://files.pythonhosted.org/packages/5e/81/ce0b606638d15557f4667aabf85b595a9448b0e9539489bc83a763a63a26/scitq-1.0b5-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "64a6c1b85adc3a900393d16a65104727",
+                    "sha256": "162f64c6e5d444e34a97c6bbc59577c1332bbdc9ebf8976fc06ce525ab872214"
+                },
+                "downloads": -1,
+                "filename": "scitq-1.0b5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "64a6c1b85adc3a900393d16a65104727",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 442616,
+                "upload_time": "2022-11-28T14:44:16",
+                "upload_time_iso_8601": "2022-11-28T14:44:16.829863Z",
+                "url": "https://files.pythonhosted.org/packages/d8/c0/e7644f2e95b44d20c3ad79ac301bd2c4ee79c78fba45f67681fa45c90283/scitq-1.0b5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0b6": {
+        "info": {
+            "author": "Raynald de Lahond\u00e8s, R\u00e9mi Tan",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "scitq",
+            "package_url": "https://pypi.org/project/scitq/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/scitq/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/gmtsciencedev/scitq/issues",
+                "Documentation": "https://scitq.readthedocs.io/",
+                "Homepage": "https://github.com/gmtsciencedev/scitq"
+            },
+            "release_url": "https://pypi.org/project/scitq/1.0b6/",
+            "requires_dist": [
+                "Flask (<2.2)",
+                "sqlalchemy (<=1.5)",
+                "flask-sqlalchemy (<3.0.0)",
+                "flask-restx",
+                "flask-socketio (>=5.2.0)",
+                "requests",
+                "psutil",
+                "tabulate",
+                "psycopg2-binary",
+                "awscli (>=1.25.22)",
+                "awscli-plugin-endpoint",
+                "boto3 (>=1.24.22)"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "A (distributed) scientific task queue",
+            "version": "1.0b6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15915752,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ff0db0daf97cfa6036dc3e949b4c5e60",
+                    "sha256": "b941559abcb6aff24e92a7a966b636e272a867f391d1f5ad16025519c4fb6ca5"
+                },
+                "downloads": -1,
+                "filename": "scitq-1.0b6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "ff0db0daf97cfa6036dc3e949b4c5e60",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 458186,
+                "upload_time": "2022-11-28T15:23:13",
+                "upload_time_iso_8601": "2022-11-28T15:23:13.269917Z",
+                "url": "https://files.pythonhosted.org/packages/b2/6d/170fa308d1d73e4fb46fb8df3c28c0d4f5b666bf98a09945f9a2c33251e4/scitq-1.0b6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2513a652407e88a5b43f78f3581bd222",
+                    "sha256": "0c73bc90fe339f0127ecbca50e751fd5b9050d3652e02c77727d0a968a75ee27"
+                },
+                "downloads": -1,
+                "filename": "scitq-1.0b6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "2513a652407e88a5b43f78f3581bd222",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 442625,
+                "upload_time": "2022-11-28T15:23:16",
+                "upload_time_iso_8601": "2022-11-28T15:23:16.613497Z",
+                "url": "https://files.pythonhosted.org/packages/a9/e8/58a20adc2ec70f44c648350a28bb91d330e726ee0244434758ffb38b111e/scitq-1.0b6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0b7": {
+        "info": {
+            "author": "Raynald de Lahond\u00e8s, R\u00e9mi Tan",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# scitq : a distributed scientific task queue\n\n**scitq** is a simple task queue in python. It is a distributed task queue system. While quite generalist, it was primarily designed for scientific jobs, relatively heavy tasks that can be expressed as a Unix shell instruction. It also has a specificity of relatively feebly interdependent tasks.\n\nIt has a few added capabilities apart from strict task distribution:\n- First it has the capacity to manage cloud instance life cycle (as for now \nOpenStack (OVH), but others to follow shortly) - Note that you can still use \nscitq without using that functionality, and you may use it in a mixed environment\n(with one or several static server plus extra temporary servers recruited on the\ncloud). \n- next, scitq has the capacity to download and upload specific data (notably \nusing s3 buckets as data exchange medium, but simple ftp is also possible,\nand even some more exotic stuff like IBM Aspera, last a very specific protocol for \nbioinformatics dedicated to downloading public FASTQs (DNA sequence) from EBI or\n NCBI),\n- next, usage of docker is integrated so that data input slots or data output slots \nare always in the same place (/input or /output) (in non-dockerized environment,\nshell environment variable INPUT and OUTPUT hold the dedicated directories for\nthese, so docker remains non-mandatory in scitq).\n\n\n## Introduction\n\n**scitq** is a Task Queue system based on the following model:\n- a server hosts a series of (shell) tasks to be executed,\n- some workers connect to the server, fetch some tasks according to their capacity\n(which is very simply managed by the maximum number of parallel process they can\nhandle, a.k.a. \"concurrency\"),\n- The stdout/stderr of the command is regularly (all 5s or so) sent to the\nserver. A task may be executed several times (for instance if it fails). While\nthis is not automatic, it is easy to trigger and each execution of the task is\nremembered.\n\n### Quick start\n\n```bash\ncd src\npython ./setup.py install\n```\nNow in one shell, run the server:\n```\nFLASK_APP=scitq.server flask run\n```\n\nIn a another shell, launch the worker:\n```bash\nscitq-worker 127.0.0.1 1\n```\n\nIn a third shell, queue some tasks:\n```bash\nscitq-launch echo 'Hello world!'\n```\nYou're done!\n\nOptionally look on http://127.0.0.1:5000/ui/ to see what happened.\n\nLook into the more detailed flask/README.md to learn\nabout the different options.\n\n### Special thanks\n\nSpecial thanks to R\u00e9mi Tan who did a great job on the UI of scitq, and also on the command line\nmanager (scitq-manage) and on the library resilience (scitq.lib).\n\nSpecial thanks to Sibylle de Lahond\u00e8s, my daughter, who created scitq favicon and logo.\n\nAnd also to all people of GMT Science team who believe in this project and have\nmade it possible: Etienne Formstecher, Edi Prifti, Michel Laborde, Florian Plaza-O\u00f1ate,\nVadim Puller, Baptiste Hennecart (our more active user, thank you, Baptiste!) and \nThomas Moncion. Last and not least big up to Benjamin Duplan who by his enthusiasm \nand commitment has helped us in lots of ways to achieve this project.\n\nMany thanks also to the OVH startup team who accepted us in their program and\nhave thus helped this project in a major way. Special thanks to Christopher Ap\u00e9do!\nThanks also to OVH support team for their help.\n\nFor GMT Science team, Raynald\n\n\n### Motivation\n\nBefore coming to that we have tried several solutions at GMT Science:\n\n- Nextflow and other BioIT specialized tools : (only Nextflow was tried) while\nthese tools have a lot of qualities, they have several defaults: they have their\nown scripting language (which in the case of Nextflow is Groovy and is clearly\na bad point for us, debugging proved quite difficult). As debugging is difficult, \none tends to make universal workflows with options (which are a lot easier to \nmaintain), but the required flexibility is cumbersome and the result is hard to\nread, and then less easy to maintain... Last in the context of Kubernetes (which\nis one of two solutions when you are multicloud), Nextflow performs very poorly \n(this is due to the complexity of Kubernetes, and the fact that Kubernetes \nphilosophy is rather for continuous web loads than one-shot heavy scientific \nloads)\n\n- slurm : while slurm is certainly the king of open source HPC solutions, it is \nnot installed quickly and simply. It makes sense when you buy or rent for long \nsome hardware. It has the capability to operate in a mixed environment with extra\nworkforce on the cloud, so I heard, but it remains a complex system to set up in\nmy opinion. Disclaimer: we had little apetance to invest real time in slurm so \nit was never production tested by us. The simple size of documentation makes it \nimpossible to grasp quickly. I think the main flaw of slurm is the complexity\nof the specifications: to be able to execute any tasks based on resource\nconsumption (which scitq does not do: it has much (too?) simpler model of \nconcurrency per worker - see below for details and now if you think this too \nsimple for you, look really deeper into slurm).\n\n- Celery : Celery is... almost perfect. It is certainly very simple (the quick\nstart can really work in a matter of minutes), a polished and neat solution which\nhas been around for years. Why not Celery then? We tried, we had a lot of successes\nwith Celery BUT we were disappointed in a particular occasion. But first Celery\nqualities:\n  - it is based on a simple concurrency model where each worker can perform \n  a fixed number of tasks in parallel. It is remarkably adapted to having \n  relatively similar servers rented on the internet (you tend to rent prototyped machines),\n  yet if you have some variations, it handles them nicely. This is much simpler \n  than resource management because sometimes identifying the resource requirements\n  of certain tasks may be daunting and only trial and error will tell. Nextflow \n  resource management is simply not rich enough (what if the bottleneck is disk\n  speed?) and Slurm is too complex. So a simple model like that is extremely clever.\n  Plus you can change each worker concurrency with a nice UI (flower).\n  - You can add tasks in different ways, but usually a very simple python script\n  can do the job (so no other language to learn),\n  - The system is very light, super easy to deploy, and consume very little \n  resources.\n\nNow the defaults:\n  - It was invented mainly to do some simple asynchronous background tasks for \n  websites (it is the recommended way to do so with Flask), so maybe it was not \n  thought to monitor heavy scientific load: so it can handle tons of tasks (reason\n  why it is very light) but it does not remember details if all went well. It tends\n  to forget things (like when you relaunch Flower, you lose a lot of details).\n  - It does not show remaining tasks: this seems almost unbelievable, you told the\n  system to do 100 precious tasks and you cannot know how much are done, how much \n  remains, how much failed or succeeded. Flower shows part of that (but not \n  remaining tasks), but most of the information is lost if Flower crashes...\n  - If you launch the tasks in a python console and keep it open, you can have\n  a more stable memory and management tool for your tasks (but again if you lose\n  the console, you will lose information), this is in fact the only way to know\n  the remaining tasks. But it does not refresh... When you try to refresh, you\n  always get the 'Pending' status, which in Celery language means: \"I don't know\".\n\nNow most Celery flaws source from the fact there is no server, just a message queue. It\nis a design choice and I understand it: if you already have a database for your \nwebsite, you don't want to have another database just for your website background\nmanagement. And if you have tons of tasks maybe a database is not the right tool.\n\nBut, now this is not our problem, we're scientists. We have a reasonable amount\nof very precious tasks. We can afford a database, which is less sexy than RabbitMQ\nbut much easier to access and query, and then we can afford a server that dispatch\nthe tasks (in Celery being sure that a task was acknowledged, claimed by a specific\nworker is really a challenge because there is no server, so a specific algorithm \nis needed to achieve that, it can be specifically tuned but it is the source of\nsome useless complexity in our case where the server less paradigm is not required)\n\n## Design choice\n\nSo we want\n- A simple server with a super standard method: a simple REST server with Flask\nseems perfectly suited for that, and Flask-RESTX package make the writing of such\na server easy... and autodocumented, which is almost a miracle... (Django-Rest is\nnot as good, we've tried both)\n- The server has a main thread (nb: not a process, Flask is not process friendly)\nthat distribute the task, so contrarily to Celery, this is not democracy, this is\ndespotism, the server says, the workers obey.\n- A simple database management tool: Flask use SQLAlchemy with a dedicated package,\nFlask-SQLAlchemy, one more time, very easy and straight forward. Sqlite is ideal \nas a database: it is instantly created from scratch, you can copy it for later if\nyou wish, etc. At least that's what we thought, now with heavier loads, PostgreSQL\nis recommended (concurrency has its limits with sqlite), and is now the default.\n- A simple multiprocess worker (if you read multithread, re-read the sentence), \nwith a clever management of output flow. Asyncio was the solution here (process.poll()\nwith stdout.readline() is not performant enough if you have heavy output).\n- A nice UI (like Celery Flower) : now this nice UI must update its display very\noften you do not want to reload the page to refresh (Flower is smart enough for \nthat): I did write a very small game in Python with Flask and I had had a go with\nSocketIO with quite a success, so I tried here and it fits the case. I compared\nwith basic jQuery and it performed better so scitq uses SocketIO (and a nice\nFlask package: Flask-SocketIO)\n\nFor now, UI and server live in the same Flask application which makes deploy\nvery easy.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "scitq",
+            "package_url": "https://pypi.org/project/scitq/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/scitq/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/gmtsciencedev/scitq/issues",
+                "Documentation": "https://scitq.readthedocs.io/",
+                "Homepage": "https://github.com/gmtsciencedev/scitq"
+            },
+            "release_url": "https://pypi.org/project/scitq/1.0b7/",
+            "requires_dist": [
+                "Flask (<2.2)",
+                "sqlalchemy (<=1.5)",
+                "flask-sqlalchemy (<3.0.0)",
+                "flask-restx",
+                "flask-socketio (>=5.2.0)",
+                "requests",
+                "psutil",
+                "tabulate",
+                "psycopg2-binary",
+                "awscli (>=1.25.22)",
+                "awscli-plugin-endpoint",
+                "boto3 (>=1.24.22)"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "A (distributed) scientific task queue",
+            "version": "1.0b7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15915752,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "118b2efbd2c452c7ba93451d490e06ec",
+                    "sha256": "63b3688c84c124ca2e69c2a5bc4956c4ae8a4d0cfae7c3c8d5b2612af276f2ba"
+                },
+                "downloads": -1,
+                "filename": "scitq-1.0b7-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "118b2efbd2c452c7ba93451d490e06ec",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 458187,
+                "upload_time": "2022-11-28T15:29:58",
+                "upload_time_iso_8601": "2022-11-28T15:29:58.650588Z",
+                "url": "https://files.pythonhosted.org/packages/fd/67/e111fc6bfe11d50250b17ddce8ebe303a7eadd2aed26e6d9c40a7371d263/scitq-1.0b7-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "838e97929916235fcac75a592d6077c7",
+                    "sha256": "3e74c204c6916abfd16b5b968b1c1ca17573c39ffd6efca4bb69e660f05f7724"
+                },
+                "downloads": -1,
+                "filename": "scitq-1.0b7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "838e97929916235fcac75a592d6077c7",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 442616,
+                "upload_time": "2022-11-28T15:30:00",
+                "upload_time_iso_8601": "2022-11-28T15:30:00.653910Z",
+                "url": "https://files.pythonhosted.org/packages/1f/df/6974cbdbb32be065ccb2b31f2ed954a4aca73c7a7e671536b9edf50ab66e/scitq-1.0b7.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -52,7 +52,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14287641,
+        "last_serial": 15915915,
         "urls": [
             {
                 "comment_text": "",
@@ -150,7 +150,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14287641,
+        "last_serial": 15915915,
         "urls": [
             {
                 "comment_text": "",
@@ -249,7 +249,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14287641,
+        "last_serial": 15915915,
         "urls": [
             {
                 "comment_text": "",
@@ -348,7 +348,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14287641,
+        "last_serial": 15915915,
         "urls": [
             {
                 "comment_text": "",
@@ -447,7 +447,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14287641,
+        "last_serial": 15915915,
         "urls": [
             {
                 "comment_text": "",
@@ -547,7 +547,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14287641,
+        "last_serial": 15915915,
         "urls": [
             {
                 "comment_text": "",
@@ -647,7 +647,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14287641,
+        "last_serial": 15915915,
         "urls": [
             {
                 "comment_text": "",
@@ -747,7 +747,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14287641,
+        "last_serial": 15915915,
         "urls": [
             {
                 "comment_text": "",
@@ -810,7 +810,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Scientific/Engineering"
             ],
-            "description": "[![Build status](https://github.com/BlueBrain/luigi-tools/actions/workflows/run-tox.yml/badge.svg?branch=main)](https://github.com/BlueBrain/luigi-tools/actions)\n[![License](https://img.shields.io/badge/License-Apache%202-blue)](https://github.com/BlueBrain/luigi-tools/blob/master/LICENSE.txt)\n[![Documentation status](https://readthedocs.org/projects/luigi-tools/badge/?version=latest)](https://luigi-tools.readthedocs.io/)\n\n\n# Luigi-tools\n\nThis package extends and adds new features to the [luigi package][luigi_url].\nHere are a few examples of these features:\n\n* add a new `BoolParameter` that automatically switch to explicit parsing when the default value is `True` (otherwise it is not possible to set it to `False` using the CLI).\n* add several types of optional parameters.\n* add a `OutputLocalTarget` class to help building an output tree.\n* add a mixin that adds a `--rerun` parameter that forces a given task to run again even if its targets exist, and also rerun all the tasks that depend on this one.\n* add a mixin to remove the output of failed tasks which is likely to be corrupted or incomplete.\nThis feature applies the default behaviour of a [snakemake][snakemake_url] rule (Task).\n* add a new `@copy_params` mechanism to copy the parameters from a task to another (the `@inherits` gives the same object to all the inheriting tasks while `@copy_params` only copies the definition of the parameter so each inheriting task can be given a different value).\n* add functions to get and display the dependency graph of a given task.\n* add a mechanism to setup templates for the `luigi.cfg` files, so the user just has to update specific values instead of copying the entire `luigi.cfg`.\n\nPlease read the [complete API documentation][luigi_tools_api_url] for more details.\n\n## Installation\n\nThis package should be installed using pip:\n\n```bash\npip install luigi-tools\n```\n\n## Usage\n\nThe [Luigi][luigi_url] package describes itself as follow:\n\n> Luigi is a Python (2.7, 3.6, 3.7 tested) package that helps you build complex pipelines of batch\n> jobs. It handles dependency resolution, workflow management, visualization, handling failures,\n> command line integration, and much more.\n\nThe [luigi-tools][luigi_tools_url] package is supposed to make luigi easier for developers.\nThe following presents a few examples of the main features of the package.\n\n### Boolean parameter\n\nThe [luigi.BoolParameter](https://luigi.readthedocs.io/en/stable/api/luigi.parameter.html#luigi.parameter.BoolParameter)\ncan be parsed in two ways: implicit or explicit. The explicit way requires the user to enter a\nvalue: `True` of `False`. On the contrary, the implicit way requires no value and will just set\nthe value to `True` if the parameter is given. This is not compatible with a default value set to\n`True`, as it is not possible to set the value to `False` using the CLI in this case.\n\nIf you want to automatically set the parsing to explicit when the default value is `True`:\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools import BoolParameter\n\nclass MyTask(Task):\n\n    a_boolean_parameter = BoolParameter(default=True)\n\n    def run(self):\n        pass\n```\n\n### Target with prefix\n\nThe [Luigi][luigi_url] workflows are based on `Target` object that represents the state of a step\nof the workflow. These targets can be anything but are often files in a result directory tree. In\norder to not having to specify the result directory to each target, one can use the\n`OutputLocalTarget` class and give it a `prefix`. So all targets based on this class will be\nlocated in the same directory.\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools.target import OutputLocalTarget\n\nclass MyTask(Task):\n\n    def run(self):\n        pass\n\n    def output(self):\n        # The target will point to the file result_directory/filename.ext\n        return OutputLocalTarget(\"filename.ext\")\n\n# Set the default prefix (it could also be called inside another Task)\nOutputLocalTarget.set_default_prefix(\"result_directory\")\n\n# Run the task (the task can also be called with the CLI as usual)\nluigi.build([MyTask()], local_scheduler=True)\n```\n\n### Rerunable task\n\nIn [Luigi][luigi_url], the states of the tasks are deducted from their targets. If the targets exist, the task\nis assumed to have already been completed and is thus skipped if the workflow is run again. This\nbehavior is usually good to avoid performing computations that are already completed. Nevertheless,\nsometimes it is desirable to overwrite a former result, especially during the development process.\nFor this reason, a mixin that adds a `--rerun` parameter to a task is introduced. When this\nparameter is set to `True`, all the targets of this task are deleted as well as the targets of the\ntasks that depend on this one. So when all the tasks that are related to this task will run again.\nAs for any mixin, it must be go on the left of the `Task` class in the inheritance list.\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools.task import RerunMixin\n\nclass MyTask(RerunMixin, Task):\n\n    def run(self):\n        pass\n```\n\nNow the task `MyTask` has a boolean parameter `--rerun` which can be called in the CLI:\n\n```bash\nluigi -m my_module mytask --rerun\nluigi -m my_module another_task_that_depends_on_mytask --MyTask-rerun\n```\n\n### Clear the output of failed tasks\n\nWhen a task fails unexpectedly, it may leave an incomplete or corrupted output\nthat leads to wrong results in the downstream. With the RemoveCorruptedOutputMixin,\nLuigi automatically removes the output targets of the tasks that failed. This is the default behaviour\nin other workflow management systems such as [Snakemake][snakemake_url].\n\n```python\nfrom luigi_tools.task import RemoveCorruptedOutputMixin\n\n    class TaskA(RemoveCorruptedOutputMixin, luigi.Task):\n        \"\"\"TaskA can remove its output upon failure.\"\"\"\n        pass\n\n```\n\nThe `clean_failed` is `false` by default and it must explicitly be set to `true`.\nThis allows users to set it to false to debug the output without changing the code.\n\n```bash\nluigi -m my_module TaskA --clean_failed true\n```\n\n### Copy parameters\n\nIn some situations, several tasks have a few parameters in common. This can lead to painful\nsituations, and luigi provides some dedicated tools to deal with this,\n[as described here](https://luigi.readthedocs.io/en/stable/api/luigi.util.html?highlight=inherits#using-inherits-and-requires-to-ease-parameter-pain).\nNevertheless, the tools provided by [Luigi][luigi_url] have a major drawback: all the tasks with\nthe inherited parameter will have the same value for this parameter. In some situations, one want\nto be able to give different values to a task with an inherited parameter, especially during the\ndevelopment process. This is possible with the `@copy_params` decorator:\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools.task import copy_params\n\nclass TaskA(Task):\n        a = luigi.Parameter(default=\"default_value_a\")\n\n@luigi_tools.task.copy_params(\n    a=luigi_tools.task.ParamRef(TaskA)\n)\nclass TaskB(Task):\n    b = luigi.Parameter(default=\"b\")\n```\n\nHere the class `TaskB` has two parameters:\n* `a` with `default_value_a` as default value.\n* `b` with `b` as default value.\n\nIt also possible to change the name of the parameter or to change the default value:\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools.task import copy_params\n\nclass TaskA(Task):\n        a = luigi.Parameter(default=\"default_value_a\")\n\n@luigi_tools.task.copy_params(\n    a=luigi_tools.task.ParamRef(TaskA),\n    aa=luigi_tools.task.ParamRef(TaskA, \"a\"),\n    a_default=luigi_tools.task.ParamRef(TaskA, \"a\", \"given_default_value\"),\n    a_none=luigi_tools.task.ParamRef(TaskA, \"a\", None),\n)\nclass TaskB(Task):\n    b = luigi.Parameter(default=\"b\")\n```\n\nIn this case the class `TaskB` has 5 parameters:\n* `a` with `default_value_a` as default value.\n* `aa` with `a` as default value.\n* `a_default` with `given_default_value` as default value.\n* `a_none` with `None` as default value.\n* `b` with `b` as default value.\n\nNote that the second parameter of `ParamRef` is the name of the inherited parameter in the parent\nclass. If it is not given, it is supposed that the parameter has the same name in both the\ninheriting and the parent classes.\n\n### Global parameters\n\nIn addition to the `@copy_params` decorator, it is possible to use the `GlobalParamMixin` mixin.\nA task with this mixin has a new feature for the parameters inherited using `@copy_params`: if the\ndefault value is not changed in `ParamRef` and if no specific value is given for the task, then the\ntask would take the same value as one of the inherited parameter. This combination of the\n`@copy_params` decorator and `GlobalParamMixin` allows many ways of dealing with the parameters.\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools.task import copy_params\nfrom luigi_tools.task import GlobalParamMixin\n\nclass TaskA(Task):\n        a = luigi.Parameter(default=\"default_value_a\")\n\n@luigi_tools.task.copy_params(\n    a=luigi_tools.task.ParamRef(TaskA)\n)\nclass TaskB(GlobalParamMixin, Task):\n    b = luigi.Parameter(default=\"b\")\n```\n\nNow if `TaskB` is called with the following configuration:\n\n```yaml\n[TaskA]\na = \"value for a\"\n\n[TaskB]\nb = \"value for b\"\n```\n\nthen the parameter `a` of `TaskB` has the value `value for a`.\nIf `TaskB` did not inherit from `GlobalParamMixin`, then it would have the value\n`default_value_a`.\n\n### Dependency graph\n\nThe `luigi-tools` package provides several functions to get the dependency graph of a task and to\nrender it using GraphViz. This can be very useful to show how the tasks of a workflow are\norganized.\n\n\n## Funding & Acknowledgment\n\nThe development of this software was supported by funding to the Blue Brain Project, a research center of the \u00c9cole polytechnique f\u00e9d\u00e9rale de Lausanne (EPFL), from the Swiss government\u2019s ETH Board of the Swiss Federal Institutes of Technology.\n\nFor license and authors, see `LICENSE.txt` and `AUTHORS.md` respectively.\n\nCopyright \u00a9 2021-2022 Blue Brain Project/EPFL\n\n[luigi_url]: https://luigi.readthedocs.io/en/stable/\n[luigi_tools_url]: https://luigi-tools.readthedocs.io/en/stable/\n[luigi_tools_api_url]: https://luigi-tools.readthedocs.io/en/stable/api.html\n[snakemake_url]: https://snakemake.readthedocs.io/en/stable/\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -848,7 +847,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14287641,
+        "last_serial": 15915915,
         "urls": [
             {
                 "comment_text": "",
@@ -887,6 +886,112 @@
                 "upload_time": "2022-06-29T18:31:41",
                 "upload_time_iso_8601": "2022-06-29T18:31:41.474696Z",
                 "url": "https://files.pythonhosted.org/packages/88/75/d98a11ad956fbfeb3ecf07d07bdc2a66b150b29ff78e384a5ccee6103895/luigi-tools-0.0.19.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.0": {
+        "info": {
+            "author": "Blue Brain Project, EPFL",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: Apache Software License",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering"
+            ],
+            "description": "[![Build status](https://github.com/BlueBrain/luigi-tools/actions/workflows/run-tox.yml/badge.svg?branch=main)](https://github.com/BlueBrain/luigi-tools/actions)\n[![License](https://img.shields.io/badge/License-Apache%202-blue)](https://github.com/BlueBrain/luigi-tools/blob/master/LICENSE.txt)\n[![Documentation status](https://readthedocs.org/projects/luigi-tools/badge/?version=latest)](https://luigi-tools.readthedocs.io/)\n\n\n# Luigi-tools\n\nThis package extends and adds new features to the [luigi package][luigi_url].\nHere are a few examples of these features:\n\n* add a new `BoolParameter` that automatically switch to explicit parsing when the default value is `True` (otherwise it is not possible to set it to `False` using the CLI).\n* add several types of optional parameters.\n* add a `OutputLocalTarget` class to help building an output tree.\n* add a mixin that adds a `--rerun` parameter that forces a given task to run again even if its targets exist, and also rerun all the tasks that depend on this one.\n* add a mixin to remove the output of failed tasks which is likely to be corrupted or incomplete.\nThis feature applies the default behaviour of a [snakemake][snakemake_url] rule (Task).\n* add a new `@copy_params` mechanism to copy the parameters from a task to another (the `@inherits` gives the same object to all the inheriting tasks while `@copy_params` only copies the definition of the parameter so each inheriting task can be given a different value).\n* add functions to get and display the dependency graph of a given task.\n* add a mechanism to setup templates for the `luigi.cfg` files, so the user just has to update specific values instead of copying the entire `luigi.cfg`.\n\nPlease read the [complete API documentation][luigi_tools_api_url] for more details.\n\n## Installation\n\nThis package should be installed using pip:\n\n```bash\npip install luigi-tools\n```\n\n## Usage\n\nThe [Luigi][luigi_url] package describes itself as follow:\n\n> Luigi is a Python package that helps you build complex pipelines of batch\n> jobs. It handles dependency resolution, workflow management, visualization, handling failures,\n> command line integration, and much more.\n\nThe [luigi-tools][luigi_tools_url] package is supposed to make luigi easier for developers.\nThe following presents a few examples of the main features of the package.\n\n### Boolean parameter\n\nThe [luigi.BoolParameter](https://luigi.readthedocs.io/en/stable/api/luigi.parameter.html#luigi.parameter.BoolParameter)\ncan be parsed in two ways: implicit or explicit. The explicit way requires the user to enter a\nvalue: `True` of `False`. On the contrary, the implicit way requires no value and will just set\nthe value to `True` if the parameter is given. This is not compatible with a default value set to\n`True`, as it is not possible to set the value to `False` using the CLI in this case.\n\nIf you want to automatically set the parsing to explicit when the default value is `True`:\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools import BoolParameter\n\nclass MyTask(Task):\n\n    a_boolean_parameter = BoolParameter(default=True)\n\n    def run(self):\n        pass\n```\n\n### Target with prefix\n\nThe [Luigi][luigi_url] workflows are based on `Target` object that represents the state of a step\nof the workflow. These targets can be anything but are often files in a result directory tree. In\norder to not having to specify the result directory to each target, one can use the\n`OutputLocalTarget` class and give it a `prefix`. So all targets based on this class will be\nlocated in the same directory.\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools.target import OutputLocalTarget\n\nclass MyTask(Task):\n\n    def run(self):\n        pass\n\n    def output(self):\n        # The target will point to the file result_directory/filename.ext\n        return OutputLocalTarget(\"filename.ext\")\n\n# Set the default prefix (it could also be called inside another Task)\nOutputLocalTarget.set_default_prefix(\"result_directory\")\n\n# Run the task (the task can also be called with the CLI as usual)\nluigi.build([MyTask()], local_scheduler=True)\n```\n\n### Rerunable task\n\nIn [Luigi][luigi_url], the states of the tasks are deducted from their targets. If the targets exist, the task\nis assumed to have already been completed and is thus skipped if the workflow is run again. This\nbehavior is usually good to avoid performing computations that are already completed. Nevertheless,\nsometimes it is desirable to overwrite a former result, especially during the development process.\nFor this reason, a mixin that adds a `--rerun` parameter to a task is introduced. When this\nparameter is set to `True`, all the targets of this task are deleted as well as the targets of the\ntasks that depend on this one. So when all the tasks that are related to this task will run again.\nAs for any mixin, it must be go on the left of the `Task` class in the inheritance list.\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools.task import RerunMixin\n\nclass MyTask(RerunMixin, Task):\n\n    def run(self):\n        pass\n```\n\nNow the task `MyTask` has a boolean parameter `--rerun` which can be called in the CLI:\n\n```bash\nluigi -m my_module mytask --rerun\nluigi -m my_module another_task_that_depends_on_mytask --MyTask-rerun\n```\n\n### Clear the output of failed tasks\n\nWhen a task fails unexpectedly, it may leave an incomplete or corrupted output\nthat leads to wrong results in the downstream. With the RemoveCorruptedOutputMixin,\nLuigi automatically removes the output targets of the tasks that failed. This is the default behaviour\nin other workflow management systems such as [Snakemake][snakemake_url].\n\n```python\nfrom luigi_tools.task import RemoveCorruptedOutputMixin\n\n    class TaskA(RemoveCorruptedOutputMixin, luigi.Task):\n        \"\"\"TaskA can remove its output upon failure.\"\"\"\n        pass\n\n```\n\nThe `clean_failed` is `false` by default and it must explicitly be set to `true`.\nThis allows users to set it to false to debug the output without changing the code.\n\n```bash\nluigi -m my_module TaskA --clean_failed true\n```\n\n### Copy parameters\n\nIn some situations, several tasks have a few parameters in common. This can lead to painful\nsituations, and luigi provides some dedicated tools to deal with this,\n[as described here](https://luigi.readthedocs.io/en/stable/api/luigi.util.html?highlight=inherits#using-inherits-and-requires-to-ease-parameter-pain).\nNevertheless, the tools provided by [Luigi][luigi_url] have a major drawback: all the tasks with\nthe inherited parameter will have the same value for this parameter. In some situations, one want\nto be able to give different values to a task with an inherited parameter, especially during the\ndevelopment process. This is possible with the `@copy_params` decorator:\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools.task import copy_params\n\nclass TaskA(Task):\n        a = luigi.Parameter(default=\"default_value_a\")\n\n@luigi_tools.task.copy_params(\n    a=luigi_tools.task.ParamRef(TaskA)\n)\nclass TaskB(Task):\n    b = luigi.Parameter(default=\"b\")\n```\n\nHere the class `TaskB` has two parameters:\n* `a` with `default_value_a` as default value.\n* `b` with `b` as default value.\n\nIt also possible to change the name of the parameter or to change the default value:\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools.task import copy_params\n\nclass TaskA(Task):\n        a = luigi.Parameter(default=\"default_value_a\")\n\n@luigi_tools.task.copy_params(\n    a=luigi_tools.task.ParamRef(TaskA),\n    aa=luigi_tools.task.ParamRef(TaskA, \"a\"),\n    a_default=luigi_tools.task.ParamRef(TaskA, \"a\", \"given_default_value\"),\n    a_none=luigi_tools.task.ParamRef(TaskA, \"a\", None),\n)\nclass TaskB(Task):\n    b = luigi.Parameter(default=\"b\")\n```\n\nIn this case the class `TaskB` has 5 parameters:\n* `a` with `default_value_a` as default value.\n* `aa` with `a` as default value.\n* `a_default` with `given_default_value` as default value.\n* `a_none` with `None` as default value.\n* `b` with `b` as default value.\n\nNote that the second parameter of `ParamRef` is the name of the inherited parameter in the parent\nclass. If it is not given, it is supposed that the parameter has the same name in both the\ninheriting and the parent classes.\n\n### Global parameters\n\nIn addition to the `@copy_params` decorator, it is possible to use the `GlobalParamMixin` mixin.\nA task with this mixin has a new feature for the parameters inherited using `@copy_params`: if the\ndefault value is not changed in `ParamRef` and if no specific value is given for the task, then the\ntask would take the same value as one of the inherited parameter. This combination of the\n`@copy_params` decorator and `GlobalParamMixin` allows many ways of dealing with the parameters.\n\n```python\nfrom luigi.task import Task\nfrom luigi_tools.task import copy_params\nfrom luigi_tools.task import GlobalParamMixin\n\nclass TaskA(Task):\n        a = luigi.Parameter(default=\"default_value_a\")\n\n@luigi_tools.task.copy_params(\n    a=luigi_tools.task.ParamRef(TaskA)\n)\nclass TaskB(GlobalParamMixin, Task):\n    b = luigi.Parameter(default=\"b\")\n```\n\nNow if `TaskB` is called with the following configuration:\n\n```yaml\n[TaskA]\na = \"value for a\"\n\n[TaskB]\nb = \"value for b\"\n```\n\nthen the parameter `a` of `TaskB` has the value `value for a`.\nIf `TaskB` did not inherit from `GlobalParamMixin`, then it would have the value\n`default_value_a`.\n\n### Dependency graph\n\nThe `luigi-tools` package provides several functions to get the dependency graph of a task and to\nrender it using GraphViz. This can be very useful to show how the tasks of a workflow are\norganized.\n\n\n## Funding & Acknowledgment\n\nThe development of this software was supported by funding to the Blue Brain Project, a research center of the \u00c9cole polytechnique f\u00e9d\u00e9rale de Lausanne (EPFL), from the Swiss government\u2019s ETH Board of the Swiss Federal Institutes of Technology.\n\nFor license and authors, see `LICENSE.txt` and `AUTHORS.md` respectively.\n\nCopyright \u00a9 2021-2022 Blue Brain Project/EPFL\n\n[luigi_url]: https://luigi.readthedocs.io/en/stable/\n[luigi_tools_url]: https://luigi-tools.readthedocs.io/en/stable/\n[luigi_tools_api_url]: https://luigi-tools.readthedocs.io/en/stable/api.html\n[snakemake_url]: https://snakemake.readthedocs.io/en/stable/\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://luigi-tools.readthedocs.io",
+            "keywords": "",
+            "license": "Apache License 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "luigi-tools",
+            "package_url": "https://pypi.org/project/luigi-tools/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/luigi-tools/",
+            "project_urls": {
+                "Homepage": "https://luigi-tools.readthedocs.io",
+                "Source": "https://github.com/BlueBrain/luigi-tools",
+                "Tracker": "https://github.com/BlueBrain/luigi-tools/issues"
+            },
+            "release_url": "https://pypi.org/project/luigi-tools/0.1.0/",
+            "requires_dist": [
+                "luigi",
+                "typing-extensions",
+                "m2r2 ; extra == 'docs'",
+                "sphinx ; extra == 'docs'",
+                "sphinx-bluebrain-theme ; extra == 'docs'",
+                "graphviz ; extra == 'graphviz'",
+                "mock ; extra == 'test'",
+                "pytest ; extra == 'test'",
+                "pytest-cov ; extra == 'test'",
+                "pytest-html ; extra == 'test'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Tools to work with luigi.",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15915915,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "43322d556130aedc00c78711eb2756a2",
+                    "sha256": "50779a227b30093d77613f6279cd0bf5b0defb9fdec6e2a6574122eccee6630c"
+                },
+                "downloads": -1,
+                "filename": "luigi_tools-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "43322d556130aedc00c78711eb2756a2",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 22664,
+                "upload_time": "2022-11-28T15:45:53",
+                "upload_time_iso_8601": "2022-11-28T15:45:53.278669Z",
+                "url": "https://files.pythonhosted.org/packages/c9/32/f8abdf1063ebbf8d6b403d407ff862d5240230c0873df3c96c3dfcdba64e/luigi_tools-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b71de93a14256a0a81c515e3fff5d2dd",
+                    "sha256": "0d59815c1a82572869728d7801509a9c3f9b308b2afb7f2f95dff26519cb8ae2"
+                },
+                "downloads": -1,
+                "filename": "luigi-tools-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "b71de93a14256a0a81c515e3fff5d2dd",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 57138,
+                "upload_time": "2022-11-28T15:45:54",
+                "upload_time_iso_8601": "2022-11-28T15:45:54.974069Z",
+                "url": "https://files.pythonhosted.org/packages/bf/a7/ddc910377c82f7c36d0a31a550c91e0702d631316740278150e1b66424fa/luigi-tools-0.1.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

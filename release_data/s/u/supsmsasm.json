@@ -40,7 +40,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15710595,
+        "last_serial": 15915068,
         "urls": [
             {
                 "comment_text": "",
@@ -126,7 +126,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15710595,
+        "last_serial": 15915068,
         "urls": [
             {
                 "comment_text": "",
@@ -212,7 +212,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15710595,
+        "last_serial": 15915068,
         "urls": [
             {
                 "comment_text": "",
@@ -298,7 +298,7 @@
             "yanked": true,
             "yanked_reason": null
         },
-        "last_serial": 15710595,
+        "last_serial": 15915068,
         "urls": [
             {
                 "comment_text": "",
@@ -384,7 +384,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15710595,
+        "last_serial": 15915068,
         "urls": [
             {
                 "comment_text": "",
@@ -470,7 +470,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15710595,
+        "last_serial": 15915068,
         "urls": [
             {
                 "comment_text": "",
@@ -556,7 +556,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15710595,
+        "last_serial": 15915068,
         "urls": [
             {
                 "comment_text": "",
@@ -611,7 +611,6 @@
                 "Operating System :: Microsoft :: Windows",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# supSMSASM\r\nA tool to make Gecko code from ASM for SMS\r\n\r\nThis tool only runs on Windows currently.\r\n\r\n## Installation\r\nFirst, install [devkitPro](https://github.com/devkitPro/installer/releases).\r\n\r\nThen, use pip to install supSMSASM:\r\n```\r\npip install supSMSASM\r\n```\r\n\r\n## Usage\r\nThis tool can make C0, C2, and Fixed-Location-C2 code from ASM code.\r\nSee [Supported Code Type](#supported-code-type) for more information.\r\n\r\nWith all files prepared, use the following command to generate the Gecko code:\r\n```\r\nsupSMSASM {*.s} [JP|JPA]\r\n```\r\n\r\nThe generated code will be copied to your clipboard.\r\n\r\n## Symbols\r\nSymbols defined in [ldscript/](src/supSMSASM/ldscript) can be used in `*.s` and `*.ld`.\r\n\r\n## Supported Code Type\r\n### C0\r\nSimply write your ASM code in `*.s` and use `supSMSASM` to convert it into Gecko code.\r\n\r\n### C2\r\nYou will need the following two files:\r\n- `*.s`: ASM source code\r\n- `*.ld`: LD script for defining the entry points of C2. You need to define a symbol `$$` and set the value to `0`.\r\n\r\nTo define a C2 entry,\r\ndefine a symbol with `$C2$` prepending to the symbol defined in `*.s` file.\r\n\r\nFor example, to make 2 C2 codes, first write the body of the code in your `xxx.s` file:\r\n```asm\r\nSomeC2Code:\r\n  # ...\r\n\r\nAnotherC2Code:\r\n  # ...\r\n```\r\n\r\nThen, in your `xxx.ld` file, define the entry points:\r\n```ld\r\n/* The following line is required for C2 code type */\r\n$$ = 0;\r\n\r\n$C2$SomeC2Code = 0x80345678;\r\n$C2$AnotherC2Code = 0x80DEFABC;\r\n```\r\n\r\nFinally, use `supGeckoCode xxx.s` to generate Gecko code.\r\nThe result will be like:\r\n```\r\nC2345678 XXXXXXXX\r\n... (instructions in SomeC2Code)\r\nC2DEFABC XXXXXXXX\r\n... (instructions in AnotherC2Code)\r\n```\r\n\r\nNote that you can't branch to absolute address with `bl` or `b` directly\r\nsince the location of the code is unknown.\r\nYou will need to set the destination to register and use `blr`, `bctr` etc. instead.\r\n\r\n### Fixed-Location-C2\r\nTo solve the problem that `C2` code type can't branch to absolute address directly,\r\nyou can use `06` to place the code into a fixed location\r\nand then use `04` to replace the instruction with `b` or `bl` to the code.\r\n\r\nYou will need the following two files (same as C2):\r\n- `*.s`: ASM source code\r\n- `*.ld`: LD script for defining the entry points and the address to place the code\r\n\r\nTo define a entry,\r\ndefine a symbol with `$b$` or `$bl$` prepending to the symbol defined in `*.s` file.\r\nThis will replace the instruction at the given address with `b` or `bl` to the the symbol.\r\n\r\nFor example, to make 2 Fixed-Location-C2 codes, first write the body of the code in your `xxx.s` file:\r\n```asm\r\nSomeCodeWithB:\r\n  b $b$SomeCodeWithB+4\r\n\r\nAnotherCodeWithBL:\r\n  # ...\r\n  blr\r\n```\r\n\r\nThen, in your `xxx.ld` file, define the entry points:\r\n```ld\r\n/* The following line defines the address to place the code.\r\n   It will be 0x817F9800 if you don't specify */\r\n$$ = 0x817F9800;\r\n\r\n$b$SomeCodeWithB = 0x80345678;\r\n$bl$AnotherCodeWithBL = 0x80DEFABC;\r\n```\r\n\r\nFinally, use `supGeckoCode xxx.s` to generate Gecko code.\r\nThe result will be like:\r\n```\r\n04345678 494B4188 <-- b from 80345678 to SomeCodeWithB\r\n04DEFABC 48A09D49 <-- bl from 80DEFABC to AnotherCodeWithBL\r\n077F9800 XXXXXXXX\r\n... (instructions in SomeCodeWithB and AnotherCodeWithBL)\r\n```\r\n\r\nNote that unlike C2, you have to explicitly do `b` or `blr` back to the original program.\r\nIn addition, just like C2, you have to put the original instruction manually if needed.\r\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -643,7 +642,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15710595,
+        "last_serial": 15915068,
         "urls": [
             {
                 "comment_text": "",
@@ -682,6 +681,93 @@
                 "upload_time": "2022-11-05T09:30:09",
                 "upload_time_iso_8601": "2022-11-05T09:30:09.642679Z",
                 "url": "https://files.pythonhosted.org/packages/68/77/2d3e2d7f3a1b03cf87187f868c68fb7cdd210676f833bb71201399c64c6f/supSMSASM-0.0.5b1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.6": {
+        "info": {
+            "author": "sup39",
+            "author_email": "sms@sup39.dev",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: Microsoft :: Windows",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# supSMSASM\r\nA tool to make Gecko code from ASM for SMS\r\n\r\nThis tool only runs on Windows currently.\r\n\r\n## Installation\r\nFirst, install [devkitPro](https://github.com/devkitPro/installer/releases).\r\n\r\nThen, use pip to install supSMSASM:\r\n```\r\npip install supSMSASM\r\n```\r\n\r\n## Usage\r\nThis tool can make C0, C2, and Fixed-Location-C2 code from ASM code.\r\nSee [Supported Code Type](#supported-code-type) for more information.\r\n\r\nWith all files prepared, use the following command to generate the Gecko code:\r\n```\r\nsupSMSASM {*.s} [JP|JPA]\r\n```\r\n\r\nThe generated code will be copied to your clipboard.\r\n\r\n## Symbols\r\nSymbols defined in [ldscript/](src/supSMSASM/ldscript) can be used in `*.s` and `*.ld`.\r\n\r\n## Supported Code Type\r\n### C0\r\nSimply write your ASM code in `*.s` and use `supSMSASM` to convert it into Gecko code.\r\n\r\n### C2\r\nYou will need the following two files:\r\n- `*.s`: ASM source code\r\n- `*.ld`: LD script for defining the entry points of C2. You need to define a symbol `$$` and set the value to `0`.\r\n\r\nTo define a C2 entry,\r\ndefine a symbol with `$C2$` prepending to the symbol defined in `*.s` file.\r\n\r\nFor example, to make 2 C2 codes, first write the body of the code in your `xxx.s` file:\r\n```asm\r\nSomeC2Code:\r\n  # ...\r\n\r\nAnotherC2Code:\r\n  # ...\r\n```\r\n\r\nThen, in your `xxx.ld` file, define the entry points:\r\n```ld\r\n/* The following line is required for C2 code type */\r\n$$ = 0;\r\n\r\n$C2$SomeC2Code = 0x80345678;\r\n$C2$AnotherC2Code = 0x80DEFABC;\r\n```\r\n\r\nFinally, use `supGeckoCode xxx.s` to generate Gecko code.\r\nThe result will be like:\r\n```\r\nC2345678 XXXXXXXX\r\n... (instructions in SomeC2Code)\r\nC2DEFABC XXXXXXXX\r\n... (instructions in AnotherC2Code)\r\n```\r\n\r\nNote that you can't branch to absolute address with `bl` or `b` directly\r\nsince the location of the code is unknown.\r\nYou will need to set the destination to register and use `blr`, `bctr` etc. instead.\r\n\r\n### Fixed-Location-C2\r\nTo solve the problem that `C2` code type can't branch to absolute address directly,\r\nyou can use `06` to place the code into a fixed location\r\nand then use `04` to replace the instruction with `b` or `bl` to the code.\r\n\r\nYou will need the following two files (same as C2):\r\n- `*.s`: ASM source code\r\n- `*.ld`: LD script for defining the entry points and the address to place the code\r\n\r\nTo define a entry,\r\ndefine a symbol with `$b$` or `$bl$` prepending to the symbol defined in `*.s` file.\r\nThis will replace the instruction at the given address with `b` or `bl` to the the symbol.\r\n\r\nFor example, to make 2 Fixed-Location-C2 codes, first write the body of the code in your `xxx.s` file:\r\n```asm\r\nSomeCodeWithB:\r\n  b $b$SomeCodeWithB+4\r\n\r\nAnotherCodeWithBL:\r\n  # ...\r\n  blr\r\n```\r\n\r\nThen, in your `xxx.ld` file, define the entry points:\r\n```ld\r\n/* The following line defines the address to place the code.\r\n   It will be 0x817F9800 if you don't specify */\r\n$$ = 0x817F9800;\r\n\r\n$b$SomeCodeWithB = 0x80345678;\r\n$bl$AnotherCodeWithBL = 0x80DEFABC;\r\n```\r\n\r\nFinally, use `supGeckoCode xxx.s` to generate Gecko code.\r\nThe result will be like:\r\n```\r\n04345678 494B4188 <-- b from 80345678 to SomeCodeWithB\r\n04DEFABC 48A09D49 <-- bl from 80DEFABC to AnotherCodeWithBL\r\n077F9800 XXXXXXXX\r\n... (instructions in SomeCodeWithB and AnotherCodeWithBL)\r\n```\r\n\r\nNote that unlike C2, you have to explicitly do `b` or `blr` back to the original program.\r\nIn addition, just like C2, you have to put the original instruction manually if needed.\r\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/sup39/supSMSASM",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "supSMSASM",
+            "package_url": "https://pypi.org/project/supSMSASM/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/supSMSASM/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/sup39/supSMSASM/issues",
+                "Homepage": "https://github.com/sup39/supSMSASM"
+            },
+            "release_url": "https://pypi.org/project/supSMSASM/0.0.6/",
+            "requires_dist": [
+                "pywin32 (>=304)"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "A tool to make Gecko code from ASM for SMS",
+            "version": "0.0.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15915068,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "588f1a84d9f704faf291ee88c78948fc",
+                    "sha256": "f6a7ca7935c16e10b382f53872076e781f09bbb77adfbdde074fcbd5919c103d"
+                },
+                "downloads": -1,
+                "filename": "supSMSASM-0.0.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "588f1a84d9f704faf291ee88c78948fc",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 2062455,
+                "upload_time": "2022-11-28T14:37:45",
+                "upload_time_iso_8601": "2022-11-28T14:37:45.070964Z",
+                "url": "https://files.pythonhosted.org/packages/aa/e3/1a1b42d93f110e6e96b312f776a9ad1ad144546bc4ce7b620bf7944c4c12/supSMSASM-0.0.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d8024157c4c670e3c81928f488bebf03",
+                    "sha256": "f050bff9aaaeee3543db6b1f336d0d441539222b897c6c77ad0b183db66e3318"
+                },
+                "downloads": -1,
+                "filename": "supSMSASM-0.0.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d8024157c4c670e3c81928f488bebf03",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 2033537,
+                "upload_time": "2022-11-28T14:37:51",
+                "upload_time_iso_8601": "2022-11-28T14:37:51.332358Z",
+                "url": "https://files.pythonhosted.org/packages/06/38/eaa6c9976bd22ec0eeae510fe86109d526760bd8416fb1281aa823f3e9d1/supSMSASM-0.0.6.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
