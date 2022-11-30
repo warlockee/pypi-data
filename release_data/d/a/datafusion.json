@@ -33,7 +33,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14035322,
+        "last_serial": 15930544,
         "urls": [
             {
                 "comment_text": "",
@@ -146,7 +146,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14035322,
+        "last_serial": 15930544,
         "urls": [
             {
                 "comment_text": "",
@@ -409,7 +409,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14035322,
+        "last_serial": 15930544,
         "urls": [
             {
                 "comment_text": "",
@@ -532,7 +532,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14035322,
+        "last_serial": 15930544,
         "urls": [
             {
                 "comment_text": "",
@@ -675,7 +675,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14035322,
+        "last_serial": 15930544,
         "urls": [
             {
                 "comment_text": "",
@@ -818,7 +818,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14035322,
+        "last_serial": 15930544,
         "urls": [
             {
                 "comment_text": "",
@@ -929,7 +929,6 @@
             "author_email": "Apache Arrow <dev@arrow.apache.org>",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "<!---\n  Licensed to the Apache Software Foundation (ASF) under one\n  or more contributor license agreements.  See the NOTICE file\n  distributed with this work for additional information\n  regarding copyright ownership.  The ASF licenses this file\n  to you under the Apache License, Version 2.0 (the\n  \"License\"); you may not use this file except in compliance\n  with the License.  You may obtain a copy of the License at\n\n    http://www.apache.org/licenses/LICENSE-2.0\n\n  Unless required by applicable law or agreed to in writing,\n  software distributed under the License is distributed on an\n  \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY\n  KIND, either express or implied.  See the License for the\n  specific language governing permissions and limitations\n  under the License.\n-->\n\n# DataFusion in Python\n\n[![Python test](https://github.com/datafusion-contrib/datafusion-python/actions/workflows/test.yaml/badge.svg)](https://github.com/datafusion-contrib/datafusion-python/actions/workflows/test.yaml)\n\nThis is a Python library that binds to [Apache Arrow](https://arrow.apache.org/) in-memory query engine [DataFusion](https://github.com/apache/arrow-datafusion).\n\nLike pyspark, it allows you to build a plan through SQL or a DataFrame API against in-memory data, parquet or CSV files, run it in a multi-threaded environment, and obtain the result back in Python.\n\nIt also allows you to use UDFs and UDAFs for complex operations.\n\nThe major advantage of this library over other execution engines is that this library achieves zero-copy between Python and its execution engine: there is no cost in using UDFs, UDAFs, and collecting the results to Python apart from having to lock the GIL when running those operations.\n\nIts query engine, DataFusion, is written in [Rust](https://www.rust-lang.org/), which makes strong assumptions about thread safety and lack of memory leaks.\n\nTechnically, zero-copy is achieved via the [c data interface](https://arrow.apache.org/docs/format/CDataInterface.html).\n\n## How to use it\n\nSimple usage:\n\n```python\nimport datafusion\nfrom datafusion import functions as f\nfrom datafusion import col\nimport pyarrow\n\n# create a context\nctx = datafusion.SessionContext()\n\n# create a RecordBatch and a new DataFrame from it\nbatch = pyarrow.RecordBatch.from_arrays(\n    [pyarrow.array([1, 2, 3]), pyarrow.array([4, 5, 6])],\n    names=[\"a\", \"b\"],\n)\ndf = ctx.create_dataframe([[batch]])\n\n# create a new statement\ndf = df.select(\n    col(\"a\") + col(\"b\"),\n    col(\"a\") - col(\"b\"),\n)\n\n# execute and collect the first (and only) batch\nresult = df.collect()[0]\n\nassert result.column(0) == pyarrow.array([5, 7, 9])\nassert result.column(1) == pyarrow.array([-3, -3, -3])\n```\n\n### UDFs\n\n```python\nfrom datafusion import udf\n\ndef is_null(array: pyarrow.Array) -> pyarrow.Array:\n    return array.is_null()\n\nis_null_arr = udf(is_null, [pyarrow.int64()], pyarrow.bool_(), 'stable')\n\ndf = df.select(is_null_arr(col(\"a\")))\n\nresult = df.collect()\n\nassert result.column(0) == pyarrow.array([False] * 3)\n```\n\n### UDAF\n\n```python\nimport pyarrow\nimport pyarrow.compute\nfrom datafusion import udaf, Accumulator\n\n\nclass MyAccumulator(Accumulator):\n    \"\"\"\n    Interface of a user-defined accumulation.\n    \"\"\"\n    def __init__(self):\n        self._sum = pyarrow.scalar(0.0)\n\n    def update(self, values: pyarrow.Array) -> None:\n        # not nice since pyarrow scalars can't be summed yet. This breaks on `None`\n        self._sum = pyarrow.scalar(self._sum.as_py() + pyarrow.compute.sum(values).as_py())\n\n    def merge(self, states: pyarrow.Array) -> None:\n        # not nice since pyarrow scalars can't be summed yet. This breaks on `None`\n        self._sum = pyarrow.scalar(self._sum.as_py() + pyarrow.compute.sum(states).as_py())\n\n    def state(self) -> pyarrow.Array:\n        return pyarrow.array([self._sum.as_py()])\n\n    def evaluate(self) -> pyarrow.Scalar:\n        return self._sum\n\n\ndf = ctx.create_dataframe([[batch]])\n\nmy_udaf = udaf(MyAccumulator, pyarrow.float64(), pyarrow.float64(), [pyarrow.float64()], 'stable')\n\ndf = df.aggregate(\n    [],\n    [my_udaf(col(\"a\"))]\n)\n\nresult = df.collect()[0]\n\nassert result.column(0) == pyarrow.array([6.0])\n```\n\n## How to install (from pip)\n\n```bash\npip install datafusion\n# or\npython -m pip install datafusion\n```\n\nYou can verify the installation by running:\n\n```python\n>>> import datafusion\n>>> datafusion.__version__\n'0.5.2'\n```\n\n## How to develop\n\nThis assumes that you have rust and cargo installed. We use the workflow recommended by [pyo3](https://github.com/PyO3/pyo3) and [maturin](https://github.com/PyO3/maturin).\n\nBootstrap:\n\n```bash\n# fetch this repo\ngit clone git@github.com:datafusion-contrib/datafusion-python.git\n# prepare development environment (used to build wheel / install in development)\npython3 -m venv venv\n# activate the venv\nsource venv/bin/activate\n# update pip itself if necessary\npython -m pip install -U pip\n# install dependencies (for Python 3.8+)\npython -m pip install -r requirements-310.txt\n```\n\nWhenever rust code changes (your changes or via `git pull`):\n\n```bash\n# make sure you activate the venv using \"source venv/bin/activate\" first\nmaturin develop\npython -m pytest\n```\n\n## How to update dependencies\n\nTo change test dependencies, change the `requirements.in` and run\n\n```bash\n# install pip-tools (this can be done only once), also consider running in venv\npython -m pip install pip-tools\npython -m piptools compile --generate-hashes -o requirements-310.txt\n```\n\nTo update dependencies, run with `-U`\n\n```bash\npython -m piptools compile -U --generate-hashes -o requirements-310.txt\n```\n\nMore details [here](https://github.com/jazzband/pip-tools)\n\n",
             "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
             "docs_url": null,
             "download_url": "",
@@ -962,7 +961,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14035322,
+        "last_serial": 15930544,
         "urls": [
             {
                 "comment_text": "",
@@ -1061,6 +1060,131 @@
                 "upload_time": "2022-06-05T05:54:21",
                 "upload_time_iso_8601": "2022-06-05T05:54:21.348892Z",
                 "url": "https://files.pythonhosted.org/packages/c0/d3/3cb395d2281f84b8a3242fc95be8ec679fd289a9d0e1164258db0a879aec/datafusion-0.6.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.7.0": {
+        "info": {
+            "author": "Apache Arrow <dev@arrow.apache.org>",
+            "author_email": "Apache Arrow <dev@arrow.apache.org>",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "<!---\n  Licensed to the Apache Software Foundation (ASF) under one\n  or more contributor license agreements.  See the NOTICE file\n  distributed with this work for additional information\n  regarding copyright ownership.  The ASF licenses this file\n  to you under the Apache License, Version 2.0 (the\n  \"License\"); you may not use this file except in compliance\n  with the License.  You may obtain a copy of the License at\n\n    http://www.apache.org/licenses/LICENSE-2.0\n\n  Unless required by applicable law or agreed to in writing,\n  software distributed under the License is distributed on an\n  \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY\n  KIND, either express or implied.  See the License for the\n  specific language governing permissions and limitations\n  under the License.\n-->\n\n# DataFusion in Python\n\n[![Python test](https://github.com/apache/arrow-datafusion-python/actions/workflows/test.yaml/badge.svg)](https://github.com/apache/arrow-datafusion-python/actions/workflows/test.yaml)\n[![Python Release Build](https://github.com/apache/arrow-datafusion-python/actions/workflows/build.yml/badge.svg)](https://github.com/apache/arrow-datafusion-python/actions/workflows/build.yml)\n\nThis is a Python library that binds to [Apache Arrow](https://arrow.apache.org/) in-memory query engine [DataFusion](https://github.com/apache/arrow-datafusion).\n\nLike pyspark, it allows you to build a plan through SQL or a DataFrame API against in-memory data, parquet or CSV files, run it in a multi-threaded environment, and obtain the result back in Python.\n\nIt also allows you to use UDFs and UDAFs for complex operations.\n\nThe major advantage of this library over other execution engines is that this library achieves zero-copy between Python and its execution engine: there is no cost in using UDFs, UDAFs, and collecting the results to Python apart from having to lock the GIL when running those operations.\n\nIts query engine, DataFusion, is written in [Rust](https://www.rust-lang.org/), which makes strong assumptions about thread safety and lack of memory leaks.\n\nTechnically, zero-copy is achieved via the [c data interface](https://arrow.apache.org/docs/format/CDataInterface.html).\n\n## How to use it\n\nSimple usage:\n\n```python\nimport datafusion\nfrom datafusion import col\nimport pyarrow\n\n# create a context\nctx = datafusion.SessionContext()\n\n# create a RecordBatch and a new DataFrame from it\nbatch = pyarrow.RecordBatch.from_arrays(\n    [pyarrow.array([1, 2, 3]), pyarrow.array([4, 5, 6])],\n    names=[\"a\", \"b\"],\n)\ndf = ctx.create_dataframe([[batch]])\n\n# create a new statement\ndf = df.select(\n    col(\"a\") + col(\"b\"),\n    col(\"a\") - col(\"b\"),\n)\n\n# execute and collect the first (and only) batch\nresult = df.collect()[0]\n\nassert result.column(0) == pyarrow.array([5, 7, 9])\nassert result.column(1) == pyarrow.array([-3, -3, -3])\n```\n\n### UDFs\n\n```python\nimport pyarrow\nfrom datafusion import udf\n\ndef is_null(array: pyarrow.Array) -> pyarrow.Array:\n    return array.is_null()\n\nis_null_arr = udf(is_null, [pyarrow.int64()], pyarrow.bool_(), 'stable')\n\n# create a context\nctx = datafusion.SessionContext()\n\n# create a RecordBatch and a new DataFrame from it\nbatch = pyarrow.RecordBatch.from_arrays(\n    [pyarrow.array([1, 2, 3]), pyarrow.array([4, 5, 6])],\n    names=[\"a\", \"b\"],\n)\ndf = ctx.create_dataframe([[batch]])\n\ndf = df.select(is_null_arr(col(\"a\")))\n\nresult = df.collect()[0]\n\nassert result.column(0) == pyarrow.array([False] * 3)\n```\n\n### UDAF\n\n```python\nimport pyarrow\nimport pyarrow.compute\nimport datafusion\nfrom datafusion import udaf, Accumulator\nfrom datafusion import col\n\n\nclass MyAccumulator(Accumulator):\n    \"\"\"\n    Interface of a user-defined accumulation.\n    \"\"\"\n    def __init__(self):\n        self._sum = pyarrow.scalar(0.0)\n\n    def update(self, values: pyarrow.Array) -> None:\n        # not nice since pyarrow scalars can't be summed yet. This breaks on `None`\n        self._sum = pyarrow.scalar(self._sum.as_py() + pyarrow.compute.sum(values).as_py())\n\n    def merge(self, states: pyarrow.Array) -> None:\n        # not nice since pyarrow scalars can't be summed yet. This breaks on `None`\n        self._sum = pyarrow.scalar(self._sum.as_py() + pyarrow.compute.sum(states).as_py())\n\n    def state(self) -> pyarrow.Array:\n        return pyarrow.array([self._sum.as_py()])\n\n    def evaluate(self) -> pyarrow.Scalar:\n        return self._sum\n\n# create a context\nctx = datafusion.SessionContext()\n\n# create a RecordBatch and a new DataFrame from it\nbatch = pyarrow.RecordBatch.from_arrays(\n    [pyarrow.array([1, 2, 3]), pyarrow.array([4, 5, 6])],\n    names=[\"a\", \"b\"],\n)\ndf = ctx.create_dataframe([[batch]])\n\nmy_udaf = udaf(MyAccumulator, pyarrow.float64(), pyarrow.float64(), [pyarrow.float64()], 'stable')\n\ndf = df.aggregate(\n    [],\n    [my_udaf(col(\"a\"))]\n)\n\nresult = df.collect()[0]\n\nassert result.column(0) == pyarrow.array([6.0])\n```\n\n## How to install (from pip)\n\n```bash\npip install datafusion\n# or\npython -m pip install datafusion\n```\n\nYou can verify the installation by running:\n\n```python\n>>> import datafusion\n>>> datafusion.__version__\n'0.6.0'\n```\n\n## How to develop\n\nThis assumes that you have rust and cargo installed. We use the workflow recommended by [pyo3](https://github.com/PyO3/pyo3) and [maturin](https://github.com/PyO3/maturin).\n\nBootstrap:\n\n```bash\n# fetch this repo\ngit clone git@github.com:apache/arrow-datafusion-python.git\n# prepare development environment (used to build wheel / install in development)\npython3 -m venv venv\n# activate the venv\nsource venv/bin/activate\n# update pip itself if necessary\npython -m pip install -U pip\n# install dependencies (for Python 3.8+)\npython -m pip install -r requirements-310.txt\n```\n\nThe tests rely on test data in git submodules.\n\n```bash\ngit submodule init\ngit submodule update\n```\n\nWhenever rust code changes (your changes or via `git pull`):\n\n```bash\n# make sure you activate the venv using \"source venv/bin/activate\" first\nmaturin develop\npython -m pytest\n```\n\n## How to update dependencies\n\nTo change test dependencies, change the `requirements.in` and run\n\n```bash\n# install pip-tools (this can be done only once), also consider running in venv\npython -m pip install pip-tools\npython -m piptools compile --generate-hashes -o requirements-310.txt\n```\n\nTo update dependencies, run with `-U`\n\n```bash\npython -m piptools compile -U --generate-hashes -o requirements-310.txt\n```\n\nMore details [here](https://github.com/jazzband/pip-tools)\n\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/apache/arrow-datafusion-python",
+            "keywords": "datafusion,dataframe,rust,query-engine",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "datafusion",
+            "package_url": "https://pypi.org/project/datafusion/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/datafusion/",
+            "project_urls": {
+                "Homepage": "https://github.com/apache/arrow-datafusion-python",
+                "documentation": "https://arrow.apache.org/datafusion",
+                "homepage": "https://arrow.apache.org/datafusion",
+                "repository": "https://github.com/apache/arrow-datafusion-python"
+            },
+            "release_url": "https://pypi.org/project/datafusion/0.7.0/",
+            "requires_dist": [
+                "pyarrow>=1"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "Build and run queries against data",
+            "version": "0.7.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15930544,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d1352e0bb20d054689e4b3065621be98",
+                    "sha256": "d717d965f3f632615694e2e0211ede41a6252f1715bb9ba9e656a9392a2b5eda"
+                },
+                "downloads": -1,
+                "filename": "datafusion-0.7.0-cp37-abi3-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d1352e0bb20d054689e4b3065621be98",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.6",
+                "size": 9852651,
+                "upload_time": "2022-11-29T16:58:33",
+                "upload_time_iso_8601": "2022-11-29T16:58:33.818022Z",
+                "url": "https://files.pythonhosted.org/packages/16/56/2aa1e1d427e6fe03c737de08040a7f46b1c9e738971de31593f73b563629/datafusion-0.7.0-cp37-abi3-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "dbf049206e2e22c65695eb19935c0921",
+                    "sha256": "55f1ac40004d2e20ca903946c2f138e39ea71e08aedf7554958875e23b7895d3"
+                },
+                "downloads": -1,
+                "filename": "datafusion-0.7.0-cp37-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "dbf049206e2e22c65695eb19935c0921",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.6",
+                "size": 12482812,
+                "upload_time": "2022-11-29T16:58:45",
+                "upload_time_iso_8601": "2022-11-29T16:58:45.272942Z",
+                "url": "https://files.pythonhosted.org/packages/c9/bd/c22701c4782887b23561688e818bed14d10722b070ec8865f6353ac558f4/datafusion-0.7.0-cp37-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e770cd0f9d79a8f7b23066ac3bfa687a",
+                    "sha256": "5aa2a14bbcc3c40cc42b6c1da30c002a6baa52209fbfe14836a3e9d4a623ce20"
+                },
+                "downloads": -1,
+                "filename": "datafusion-0.7.0-cp37-abi3-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "e770cd0f9d79a8f7b23066ac3bfa687a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.6",
+                "size": 10457778,
+                "upload_time": "2022-11-29T16:58:54",
+                "upload_time_iso_8601": "2022-11-29T16:58:54.626898Z",
+                "url": "https://files.pythonhosted.org/packages/86/94/5954d1f5a2c5adbe37d828b0c77d7980bc93ba679497ee115f0d17f7bf3b/datafusion-0.7.0-cp37-abi3-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4567f1ef093cdbb7c29dce7fddcb93aa",
+                    "sha256": "5d85d9328acfb3651eec4dfc0c049de2b9b1bd7d30971f00eac0a901b6148782"
+                },
+                "downloads": -1,
+                "filename": "datafusion-0.7.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "4567f1ef093cdbb7c29dce7fddcb93aa",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 150574,
+                "upload_time": "2022-11-29T16:58:57",
+                "upload_time_iso_8601": "2022-11-29T16:58:57.380297Z",
+                "url": "https://files.pythonhosted.org/packages/a4/4f/5c588562ec6ab1651659ff35e34c197a7c1eaa7663360f2ea9d7d777547d/datafusion-0.7.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
