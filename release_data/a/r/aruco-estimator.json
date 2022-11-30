@@ -47,7 +47,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15864116,
+        "last_serial": 15938462,
         "urls": [
             {
                 "comment_text": "",
@@ -140,7 +140,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15864116,
+        "last_serial": 15938462,
         "urls": [
             {
                 "comment_text": "",
@@ -233,7 +233,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15864116,
+        "last_serial": 15938462,
         "urls": [
             {
                 "comment_text": "",
@@ -326,7 +326,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15864116,
+        "last_serial": 15938462,
         "urls": [
             {
                 "comment_text": "",
@@ -383,7 +383,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "<p align=\"center\" width=\"100%\">\n    <img width=\"100%\" src=\"https://github.com/meyerls/aruco-estimator/blob/dev/img/wood.png?raw=true\">\n</p>\n\n# Automatic Estimation of the Scale Factor Based on Aruco Markers (Work in Progress!)\n\n<a href=\"https://pypi.org/project/aruco-estimator/\"><img alt=\"PyPI - Python Version\" src=\"https://img.shields.io/pypi/pyversions/aruco-estimator\"></a>\n<a href=\"https://pypi.org/project/aruco-estimator/\"><img alt=\"PyPI\" src=\"https://img.shields.io/pypi/v/aruco-estimator\"></a>\n<a href=\"https://github.com/meyerls/aruco-estimator/actions\"><img alt=\"GitHub Workflow Status\" src=\"https://img.shields.io/github/workflow/status/meyerls/aruco-estimator/Python%20package\"></a>\n<a href=\"https://github.com/meyerls/aruco-estimator/blob/main/LICENSE\"><img alt=\"license\" src=\"https://img.shields.io/github/license/meyerls/aruco-estimator\"></a>\n<!--a href=\"https://pepy.tech/project/aruco-estimator\"><img alt=\"PyPI - Downloads\" src=\"https://img.shields.io/pypi/dm/aruco-estimator?label=PyPi%20downloads\"></a--> \n\n\n<!--![PyPI](https://img.shields.io/pypi/v/aruco-estimator)\n![PyPI - Downloads](https://img.shields.io/pypi/dm/aruco-estimator?label=PyPi%20downloads)\n![GitHub Workflow Status](https://img.shields.io/github/workflow/status/meyerls/aruco-estimator/Publish%20Python%20%F0%9F%90%8D%20distributions%20%F0%9F%93%A6%20to%20PyPI%20and%20TestPyPI)\n![GitHub](https://img.shields.io/github/license/meyerls/aruco-estimator)-->\n\n## About\n\nThis project aims to automatically compute the correct scale of a point cloud generated\nwith [COLMAP](https://colmap.github.io/) by placing an aruco marker into the scene.\n\n## Installation\n\n### PyPi\n\nThis repository is tested on Python 3.6+ and can be installed from [PyPi](https://pypi.org/project/aruco-estimator)\n<!-- Tutorial: https://www.youtube.com/watch?v=JkeNVaiUq_c -->\n\n````angular2html\npip install aruco-estimator\n````\n\n## Usage\n\n### Dataset\n\nAn exemplary data set is provided. The dataset shows a simple scene of a door with an aruco marker. Other dataset might\nfollow in future work. It can be downloaded by using\n\n````python\nfrom aruco_estimator import download\n\ndataset = download.Dataset()\ndataset.download_door_dataset(output_path='.')\n````\n\n### API\n\nA use of the code on the provided dataset can be seen in the following block. The most important function is \n``aruco_scale_factor.run()``. Here, an aruco marker is searched for in each image. If a marker is found in at \nleast 2 images, the position of the aruco corner in 3D is calculated based on the camera poses and the corners of \nthe aruco maker.Based on the positions of the corners of the square aruco marker, the size of the marker in the unscaled \nreconstruction can be determined. With the correct metric size of the marker, the scene can be scaled true to scale \nusing ``aruco_scale_factor.apply(true_scale)``. \n\n````python\nfrom aruco_estimator.aruco_scale_factor import ArucoScaleFactor\nfrom aruco_estimator import download\nimport os\nimport open3d as o3d\n\n# Download example dataset. Door dataset is roughly 200 MB\ndataset = download.Dataset()\ndataset.download_door_dataset()\n\n# Init & run pose estimation of corners in 3D & estimate mean L2 distance between the four aruco corners\naruco_scale_factor = ArucoScaleFactor(project_path=dataset.dataset_path)\naruco_distance = aruco_scale_factor.run()\nprint('Size of the unscaled aruco markers: ', aruco_distance)\n\n# Calculate scaling factor, apply it to the scene and save scaled point cloud\ndense, scale_factor = aruco_scale_factor.apply(true_scale=dataset.scale)  # scale in m\nprint('Point cloud and poses are scaled by: ', scale_factor)\nprint('Size of the scaled (true to scale) aruco markers in meters: ', aruco_distance * scale_factor)\n\n# Visualization of the scene and rays BEFORE scaling. This might be necessary for debugging\naruco_scale_factor.visualize_estimation(frustum_scale=0.4)\no3d.io.write_point_cloud(os.path.join(dataset.colmap_project, 'scaled.ply'), dense)\naruco_scale_factor.write_data()\n````\n\n## Source\n\nIf you want to install the repo from source make sure that conda is installed. Afterwards clone this repository, give\nthe bash file executable rights and install the conda env:\n\n````angular2html\ngit clone https://github.com/meyerls/aruco-estimator.git\ncd aruco-estimator\nchmod u+x init_env.sh\n./init_env.sh\n```` \n\nFinally install all python dependencies in the activated conda environment via\n\n````angular2html\npip install -r requirements.txt\n````\n\n### Usage of Command Line\n\n````angular2html\nusage: scale_estimator.py [-h] [--colmap_project COLMAP_PROJECT] [--dense_model DENSE_MODEL] [--aruco_size ARUCO_SIZE] [--visualize] [--point_size POINT_SIZE] [--frustum_size FRUSTUM_SIZE] [--test_data]\n\nEstimate scale factor for COLMAP projects with aruco markers.\n\noptional arguments:\n-h, --help                             show this help message and exit\n--colmap_project COLMAP_PROJECT        Path to COLMAP project\n--dense_model DENSE_MODEL              name to the dense model\n--aruco_size ARUCO_SIZE                Size of the aruco marker in cm.\n--visualize                            Flag to enable visualization\n--point_size POINT_SIZE                Point size of the visualized dense point cloud. Depending on the number of points in the model. Between 0.001 and 2\n--frustum_size FRUSTUM_SIZE            Size of the visualized camera frustums. Between 0 (small) and 1 (large)\n--test_data                            Download and try out test data\n````\n\nTo test the code on your local machine try the example project by using:\n\n````angular2html\npython scale_estimator.py --test_data\n````\n<p align=\"center\" width=\"100%\">\n    <img width=\"100%\" src=\"https://github.com/meyerls/aruco-estimator/blob/dev/img/door.png?raw=true\">\n</p>\n\n<p align=\"center\" width=\"100%\">\n    <img width=\"100%\" src=\"https://github.com/meyerls/aruco-estimator/blob/dev/img/output.gif?raw=true\">\n</p>\n\n## Limitation / Improvements\n\n- [ ] Up to now only SIMPLE_RADIAL and PINHOLE camera models are supported. Extend all models\n- [ ] Install CLI Tool vi PyPi\n- [ ] Up to now only one aruco marker per scene can be detected. Multiple aruco marker could improve the scale\n  estimation\n- [ ] Different aruco marker settings and marker types should be investigated for different scenarios to make it either more robust to\n  false detections\n- [ ] Geo referencing of aruco markers with earth coordinate system using GPS or RTK\n- [ ] Only COLMAP is supported. Add additional reconstruction software.\n\n## Acknowledgement\n\n* The Code to read out the binary COLMAP data is partly borrowed from the\nrepo [COLMAP Utility Scripts](https://github.com/uzh-rpg/colmap_utils) by [uzh-rpg](https://github.com/uzh-rpg).\n* The visualization of the wooden block is created from the dataset found in [[1](https://robocip-aist.github.io/sii_nerf_scans/)]\n\n## Trouble Shooting\n\n- In some cases cv2 does not detect the aruco marker module. Reinstalling opencv-python and opencv-python-python might\n  help [Source](https://stackoverflow.com/questions/45972357/python-opencv-aruco-no-module-named-cv2-aruco)\n\n## References\n\n<div class=\"csl-entry\">[1] Erich, F., Bourreau, B., <i>Neural Scanning: Rendering and determining geometry of household objects using Neural Radiance Fields</i> <a href=\"https://robocip-aist.github.io/sii_nerf_scans/\">Link</a>. 2022</div>\n\n## Citation\n\nPlease cite this paper, if this work helps you with your research:\n\n```\n@InProceedings{ ,\n  author=\"H\",\n  title=\"\",\n  booktitle=\"\",\n  year=\"\",\n  pages=\"\",\n  isbn=\"\"\n}\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -422,7 +421,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15864116,
+        "last_serial": 15938462,
         "urls": [
             {
                 "comment_text": "",
@@ -461,6 +460,103 @@
                 "upload_time": "2022-11-23T08:02:13",
                 "upload_time_iso_8601": "2022-11-23T08:02:13.489135Z",
                 "url": "https://files.pythonhosted.org/packages/cc/38/2da83878310fb06e68636c0813c20ff50039c7bf86edc087bf63febda257/aruco-estimator-1.1.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.1.7": {
+        "info": {
+            "author": "Lukas Meyer",
+            "author_email": "lukas.meyer@fau.de",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "<p align=\"center\" width=\"100%\">\n    <img width=\"100%\" src=\"https://github.com/meyerls/aruco-estimator/blob/dev/img/wood.png?raw=true\">\n</p>\n\n# Automatic Estimation of the Scale Factor Based on Aruco Markers (Work in Progress!)\n\n<a href=\"https://pypi.org/project/aruco-estimator/\"><img alt=\"PyPI - Python Version\" src=\"https://img.shields.io/pypi/pyversions/aruco-estimator\"></a>\n<a href=\"https://pypi.org/project/aruco-estimator/\"><img alt=\"PyPI\" src=\"https://img.shields.io/pypi/v/aruco-estimator\"></a>\n<a href=\"https://github.com/meyerls/aruco-estimator/actions\"><img alt=\"GitHub Workflow Status\" src=\"https://img.shields.io/github/workflow/status/meyerls/aruco-estimator/Python%20package\"></a>\n<a href=\"https://github.com/meyerls/aruco-estimator/blob/main/LICENSE\"><img alt=\"license\" src=\"https://img.shields.io/github/license/meyerls/aruco-estimator\"></a>\n<!--a href=\"https://pepy.tech/project/aruco-estimator\"><img alt=\"PyPI - Downloads\" src=\"https://img.shields.io/pypi/dm/aruco-estimator?label=PyPi%20downloads\"></a--> \n\n\n<!--![PyPI](https://img.shields.io/pypi/v/aruco-estimator)\n![PyPI - Downloads](https://img.shields.io/pypi/dm/aruco-estimator?label=PyPi%20downloads)\n![GitHub Workflow Status](https://img.shields.io/github/workflow/status/meyerls/aruco-estimator/Publish%20Python%20%F0%9F%90%8D%20distributions%20%F0%9F%93%A6%20to%20PyPI%20and%20TestPyPI)\n![GitHub](https://img.shields.io/github/license/meyerls/aruco-estimator)-->\n\n## About\n\nThis project aims to automatically compute the correct scale of a point cloud generated\nwith [COLMAP](https://colmap.github.io/) by placing an aruco marker into the scene.\n\n## Installation\n\n### PyPi\n\nThis repository is tested on Python 3.6+ and can be installed from [PyPi](https://pypi.org/project/aruco-estimator)\n<!-- Tutorial: https://www.youtube.com/watch?v=JkeNVaiUq_c -->\n\n````angular2html\npip install aruco-estimator\n````\n\n## Usage\n\n### Dataset\n\nAn exemplary data set is provided. The dataset shows a simple scene of a door with an aruco marker. Other dataset might\nfollow in future work. It can be downloaded by using\n\n````python\nfrom aruco_estimator import download\n\ndataset = download.Dataset()\ndataset.download_door_dataset(output_path='.')\n````\n\n### API\n\nA use of the code on the provided dataset can be seen in the following block. The most important function is \n``aruco_scale_factor.run()``. Here, an aruco marker is searched for in each image. If a marker is found in at \nleast 2 images, the position of the aruco corner in 3D is calculated based on the camera poses and the corners of \nthe aruco maker.Based on the positions of the corners of the square aruco marker, the size of the marker in the unscaled \nreconstruction can be determined. With the correct metric size of the marker, the scene can be scaled true to scale \nusing ``aruco_scale_factor.apply(true_scale)``. \n\n````python\nfrom aruco_estimator.aruco_scale_factor import ArucoScaleFactor\nfrom aruco_estimator.visualization import ArucoVisualization\nfrom aruco_estimator import download\nfrom colmap_wrapper.colmap import COLMAPProject\nimport os\nimport open3d as o3d\n\n# Download example dataset. Door dataset is roughly 200 MB\ndataset = download.Dataset()\ndataset.download_door_dataset()\n\n# Load Colmap project folder\nproject = COLMAPProject(project_path='../data/door', image_resize=0.4)\n\n# Init & run pose estimation of corners in 3D & estimate mean L2 distance between the four aruco corners\naruco_scale_factor = ArucoScaleFactor(photogrammetry_software=project, aruco_size=dataset.scale)\naruco_distance = aruco_scale_factor.run()\nprint('Size of the unscaled aruco markers: ', aruco_distance)\n\n# Calculate scaling factor, apply it to the scene and save scaled point cloud\ndense, scale_factor = aruco_scale_factor.apply() \nprint('Point cloud and poses are scaled by: ', scale_factor)\nprint('Size of the scaled (true to scale) aruco markers in meters: ', aruco_distance * scale_factor)\n\n# Visualization of the scene and rays \nvis = ArucoVisualization(aruco_colmap=aruco_scale_factor)\nvis.visualization(frustum_scale=0.7, point_size=0.1)\n\n# Write Data\naruco_scale_factor.write_data()\n````\n\n## Source\n\nIf you want to install the repo from source make sure that conda is installed. Afterwards clone this repository, give\nthe bash file executable rights and install the conda env:\n\n````angular2html\ngit clone https://github.com/meyerls/aruco-estimator.git\ncd aruco-estimator\nchmod u+x init_env.sh\n./init_env.sh\n```` \n\nFinally install all python dependencies in the activated conda environment via\n\n````angular2html\npip install -r requirements.txt\n````\n\nTo test the code on your local machine try the example project by using:\n\n````angular2html\npython scale_estimator.py --test_data\n````\n<p align=\"center\" width=\"100%\">\n    <img width=\"100%\" src=\"https://github.com/meyerls/aruco-estimator/blob/dev/img/door.png?raw=true\">\n</p>\n\n<p align=\"center\" width=\"100%\">\n    <img width=\"100%\" src=\"https://github.com/meyerls/aruco-estimator/blob/dev/img/output.gif?raw=true\">\n</p>\n\n## Limitation / Improvements\n\n- [ ] Up to now only SIMPLE_RADIAL and PINHOLE camera models are supported. Extend all models\n- [ ] Install CLI Tool vi PyPi\n- [ ] Up to now only one aruco marker per scene can be detected. Multiple aruco marker could improve the scale\n  estimation\n- [ ] Different aruco marker settings and marker types should be investigated for different scenarios to make it either more robust to\n  false detections\n- [ ] Geo referencing of aruco markers with earth coordinate system using GPS or RTK\n- [ ] Only COLMAP is supported. Add additional reconstruction software.\n\n## Acknowledgement\n\n* The Code to read out the binary COLMAP data is partly borrowed from the\nrepo [COLMAP Utility Scripts](https://github.com/uzh-rpg/colmap_utils) by [uzh-rpg](https://github.com/uzh-rpg).\n* The visualization of the wooden block is created from the dataset found in [[1](https://robocip-aist.github.io/sii_nerf_scans/)]\n\n## Trouble Shooting\n\n- In some cases cv2 does not detect the aruco marker module. Reinstalling opencv-python and opencv-python-python might\n  help [Source](https://stackoverflow.com/questions/45972357/python-opencv-aruco-no-module-named-cv2-aruco)\n\n## References\n\n<div class=\"csl-entry\">[1] Erich, F., Bourreau, B., <i>Neural Scanning: Rendering and determining geometry of household objects using Neural Radiance Fields</i> <a href=\"https://robocip-aist.github.io/sii_nerf_scans/\">Link</a>. 2022</div>\n\n## Citation\n\nPlease cite this paper, if this work helps you with your research:\n\n```\n@InProceedings{ ,\n  author=\"H\",\n  title=\"\",\n  booktitle=\"\",\n  year=\"\",\n  pages=\"\",\n  isbn=\"\"\n}\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/meyerls/aruco-estimator",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "aruco-estimator",
+            "package_url": "https://pypi.org/project/aruco-estimator/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/aruco-estimator/",
+            "project_urls": {
+                "Homepage": "https://github.com/meyerls/aruco-estimator"
+            },
+            "release_url": "https://pypi.org/project/aruco-estimator/1.1.7/",
+            "requires_dist": [
+                "numpy",
+                "colmap-wrapper",
+                "matplotlib",
+                "open3d",
+                "opencv-contrib-python",
+                "pyquaternion",
+                "pycolmap",
+                "tqdm",
+                "wget",
+                "pyexiftool"
+            ],
+            "requires_python": "",
+            "summary": "Aruco Scale Factor Estimation",
+            "version": "1.1.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15938462,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b613bb5285dbfc53ce3f5b12cda0adec",
+                    "sha256": "6bd7ff0db8a4a60bfae4231d6c39b5641d6ac37c3acadd9afb3ae15cb3cbaefe"
+                },
+                "downloads": -1,
+                "filename": "aruco_estimator-1.1.7-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b613bb5285dbfc53ce3f5b12cda0adec",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 15337,
+                "upload_time": "2022-11-30T06:50:45",
+                "upload_time_iso_8601": "2022-11-30T06:50:45.636939Z",
+                "url": "https://files.pythonhosted.org/packages/49/69/a64db6402908c0fd7eeb77e34fd2f1b7c28b12bce55a96be269261d3979f/aruco_estimator-1.1.7-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6676bd26315f6a317c54bea7959b7958",
+                    "sha256": "577ee1b06b76376aa61d0d9b6dab1e474cf2da14531290616f399b66f91cb74e"
+                },
+                "downloads": -1,
+                "filename": "aruco-estimator-1.1.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6676bd26315f6a317c54bea7959b7958",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 16873,
+                "upload_time": "2022-11-30T06:50:47",
+                "upload_time_iso_8601": "2022-11-30T06:50:47.312901Z",
+                "url": "https://files.pythonhosted.org/packages/3b/e6/46eefec639109986229a2e8823b3d93f70b6a6ad1d0d6b2c6f2549da712e/aruco-estimator-1.1.7.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

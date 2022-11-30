@@ -47,7 +47,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9928027,
+        "last_serial": 15939425,
         "urls": [
             {
                 "comment_text": "",
@@ -120,7 +120,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9928027,
+        "last_serial": 15939425,
         "urls": [
             {
                 "comment_text": "",
@@ -193,7 +193,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9928027,
+        "last_serial": 15939425,
         "urls": [
             {
                 "comment_text": "",
@@ -266,7 +266,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9928027,
+        "last_serial": 15939425,
         "urls": [
             {
                 "comment_text": "",
@@ -339,7 +339,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9928027,
+        "last_serial": 15939425,
         "urls": [
             {
                 "comment_text": "",
@@ -412,7 +412,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9928027,
+        "last_serial": 15939425,
         "urls": [
             {
                 "comment_text": "",
@@ -487,7 +487,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9928027,
+        "last_serial": 15939425,
         "urls": [
             {
                 "comment_text": "",
@@ -562,7 +562,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9928027,
+        "last_serial": 15939425,
         "urls": [
             {
                 "comment_text": "",
@@ -608,7 +608,6 @@
                 "Topic :: Database",
                 "Topic :: Software Development"
             ],
-            "description": "SiriDB - Connector\n==================\n\nThe SiriDB Connector is a self-contained Python driver for communicating with SiriDB servers.\nThis manual describes how to install and configure SiriDB Connector for Python 3, and how to use it to develop database applications.\n\n\n---------------------------------------\n  * [Installation](#installation)\n  * [Quick usage](#quick-usage)\n  * [SiriDBClient](#siridbclient)\n    * [connect](#siridbclientconnect)\n    * [insert](#siridbclientinsert)\n    * [query](#siridbclientquery)\n    * [close](#siridbclientclose)\n  * [Exception codes](#exception-codes)\n  * [Version info](#version-info)\n\n---------------------------------------\n\n## Installation\n------------\n\nFrom PyPI (recommended)\n\n```\npip install siridb-connector\n```\n\nFrom source code\n\n```\npython setup.py install\n```\n\n\n## Quick usage\n-------\n\n```python\nimport asyncio\nimport time\nimport random\nfrom siridb.connector import SiriDBClient\n\nasync def example(siri):\n    # Start connecting to SiriDB.\n    # .connect() returns a list of all connections referring to the supplied\n    # hostlist. The list can contain exceptions in case a connection could not\n    # be made.\n    await siri.connect()\n\n    try:\n        # insert\n        ts = int(time.time())\n        value = random.random()\n        await siri.insert({'some_measurement': [[ts, value]]})\n\n        # query\n        resp = await siri.query('select * from \"some_measurement\"')\n        print(resp)\n\n    finally:\n        # Close all SiriDB connections.\n        siri.close()\n\n\nsiri = SiriDBClient(\n    username='iris',\n    password='siri',\n    dbname='dbtest',\n    hostlist=[('localhost', 9000)],  # Multiple connections are supported\n    keepalive=True)\n\nloop = asyncio.get_event_loop()\nloop.run_until_complete(example(siri))\n```\n\n\n## SiriDBClient\nCreate a new SiriDB Client. This creates a new client but `.connect()` must be used to connect.\n\n```python\nsiri = SiriDBClient(\n    username=<username>,\n    password=<password>,\n    dbname=<dbname>,\n    hostlist=[(<host>, <port>, {weight: 1}, {backup: False})],\n    loop=None,\n    keepalive=True,\n    timeout=10,\n    inactive_time=30,\n    max_wait_retry=90)\n```\n\nArguments:\n* __username__: User with permissions to use the database.\n* __password__: Password for the given username.\n* __dbname__: Name of the database.\n* __hostlist__: List with SiriDB servers (all servers or a subset of\nservers can be in this list).\n\n\n    *Example:*\n    ```python\n    hostlist=[ ('server1.local', 9000, {'weight': 3}),\n               ('server2.local', 9001),\n               ('backup1.local', 9002, {'backup': True}) ]\n    ```\n    Each server should at least have a hostname and port\n    number. Optionally you can provide a dictionary with\n    extra options.\n\n    Available Options:\n    - __weight__ : Should be a value between 1 and 9. A higher\n                value gives the server more weight so it will\n                be more likely chosen. (default 1)\n    - __backup__ : Should be either True or False. When True the\n                server will be marked as backup server and\n                will only be chosen if no other server is\n                available. (default: False)\n\n\nKeyword arguments:\n* __loop__: Asyncio loop. When 'None' the default event loop will be used.\n* __keepalive__: When 'True' keep-alive packages are send every 45 seconds.\n* __timeout__: Maximum time to complete a process, otherwise it will be cancelled.\n* __inactive_time__: When a server is temporary unavailable, for\nexample the server could be paused, we mark the server as inactive after x seconds.\n* __max_wait_retry__: When the reconnect loop starts, we try to reconnect in 1 second, then 2 seconds, 4, 8 and so on until max_wait_retry is reached and then use this value to retry again.\n******************************************************************************\n\n### SiriDBClient.connect\n\nStart connecting to SiriDB. `.connect()` returns a list of all connections referring to the supplied hostlist. The list can contain exceptions in case a connection could not be made.\n\nOptionally the keyword argument `timeout` can be set. This will constrain the search time for a connection. Exceeding the timeout will raise an `.TimeoutError`.\n\n```python\nsiri.connect(timeout=None)\n```\n\n### SiriDBClient.insert\n\nInsert time series data into SiriDB. Requires a 'dictionary' with at least one series.\nOptionally the `timeout` can be adjusted (default: 300).\n\n```python\nsiri.insert(data, timeout=300)\n```\n\n### SiriDBClient.query\n\nQuery data out of the database. Requires a string containing the query. More about the query language can be found [here](https://siridb.net/documentation/). The documentation about the query language will inform you about a number of useful aggregation and filter functions, different ways of visualizing and grouping the requested data, and how to make changes to the set up of the database. Optionally a `time_precision` (`SECOND`, `MICROSECOND`, `MILLISECOND`, `NANOSECOND`) can be set. The default `None` sets the precision to seconds. Futhermore the `timeout` can be adjusted (default: 60).\n\n```python\nfrom siridb.connector import (SECOND,\n                              MICROSECOND,\n                              MILLISECOND,\n                              NANOSECOND)\n\nsiri.query(query, time_precision=None, timeout=60)\n```\n\n### SiriDBClient.close\n\nClose the connection.\n\n```python\nsiri.close()\n```\n\nCheck if the connection is closed.\n\n```python\nsiri.is_closed\n```\n\n## Exception codes\n\nThe following exceptions can be returned:\n\n- `AuthenticationError`:\n *Raised when credentials are invalid or insufficient.*\n- `IndexError`:\n*Raised when the database does not exist (anymore).*\n- `InsertError` (can only be raised when using the `.insert()` method):\n *Make sure the data is correct because this only happens when SiriDB could not process the request.*\n- `OverflowError` (can only be raised when using the `.insert()` method):\n *Raised when integer values cannot not be packed due to an overflow error (integer values should be signed and not more than 63 bits).*\n- `PoolError`:\n *SiriDB has no online server for at least one required pool. Try again later after some reasonable delay.*\n- `QueryError` (can only be raised when using the `.query()` method):\n *Make sure the query is correct because this only happens when SiriDB could not process the query. Consult the [documentation](https://siridb.net/documentation/#help_select) about the query language can be found.*\n- `RuntimeError`:\n *Raised when a general error message is received. This should no happen unless a new bug is discovered.*\n- `ServerError`:\n *Raised when a server could not perform the request, you could try another server if one is available. Consult the [documentation](https://siridb.net/documentation/#help_list_servers) how to get additional status information about the servers.*\n- `TimeoutError`:\n *Raised when a process lasts longer than the `timeout` period*\n- `TypeError`:\n *Raised when an unknown package is received (might be caused by running a different SiriDB version).*\n- `UserAuthError`:\n *The user as no rights to perform the insert or query. Consult the [documentation](https://siridb.net/documentation/#help_access) how to change the access rights.*",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "https://github.com/SiriDB/siridb-connector/tarball/2.0.8",
@@ -638,7 +637,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9928027,
+        "last_serial": 15939425,
         "urls": [
             {
                 "comment_text": "",
@@ -657,6 +656,81 @@
                 "upload_time": "2021-03-30T18:03:39",
                 "upload_time_iso_8601": "2021-03-30T18:03:39.847331Z",
                 "url": "https://files.pythonhosted.org/packages/4b/f0/17c35d856632d293d2ea71adce4857aa65fe382840a8859657491125f00f/siridb-connector-2.0.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.0.9": {
+        "info": {
+            "author": "Jeroen van der Heijden",
+            "author_email": "jeroen@cesbit.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Other Environment",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.5",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Topic :: Database",
+                "Topic :: Software Development"
+            ],
+            "description": "SiriDB - Connector\n==================\n\nThe SiriDB Connector is a self-contained Python driver for communicating with SiriDB servers.\nThis manual describes how to install and configure SiriDB Connector for Python 3, and how to use it to develop database applications.\n\n\n---------------------------------------\n  * [Installation](#installation)\n  * [Quick usage](#quick-usage)\n  * [SiriDBClient](#siridbclient)\n    * [connect](#siridbclientconnect)\n    * [insert](#siridbclientinsert)\n    * [query](#siridbclientquery)\n    * [close](#siridbclientclose)\n  * [Exception codes](#exception-codes)\n  * [Version info](#version-info)\n\n---------------------------------------\n\n## Installation\n------------\n\nFrom PyPI (recommended)\n\n```\npip install siridb-connector\n```\n\nFrom source code\n\n```\npython setup.py install\n```\n\n\n## Quick usage\n-------\n\n```python\nimport asyncio\nimport time\nimport random\nfrom siridb.connector import SiriDBClient\n\nasync def example(siri):\n    # Start connecting to SiriDB.\n    # .connect() returns a list of all connections referring to the supplied\n    # hostlist. The list can contain exceptions in case a connection could not\n    # be made.\n    await siri.connect()\n\n    try:\n        # insert\n        ts = int(time.time())\n        value = random.random()\n        await siri.insert({'some_measurement': [[ts, value]]})\n\n        # query\n        resp = await siri.query('select * from \"some_measurement\"')\n        print(resp)\n\n    finally:\n        # Close all SiriDB connections.\n        siri.close()\n\n\nsiri = SiriDBClient(\n    username='iris',\n    password='siri',\n    dbname='dbtest',\n    hostlist=[('localhost', 9000)],  # Multiple connections are supported\n    keepalive=True)\n\nloop = asyncio.get_event_loop()\nloop.run_until_complete(example(siri))\n```\n\n\n## SiriDBClient\nCreate a new SiriDB Client. This creates a new client but `.connect()` must be used to connect.\n\n```python\nsiri = SiriDBClient(\n    username=<username>,\n    password=<password>,\n    dbname=<dbname>,\n    hostlist=[(<host>, <port>, {weight: 1}, {backup: False})],\n    loop=None,\n    keepalive=True,\n    timeout=10,\n    inactive_time=30,\n    max_wait_retry=90)\n```\n\nArguments:\n* __username__: User with permissions to use the database.\n* __password__: Password for the given username.\n* __dbname__: Name of the database.\n* __hostlist__: List with SiriDB servers (all servers or a subset of\nservers can be in this list).\n\n\n    *Example:*\n    ```python\n    hostlist=[ ('server1.local', 9000, {'weight': 3}),\n               ('server2.local', 9001),\n               ('backup1.local', 9002, {'backup': True}) ]\n    ```\n    Each server should at least have a hostname and port\n    number. Optionally you can provide a dictionary with\n    extra options.\n\n    Available Options:\n    - __weight__ : Should be a value between 1 and 9. A higher\n                value gives the server more weight so it will\n                be more likely chosen. (default 1)\n    - __backup__ : Should be either True or False. When True the\n                server will be marked as backup server and\n                will only be chosen if no other server is\n                available. (default: False)\n\n\nKeyword arguments:\n* __loop__: Asyncio loop. When 'None' the default event loop will be used.\n* __keepalive__: When 'True' keep-alive packages are send every 45 seconds.\n* __timeout__: Maximum time to complete a process, otherwise it will be cancelled.\n* __inactive_time__: When a server is temporary unavailable, for\nexample the server could be paused, we mark the server as inactive after x seconds.\n* __max_wait_retry__: When the reconnect loop starts, we try to reconnect in 1 second, then 2 seconds, 4, 8 and so on until max_wait_retry is reached and then use this value to retry again.\n******************************************************************************\n\n### SiriDBClient.connect\n\nStart connecting to SiriDB. `.connect()` returns a list of all connections referring to the supplied hostlist. The list can contain exceptions in case a connection could not be made.\n\nOptionally the keyword argument `timeout` can be set. This will constrain the search time for a connection. Exceeding the timeout will raise an `.TimeoutError`.\n\n```python\nsiri.connect(timeout=None)\n```\n\n### SiriDBClient.insert\n\nInsert time series data into SiriDB. Requires a 'dictionary' with at least one series.\nOptionally the `timeout` can be adjusted (default: 300).\n\n```python\nsiri.insert(data, timeout=300)\n```\n\n### SiriDBClient.query\n\nQuery data out of the database. Requires a string containing the query. More about the query language can be found [here](https://siridb.net/documentation/). The documentation about the query language will inform you about a number of useful aggregation and filter functions, different ways of visualizing and grouping the requested data, and how to make changes to the set up of the database. Optionally a `time_precision` (`SECOND`, `MICROSECOND`, `MILLISECOND`, `NANOSECOND`) can be set. The default `None` sets the precision to seconds. Futhermore the `timeout` can be adjusted (default: 60).\n\n```python\nfrom siridb.connector import (SECOND,\n                              MICROSECOND,\n                              MILLISECOND,\n                              NANOSECOND)\n\nsiri.query(query, time_precision=None, timeout=60)\n```\n\n### SiriDBClient.close\n\nClose the connection.\n\n```python\nsiri.close()\n```\n\nCheck if the connection is closed.\n\n```python\nsiri.is_closed\n```\n\n## Exception codes\n\nThe following exceptions can be returned:\n\n- `AuthenticationError`:\n *Raised when credentials are invalid or insufficient.*\n- `IndexError`:\n*Raised when the database does not exist (anymore).*\n- `InsertError` (can only be raised when using the `.insert()` method):\n *Make sure the data is correct because this only happens when SiriDB could not process the request.*\n- `OverflowError` (can only be raised when using the `.insert()` method):\n *Raised when integer values cannot not be packed due to an overflow error (integer values should be signed and not more than 63 bits).*\n- `PoolError`:\n *SiriDB has no online server for at least one required pool. Try again later after some reasonable delay.*\n- `QueryError` (can only be raised when using the `.query()` method):\n *Make sure the query is correct because this only happens when SiriDB could not process the query. Consult the [documentation](https://siridb.net/documentation/#help_select) about the query language can be found.*\n- `RuntimeError`:\n *Raised when a general error message is received. This should no happen unless a new bug is discovered.*\n- `ServerError`:\n *Raised when a server could not perform the request, you could try another server if one is available. Consult the [documentation](https://siridb.net/documentation/#help_list_servers) how to get additional status information about the servers.*\n- `TimeoutError`:\n *Raised when a process lasts longer than the `timeout` period*\n- `TypeError`:\n *Raised when an unknown package is received (might be caused by running a different SiriDB version).*\n- `UserAuthError`:\n *The user as no rights to perform the insert or query. Consult the [documentation](https://siridb.net/documentation/#help_access) how to change the access rights.*\n\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://github.com/SiriDB/siridb-connector/tarball/2.0.9",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/SiriDB/siridb-connector",
+            "keywords": "siridb,connector,database,client",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "siridb-connector",
+            "package_url": "https://pypi.org/project/siridb-connector/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/siridb-connector/",
+            "project_urls": {
+                "Download": "https://github.com/SiriDB/siridb-connector/tarball/2.0.9",
+                "Homepage": "https://github.com/SiriDB/siridb-connector"
+            },
+            "release_url": "https://pypi.org/project/siridb-connector/2.0.9/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "SiriDB Connector",
+            "version": "2.0.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15939425,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d550ec3c66db437b4f82fb635b245170",
+                    "sha256": "8c31db58b5c671937f401b1c3c67ff12d4a12759a23cc3f5f079e9de4a3e1803"
+                },
+                "downloads": -1,
+                "filename": "siridb-connector-2.0.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d550ec3c66db437b4f82fb635b245170",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 15610,
+                "upload_time": "2022-11-30T08:52:20",
+                "upload_time_iso_8601": "2022-11-30T08:52:20.616903Z",
+                "url": "https://files.pythonhosted.org/packages/a0/46/0249b9967c0f989e8e736e0b0376da495ffff37902a801e04a7e71dc6c13/siridb-connector-2.0.9.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
