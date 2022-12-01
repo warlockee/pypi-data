@@ -64,7 +64,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15287983,
+        "last_serial": 15942802,
         "urls": [
             {
                 "comment_text": "",
@@ -174,7 +174,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15287983,
+        "last_serial": 15942802,
         "urls": [
             {
                 "comment_text": "",
@@ -284,7 +284,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15287983,
+        "last_serial": 15942802,
         "urls": [
             {
                 "comment_text": "",
@@ -349,7 +349,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "\n\nOpen Forms Client (for Django)\n==============================\n\n:Version: 0.2.2\n:Source: https://github.com/open-formulieren/open-forms-client-django\n:Keywords: Open Forms, Client, Django\n:PythonVersion: 3.7\n\n|build-status| |code-quality| |black| |coverage|\n\n|python-versions| |django-versions| |pypi-version|\n\nAbout\n=====\n\nEasily integrate `Open Forms`_ in your Django application. There are 3 main \nfeatures:\n\n#. Configuration to connect to Open Forms is added to your Django admin.\n#. By adding an ``OpenFormsField`` in any Django model, you get a list of forms\n   in Open Forms to choose from in the Django admin or other Django forms.\n#. You get templatetags to render an Open Forms form in your webpage.\n\nIf you have `Sentry`_ installed and you enable Sentry in the Django admin\nconfiguration page, it will use your existing configuration to connect to\nSentry.\n\n|screenshot-1| |screenshot-2| |screenshot-3|\n\n\nInstallation\n============\n\nRequirements\n------------\n\n* Python 3.7 or newer\n* Django 3.2 or newer\n\n\nInstall\n-------\n\nYou can install Open Forms Client either via the Python Package Index (PyPI) or \nfrom source.\n\nTo install using ``pip``:\n\n.. code-block:: bash\n\n    pip install django-open-forms-client\n\n\nUsage\n=====\n\nTo use this with your project you need to follow these steps:\n\n#. Add ``open_forms_client`` to ``INSTALLED_APPS`` in your Django project's \n   ``settings.py``:\n\n   .. code-block:: python\n\n      INSTALLED_APPS = (\n          # ...,\n          \"openformsclient\",\n      )\n\n#. Add an ``OpenFormsField`` to your relevant models (like a ``Page`` model):\n\n   .. code-block:: python\n\n      from openformsclient.models import OpenFormsField\n\n      class Page(models.Model):\n          # ...\n          form = OpenFormsSlugField(blank=True)\n\n   There is also a ``OpenFormsUUIDField`` that stores the UUID of the form \n   instead of the \"slug\". This is more precise but if someone replaces a form \n   in Open Forms, the UUID will change but the slug might remain the same.\n\n#. Add the templatetags ``{% openforms_sdk_media %}`` and \n   ``{% openforms_form page.form %}`` to your templates, to render an Open \n   Forms form:\n\n   .. code-block:: jinja\n \n      {% load openforms %}\n      <!-- Optional to render Open Forms in the proper language -->\n      <html lang=\"nl\">\n      <head>\n          <!-- Required for icons used by Open Forms -->\n          <meta charset=\"utf-8\">\n  \n          {% openforms_sdk_media %}\n      </head>\n      <body>\n  \n      {% if page.form %}\n          {% openforms_form page.form %}\n      {% else %}\n          <p>This page has no form</p>\n      {% endif %}\n  \n      </body>\n      </html>\n\n#. Configure your Open Forms connection and settings in the admin, under \n   **Open Forms client configuration**. Once the **status** field shows a green \n   icon, your configuration is working.\n\n#. Done.\n\n\nTemplatetags\n------------\n\nThere are 4 templatetags available with several parameters. All parameters\ntranslate to `Open Forms SDK`_ parameters.\n\n.. code-block:: jinja\n\n   {% load openforms %}\n   {% openforms_form form_id csp_nonce base_path lang html_id %}\n   {% openforms_sdk_media %}\n   {% openforms_sdk_js %}\n   {% openforms_sdk_css %}\n\n\nGotcha's\n--------\n\nOpen Forms configuration\n~~~~~~~~~~~~~~~~~~~~~~~~\n\nMake sure the domain where you host your webapplication is in the Open Forms\n``ALLOWED_HOSTS`` setting. Note that this is **not** the setting in your own\nwebapplication but in the setting in the Open Forms installation.\n\n\nCSP headers\n~~~~~~~~~~~\n\nWhen your webapplication uses `CSP headers`_ you need to pass the ``csp_nonce``\nto the ``openforms_form`` templatetag as well. If you use `Django-CSP`_ you can\ndo this:\n   \n.. code-block:: html\n \n   {% load openforms %}\n   {% openforms_form page.form csp_nonce=request.csp_nonce %}\n\nAdditionally, you need to allow your webapplication to load styles and scripts \nfrom the Open Forms SDK and connect to the Open Forms API. When using \n`Django-CSP`_ some options need to be changed in your ``settings.py``:\n\n.. code-block:: python\n\n    # The Open Forms SDK files might differ from the API domain. Note that this\n    # the same domain as configured in the Open Forms configuration model. You\n    # might do something smart to use that value here.\n    OPEN_FORMS_API_DOMAIN = \"forms.example.com\"\n    OPEN_FORMS_SDK_DOMAIN = OPEN_FORMS_API_DOMAIN\n\n    # Allow your webapp to load styles from Open Forms SDK.\n    CSP_STYLE_SRC = (\"'self'\", OPEN_FORMS_SDK_DOMAIN)\n\n    # Allow your webapp to load script from Open Forms SDK.\n    CSP_SCRIPT_SRC = (\"'self'\", OPEN_FORMS_SDK_DOMAIN)\n\n    # Allow your webapp to load images from Open Forms SDK.\n    CSP_IMG_SRC = (\"'self'\", OPEN_FORMS_SDK_DOMAIN)\n\n    # Allow your webapp to load fonts from Open Forms SDK.\n    CSP_FONT_SRC = (\"'self'\", OPEN_FORMS_SDK_DOMAIN)\n\n    # Allow your webapp to connect to the Open Forms API.\n    CSP_CONNECT_SRC = (\"'self'\", OPEN_FORMS_API_DOMAIN)\n\n\nMake page refreshes work\n~~~~~~~~~~~~~~~~~~~~~~~~\n\nThe URL changes when you start a form, indicating the step you are currently \non. Refreshing the page will result in a HTTP 404 because this URL does not \nactually exist. You need to catch these URL-patterns and redirect the user \nback to the form. You can so like this:\n\n.. code-block:: python\n   \n   # urls.py\n   \n   # The view thats starts the form\n   path(\"page/<slug:slug>\", PageView.as_view(), name=\"page\"),\n   # Whenever you refresh the page that has the form, the URL might be changed\n   # and needs to redirect the user to the start of the form.\n   path(\"page/<slug:slug>/<path:rest>\", PageView.as_view()),\n\n\nLicence\n=======\n\nCopyright \u00a9 `Maykin Media B.V.`_, 2022\n\nLicensed under the `MIT`_.\n\n.. _`Maykin Media B.V.`: https://www.maykinmedia.nl\n.. _`MIT`: LICENSE\n.. _`Open Forms`: https://github.com/open-formulieren/open-forms\n.. _`Open Forms SDK`: https://github.com/open-formulieren/open-forms-sdk\n.. _`Sentry`: https://sentry.io/\n.. _`CSP headers`: https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP\n.. _`Django-CSP`: https://github.com/mozilla/django-csp\n\n.. |build-status| image:: https://github.com/open-formulieren/open-forms-client-django/workflows/Run%20CI/badge.svg\n    :alt: Build status\n    :target: https://github.com/open-formulieren/open-forms-client-django/actions?query=workflow%3A%22Run+CI%22\n\n.. |code-quality| image:: https://github.com/open-formulieren/open-forms-client-django/workflows/Code%20quality%20checks/badge.svg\n     :alt: Code quality checks\n     :target: https://github.com/open-formulieren/open-forms-client-django/actions?query=workflow%3A%22Code+quality+checks%22\n\n.. |black| image:: https://img.shields.io/badge/code%20style-black-000000.svg\n    :target: https://github.com/psf/black\n\n.. |coverage| image:: https://codecov.io/gh/open-formulieren/open-forms-client-django/branch/main/graph/badge.svg\n    :target: https://codecov.io/gh/open-formulieren/open-forms-client-django\n    :alt: Coverage status\n\n.. |python-versions| image:: https://img.shields.io/pypi/pyversions/django-open-forms-client.svg\n\n.. |django-versions| image:: https://img.shields.io/pypi/djversions/django-open-forms-client.svg\n\n.. |pypi-version| image:: https://img.shields.io/pypi/v/django-open-forms-client.svg\n    :target: https://pypi.org/project/django-open-forms-client/\n\n.. |screenshot-1| image:: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_admin_config.png\n    :alt: Ordered dashboard with dropdown menu.\n    :target: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_admin_config.png\n\n.. |screenshot-2| image:: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_admin_model_field.png\n    :alt: Ordered dashboard with dropdown menu.\n    :target: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_admin_model_field.png\n    :width: 49%\n\n.. |screenshot-3| image:: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_form_rendering.png\n    :alt: Ordered dashboard with dropdown menu.\n    :target: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_form_rendering.png\n    :width: 49%\n",
             "description_content_type": "",
             "docs_url": null,
             "download_url": "",
@@ -395,7 +394,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15287983,
+        "last_serial": 15942802,
         "urls": [
             {
                 "comment_text": "",
@@ -434,6 +433,117 @@
                 "upload_time": "2022-10-03T10:42:34",
                 "upload_time_iso_8601": "2022-10-03T10:42:34.983997Z",
                 "url": "https://files.pythonhosted.org/packages/94/ec/d4c852738dea8b71d117bd6a0f7b0a0021a18376e75fc91ff380578f7085/django-open-forms-client-0.2.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.3": {
+        "info": {
+            "author": "Maykin Media",
+            "author_email": "support@maykinmedia.nl",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Framework :: Django",
+                "Framework :: Django :: 3.2",
+                "Framework :: Django :: 4.0",
+                "Intended Audience :: Developers",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: Unix",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "\n\nOpen Forms Client (for Django)\n==============================\n\n:Version: 0.2.3\n:Source: https://github.com/open-formulieren/open-forms-client-django\n:Keywords: Open Forms, Client, Django\n:PythonVersion: 3.7\n\n|build-status| |code-quality| |black| |coverage|\n\n|python-versions| |django-versions| |pypi-version|\n\nAbout\n=====\n\nEasily integrate `Open Forms`_ in your Django application. There are 3 main \nfeatures:\n\n#. Configuration to connect to Open Forms is added to your Django admin.\n#. By adding an ``OpenFormsField`` in any Django model, you get a list of forms\n   in Open Forms to choose from in the Django admin or other Django forms.\n#. You get templatetags to render an Open Forms form in your webpage.\n\nIf you have `Sentry`_ installed and you enable Sentry in the Django admin\nconfiguration page, it will use your existing configuration to connect to\nSentry.\n\n|screenshot-1| |screenshot-2| |screenshot-3|\n\n\nInstallation\n============\n\nRequirements\n------------\n\n* Python 3.7 or newer\n* Django 3.2 or newer\n\n\nInstall\n-------\n\nYou can install Open Forms Client either via the Python Package Index (PyPI) or \nfrom source.\n\nTo install using ``pip``:\n\n.. code-block:: bash\n\n    pip install django-open-forms-client\n\n\nUsage\n=====\n\nTo use this with your project you need to follow these steps:\n\n#. Add ``open_forms_client`` to ``INSTALLED_APPS`` in your Django project's \n   ``settings.py``:\n\n   .. code-block:: python\n\n      INSTALLED_APPS = (\n          # ...,\n          \"openformsclient\",\n      )\n\n#. Add an ``OpenFormsField`` to your relevant models (like a ``Page`` model):\n\n   .. code-block:: python\n\n      from openformsclient.models import OpenFormsField\n\n      class Page(models.Model):\n          # ...\n          form = OpenFormsSlugField(blank=True)\n\n   There is also a ``OpenFormsUUIDField`` that stores the UUID of the form \n   instead of the \"slug\". This is more precise but if someone replaces a form \n   in Open Forms, the UUID will change but the slug might remain the same.\n\n#. Add the templatetags ``{% openforms_sdk_media %}`` and \n   ``{% openforms_form page.form %}`` to your templates, to render an Open \n   Forms form:\n\n   .. code-block:: jinja\n \n      {% load openforms %}\n      <!-- Optional to render Open Forms in the proper language -->\n      <html lang=\"nl\">\n      <head>\n          <!-- Required for icons used by Open Forms -->\n          <meta charset=\"utf-8\">\n  \n          {% openforms_sdk_media %}\n      </head>\n      <body>\n  \n      {% if page.form %}\n          {% openforms_form page.form %}\n      {% else %}\n          <p>This page has no form</p>\n      {% endif %}\n  \n      </body>\n      </html>\n\n#. Configure your Open Forms connection and settings in the admin, under \n   **Open Forms client configuration**. Once the **status** field shows a green \n   icon, your configuration is working.\n\n#. Done.\n\n\nTemplatetags\n------------\n\nThere are 4 templatetags available with several parameters. All parameters\ntranslate to `Open Forms SDK`_ parameters.\n\n.. code-block:: jinja\n\n   {% load openforms %}\n   {% openforms_form form_id csp_nonce base_path lang html_id %}\n   {% openforms_sdk_media %}\n   {% openforms_sdk_js %}\n   {% openforms_sdk_css %}\n\n\nGotcha's\n--------\n\nOpen Forms configuration\n~~~~~~~~~~~~~~~~~~~~~~~~\n\nNote that these are **not** settings in your own webapplication but they should\nbe set correctly in the Open Forms installation.\n\n* ``ALLOWED_HOSTS`` contains your domain name.\n* ``CSRF_TRUSTED_ORIGINS`` contains your domain name.\n* ``CSRF_COOKIE_SAMESITE`` should be ``\"none\"``.\n\nCSP headers\n~~~~~~~~~~~\n\nWhen your webapplication uses `CSP headers`_ you need to pass the ``csp_nonce``\nto the ``openforms_form`` templatetag as well. If you use `Django-CSP`_ you can\ndo this:\n   \n.. code-block:: html\n \n   {% load openforms %}\n   {% openforms_form page.form csp_nonce=request.csp_nonce %}\n\nAdditionally, you need to allow your webapplication to load styles and scripts \nfrom the Open Forms SDK and connect to the Open Forms API. When using \n`Django-CSP`_ some options need to be changed in your ``settings.py``:\n\n.. code-block:: python\n\n    # The Open Forms SDK files might differ from the API domain. Note that this\n    # the same domain as configured in the Open Forms configuration model. You\n    # might do something smart to use that value here.\n    OPEN_FORMS_API_DOMAIN = \"forms.example.com\"\n    OPEN_FORMS_SDK_DOMAIN = OPEN_FORMS_API_DOMAIN\n\n    # Allow your webapp to load styles from Open Forms SDK.\n    CSP_STYLE_SRC = (\"'self'\", OPEN_FORMS_SDK_DOMAIN)\n\n    # Allow your webapp to load script from Open Forms SDK.\n    CSP_SCRIPT_SRC = (\"'self'\", OPEN_FORMS_SDK_DOMAIN)\n\n    # Allow your webapp to load images from Open Forms SDK.\n    CSP_IMG_SRC = (\"'self'\", OPEN_FORMS_SDK_DOMAIN)\n\n    # Allow your webapp to load fonts from Open Forms SDK.\n    CSP_FONT_SRC = (\"'self'\", OPEN_FORMS_SDK_DOMAIN)\n\n    # Allow your webapp to connect to the Open Forms API.\n    CSP_CONNECT_SRC = (\"'self'\", OPEN_FORMS_API_DOMAIN)\n\n\nMake page refreshes work\n~~~~~~~~~~~~~~~~~~~~~~~~\n\nThe URL changes when you start a form, indicating the step you are currently \non. Refreshing the page will result in a HTTP 404 because this URL does not \nactually exist. You need to catch these URL-patterns and redirect the user \nback to the form. You can so like this:\n\n.. code-block:: python\n   \n   # urls.py\n   \n   # The view thats starts the form\n   path(\"page/<slug:slug>\", PageView.as_view(), name=\"page\"),\n   # Whenever you refresh the page that has the form, the URL might be changed\n   # and needs to redirect the user to the start of the form.\n   path(\"page/<slug:slug>/<path:rest>\", PageView.as_view()),\n\n\nForm shows a CSRF error\n~~~~~~~~~~~~~~~~~~~~~~~\n\nThis can have many reasons because by default, you typically don't want \ncross-site requests. The whole point of this client however, is to allow \ncross-site requests from your website to Open Forms.\n\nMake sure your (not Open Forms) ``SECURE_REFERER_POLICY`` Django setting is set\nto ``origin-when-cross-origin`` or less strict. In Django 3.1 this was made \nmore strict by default.\n\nIf this is set correctly and you still get this error, see above settings if \nyour Open Forms installation was correctly configured.\n\n\nForm won't start\n~~~~~~~~~~~~~~~~\n\nIf you can see the form startpage but when you click \"start\" it doesn't do \nanything (or you see a CSRF error in your browser log), you are most likely \nlogged in to Open Forms as admin user. Log out of Open Forms or use incognito\nmode to start the form.\n\nThis is a \n`known issue <https://github.com/open-formulieren/open-forms/issues/2104>`_.\n\n\nLicence\n=======\n\nCopyright \u00a9 `Maykin Media B.V.`_, 2022\n\nLicensed under the `MIT`_.\n\n.. _`Maykin Media B.V.`: https://www.maykinmedia.nl\n.. _`MIT`: LICENSE\n.. _`Open Forms`: https://github.com/open-formulieren/open-forms\n.. _`Open Forms SDK`: https://github.com/open-formulieren/open-forms-sdk\n.. _`Sentry`: https://sentry.io/\n.. _`CSP headers`: https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP\n.. _`Django-CSP`: https://github.com/mozilla/django-csp\n\n.. |build-status| image:: https://github.com/open-formulieren/open-forms-client-django/workflows/Run%20CI/badge.svg\n    :alt: Build status\n    :target: https://github.com/open-formulieren/open-forms-client-django/actions?query=workflow%3A%22Run+CI%22\n\n.. |code-quality| image:: https://github.com/open-formulieren/open-forms-client-django/workflows/Code%20quality%20checks/badge.svg\n     :alt: Code quality checks\n     :target: https://github.com/open-formulieren/open-forms-client-django/actions?query=workflow%3A%22Code+quality+checks%22\n\n.. |black| image:: https://img.shields.io/badge/code%20style-black-000000.svg\n    :target: https://github.com/psf/black\n\n.. |coverage| image:: https://codecov.io/gh/open-formulieren/open-forms-client-django/branch/main/graph/badge.svg\n    :target: https://codecov.io/gh/open-formulieren/open-forms-client-django\n    :alt: Coverage status\n\n.. |python-versions| image:: https://img.shields.io/pypi/pyversions/django-open-forms-client.svg\n\n.. |django-versions| image:: https://img.shields.io/pypi/djversions/django-open-forms-client.svg\n\n.. |pypi-version| image:: https://img.shields.io/pypi/v/django-open-forms-client.svg\n    :target: https://pypi.org/project/django-open-forms-client/\n\n.. |screenshot-1| image:: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_admin_config.png\n    :alt: Ordered dashboard with dropdown menu.\n    :target: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_admin_config.png\n\n.. |screenshot-2| image:: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_admin_model_field.png\n    :alt: Ordered dashboard with dropdown menu.\n    :target: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_admin_model_field.png\n    :width: 49%\n\n.. |screenshot-3| image:: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_form_rendering.png\n    :alt: Ordered dashboard with dropdown menu.\n    :target: https://github.com/open-formulieren/open-forms-client-django/raw/main/docs/_assets/screenshot_form_rendering.png\n    :width: 49%\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/open-formulieren/open-forms-client-django",
+            "keywords": "Open Forms,Client,Django",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "django-open-forms-client",
+            "package_url": "https://pypi.org/project/django-open-forms-client/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/django-open-forms-client/",
+            "project_urls": {
+                "Homepage": "https://github.com/open-formulieren/open-forms-client-django"
+            },
+            "release_url": "https://pypi.org/project/django-open-forms-client/0.2.3/",
+            "requires_dist": [
+                "django (>=3.2)",
+                "django-solo",
+                "requests",
+                "pytest-cov ; extra == 'coverage'",
+                "sphinx ; extra == 'docs'",
+                "sphinx-rtd-theme ; extra == 'docs'",
+                "flake8 ; extra == 'pep8'",
+                "bumpversion ; extra == 'release'",
+                "twine ; extra == 'release'",
+                "requests-mock ; extra == 'tests'",
+                "pytest ; extra == 'tests'",
+                "pytest-django ; extra == 'tests'",
+                "tox ; extra == 'tests'",
+                "isort ; extra == 'tests'",
+                "black ; extra == 'tests'",
+                "flake8 ; extra == 'tests'"
+            ],
+            "requires_python": "",
+            "summary": "Easily integrate Open Forms in your Django application.",
+            "version": "0.2.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15942802,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "aa30375209f0a40cd4016e7f6b9f9e02",
+                    "sha256": "50b7ec84fc24cbea535248b9aa955ca5de884d92ce80ac53b6bcc0e96bd69c7f"
+                },
+                "downloads": -1,
+                "filename": "django_open_forms_client-0.2.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "aa30375209f0a40cd4016e7f6b9f9e02",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 13986,
+                "upload_time": "2022-11-30T14:15:14",
+                "upload_time_iso_8601": "2022-11-30T14:15:14.349569Z",
+                "url": "https://files.pythonhosted.org/packages/de/49/0f4d993e77ad2152118b1abcff977335e3d400a720283eecf389d9a625b8/django_open_forms_client-0.2.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "215cbaa03c540228e9c832d0a7e537db",
+                    "sha256": "6a6b2198fb80f90c4755e518c76961359d5c8b125230c8b58eee93a2d2c8e28b"
+                },
+                "downloads": -1,
+                "filename": "django-open-forms-client-0.2.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "215cbaa03c540228e9c832d0a7e537db",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 11501,
+                "upload_time": "2022-11-30T14:15:16",
+                "upload_time_iso_8601": "2022-11-30T14:15:16.370084Z",
+                "url": "https://files.pythonhosted.org/packages/ca/08/08bf57a85aeb6e09e3c60cc4d55e6a89e356a686f092d5dc926a6d14b035/django-open-forms-client-0.2.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

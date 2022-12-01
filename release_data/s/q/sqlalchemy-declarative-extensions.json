@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15929292,
+        "last_serial": 15942084,
         "urls": [
             {
                 "comment_text": "",
@@ -105,7 +105,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "# SqlAlchemy Declarative Extensions\n\n[![Actions Status](https://github.com/dancardin/sqlalchemy-declarative-extensions/workflows/test/badge.svg)](https://github.com/dancardin/sqlalchemy-declarative-extensions/actions) [![Coverage Status](https://coveralls.io/repos/github/DanCardin/sqlalchemy-declarative-extensions/badge.svg?branch=main)](https://coveralls.io/github/DanCardin/sqlalchemy-declarative-extensions?branch=main) [![Documentation Status](https://readthedocs.org/projects/sqlalchemy-declarative-extensions/badge/?version=latest)](https://sqlalchemy-declarative-extensions.readthedocs.io/en/latest/?badge=latest)\n\nSee the full documentation [here](https://sqlalchemy-declarative-extensions.readthedocs.io/en/latest/).\n\nAdds extensions to SqlAlchemy (and/or Alembic) which allows declaratively\nstating the existence of additional kinds of objects about your database\nnot natively supported by SqlAlchemy/Alembic.\n\nThis includes:\n\n- Schemas\n- Roles\n- Privileges\n- Rows (i.e. data)\n\nThe primary function(s) of this library include:\n\n- Registering onto the SqlAlchemy event system such that `metadata.create_all`\n  creates these objects.\n- (Optionally) Registers into Alembic such that `alembic revision --autogenerate`\n  automatically creates/updates/deletes declared objects.\n\n## Example Usage\n\n```python\nfrom sqlalchemy import Column, types\nfrom sqlalchemy.orm import as_declarative\nfrom sqlalchemy_declarative_extensions import (\n    declarative_database, Schemas, Roles, Grants, Rows, Row\n)\nfrom sqlalchemy_declarative_extensions.dialects.postgresql import DefaultGrant, Role\n\n\n@declarative_database\n@as_declarative\nclass Base:\n    schemas = Schemas().are(\"example\")\n    roles = Roles(ignore_unspecified=True).are(\n        Role(\"read\", login=False),\n        Role(\n            \"app\",\n            in_roles=['read']\n        ),\n    )\n    grants = Grants().are(\n        DefaultGrant.on_tables_in_schema(\"public\", 'example').grant(\"select\", to=\"read\"),\n        DefaultGrant.on_tables_in_schema(\"public\").grant(\"insert\", \"update\", \"delete\", to=\"write\"),\n        DefaultGrant.on_sequences_in_schema(\"public\").grant(\"usage\", to=\"write\"),\n    )\n    rows = Rows().are(\n        Row('foo', id=1),\n    )\n\n\nclass Foo(Base):\n    __tablename__ = 'foo'\n\n    id = Column(types.Integer(), primary_key=True)\n```\n\nNote, there is also support for declaring objects directly through the `MetaData` for\nusers not using sqlalchemy's declarative API.\n\n## Event Registration\n\nBy default, the above example does not automatically do anything. Depending on the context,\nyou can use one of two registration hooks: `register_sqlalchemy_events` or `register_alembic_events`.\n\n### `register_sqlalchemy_events`\n\nThis registers events in SqlAlchemy's event system such that a `metadata.create_all(...)` call\nwill create the declared database objects.\n\n```python\nfrom sqlalchemy_declarative_extensions import register_sqlalchemy_events\n\nmetadata = Base.metadata  # Given the example above.\nregister_sqlalchemy_events(metadata)\n# Which is equivalent to...\nregister_sqlalchemy_events(metadata, schemas=False, roles=False, grants=False, rows=False)\n```\n\nAll object types are opt in, and should be explicitly included in order to get registered.\n\nPractically, this is to avoid issues with testing. In **most** cases the `metadata.create_all` call\nwill be run in tests, a context where it's more likely that you dont **need** grants or grants,\nand where parallel test execution could lead to issues with role or schema creation, depending\non your setup.\n\n### `register_alembic_events`\n\nThis registers comparators in Alembic's registration system such that an `alembic revision --autogenerate`\ncommand will diff the existing database state against the declared database objects, and issue\nstatements to create/update/delete objects in order to match the declared state.\n\n```python\n# alembic's `env.py`\nfrom sqlalchemy_declarative_extensions import register_alembic_events\n\nregister_alembic_events()\n# Which is equivalent to...\nregister_sqlalchemy_events(schemas=True, roles=True, grants=True, rows=True)\n```\n\nAll object types are opt out but can be excluded.\n\nIn contrast to `register_sqlalchemy_events`, it's much more likely that you're declaring most of these\nobject types in order to have alembic track them\n\n## Database support\n\nIn principle, this library **can** absolutely support any database supported by SqlAlchemy,\nand capable of being introspected enough to support detection of different kinds of objects.\n\nIn reality, the implementations are going to be purely driven by actual usage. The\ncurrent maintainer(s) primarily use PostgreSQL and as such individual features for\nother databases will either suffer or lack implementation.\n\nAs much as possible, objects will be defined in a database-agnostic way, and the comparison\ninfrastructure should be the sole difference. However databases engines are not the same, and\ncertain kinds of objects, like GRANTs, are inherently database engine specific, and there's\nnot much common ground between a PostgreSQL grant and a MySQL one. As such, they will\ninclude database specific objects.\n\n## Alembic-utils\n\nCurrently, the set of supported declarative objects is essentially non-overlapping with\n[Alembic-utils](https://github.com/olirice/alembic_utils). However in principle, there's\nno reason that objects supported by this library couldn't begin to overlap (views, functions,\ntriggers); and one might begin to question when to use which library.\n\nFirst, it's likely that this library can/should grow handlers for objects already supported by\nalembic-utils. In particular, it's likely that any future support in this library for something\nlike a view could easily accept an `alembic_utils.pg_view.PGView` definition and handle it directly.\nThe two libraries are likely fairly complementary in that way, although it's important to note\nsome of the differences.\n\nAlembic utils:\n\n- Is more directly tied to Alembic and specifically provides functionality for autogenerating\n  DDL for alembic, as the name might imply. It does **not** register into sqlalchemy's event\n  system.\n- Requires one to explicitly find/include the objects one wants to track with alembic.\n- It provides direct translation of individual entities (like a single, specific `PGGrantTable`).\n- In most cases, it appears to define a very \"literal\" interface (for example, `PGView` accepts\n  the whole view definition as a raw literal string), rather than an abstracted one.\n\nBy contrast, this library:\n\n- SqlAlchemy is the main dependency and registration point. The primary function of the library\n  is to register into sqlalchemy's event system to ensure that a `metadata.create_all` performs\n  the requisite statements to ensure the state of the database matches the declaration.\n\n  This library does **not** require alembic, but it does (optionally) perform a similar function\n  by way of enabling autogeneration support for non-native objects.\n\n- Perhaps a technical detail, but this library registers the declaratively stated objects directly\n  on the metadata/declarative-base. This allows the library to automatically know the intended\n  state of the world, rather than needing to discover objects.\n- The intended purpose of the supported objects is to declare what the state of the world **should**\n  look like. Therefore the function of this library includes the (optional) **removal** of objects\n  detected to exist which are not declared (much like alembic does for tables). Whereas alembic-utils\n  only operates on objects you create entities for.\n- As much as possible, this library provides more abstracted interfaces for defining objects.\n  This is particularly important for objects like roles/grants where not every operation is a create\n  or delete (in contrast to something like a view).\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -139,7 +138,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15929292,
+        "last_serial": 15942084,
         "urls": [
             {
                 "comment_text": "",
@@ -178,6 +177,99 @@
                 "upload_time": "2022-11-29T15:02:17",
                 "upload_time_iso_8601": "2022-11-29T15:02:17.396769Z",
                 "url": "https://files.pythonhosted.org/packages/df/28/b8db6a0f19d0a50cb7a990110fb4b2046a259788f26aa2d1b4ee90ba2475/sqlalchemy-declarative-extensions-0.2.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.1": {
+        "info": {
+            "author": "Dan Cardin",
+            "author_email": "ddcardin@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "# SqlAlchemy Declarative Extensions\n\n[![Actions Status](https://github.com/dancardin/sqlalchemy-declarative-extensions/workflows/test/badge.svg)](https://github.com/dancardin/sqlalchemy-declarative-extensions/actions) [![Coverage Status](https://coveralls.io/repos/github/DanCardin/sqlalchemy-declarative-extensions/badge.svg?branch=main)](https://coveralls.io/github/DanCardin/sqlalchemy-declarative-extensions?branch=main) [![Documentation Status](https://readthedocs.org/projects/sqlalchemy-declarative-extensions/badge/?version=latest)](https://sqlalchemy-declarative-extensions.readthedocs.io/en/latest/?badge=latest)\n\nSee the full documentation [here](https://sqlalchemy-declarative-extensions.readthedocs.io/en/latest/).\n\nAdds extensions to SqlAlchemy (and/or Alembic) which allows declaratively\nstating the existence of additional kinds of objects about your database\nnot natively supported by SqlAlchemy/Alembic.\n\nThis includes:\n\n- Schemas\n- Roles\n- Privileges\n- Rows (i.e. data)\n\nThe primary function(s) of this library include:\n\n- Registering onto the SqlAlchemy event system such that `metadata.create_all`\n  creates these objects.\n- (Optionally) Registers into Alembic such that `alembic revision --autogenerate`\n  automatically creates/updates/deletes declared objects.\n\n## Example Usage\n\n```python\nfrom sqlalchemy import Column, types\nfrom sqlalchemy.orm import as_declarative\nfrom sqlalchemy_declarative_extensions import (\n    declarative_database, Schemas, Roles, Grants, Rows, Row\n)\nfrom sqlalchemy_declarative_extensions.dialects.postgresql import DefaultGrant, Role\n\n\n@declarative_database\n@as_declarative\nclass Base:\n    schemas = Schemas().are(\"example\")\n    roles = Roles(ignore_unspecified=True).are(\n        Role(\"read\", login=False),\n        Role(\n            \"app\",\n            in_roles=['read']\n        ),\n    )\n    grants = Grants().are(\n        DefaultGrant.on_tables_in_schema(\"public\", 'example').grant(\"select\", to=\"read\"),\n        DefaultGrant.on_tables_in_schema(\"public\").grant(\"insert\", \"update\", \"delete\", to=\"write\"),\n        DefaultGrant.on_sequences_in_schema(\"public\").grant(\"usage\", to=\"write\"),\n    )\n    rows = Rows().are(\n        Row('foo', id=1),\n    )\n\n\nclass Foo(Base):\n    __tablename__ = 'foo'\n\n    id = Column(types.Integer(), primary_key=True)\n```\n\nNote, there is also support for declaring objects directly through the `MetaData` for\nusers not using sqlalchemy's declarative API.\n\n## Event Registration\n\nBy default, the above example does not automatically do anything. Depending on the context,\nyou can use one of two registration hooks: `register_sqlalchemy_events` or `register_alembic_events`.\n\n### `register_sqlalchemy_events`\n\nThis registers events in SqlAlchemy's event system such that a `metadata.create_all(...)` call\nwill create the declared database objects.\n\n```python\nfrom sqlalchemy_declarative_extensions import register_sqlalchemy_events\n\nmetadata = Base.metadata  # Given the example above.\nregister_sqlalchemy_events(metadata)\n# Which is equivalent to...\nregister_sqlalchemy_events(metadata, schemas=False, roles=False, grants=False, rows=False)\n```\n\nAll object types are opt in, and should be explicitly included in order to get registered.\n\nPractically, this is to avoid issues with testing. In **most** cases the `metadata.create_all` call\nwill be run in tests, a context where it's more likely that you dont **need** grants or grants,\nand where parallel test execution could lead to issues with role or schema creation, depending\non your setup.\n\n### `register_alembic_events`\n\nThis registers comparators in Alembic's registration system such that an `alembic revision --autogenerate`\ncommand will diff the existing database state against the declared database objects, and issue\nstatements to create/update/delete objects in order to match the declared state.\n\n```python\n# alembic's `env.py`\nfrom sqlalchemy_declarative_extensions import register_alembic_events\n\nregister_alembic_events()\n# Which is equivalent to...\nregister_sqlalchemy_events(schemas=True, roles=True, grants=True, rows=True)\n```\n\nAll object types are opt out but can be excluded.\n\nIn contrast to `register_sqlalchemy_events`, it's much more likely that you're declaring most of these\nobject types in order to have alembic track them\n\n## Database support\n\nIn principle, this library **can** absolutely support any database supported by SqlAlchemy,\nand capable of being introspected enough to support detection of different kinds of objects.\n\nIn reality, the implementations are going to be purely driven by actual usage. The\ncurrent maintainer(s) primarily use PostgreSQL and as such individual features for\nother databases will either suffer or lack implementation.\n\nAs much as possible, objects will be defined in a database-agnostic way, and the comparison\ninfrastructure should be the sole difference. However databases engines are not the same, and\ncertain kinds of objects, like GRANTs, are inherently database engine specific, and there's\nnot much common ground between a PostgreSQL grant and a MySQL one. As such, they will\ninclude database specific objects.\n\n## Alembic-utils\n\nCurrently, the set of supported declarative objects is essentially non-overlapping with\n[Alembic-utils](https://github.com/olirice/alembic_utils). However in principle, there's\nno reason that objects supported by this library couldn't begin to overlap (views, functions,\ntriggers); and one might begin to question when to use which library.\n\nFirst, it's likely that this library can/should grow handlers for objects already supported by\nalembic-utils. In particular, it's likely that any future support in this library for something\nlike a view could easily accept an `alembic_utils.pg_view.PGView` definition and handle it directly.\nThe two libraries are likely fairly complementary in that way, although it's important to note\nsome of the differences.\n\nAlembic utils:\n\n- Is more directly tied to Alembic and specifically provides functionality for autogenerating\n  DDL for alembic, as the name might imply. It does **not** register into sqlalchemy's event\n  system.\n- Requires one to explicitly find/include the objects one wants to track with alembic.\n- It provides direct translation of individual entities (like a single, specific `PGGrantTable`).\n- In most cases, it appears to define a very \"literal\" interface (for example, `PGView` accepts\n  the whole view definition as a raw literal string), rather than an abstracted one.\n\nBy contrast, this library:\n\n- SqlAlchemy is the main dependency and registration point. The primary function of the library\n  is to register into sqlalchemy's event system to ensure that a `metadata.create_all` performs\n  the requisite statements to ensure the state of the database matches the declaration.\n\n  This library does **not** require alembic, but it does (optionally) perform a similar function\n  by way of enabling autogeneration support for non-native objects.\n\n- Perhaps a technical detail, but this library registers the declaratively stated objects directly\n  on the metadata/declarative-base. This allows the library to automatically know the intended\n  state of the world, rather than needing to discover objects.\n- The intended purpose of the supported objects is to declare what the state of the world **should**\n  look like. Therefore the function of this library includes the (optional) **removal** of objects\n  detected to exist which are not declared (much like alembic does for tables). Whereas alembic-utils\n  only operates on objects you create entities for.\n- As much as possible, this library provides more abstracted interfaces for defining objects.\n  This is particularly important for objects like roles/grants where not every operation is a create\n  or delete (in contrast to something like a view).\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/dancardin/sqlalchemy-declarative-extensions",
+            "keywords": "sqlalchemy,alembic,postgresql,declarative,role,grant,schema",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "sqlalchemy-declarative-extensions",
+            "package_url": "https://pypi.org/project/sqlalchemy-declarative-extensions/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/sqlalchemy-declarative-extensions/",
+            "project_urls": {
+                "Homepage": "https://github.com/dancardin/sqlalchemy-declarative-extensions",
+                "Repository": "https://github.com/dancardin/sqlalchemy-declarative-extensions"
+            },
+            "release_url": "https://pypi.org/project/sqlalchemy-declarative-extensions/0.2.1/",
+            "requires_dist": [
+                "typing_extensions (>=4.0); python_version < \"3.11\"",
+                "sqlalchemy (>=1.3)",
+                "alembic (>=1.0)"
+            ],
+            "requires_python": ">=3.7,<4",
+            "summary": "Library to declare additional kinds of objects not natively supported by SqlAlchemy/Alembic.",
+            "version": "0.2.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15942084,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b56cd70d3ea7ada4ff051a8c7a8e6ecc",
+                    "sha256": "6f2c6d8516d09947b37f5dc0f0a8235cdebd16953bfa43f2c5ed6ce7b93a020c"
+                },
+                "downloads": -1,
+                "filename": "sqlalchemy_declarative_extensions-0.2.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b56cd70d3ea7ada4ff051a8c7a8e6ecc",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7,<4",
+                "size": 44179,
+                "upload_time": "2022-11-30T13:07:34",
+                "upload_time_iso_8601": "2022-11-30T13:07:34.389058Z",
+                "url": "https://files.pythonhosted.org/packages/2d/16/525ef21dc1feedcfebf520962e57fbd0adabee0378ba9468db4315197d12/sqlalchemy_declarative_extensions-0.2.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2cbe4592d44bc5ea0e6368938a5c419b",
+                    "sha256": "f461bd9e233827df31d5ce8d8fe1455d15d910ccd4093b7b74b4bc8a7db3900d"
+                },
+                "downloads": -1,
+                "filename": "sqlalchemy-declarative-extensions-0.2.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "2cbe4592d44bc5ea0e6368938a5c419b",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<4",
+                "size": 31320,
+                "upload_time": "2022-11-30T13:07:32",
+                "upload_time_iso_8601": "2022-11-30T13:07:32.119823Z",
+                "url": "https://files.pythonhosted.org/packages/91/ea/a4f31eb32ffd45610712f2a6fa3e3137e7bfc28558b7158544318039979a/sqlalchemy-declarative-extensions-0.2.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

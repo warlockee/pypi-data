@@ -39,7 +39,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15871180,
+        "last_serial": 15947623,
         "urls": [
             {
                 "comment_text": "",
@@ -95,7 +95,6 @@
                 "Programming Language :: Python :: 3.7",
                 "Topic :: Software Development"
             ],
-            "description": "# Sedaro Python Client (Beta)\n\nA python client for interacting with the Sedaro Satellite API using intuitive classes and methods.\n\nThis client is intended to be used alongside our redocs [OpenAPI Specification](https://sedaro.github.io/openapi/). Please refer to this documentation for detailed information on the names, attributes, and relationships of each Sedaro Block.\n\n## Install\n\n```bash\npip install sedaro\n```\n\n## Use: Block CRUD\n\n1.  Instantiate the `SedaroApiClient` as a context manager. All code interacting with the API should be within the scope of that context manager. Generate an API key in the Sedaro Satellite Management Console.\n\n    ```py\n    from sedaro import SedaroApiClient\n\n    API_KEY = 'my_api_key' # Generated in Sedaro Satellite Management Console\n    AGENT_TEMPLATE_BRANCH_ID = 1 # id of a Branch owned by my Sedaro account with the given api key\n\n    with SedaroApiClient(api_key=API_KEY) as sedaro_client:\n        ...\n    ```\n\n    ```py\n    # If using a dedicated enterprise Sedaro instance, overwrite the default `host` kwarg.\n    ...\n    HOST = 'url-to-my-sedaro-server-instance.com'\n\n    with SedaroApiClient(api_key=API_KEY, host=HOST) as sedaro_client:\n        ...\n    ```\n\n2.  Use the client to instantiate a `BranchClient`.\n\n    ```py\n    ...\n\n    with SedaroApiClient(api_key=API_KEY) as sedaro_client:\n        branch_client = sedaro_client.get_branch(AGENT_TEMPLATE_BRANCH_ID)\n    ```\n\n3.  Use the `BranchClient` to access and utilize `BlockClassClient`s. A `BlockClassClient` is used to create and access Sedaro Blocks of the respective class.\n\n    ```py\n    ...\n\n        branch_client = sedaro_client.get_branch(AGENT_TEMPLATE_BRANCH_ID)\n\n        branch_client.Target\n\n        tranch_client.Component\n\n        branch_client.Subsystem\n\n        # ...etc.\n\n    ```\n\n    - Valid `BlockClassClient`s for an Agent Template Branch are as follows:\n\n      - TriadAlgorithm\n      - AveragingAlgorithm\n      - MEKFAlgorithm\n      - EKFAlgorithm\n      - GPSAlgorithm\n      - SlidingModeAlgorithm\n      - Battery\n      - BatteryCell\n      - BodyFrameVector\n      - BusRegulator\n      - Component\n      - BatteryPack\n      - SolarPanel\n      - QuasiRegDetTopology\n      - FullyRegDetTopology\n      - SingleConvHybridTopology\n      - TwoConvMpptTopology\n      - SingleConvMpptTopology\n      - Topology\n      - ReactionWheel\n      - Magnetorquer\n      - DirectionSensor\n      - OpticalAttitudeSensor\n      - VectorSensor\n      - PositionSensor\n      - AngularVelocitySensor\n      - Cooler\n      - Heater\n      - SphericalFuelTank\n      - SpherocylinderFuelTank\n      - ConOps\n      - GroupCondition\n      - Condition\n      - SameTargetConditionGrouping\n      - ResistanceLoad\n      - PowerLoad\n      - ActuatorLoad\n      - LoadState\n      - CircularFieldOfView\n      - RectangularFieldOfView\n      - FOVConstraint\n      - FuelReservoir\n      - OperationalMode\n      - PassivePointingMode\n      - LockPointingMode\n      - MaxAlignPointingMode\n      - PointingMode\n      - ActivePointingMode\n      - CelestialVector\n      - LocalVector\n      - TargetVector\n      - TargetGroupVector\n      - ReferenceVector\n      - Satellite\n      - SimulatableSatellite\n      - SolarArray\n      - SolarCell\n      - Subsystem\n      - FixedSurface\n      - SunTrackingSurface\n      - AntiSunTrackingSurface\n      - SurfaceMaterial\n      - TargetGroup\n      - SpaceTarget\n      - GroundTarget\n      - CelestialTarget\n      - TempControllerState\n      - ThermalInterface\n      - ThermalInterfaceMateria\n\n    - Valid `BlockClassClient`s for an Scenario Branch are as follows:\n      - Agent\n      - ClockConfig\n      - Orbit\n\n4.  A `BlockClassClient` has several methods:\n\n    ```py\n    ...\n        branch_client.Subsystem.create(\n            name='Structure',\n            satellite='3'  # The ID of the related Satellite Block\n        )\n\n        branch_client.Subsystem.get(blockId) # ID of desired Subsystem\n        branch_client.Subsystem.get_all()\n        branch_client.Subsystem.get_first()\n        branch_client.Subsystem.get_last()\n        branch_client.Subsystem.get_all_ids()\n    ```\n\n5.  Most `BlockClassClient` methods return a `BlockClient` which has several methods and properties.\n\n    ```py\n    ...\n        subsystem_client = branch_client.Subsystem.create(\n            name='Structure',\n            satellite='3'\n        )\n\n        subsystem_client.update(name='Structure 2.0')\n\n        subsystem_client.delete()\n    ```\n\n    ```py\n    ...\n    # A `BlockClient` will always be equal to and in sync with all other `BlockClient`s referencing the same Sedaro Block:\n        subsystem_client = branch_client.Subsystem.create(\n            name='Structure',\n            satellite='3'\n        )\n\n        subsystem_client_2 = subsystem_client.update(\n         name='Structure 2.0'\n        )\n\n        subsystem_client_3 = branch_client.Subsystem.get(subsystem_client.id)\n\n        assert subsystem_client == subsystem_client_2 == subsystem_client_3\n    ```\n\n    ```py\n    ...\n    # Printing a `BlockClient` will show you the corresponding Sedaro Block's data:\n        print(subsystem_client)\n\n    >>> Subsystem(\n    >>>   id=27\n    >>>   name=Structure 2.0\n    >>>   category=CUSTOM\n    >>>   satellite=3\n    >>>   components=()\n    >>> )\n    ```\n\n    ```py\n    # Keying into any property existing on the corresponding Sedaro Block will return that properties value.\n        subsystem_client.name\n\n    >>> 'Structure 2.0'\n    # Keying into a property that is a relationship field, will return a `BlockClient` corresponding to the related `Block` (or `list` of `BlockClient`s if it's a many-side relationship field).\n        subsystem.satellite\n\n    >>> Satellite(\n    >>>   id=3\n    >>>   mass=1000\n    >>>   ...etc\n    >>> )\n    ```\n\n    ```py\n    # This allows for traversing Blocks in the model via relationship fields:\n        solar_panel_client = branch_client.SolarPanel.get_first()\n\n        solar_panel_client.cell.panels[-1].subsystem.satellite.components[0].delete()\n    ```\n\n### Full Example\n\n```py\nfrom sedaro import SedaroApiClient\nfrom sedaro.exceptions import NonexistantBlockError\n\nAPI_KEY = 'my_api_key_generated_by_sedaro_satellite'\nAGENT_TEMPLATE_BRANCH_ID = 1\n\nwith SedaroApiClient(api_key=API_KEY) as sedaro_client:\n    branch_client = sedaro_client.get_branch(AGENT_TEMPLATE_BRANCH_ID)\n\n    battery_cell_client = branch_client.BatteryCell.create(\n        partNumber='987654321',\n        manufacturer='Sedaro Corporation',\n        esr=0.01,\n        maxChargeCurrent=15,\n        maxDischargeCurrent=100,\n        minSoc=0.2,\n        capacity=500,\n        curve=[[0, 0.5, 1], [12.2, 14.1, 16.8]],\n        topology='5',\n    )\n\n    bc_id = battery_cell_client.id\n\n    battery_cell_client.update(partNumber=\"123456789\")\n\n    battery_cell_client.delete()\n\n    try:\n        battery_cell_client.update(partNumber=\"987654321\")\n    except NonexistantBlockError as e:\n        assert str(e) == f'The referenced \"BatteryCell\" (id: {bc_id}) no longer exists.'\n```\n\n## Use: Simulation\n\n```py\nSCENARIO_BRANCH_ID = 2\n\nwith SedaroApiClient(api_key=API_KEY) as sedaro_client:\n\n    # Instantiate sim client\n    sim_client = sedaro_client.get_sim_client(SCENARIO_BRANCH_ID)\n\n    # Start simulation\n    sim_client.start()\n\n    # Get simulation\n    response = sim_client.get_latest()\n\n    # Check status & percentage complete\n    job = response.body[0]\n    assert job['status'] == 'RUNNING'\n    print(job['progress']['percentComplete'])\n\n    # Terminate simulation\n    response = sim_client.terminate(job['id'])\n    assert response.body['message'] == 'Successfully terminated simulation.'\n\n```\n\n## Further information\n\nSee docstrings on classes and their methods for further instructions and explanations.\n\n## Sedaro Base Client\n\nThe Sedaro client is a wrapper around the Swagger generated OpenAPI client. When this package is installed, the auto-generated, lower-loevel clients and methods are also available under `sedaro_base_client`.\n\n```py\nfrom sedaro_base_client import ...\n```\n\n## Community, Support, Discussion\n\nIf you have any issues using the package or any suggestions, please start by reaching out:\n\n1. Open an issue on [GitHub](https://github.com/sedaro/sedaro-python/issues)\n2. Join the Sedaro Community [Slack](https://join.slack.com/t/sedaro-community/shared_invite/zt-1jps4i711-mXy88AZQ9AV7YcEXr8x7Ow)\n3. Email us at support@sedarotech.com\n\nPlease note that while emails are always welcome, we prefer the first two options as this allows for others to benefit from the discourse in the threads. That said, if the matter is specific to your use case or sensitive in nature, don't hesitate to shoot us an email instead.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -125,7 +124,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15871180,
+        "last_serial": 15947623,
         "urls": [
             {
                 "comment_text": "",
@@ -164,6 +163,100 @@
                 "upload_time": "2022-11-23T20:30:36",
                 "upload_time_iso_8601": "2022-11-23T20:30:36.757148Z",
                 "url": "https://files.pythonhosted.org/packages/d9/ba/61e9f211787b202c1f831b009fa6b43a1725b498c57b2c05ab4ad497388c/sedaro-1.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "3.2.12": {
+        "info": {
+            "author": "",
+            "author_email": "Sedaro <support@sedarotech.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.7",
+                "Topic :: Software Development"
+            ],
+            "description": "# Sedaro Python Client (Beta)\n\nA python client for interacting with the Sedaro Satellite API using intuitive classes and methods.\n\nThis client is intended to be used alongside our redocs [OpenAPI Specification](https://sedaro.github.io/openapi/). Please refer to this documentation for detailed information on the names, attributes, and relationships of each Sedaro Block.\n\n## Install\n\n```bash\npip install sedaro\n```\n\n## Use: Block CRUD\n\n1.  Instantiate the `SedaroApiClient` as a context manager. All code interacting with the API should be within the scope of that context manager. Generate an API key in the Sedaro Satellite Management Console.\n\n    ```py\n    from sedaro import SedaroApiClient\n\n    API_KEY = 'my_api_key' # Generated in Sedaro Satellite Management Console\n    AGENT_TEMPLATE_BRANCH_ID = 1 # id of a Branch owned by my Sedaro account with the given api key\n\n    with SedaroApiClient(api_key=API_KEY) as sedaro_client:\n        ...\n    ```\n\n    ```py\n    # If using a dedicated enterprise Sedaro instance, overwrite the default `host` kwarg.\n    ...\n    HOST = 'url-to-my-sedaro-server-instance.com'\n\n    with SedaroApiClient(api_key=API_KEY, host=HOST) as sedaro_client:\n        ...\n    ```\n\n2.  Use the client to instantiate a `BranchClient`.\n\n    ```py\n    ...\n\n    with SedaroApiClient(api_key=API_KEY) as sedaro_client:\n        branch_client = sedaro_client.get_branch(AGENT_TEMPLATE_BRANCH_ID)\n    ```\n\n3.  Use the `BranchClient` to access and utilize `BlockClassClient`s. A `BlockClassClient` is used to create and access Sedaro Blocks of the respective class.\n\n    ```py\n    ...\n\n        branch_client = sedaro_client.get_branch(AGENT_TEMPLATE_BRANCH_ID)\n\n        branch_client.Target\n\n        tranch_client.Component\n\n        branch_client.Subsystem\n\n        # ...etc.\n\n    ```\n\n    - Valid `BlockClassClient`s for an Agent Template Branch are as follows:\n\n      - TriadAlgorithm\n      - AveragingAlgorithm\n      - MEKFAlgorithm\n      - EKFAlgorithm\n      - GPSAlgorithm\n      - SlidingModeAlgorithm\n      - Battery\n      - BatteryCell\n      - BodyFrameVector\n      - BusRegulator\n      - Component\n      - BatteryPack\n      - SolarPanel\n      - QuasiRegDetTopology\n      - FullyRegDetTopology\n      - SingleConvHybridTopology\n      - TwoConvMpptTopology\n      - SingleConvMpptTopology\n      - Topology\n      - ReactionWheel\n      - Magnetorquer\n      - DirectionSensor\n      - OpticalAttitudeSensor\n      - VectorSensor\n      - PositionSensor\n      - AngularVelocitySensor\n      - Cooler\n      - Heater\n      - SphericalFuelTank\n      - SpherocylinderFuelTank\n      - ConOps\n      - GroupCondition\n      - Condition\n      - SameTargetConditionGrouping\n      - ResistanceLoad\n      - PowerLoad\n      - ActuatorLoad\n      - LoadState\n      - CircularFieldOfView\n      - RectangularFieldOfView\n      - FOVConstraint\n      - FuelReservoir\n      - OperationalMode\n      - PassivePointingMode\n      - LockPointingMode\n      - MaxAlignPointingMode\n      - PointingMode\n      - ActivePointingMode\n      - CelestialVector\n      - LocalVector\n      - TargetVector\n      - TargetGroupVector\n      - ReferenceVector\n      - Satellite\n      - SimulatableSatellite\n      - SolarArray\n      - SolarCell\n      - Subsystem\n      - FixedSurface\n      - SunTrackingSurface\n      - AntiSunTrackingSurface\n      - SurfaceMaterial\n      - TargetGroup\n      - SpaceTarget\n      - GroundTarget\n      - CelestialTarget\n      - TempControllerState\n      - ThermalInterface\n      - ThermalInterfaceMateria\n\n    - Valid `BlockClassClient`s for an Scenario Branch are as follows:\n      - Agent\n      - ClockConfig\n      - Orbit\n\n4.  A `BlockClassClient` has several methods:\n\n    ```py\n    ...\n        branch_client.Subsystem.create(\n            name='Structure',\n            satellite='3'  # The ID of the related Satellite Block\n        )\n\n        branch_client.Subsystem.get(blockId) # ID of desired Subsystem\n        branch_client.Subsystem.get_all()\n        branch_client.Subsystem.get_first()\n        branch_client.Subsystem.get_last()\n        branch_client.Subsystem.get_all_ids()\n    ```\n\n5.  Most `BlockClassClient` methods return a `BlockClient` which has several methods and properties.\n\n    ```py\n    ...\n        subsystem_client = branch_client.Subsystem.create(\n            name='Structure',\n            satellite='3'\n        )\n\n        subsystem_client.update(name='Structure 2.0')\n\n        subsystem_client.delete()\n    ```\n\n    ```py\n    ...\n    # A `BlockClient` will always be equal to and in sync with all other `BlockClient`s referencing the same Sedaro Block:\n        subsystem_client = branch_client.Subsystem.create(\n            name='Structure',\n            satellite='3'\n        )\n\n        subsystem_client_2 = subsystem_client.update(\n         name='Structure 2.0'\n        )\n\n        subsystem_client_3 = branch_client.Subsystem.get(subsystem_client.id)\n\n        assert subsystem_client == subsystem_client_2 == subsystem_client_3\n    ```\n\n    ```py\n    ...\n    # Printing a `BlockClient` will show you the corresponding Sedaro Block's data:\n        print(subsystem_client)\n\n    >>> Subsystem(\n    >>>   id=27\n    >>>   name=Structure 2.0\n    >>>   category=CUSTOM\n    >>>   satellite=3\n    >>>   components=()\n    >>> )\n    ```\n\n    ```py\n    # Keying into any property existing on the corresponding Sedaro Block will return that properties value.\n        subsystem_client.name\n\n    >>> 'Structure 2.0'\n    # Keying into a property that is a relationship field, will return a `BlockClient` corresponding to the related `Block` (or `list` of `BlockClient`s if it's a many-side relationship field).\n        subsystem.satellite\n\n    >>> Satellite(\n    >>>   id=3\n    >>>   mass=1000\n    >>>   ...etc\n    >>> )\n    ```\n\n    ```py\n    # This allows for traversing Blocks in the model via relationship fields:\n        solar_panel_client = branch_client.SolarPanel.get_first()\n\n        solar_panel_client.cell.panels[-1].subsystem.satellite.components[0].delete()\n    ```\n\n### Full Example\n\n```py\nfrom sedaro import SedaroApiClient\nfrom sedaro.exceptions import NonexistantBlockError\n\nAPI_KEY = 'my_api_key_generated_by_sedaro_satellite'\nAGENT_TEMPLATE_BRANCH_ID = 1\n\nwith SedaroApiClient(api_key=API_KEY) as sedaro_client:\n    branch_client = sedaro_client.get_branch(AGENT_TEMPLATE_BRANCH_ID)\n\n    battery_cell_client = branch_client.BatteryCell.create(\n        partNumber='987654321',\n        manufacturer='Sedaro Corporation',\n        esr=0.01,\n        maxChargeCurrent=15,\n        maxDischargeCurrent=100,\n        minSoc=0.2,\n        capacity=500,\n        curve=[[0, 0.5, 1], [12.2, 14.1, 16.8]],\n        topology='5',\n    )\n\n    bc_id = battery_cell_client.id\n\n    battery_cell_client.update(partNumber=\"123456789\")\n\n    battery_cell_client.delete()\n\n    try:\n        battery_cell_client.update(partNumber=\"987654321\")\n    except NonexistantBlockError as e:\n        assert str(e) == f'The referenced \"BatteryCell\" (id: {bc_id}) no longer exists.'\n```\n\n## Use: Simulation\n\n```py\nSCENARIO_BRANCH_ID = 2\n\nwith SedaroApiClient(api_key=API_KEY) as sedaro_client:\n\n    # Instantiate sim client\n    sim_client = sedaro_client.get_sim_client(SCENARIO_BRANCH_ID)\n\n    # Start simulation\n    sim_client.start()\n\n    # Get simulation\n    response = sim_client.get_latest()\n\n    # Check status & percentage complete\n    job = response.body[0]\n    assert job['status'] == 'RUNNING'\n    print(job['progress']['percentComplete'])\n\n    # Terminate simulation\n    response = sim_client.terminate(job['id'])\n    assert response.body['message'] == 'Successfully terminated simulation.'\n\n```\n\n## Further information\n\nSee docstrings on classes and their methods for further instructions and explanations.\n\n## Sedaro Base Client\n\nThe Sedaro client is a wrapper around the Swagger generated OpenAPI client. When this package is installed, the auto-generated, lower-loevel clients and methods are also available under `sedaro_base_client`.\n\n```py\nfrom sedaro_base_client import ...\n```\n\n## Community, Support, Discussion\n\nIf you have any issues using the package or any suggestions, please start by reaching out:\n\n1. Open an issue on [GitHub](https://github.com/sedaro/sedaro-python/issues)\n2. Join the Sedaro Community [Slack](https://join.slack.com/t/sedaro-community/shared_invite/zt-1jps4i711-mXy88AZQ9AV7YcEXr8x7Ow)\n3. Email us at support@sedarotech.com\n\nPlease note that while emails are always welcome, we prefer the first two options as this allows for others to benefit from the discourse in the threads. That said, if the matter is specific to your use case or sensitive in nature, don't hesitate to shoot us an email instead.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "sedaro",
+            "package_url": "https://pypi.org/project/sedaro/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/sedaro/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/sedaro/sedaro-python/issues",
+                "Homepage": "https://github.com/sedaro/sedaro-python"
+            },
+            "release_url": "https://pypi.org/project/sedaro/3.2.12/",
+            "requires_dist": [
+                "certifi (>=14.5.14)",
+                "frozendict (~=2.3.4)",
+                "python-dateutil (~=2.7.0)",
+                "setuptools (>=21.0.0)",
+                "typing-extensions (~=4.3.0)",
+                "urllib3 (~=1.26.7)",
+                "pydash (>=5.1.1)"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "A python client to interact with the Sedaro Satellite API.",
+            "version": "3.2.12",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15947623,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b534dbcb982799dd423a21d2f41a4090",
+                    "sha256": "bd2986ffc565908407d091c3ef8bdce6c92d26a0fe8c30425f6a801c5ba5f0fc"
+                },
+                "downloads": -1,
+                "filename": "sedaro-3.2.12-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b534dbcb982799dd423a21d2f41a4090",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 1232753,
+                "upload_time": "2022-11-30T21:37:49",
+                "upload_time_iso_8601": "2022-11-30T21:37:49.012640Z",
+                "url": "https://files.pythonhosted.org/packages/bb/04/903254baa2964ab8688159cee5bca8cf0177ca83132d647c2a40cdb917e7/sedaro-3.2.12-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a910202f739c5dff66e4896037d21806",
+                    "sha256": "24a8c60c69eae6be45930224d5e4131468d843e989dc2a94e39202f7e2cadda7"
+                },
+                "downloads": -1,
+                "filename": "sedaro-3.2.12.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a910202f739c5dff66e4896037d21806",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 331407,
+                "upload_time": "2022-11-30T21:37:51",
+                "upload_time_iso_8601": "2022-11-30T21:37:51.202886Z",
+                "url": "https://files.pythonhosted.org/packages/2b/bf/30e9353556f56fdae671a14a7a4e80aae98e7596f60b3b939ac353f37987/sedaro-3.2.12.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

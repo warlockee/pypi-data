@@ -21,7 +21,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# robotframework-output-stream\n\nA custom output for Robot Framework enabling realtime analysis in a more compact format.\n\n## Important\n\nThe current version is still pre-alpha and the format specified below may still change. \n\n## Details\n\nIts implementation is based on a listener, so, it's possible to\nuse it in any Robot Framework run by using the `--listener` argument.\n\n## Installation\n\nInstall with:\n\n`pip install robotframework-output-stream`\n\n## Usage\n\n  `python -m robot -l NONE -r NONE -o NONE --listener robot_out_stream.RFStream:--dir=<dir_to_output>:--max-file-size=<5m>:--max-files=<5>:--log=<log.html>`\n\n  Note: the `-l NONE and -r NONE -o NONE` arguments are recommended to disable the standard Robot Framework output (since\n  the `RFStream` should cover all its use-cases).\n\n  Arguments:\n\n  `--dir`\n\n    Points to a directory where the output files should be written.\n    (default: '.' -- i.e.: working dir).\n\n    Note: if a ':' is used it should be changed to <COLON> (because a ':'\n    char is used as the separator by Robot Framework).\n    So, something as `c:/temp/foo` should be written as `c<COLON>/temp/foo`.\n\n    Example:\n\n      --dir=./output\n      --dir=c<COLON>/temp/output\n\n  `--max-file-size`\n\n    Specifies the maximum file size before a rotation for the output file occurs.\n\n    The size can be specified with its unit.\n    The following units are supported: `gb, g, mb, m, kb, k, b`\n    (to support gigabytes=gb or g, megabytes=mb or m, kilobytes=kb or k, bytes=b).\n\n    Note: if no unit is specified, it's considered as bytes.\n\n    Example:\n\n      --max-file-size=200kb\n      --max-file-size=2mb\n      --max-file-size=1gb\n      --max-file-size=10000b\n\n  `--max-files`\n\n    Specifies the maximum number of files to be generated in the logging before\n    starting to prune old files.\n\n    i.e.: If `--max-files=2`, it will generate `output.rfstream`, `output_2.rfstream`\n    and when `output_3.rfstream` is about to be generated it'll erase `output.rfstream`.\n\n    Example:\n\n      --max-files=3\n\n  `--log`\n\n    If specified writes html contents which enables the log contents to be\n    viewed embedded in an html file.\n    It should point to a path in the filesystem.\n\n    Note: if a ':' is used it should be changed to <COLON> (because a ':'\n    char is used as the separator by Robot Framework).\n    So, something as `c:/temp/log.html` should be written as `c<COLON>/temp/log.html`.\n\n    Note: the contents embedded in the file will contain the files written on disk\n    but embedded as a compressed information (so, its size should be less than\n    the size of the contents on disk), note that contents prunned from the log\n    (due to the --max-files setting) will NOT appear in the log.html.\n\n    Example:\n\n      --log=./logs/log.html\n      --log=c<COLON>/temp/log.html\n\n\n## Requirements\n\nThe requirements for the generated log files are the following:\n\n1. Compact log:\n\n    The files generated should be as compact as possible. Reading the file\n    may require a separate application (although the idea is still trying\n    to keep to ASCII instead of a binary format).\n\n2. Log streaming:\n\n    The log format should be suitable for streaming (so, it's possible to\n    interpret the log while it's being written or up to the point a \n    Python VM crash happened).\n\n3. Information:\n\n    While the format of the log should be as compact as possible, it should \n    be able to provide the needed information to debug an issue, so,\n    it must track almost all information currently available in the Robot \n    output.xml.\n\n4. Log file rotation:\n\n    If while being written a log becomes too big the log contents should be\n    rotated to a separate file and it should be possible to specify a maximum\n    size for the log (even if old information in the log is discarded in this\n    case).\n\n\n## Outputs\n\nThe basic log can actually be splitted to multiple files.\nSuch files are splitted in the following files (the idea\nis that it can be split when it becomes too big).\n\n- `output.rfstream`\n- `output_2.rfstream`\n- `output_3.rfstream`\n- ...\n\nThe file should be always written and flushed at each log entry and\nit should be consistent even if the process crashes in the meanwhile\n(meaning that all entries written are valid up to the point of the crash).\n\n## \"Basic log\" spec\n\nTo keep the format compact, strings will be referenced by an id in the \noutput and the output message types will be predetermined and referenced in the \nsame way.\n\nTimes are referenced by the delta from the start.\n\nAlso, each message should use a single line in the log output where the prefix\nis the message type and the arguments is either a message with ids/numbers \nseparated by `|` or json-encoded strings.\n\nNote that each output log file (even if splitted after the main one) should be\nreadable in a completely independent way, so, the starting scope should be \nreplicated as well as the needed names to memorize.\n\nBasic message types are:\n\n### V: Version(name)\n\n    Identifies the version of the log being used\n\n    Example:\n\n    `V 1`             - Identifies version 1 of the log\n\n### I: Info(info_as_json_string)\n\n    Example:\n\n    `I \"python=3.7\"`\n    `I \"RF=5.7.0\"`\n\n### M: Memorize name(id ':' json_string)\n\n    Example:\n\n    `M a:\"Start Suite\"`    - Identifies the String 'Start Suite' as 'a' in the logs \n    `M b:\"End Suite\"`      - Identifies the String 'End Suite' as 'b' in the logs\n\n### T: Initial time(isoformat)\n\n    Example:\n\n    `T 2022-10-03T11:30:54.927`\n\n### SS: Start Suite\n\n    Spec: `name:oid, suite_id:oid, suite_source:oid, time_delta_in_seconds:float`\n\n    Note: references to oid mean a reference to a previously memorized name.\n\n    Note: the time may be given as -1 (if unknown -- later it may be provided\n    through an \"S\" message to specify the start time which may be useful\n    when converting to xml where the status only appears later on in the file\n    along with the status and not at the suite definition).\n\n    Example (were a, b and c are references to previously memorized names):\n\n    `SS a|b|c|0.333`\n\n## RS: Replay Start Suite\n\n    Same as \"SS\" but used just to replay the content to specify the context\n    when the log starts being written in a new file.\n\n### ES: End Suite\n\n    Spec: `status:oid, time_delta_in_seconds:float`\n\n    Note: the status (PASS, FAIL, SKIP) is a previously memorized name.\n\n    Example:\n\n    `ES a|0.222`\n\n### ST: Start Task/test\n\n    Spec: `name:oid, suite_id:oid, lineno:int, time_delta_in_seconds:float`\n\n    Note: the source (filename) is available through the parent suite_source.\n\n    Example:\n\n    `ST a|b|22|0.332`\n\n## RT: Replay Start Task/test\n\n    Same as \"ST\" but used just to replay the content to specify the context\n    when the log starts being written in a new file.\n\n\n### ET: End Task/Test\n\n    Spec: `status:oid, message:oid, time_delta_in_seconds:float`\n\n    Example:\n\n    `ET a|b|0.332`\n\n### SK: Start Keyword\n\n    Spec: `name:oid, libname:oid, keyword_type:oid, doc:oid, source:oid, lineno:int, time_delta_in_seconds:float`\n\n    Example:\n\n    `SK a|b|c|d|e|22|0.444`\n\n## RK: Replay Keyword\n\n    Same as \"SK\" but used just to replay the content to specify the context\n    when the log starts being written in a new file.\n\n### KA: Keyword argument\n\n    Spec: `argument:oid`\n\n    Example:\n\n    `KA f`\n\n### AS: Assign keyword call result to a variable\n\n    Spec: `assign:oid`\n\n    Example:\n\n    `AS f`\n\n### EK: End Keyword\n\n    Spec: `status:oid, time_delta_in_seconds:float`\n\n    Example:\n\n    `EK a|0.333`\n\n### L: Provide a log message\n\n    Spec: `level:level_enum, message:oid, time_delta_in_seconds:float`\n\n    level_enum is:\n    - ERROR = `E`\n    - FAIL = `F`\n    - INFO = `I`\n    - WARN = `W`\n\n    Example:\n\n    `L E|a|0.123`\n\n### S: Specify the start time (of the containing suite/test/task/keyword)\n\n    Spec: `start_time_delta:float`\n\n    Example:\n\n    `S 2.456`\n\n### TG: Apply tag\n\n    Spec: `tag:oid`\n\n    Example:\n\n    `TG a`\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -57,7 +56,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15856989,
+        "last_serial": 15942941,
         "urls": [
             {
                 "comment_text": "",
@@ -96,6 +95,109 @@
                 "upload_time": "2022-11-22T17:12:24",
                 "upload_time_iso_8601": "2022-11-22T17:12:24.473605Z",
                 "url": "https://files.pythonhosted.org/packages/c9/8b/dda400a5256687533dacfb249c5bdd2a640614d23b720b363ed3cbe89137/robotframework-output-stream-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.2": {
+        "info": {
+            "author": "Fabio Zadrozny",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 2 - Pre-Alpha",
+                "Environment :: Console",
+                "Framework :: Robot Framework",
+                "Framework :: Robot Framework :: Tool",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: MacOS :: MacOS X",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: POSIX",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# robotframework-output-stream (0.0.2)\n\nA custom output for Robot Framework enabling realtime analysis in a more compact format.\n\n## Important\n\nThe current version is still pre-alpha and the format specified below may still change. \n\n## Details\n\nIts implementation is based on a listener, so, it's possible to\nuse it in any Robot Framework run by using the `--listener` argument.\n\n## Installation\n\nInstall with:\n\n`pip install robotframework-output-stream`\n\n## Usage\n\n  `python -m robot -l NONE -r NONE -o NONE --listener robot_out_stream.RFStream:--dir=<dir_to_output>:--max-file-size=<5m>:--max-files=<5>:--log=<log.html>`\n\n  Note: the `-l NONE and -r NONE -o NONE` arguments are recommended to disable the standard Robot Framework output (since\n  the `RFStream` should cover all its use-cases).\n\n  Arguments:\n\n  `--dir`\n  \n    Points to a directory where the output files should be written.\n    (default: '.' -- i.e.: working dir).\n    \n    Note: if a ':' is used it should be changed to <COLON> (because a ':'\n    char is used as the separator by Robot Framework).\n    So, something as `c:/temp/foo` should be written as `c<COLON>/temp/foo`.\n    \n    Example:\n    \n      --dir=./output\n      --dir=c<COLON>/temp/output\n\n  `--max-file-size`\n  \n    Specifies the maximum file size before a rotation for the output file occurs.\n    \n    The size can be specified with its unit.\n    The following units are supported: `gb, g, mb, m, kb, k, b`\n    (to support gigabytes=gb or g, megabytes=mb or m, kilobytes=kb or k, bytes=b).\n    \n    Note: if no unit is specified, it's considered as bytes.\n    \n    Example:\n    \n      --max-file-size=200kb\n      --max-file-size=2mb\n      --max-file-size=1gb\n      --max-file-size=10000b\n\n  `--max-files`\n  \n    Specifies the maximum number of files to be generated in the logging before\n    starting to prune old files.\n    \n    i.e.: If `--max-files=2`, it will generate `output.rfstream`, `output_2.rfstream`\n    and when `output_3.rfstream` is about to be generated it'll erase `output.rfstream`.\n    \n    Example:\n    \n      --max-files=3\n\n  `--log`\n  \n    If specified writes html contents which enables the log contents to be\n    viewed embedded in an html file.\n    It should point to a path in the filesystem.\n    \n    Note: if a ':' is used it should be changed to <COLON> (because a ':'\n    char is used as the separator by Robot Framework).\n    So, something as `c:/temp/log.html` should be written as `c<COLON>/temp/log.html`.\n    \n    Note: the contents embedded in the file will contain the files written on disk\n    but embedded as a compressed information (so, its size should be less than\n    the size of the contents on disk), note that contents prunned from the log\n    (due to the --max-files setting) will NOT appear in the log.html.\n    \n    Example:\n    \n      --log=./logs/log.html\n      --log=c<COLON>/temp/log.html\n\n\n## Requirements\n\nThe requirements for the generated log files are the following:\n\n1. Compact log:\n\n    The files generated should be as compact as possible. Reading the file\n    may require a separate application (although the idea is still trying\n    to keep to ASCII instead of a binary format).\n\n2. Log streaming:\n\n    The log format should be suitable for streaming (so, it's possible to\n    interpret the log while it's being written or up to the point a \n    Python VM crash happened).\n\n3. Information:\n\n    While the format of the log should be as compact as possible, it should \n    be able to provide the needed information to debug an issue, so,\n    it must track almost all information currently available in the Robot \n    output.xml.\n\n4. Log file rotation:\n\n    If while being written a log becomes too big the log contents should be\n    rotated to a separate file and it should be possible to specify a maximum\n    size for the log (even if old information in the log is discarded in this\n    case).\n\n\n## Outputs\n\nThe basic log can actually be splitted to multiple files.\nSuch files are splitted in the following files (the idea\nis that it can be split when it becomes too big).\n\n- `output.rfstream`\n- `output_2.rfstream`\n- `output_3.rfstream`\n- ...\n\nThe file should be always written and flushed at each log entry and\nit should be consistent even if the process crashes in the meanwhile\n(meaning that all entries written are valid up to the point of the crash).\n\n## \"Basic log\" spec\n\nTo keep the format compact, strings will be referenced by an id in the \noutput and the output message types will be predetermined and referenced in the \nsame way.\n\nTimes are referenced by the delta from the start.\n\nAlso, each message should use a single line in the log output where the prefix\nis the message type and the arguments is either a message with ids/numbers \nseparated by `|` or json-encoded strings.\n\nNote that each output log file (even if splitted after the main one) should be\nreadable in a completely independent way, so, the starting scope should be \nreplicated as well as the needed names to memorize.\n\nBasic message types are:\n\n### V: Version(name)\n\n    Identifies the version of the log being used\n    \n    Example:\n    \n    `V 1`             - Identifies version 1 of the log\n\n### ID: Identifier and part for this run.\n\n    Provides a unique id for the run (which should be the same even if the\n    file is split among multiple files) as well as the identification of\n    which is the current part.\n    \n    Example:\n    \n    `ID: 1|36ac1f85-6d32-45b0-8ebf-3bbf8d7482f2`     1st part with identifier 36ac1f85-6d32-45b0-8ebf-3bbf8d7482f2.\n    `ID: 2|36ac1f85-6d32-45b0-8ebf-3bbf8d7482f2`     2nd part with identifier 36ac1f85-6d32-45b0-8ebf-3bbf8d7482f2.\n\n### I: Info(info_as_json_string)\n\n    Example:\n    \n    `I \"python=3.7\"`\n    `I \"RF=5.7.0\"`\n\n### M: Memorize name(id ':' json_string)\n\n    Example:\n\n    `M a:\"Start Suite\"`    - Identifies the String 'Start Suite' as 'a' in the logs \n    `M b:\"End Suite\"`      - Identifies the String 'End Suite' as 'b' in the logs\n\n### T: Initial time(isoformat)\n\n    Example:\n    \n    `T 2022-10-03T11:30:54.927`\n\n### SS: Start Suite\n\n    Spec: `name:oid, suite_id:oid, suite_source:oid, time_delta_in_seconds:float`\n    \n    Note: references to oid mean a reference to a previously memorized name.\n    \n    Note: the time may be given as -1 (if unknown -- later it may be provided\n    through an \"S\" message to specify the start time which may be useful\n    when converting to xml where the status only appears later on in the file\n    along with the status and not at the suite definition).\n    \n    Example (were a, b and c are references to previously memorized names):\n    \n    `SS a|b|c|0.333`\n\n## RS: Replay Start Suite\n\n    Same as \"SS\" but used just to replay the content to specify the context\n    when the log starts being written in a new file.\n\n### ES: End Suite\n\n    Spec: `status:oid, time_delta_in_seconds:float`\n    \n    Note: the status (PASS, FAIL, SKIP) is a previously memorized name.\n    \n    Example:\n    \n    `ES a|0.222`\n\n### ST: Start Task/test\n\n    Spec: `name:oid, suite_id:oid, lineno:int, time_delta_in_seconds:float`\n    \n    Note: the source (filename) is available through the parent suite_source.\n    \n    Example:\n    \n    `ST a|b|22|0.332`\n\n## RT: Replay Start Task/test\n\n    Same as \"ST\" but used just to replay the content to specify the context\n    when the log starts being written in a new file.\n\n\n### ET: End Task/Test\n\n    Spec: `status:oid, message:oid, time_delta_in_seconds:float`\n    \n    Example:\n    \n    `ET a|b|0.332`\n\n### SK: Start Keyword\n\n    Spec: `name:oid, libname:oid, keyword_type:oid, doc:oid, source:oid, lineno:int, time_delta_in_seconds:float`\n    \n    Example:\n    \n    `SK a|b|c|d|e|22|0.444`\n\n## RK: Replay Keyword\n\n    Same as \"SK\" but used just to replay the content to specify the context\n    when the log starts being written in a new file.\n\n### KA: Keyword argument\n\n    Spec: `argument:oid`\n    \n    Example:\n    \n    `KA f`\n\n### AS: Assign keyword call result to a variable\n\n    Spec: `assign:oid`\n    \n    Example:\n    \n    `AS f`\n\n### EK: End Keyword\n\n    Spec: `status:oid, time_delta_in_seconds:float`\n    \n    Example:\n    \n    `EK a|0.333`\n\n### L: Provide a log message\n\n    Spec: `level:level_enum, message:oid, time_delta_in_seconds:float`\n    \n    level_enum is:\n    - ERROR = `E`\n    - FAIL = `F`\n    - INFO = `I`\n    - WARN = `W`\n    \n    Example:\n    \n    `L E|a|0.123`\n\n### LH: Provide an html log message\n\n    Same as \"L\" but interned message is expected to be an html which can be\n    embedded in the final log.html.\n    \n    i.e.: the message can be something as:\n    \n    <img alt=\"screenshot\" src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAEgCAIAAACl65ZFAAEAAElEQVR4nOz9d7R...\"/>\n    \n    In which case the img would be embedded as an image in the final log.html.\n\n### S: Specify the start time (of the containing suite/test/task/keyword)\n\n    Spec: `start_time_delta:float`\n    \n    Example:\n    \n    `S 2.456`\n\n### TG: Apply tag\n\n    Spec: `tag:oid`\n    \n    Example:\n    \n    `TG a`\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/robocorp/robotframework-lsp",
+            "keywords": "",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "robotframework-output-stream",
+            "package_url": "https://pypi.org/project/robotframework-output-stream/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/robotframework-output-stream/",
+            "project_urls": {
+                "Homepage": "https://github.com/robocorp/robotframework-lsp"
+            },
+            "release_url": "https://pypi.org/project/robotframework-output-stream/0.0.2/",
+            "requires_dist": [
+                "robotframework (>=3.2)",
+                "mock ; extra == 'test'",
+                "pytest ; extra == 'test'",
+                "pytest-regressions (==1.0.6) ; extra == 'test'",
+                "pytest-xdist ; extra == 'test'",
+                "pytest-timeout ; extra == 'test'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Robot Framework Output Stream (a RF listener to provide an output that's compact and streamable).",
+            "version": "0.0.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15942941,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "91c8f8337afc0d6c9ceab45b2d7f5885",
+                    "sha256": "fec58cec9d4b2c5b3fa019bfe17b005bdb1a30f9511ccdfa2a260968108dea14"
+                },
+                "downloads": -1,
+                "filename": "robotframework_output_stream-0.0.2-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "91c8f8337afc0d6c9ceab45b2d7f5885",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": ">=3.7",
+                "size": 40467,
+                "upload_time": "2022-11-30T14:20:14",
+                "upload_time_iso_8601": "2022-11-30T14:20:14.381523Z",
+                "url": "https://files.pythonhosted.org/packages/8f/af/c518c667459ffc5aa1d7dee2212d1772d3c19055ba9de784dab70728edcd/robotframework_output_stream-0.0.2-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "28fc8fafbbfdd2d3cca09b4509aa0502",
+                    "sha256": "d9755445edce7ceaff361126542decd0e00125551e92f8c39c1bd5f12bf882b6"
+                },
+                "downloads": -1,
+                "filename": "robotframework-output-stream-0.0.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "28fc8fafbbfdd2d3cca09b4509aa0502",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 42014,
+                "upload_time": "2022-11-30T14:20:15",
+                "upload_time_iso_8601": "2022-11-30T14:20:15.837229Z",
+                "url": "https://files.pythonhosted.org/packages/d2/69/03c5ec7e8cdfce2fe1c82e1fecbca3a34dd43853214d0a3353e5263e7883/robotframework-output-stream-0.0.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
