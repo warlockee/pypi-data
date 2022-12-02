@@ -45,7 +45,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15009600,
+        "last_serial": 15960214,
         "urls": [
             {
                 "comment_text": "",
@@ -136,7 +136,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15009600,
+        "last_serial": 15960214,
         "urls": [
             {
                 "comment_text": "",
@@ -227,7 +227,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15009600,
+        "last_serial": 15960214,
         "urls": [
             {
                 "comment_text": "",
@@ -318,7 +318,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15009600,
+        "last_serial": 15960214,
         "urls": [
             {
                 "comment_text": "",
@@ -409,7 +409,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15009600,
+        "last_serial": 15960214,
         "urls": [
             {
                 "comment_text": "",
@@ -467,7 +467,6 @@
                 "Programming Language :: Python :: 3",
                 "Topic :: Software Development :: Build Tools"
             ],
-            "description": "invoke-kubesae\n==============\n\nThe kubesae library is an `invoke <http://docs.pyinvoke.org/en/stable/>`_ tasks library\nto provide some basic management tasks for working with a kubernetes cluster.\n\nLicense\n-------\n\nThis invoke library is released under the BSD License.  See the `LICENSE\n<https://github.com/caktus/invoke-kubesae/blob/master/LICENSE>`_ file for\nmore details.\n\nReleases\n--------\n\nWe attempt to not make changes that break backward-compatibility.\nNonetheless, you should *always* use a pinned version of this\nrepo to be safe.  Check the\n`release history <RELEASES.rst>`_ before upgrading for\nany notes or warnings.\n\nContributing\n------------\n\nIf you think you've found a bug or are interested in contributing to\nthis project, check out `invoke-kubesae on Github\n<https://github.com/caktus/invoke-kubesae>`_.\n\nDevelopment sponsored by `Caktus Consulting Group, LLC\n<http://www.caktusgroup.com/services>`_.\n\nInstallation\n------------\n\npip install into your virtualenv::\n\n    $ pip install invoke-kubesae\n\nUsage\n-----\n\nInvoke works from a ``tasks.py`` file usually found in the project root.\n\nThe following code snippet imports all of the the current collections to show an\nexample for supporting AWS, then sets some configuration values for various tasks.\nNote that GCP is also supported in the ``providers.gcp`` module, and works similarly\nto the ``providers.aws`` module. See below for more documentation on the\nconfiguration each task uses.\n\n\n``tasks.py``::\n\n    import invoke\n    from colorama import init\n    from kubesae import *\n\n\n    init(autoreset=True)\n\n\n    @invoke.task\n    def staging(c):\n        c.config.env = \"staging\"\n        c.config.namespace = \"myproject-staging\"\n        c.config.container_name = \"myproject-web\"\n\n\n    ns = invoke.Collection()\n    ns.add_collection(image)\n    ns.add_collection(aws)\n    ns.add_collection(deploy)\n    ns.add_collection(pod)\n    ns.add_task(staging)\n    ns.configure(\n        {\n            \"app\": \"appname\",\n            \"aws\": {\n                \"region\": \"us-west-2\",\n                \"profile_name\": \"my-aws-profile\",  # a profile from .aws/credentials\n            },\n            \"repository\": \"123456789012.dkr.ecr.us-east-1.amazonaws.com/myproject\",\n            \"run\": {\n                \"echo\": True,\n                \"pty\": True,\n            },\n        }\n    )\n\n.. note::\n   The ``profile_name`` in the config above is only used when you run custom playbooks,\n   not the main deploy playbook. It is used because boto doesn't work well with\n   AssumedRoles, so if your playbook needs an AssumedRole we have to convert the role\n   credentials to standard AWS access_key/secret credentials and we use the profile above\n   to do that. This assumes that all devs in your project are using the same profile\n   name, but if you want to customize it, you can create a project-level task to\n   customize it.\n\n\nNow you can see all of the currently available tasks by running::\n\n    $ inv -l\n\nBuild an image::\n\n    $ inv image.build\n\nLog in to the AWS docker registry::\n\n    $ inv aws.docker-login\n\nPush the image just built::\n\n    $ inv image.push\n\nSet up your kubectl context::\n\n    $ inv aws.configure-eks-kubeconfig\n\nInstall Ansible roles::\n\n    $ inv deploy.install\n\nDeploy the same tag we just pushed::\n\n    $ inv image.tag staging deploy.deploy\n\nTask reference\n==============\n\n(In alphabetical order, and by collection)\n\nAWS\n---\n\nconfigure-eks-kubeconfig\n~~~~~~~~~~~~~~~~~~~~~~~~\n\n    Obtain an EKS access token.\n\n    Config:\n\n        aws.region: Name of AWS region (default: us-east-1)\n\n        cluster: Name of EKS cluster\n\ndocker-login\n~~~~~~~~~~~~\n\n    Obtain ECR credentials to use with docker login.\n\n    Config:\n\n        aws.region: Name of AWS region (default: us-east-1)\n\n        repository: Name of docker repository, e.g. dockerhub.com/myproject.\n\nsync-media\n~~~~~~~~~~\n\n    Syncs a media bucket between two namespaces (e.g. `production` to `staging`, or\n    `staging` to `local`).\n\nDeploy\n------\n\ndeploy\n~~~~~~\n\n    Deploy your k8s application. (Default)\n\n    WARNING: if you are running this in CI, make sure to set `--verbosity=0` to prevent\n    environment variables from being logged in plain text in the CI console.\n\n    Prereq: deploy.install\n\n    Config:\n\n        env: The target ansible host (\"staging\", \"production\", etc ...)\n\n        tag: Image tag to deploy (default: same as default tag for build & push)\n\n        verbosity: integer level of verbosity from 0 to 4 (most verbose)\n\ninstall\n~~~~~~~\n\n    Install ansible-galaxy requirements.yml.\n\nplaybook\n~~~~~~~~\n\n    Run a specified Ansible playbook, located in the ``deploy/`` directory. Used to run\n    a different playbook than the default playbook.\n\n    WARNING: if you are running this in CI, make sure to set `--verbosity=0` to prevent\n    environment variables from being logged in plain text in the CI console.\n\n    Config:\n\n        name: The name of the Ansible playbook to run, including the extension\n\n        extra: Additional command line arguments to ansible-playbook\n\n        verbosity: integer level of verbosity from 0 to 4 (most verbose)\n\nGCP\n---\n\nconfigure-gcp-kubeconfig\n~~~~~~~~~~~~~~~~~~~~~~~~\n\n    Authenticate into GCP to get credentials for the cluster.\n\n    Config:\n\n        app: Name of the project in GCP\n\n        gcp.region: Name of GCP region (default: us-east1)\n\n        cluster: Name of cluster in GCP (default config.cluster)\n\ndocker-login\n~~~~~~~~~~~~\n\n    Authenticate into GCP, and configure Docker.\n\n    Config:\n\n        app: Name of the project in GCP\n\n        repository: Name of docker repository, e.g. us.gcr.io/myproject/myproject\n\nsync-media\n~~~~~~~~~~\n\n    Syncs a media bucket between two namespaces (e.g. `production` to `staging`, or\n    `staging` to `local`).\n\nImage\n-----\n\nbuild\n~~~~~\n\n    Build Docker image.  Tags with <tag> parameter and \"latest\".\n\n    Config:\n\n        tag: tag to apply. (Will be generated from git branch/commit\n        if not set).\n\n        app_build_target: The dockerfile target for a multistage build. Most often this will be \"deploy\"\n\n    Params:\n\n        tag: tag to apply. (Will be generated from git branch/commit\n        if not set).\n\n        dockerfile: A non-standard Dockerfile location and/or name\n\n        target: Use if the config var has not been set in tasks, or you need to target a non-standard build stage.\n\n\npush\n~~~~\n\n    Push docker image to remote repository. (Default)\n\n    This command does the ``build`` and ``tag`` tasks before pushing.\n\n    Config:\n\n        repository: Name of docker repository, e.g. dockerhub.com/myproject.\n\n        tag: tag to push. (Will be generated from git branch/commit\n        if not set).\n\n    Params:\n\n        tag: tag to apply. (Will be generated from git branch/commit\n        if not set).\n\nstop\n~~~~\n\n    Stops the deployable image in docker-compose\n\ntag\n~~~\n\n    Generate tag based on local branch & commit hash.\n    Set the config \"tag\" to the resulting tag.\n\nup\n~~~\n\n    Brings up the deployable image locally in docker-compose for testing\n\n\nInfo\n----\n\nprint-ansible-vars\n~~~~~~~~~~~~~~~~~~\n\n    A command to inspect any ansible variable by environment. If no variable is specified then it will\n    print out the current k8s environment variables.\n\n    Params:\n        c (invoke.Context): The current invoke context.\n        var (string, optional): The ansible variable you want to expose. Defaults to None.\n        yaml (string, optional): An ansible path. Defaults to None.\n        pty (bool, optional): If piping the output to another command you might need this to be False. Defaults to True.\n        hide (bool, optional): If you don't want the results to print to the console set to \"out\". Defaults to False.\n\npod-stats\n~~~~~~~~~\n\n    Report total pods vs pod capacity in a cluster.\n\nPod\n---\n\nclean-collectstatic\n~~~~~~~~~~~~~~~~~~~\n\n    Removes all collectstatic pods\n\n    Config:\n\n        namespace: the k8s namespace that will be cleaned\n\nclean-debian\n~~~~~~~~~~~~\n\n    Clears away the old debian pod so a new one may live.\n\nclean-migrations\n~~~~~~~~~~~~~~~~\n\n    Removes all migration jobs\n\n    Config:\n\n        namespace: the k8s namespace that will be cleaned\n\ndebian\n~~~~~~\n\n    An ephemeral container with which to run sysadmin tasks on the cluster\n\nfetch_namespace_var\n~~~~~~~~~~~~~~~~~~~\n\n    Takes a variable name that may be present on a running container. Queries the\n    container for the value of that variable and returns it as a Result object.\n\n    Config:\n\n        namespace: the k8s namespace that will be cleaned\n\n        container_name: Name of the Docker container.\n\n    Params:\n\n        fetch_var (str): An environment variable expected on the target container\n\n        hide (bool, optional): Hides the stdout if True. Defaults to False.\n\nget_db_dump\n~~~~~~~~~~~\n\n    Get a dump of an environment's database\n\n    Config:\n\n        namespace: the k8s namespace that will be cleaned\n\n        container_name: Name of the Docker container.\n\n    Params:\n\n        db_var (str): The variable name that the database connection is stored in.\n\n        filename (string, optional): A filename to store the dump. If None, will default to {namespace}_database.dump.\n\nrestore_db_from_dump\n~~~~~~~~~~~~~~~~~~~~\n\n    Load a database dump file into an environment's database\n\n    Config:\n\n        namespace: the k8s namespace that will be cleaned\n\n        container_name: Name of the Docker container.\n\n    Params:\n\n        db_var (str): The variable the database connection is stored in.\n\n        filename (string): An filename of the dump to restore.\n\nshell\n~~~~~\n\n    Gives you a shell on the application pod. (Default)\n\n    Config:\n\n        container_name: Name of the Docker container.\n\nUtils\n-----\n\nget_backup_from_hosting\n~~~~~~~~~~~~~~~~~~~~~~~\n\n    Downloads a backup from the caktus hosting services bucket\n\n    Params:\n\n        c (invoke.Context): the running context\n        latest (str, optional): Gets the latest backup from the specified temporal period. Defaults to \"daily\". Options are \"daily\", \"weekly\", \"monthly\", \"yearly\"\n        profile (str, optional): The AWS profile to allow access to the s3 bucket. DEFAULT: \"caktus\"\n        backup_name(str, optional): A specific backup filename.\n        list(bool, optional): If set, will list the contents of the bucket for the projects folder and exit.\n\n    The use of this task requires the addition of `hosting_services_backup_folder` to your `tasks.py`\n    configuration:\n\n        ns.configure({\"hosting_services_backup_folder\": \"<PROJECT_FOLDER>\",})\n\ncount_backups\n~~~~~~~~~~~~~\n\n    Sorts the backups generated with caktus-hosting-services cronjob and prints the number found of each type.\n\n    Params:\n\n        `c` (invoke.Context): The running context\n        `bucket_identifier` (str, optional): The name of the bucket that holds the backups. DEFAULT: `caktus-hosting-services-backups`\n        `profile` (str, optional): The AWS profile with list access to the bucket. DEFAULT: `caktus`\n        `extra_schedules` (str, optional): A comma delimited string with each additional schedule name no spaces. EXAMPLE: `'every2hours,every-hour,every-thursday'`\n\nlist_backup_schedules\n~~~~~~~~~~~~~~~~~~~~~\n\n    Lists the backup schedules found in a project's hosting bucket.\n\n    Params:\n\n        `c` (invoke.Context): The running context\n        `bucket_identifier` (str, optional): The name of the bucket that holds the backups. DEFAULT: `caktus-hosting-services-backups`\n        `profile` (str, optional): The AWS profile with list access to the bucket. DEFAULT: `caktus`\n",
             "description_content_type": "text/x-rst",
             "docs_url": null,
             "download_url": "",
@@ -501,7 +500,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15009600,
+        "last_serial": 15960214,
         "urls": [
             {
                 "comment_text": "",
@@ -540,6 +539,98 @@
                 "upload_time": "2022-09-06T17:17:42",
                 "upload_time_iso_8601": "2022-09-06T17:17:42.404404Z",
                 "url": "https://files.pythonhosted.org/packages/40/a2/998a4594ecea2786d6cbb6154f5c9e6d9a937deabf5728122b68a4d4e952/invoke-kubesae-0.0.21.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.0": {
+        "info": {
+            "author": "Caktus Group",
+            "author_email": "solutions@caktusgroup.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Software Development :: Build Tools"
+            ],
+            "description": "invoke-kubesae\n==============\n\nThe kubesae library is an `invoke <http://docs.pyinvoke.org/en/stable/>`_ tasks library\nto provide some basic management tasks for working with a kubernetes cluster.\n\nLicense\n-------\n\nThis invoke library is released under the BSD License.  See the `LICENSE\n<https://github.com/caktus/invoke-kubesae/blob/master/LICENSE>`_ file for\nmore details.\n\nReleases\n--------\n\nWe attempt to not make changes that break backward-compatibility.\nNonetheless, you should *always* use a pinned version of this\nrepo to be safe.  Check the\n`release history <RELEASES.rst>`_ before upgrading for\nany notes or warnings.\n\nContributing\n------------\n\nIf you think you've found a bug or are interested in contributing to\nthis project, check out `invoke-kubesae on Github\n<https://github.com/caktus/invoke-kubesae>`_.\n\nDevelopment sponsored by `Caktus Consulting Group, LLC\n<http://www.caktusgroup.com/services>`_.\n\nInstallation\n------------\n\npip install into your virtualenv::\n\n    $ pip install invoke-kubesae\n\nUsage\n-----\n\nInvoke works from a ``tasks.py`` file usually found in the project root.\n\nThe following code snippet imports all of the the current collections to show an\nexample for supporting AWS, then sets some configuration values for various tasks.\nNote that GCP is also supported in the ``providers.gcp`` module, and works similarly\nto the ``providers.aws`` module. See below for more documentation on the\nconfiguration each task uses.\n\n\n``tasks.py``::\n\n    import invoke\n    from colorama import init\n    from kubesae import *\n\n\n    init(autoreset=True)\n\n\n    @invoke.task\n    def staging(c):\n        c.config.env = \"staging\"\n        c.config.namespace = \"myproject-staging\"\n        c.config.container_name = \"myproject-web\"\n\n\n    ns = invoke.Collection()\n    ns.add_collection(image)\n    ns.add_collection(aws)\n    ns.add_collection(deploy)\n    ns.add_collection(pod)\n    ns.add_task(staging)\n    ns.configure(\n        {\n            \"app\": \"appname\",\n            \"aws\": {\n                \"region\": \"us-west-2\",\n                \"profile_name\": \"my-aws-profile\",  # a profile from .aws/credentials\n            },\n            \"repository\": \"123456789012.dkr.ecr.us-east-1.amazonaws.com/myproject\",\n            \"run\": {\n                \"echo\": True,\n                \"pty\": True,\n            },\n        }\n    )\n\n.. note::\n   The ``profile_name`` in the config above is only used when you run custom playbooks,\n   not the main deploy playbook. It is used because boto doesn't work well with\n   AssumedRoles, so if your playbook needs an AssumedRole we have to convert the role\n   credentials to standard AWS access_key/secret credentials and we use the profile above\n   to do that. This assumes that all devs in your project are using the same profile\n   name, but if you want to customize it, you can create a project-level task to\n   customize it.\n\n\nNow you can see all of the currently available tasks by running::\n\n    $ inv -l\n\nBuild an image::\n\n    $ inv image.build\n\nLog in to the AWS docker registry::\n\n    $ inv aws.docker-login\n\nPush the image just built::\n\n    $ inv image.push\n\nSet up your kubectl context::\n\n    $ inv aws.configure-eks-kubeconfig\n\nInstall Ansible roles::\n\n    $ inv deploy.install\n\nDeploy the same tag we just pushed::\n\n    $ inv image.tag staging deploy.deploy\n\nTask reference\n==============\n\n(In alphabetical order, and by collection)\n\nAWS\n---\n\nconfigure-eks-kubeconfig\n~~~~~~~~~~~~~~~~~~~~~~~~\n\n    Obtain an EKS access token.\n\n    Config:\n\n        aws.region: Name of AWS region (default: us-east-1)\n\n        cluster: Name of EKS cluster\n\ndocker-login\n~~~~~~~~~~~~\n\n    Obtain ECR credentials to use with docker login.\n\n    Config:\n\n        aws.region: Name of AWS region (default: us-east-1)\n\n        repository: Name of docker repository, e.g. dockerhub.com/myproject.\n\nsync-media\n~~~~~~~~~~\n\n    Syncs a media bucket between two namespaces (e.g. `production` to `staging`, or\n    `staging` to `local`).\n\nDeploy\n------\n\ndeploy\n~~~~~~\n\n    Deploy your k8s application. (Default)\n\n    WARNING: if you are running this in CI, make sure to set `--verbosity=0` to prevent\n    environment variables from being logged in plain text in the CI console.\n\n    Prereq: deploy.install\n\n    Config:\n\n        env: The target ansible host (\"staging\", \"production\", etc ...)\n\n        tag: Image tag to deploy (default: same as default tag for build & push)\n\n        verbosity: integer level of verbosity from 0 to 4 (most verbose)\n\ninstall\n~~~~~~~\n\n    Install ansible-galaxy requirements.yml.\n\nplaybook\n~~~~~~~~\n\n    Run a specified Ansible playbook, located in the ``deploy/`` directory. Used to run\n    a different playbook than the default playbook.\n\n    WARNING: if you are running this in CI, make sure to set `--verbosity=0` to prevent\n    environment variables from being logged in plain text in the CI console.\n\n    Config:\n\n        name: The name of the Ansible playbook to run, including the extension\n\n        extra: Additional command line arguments to ansible-playbook\n\n        verbosity: integer level of verbosity from 0 to 4 (most verbose)\n\nGCP\n---\n\nconfigure-gcp-kubeconfig\n~~~~~~~~~~~~~~~~~~~~~~~~\n\n    Authenticate into GCP to get credentials for the cluster.\n\n    Config:\n\n        app: Name of the project in GCP\n\n        gcp.region: Name of GCP region (default: us-east1)\n\n        cluster: Name of cluster in GCP (default config.cluster)\n\ndocker-login\n~~~~~~~~~~~~\n\n    Authenticate into GCP, and configure Docker.\n\n    Config:\n\n        app: Name of the project in GCP\n\n        repository: Name of docker repository, e.g. us.gcr.io/myproject/myproject\n\nsync-media\n~~~~~~~~~~\n\n    Syncs a media bucket between two namespaces (e.g. `production` to `staging`, or\n    `staging` to `local`).\n\nImage\n-----\n\nbuild\n~~~~~\n\n    Build Docker image.  Tags with <tag> parameter and \"latest\".\n\n    Config:\n\n        tag: tag to apply. (Will be generated from git branch/commit\n        if not set).\n\n        app_build_target: The dockerfile target for a multistage build. Most often this will be \"deploy\"\n\n    Params:\n\n        tag: tag to apply. (Will be generated from git branch/commit\n        if not set).\n\n        dockerfile: A non-standard Dockerfile location and/or name\n\n        target: Use if the config var has not been set in tasks, or you need to target a non-standard build stage.\n\n\npush\n~~~~\n\n    Push docker image to remote repository. (Default)\n\n    This command does the ``build`` and ``tag`` tasks before pushing.\n\n    Config:\n\n        repository: Name of docker repository, e.g. dockerhub.com/myproject.\n\n        tag: tag to push. (Will be generated from git branch/commit\n        if not set).\n\n    Params:\n\n        tag: tag to apply. (Will be generated from git branch/commit\n        if not set).\n\nstop\n~~~~\n\n    Stops the deployable image in docker-compose\n\ntag\n~~~\n\n    Generate tag based on local branch & commit hash.\n    Set the config \"tag\" to the resulting tag.\n\nup\n~~~\n\n    Brings up the deployable image locally in docker-compose for testing\n\n\nInfo\n----\n\nprint-ansible-vars\n~~~~~~~~~~~~~~~~~~\n\n    A command to inspect any ansible variable by environment. If no variable is specified then it will\n    print out the current k8s environment variables.\n\n    Params:\n        c (invoke.Context): The current invoke context.\n        var (string, optional): The ansible variable you want to expose. Defaults to None.\n        yaml (string, optional): An ansible path. Defaults to None.\n        pty (bool, optional): If piping the output to another command you might need this to be False. Defaults to True.\n        hide (bool, optional): If you don't want the results to print to the console set to \"out\". Defaults to False.\n\npod-stats\n~~~~~~~~~\n\n    Report total pods vs pod capacity in a cluster.\n\nPod\n---\n\nclean-collectstatic\n~~~~~~~~~~~~~~~~~~~\n\n    Removes all collectstatic pods\n\n    Config:\n\n        namespace: the k8s namespace that will be cleaned\n\nclean-debian\n~~~~~~~~~~~~\n\n    Clears away the old debian pod so a new one may live.\n\nclean-migrations\n~~~~~~~~~~~~~~~~\n\n    Removes all migration jobs\n\n    Config:\n\n        namespace: the k8s namespace that will be cleaned\n\ndebian\n~~~~~~\n\n    An ephemeral container with which to run sysadmin tasks on the cluster\n\nfetch_namespace_var\n~~~~~~~~~~~~~~~~~~~\n\n    Takes a variable name that may be present on a running container. Queries the\n    container for the value of that variable and returns it as a Result object.\n\n    Config:\n\n        namespace: the k8s namespace that will be cleaned\n\n        container_name: Name of the Docker container.\n\n    Params:\n\n        fetch_var (str): An environment variable expected on the target container\n\n        hide (bool, optional): Hides the stdout if True. Defaults to False.\n\nget_db_dump\n~~~~~~~~~~~\n\n    Get a dump of an environment's database\n\n    Config:\n\n        namespace: the k8s namespace that will be cleaned\n\n        container_name: Name of the Docker container.\n\n    Params:\n\n        db_var (str): The variable name that the database connection is stored in.\n\n        filename (string, optional): A filename to store the dump. If None, will default to {namespace}_database.dump.\n\nrestore_db_from_dump\n~~~~~~~~~~~~~~~~~~~~\n\n    Load a database dump file into an environment's database\n\n    Config:\n\n        namespace: the k8s namespace that will be cleaned\n\n        container_name: Name of the Docker container.\n\n    Params:\n\n        db_var (str): The variable the database connection is stored in.\n\n        filename (string): An filename of the dump to restore.\n\nshell\n~~~~~\n\n    Gives you a shell on the application pod. (Default)\n\n    Config:\n\n        container_name: Name of the Docker container.\n\nUtils\n-----\n\nget_backup_from_hosting\n~~~~~~~~~~~~~~~~~~~~~~~\n\n    Downloads a backup from the caktus hosting services bucket\n\n    Params:\n\n        c (invoke.Context): the running context\n        latest (str, optional): Gets the latest backup from the specified temporal period. Defaults to \"daily\". Options are \"daily\", \"weekly\", \"monthly\", \"yearly\"\n        profile (str, optional): The AWS profile to allow access to the s3 bucket. DEFAULT: \"caktus\"\n        backup_name(str, optional): A specific backup filename.\n        list(bool, optional): If set, will list the contents of the bucket for the projects folder and exit.\n\n    The use of this task requires the addition of `hosting_services_backup_folder` to your `tasks.py`\n    configuration:\n\n        ns.configure({\"hosting_services_backup_folder\": \"<PROJECT_FOLDER>\",})\n\ncount_backups\n~~~~~~~~~~~~~\n\n    Sorts the backups generated with caktus-hosting-services cronjob and prints the number found of each type.\n\n    Params:\n\n        `c` (invoke.Context): The running context\n        `bucket_identifier` (str, optional): The name of the bucket that holds the backups. DEFAULT: `caktus-hosting-services-backups`\n        `profile` (str, optional): The AWS profile with list access to the bucket. DEFAULT: `caktus`\n        `extra_schedules` (str, optional): A comma delimited string with each additional schedule name no spaces. EXAMPLE: `'every2hours,every-hour,every-thursday'`\n\nlist_backup_schedules\n~~~~~~~~~~~~~~~~~~~~~\n\n    Lists the backup schedules found in a project's hosting bucket.\n\n    Params:\n\n        `c` (invoke.Context): The running context\n        `bucket_identifier` (str, optional): The name of the bucket that holds the backups. DEFAULT: `caktus-hosting-services-backups`\n        `profile` (str, optional): The AWS profile with list access to the bucket. DEFAULT: `caktus`\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/caktus/invoke-kubesae",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "invoke-kubesae",
+            "package_url": "https://pypi.org/project/invoke-kubesae/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/invoke-kubesae/",
+            "project_urls": {
+                "Homepage": "https://github.com/caktus/invoke-kubesae"
+            },
+            "release_url": "https://pypi.org/project/invoke-kubesae/0.1.0/",
+            "requires_dist": [
+                "boto3 (>=1.16)",
+                "invoke (>=1.4)",
+                "colorama (>=0.4)",
+                "ansible (>=2.9)"
+            ],
+            "requires_python": ">=3.5",
+            "summary": "An invoke tasks library to manage a kubernetes project.",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15960214,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "41884690d1c9803531b5c0b2c3646fb5",
+                    "sha256": "72d46b382d9bf4128bfd03900d9393e11dc7b08d4188d92094090cc4cdb71a3a"
+                },
+                "downloads": -1,
+                "filename": "invoke_kubesae-0.1.0-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "41884690d1c9803531b5c0b2c3646fb5",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": ">=3.5",
+                "size": 20841,
+                "upload_time": "2022-12-01T20:32:37",
+                "upload_time_iso_8601": "2022-12-01T20:32:37.770339Z",
+                "url": "https://files.pythonhosted.org/packages/3d/b9/af3ca3cb5ea4ae54f0c5497af91a6936c220f5fe6b6ef6349bf88601c0e2/invoke_kubesae-0.1.0-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e886a2ee21baba7ed76dbc5559a7d9e3",
+                    "sha256": "f6727ae826f9fc28d6704431a5f44666b29cdac0de84e19d2fdebf8fca0bca05"
+                },
+                "downloads": -1,
+                "filename": "invoke-kubesae-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e886a2ee21baba7ed76dbc5559a7d9e3",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.5",
+                "size": 18831,
+                "upload_time": "2022-12-01T20:32:39",
+                "upload_time_iso_8601": "2022-12-01T20:32:39.667621Z",
+                "url": "https://files.pythonhosted.org/packages/ca/75/fb07d7fc9f23ccc36b7bc903f78468add72f6eeabd83cc2dcf4b710ba725/invoke-kubesae-0.1.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

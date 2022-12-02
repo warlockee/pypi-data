@@ -56,7 +56,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15251361,
+        "last_serial": 15958652,
         "urls": [
             {
                 "comment_text": "",
@@ -162,7 +162,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15251361,
+        "last_serial": 15958652,
         "urls": [
             {
                 "comment_text": "",
@@ -268,7 +268,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15251361,
+        "last_serial": 15958652,
         "urls": [
             {
                 "comment_text": "",
@@ -385,7 +385,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15251361,
+        "last_serial": 15958652,
         "urls": [
             {
                 "comment_text": null,
@@ -502,7 +502,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15251361,
+        "last_serial": 15958652,
         "urls": [
             {
                 "comment_text": null,
@@ -619,7 +619,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15251361,
+        "last_serial": 15958652,
         "urls": [
             {
                 "comment_text": null,
@@ -736,7 +736,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15251361,
+        "last_serial": 15958652,
         "urls": [
             {
                 "comment_text": null,
@@ -804,7 +804,6 @@
                 "Topic :: Internet :: WWW/HTTP",
                 "Topic :: Software Development :: Libraries"
             ],
-            "description": "# lemon.markets Python SDK\n\n[![License](https://img.shields.io/github/license/lemon-markets/sdk-python)](./LICENSE)\n[![Tests](https://img.shields.io/github/workflow/status/lemon-markets/sdk-python/tests/main?label=tests)](https://github.com/lemon-markets/sdk-python/actions)\n[![Python versions](https://img.shields.io/pypi/pyversions/lemon.svg)](https://pypi.python.org/pypi/lemon/)\n[![PyPI](https://img.shields.io/pypi/v/lemon)](https://pypi.python.org/pypi/lemon/)\n\n[lemon.markets](https://lemon.markets) Python SDK facilitates communication with the\n[lemon.markets](https://lemon.markets) API for Python programs. The library implements all calls to the endpoints\ndefined in the Market Data API and Trading API. We currently do not support asynchronous calls.\n\n## Documentation\n\nSee the [API docs](https://docs.lemon.markets/).\n\n## Installation\n\nYou can install library using [pip](http://pypi.python.org/pypi/pip):\n\n```bash\npip install lemon\n````\n\nRequirements:\n\n- Python 3.7+\n- `requests`\n- `pytz`\n- `typing-extensions`\n\n## Usage\n\n### SDK client\n\nTo create and configure our SDK client you will need to have separate API tokens for `Market Data API` and `Trading API`. You also need to choose which environment you want to use for trading: `paper` or `live`, defaults to `paper`.\nFor how to obtain and use our api token, see [here](https://docs.lemon.markets/authentication).\nThe snippet below shows how to properly create a SDK client:\n```python\nfrom lemon import api\n\nclient = api.create(\n    market_data_api_token='your-market-data-api-token',\n    trading_api_token='your-trading-api-token',\n    env='paper'  # or env='live'\n)\n```\n\n`lemon.api.create` method allows also to configure:\n\n- `timeout` - default timeout for requests\n- `retry_count` - default number of retries for requests\n- `retry_backoff_factor` - default retry backoff factor for retries\n\nThe SDK client consists of three parts:\n\n- `market_data` - let's you access the Market Data API endpoints\n- `streaming` - let's you retrieve an authentication token that you can use to stream live data\n- `trading` - let's you access the Trading API endpoints. Choose the desired target environment (paper or live) in the client configuration.\n\n### Market Data API usage\n\n```python\nfrom lemon import api\nfrom datetime import datetime\n\nclient = api.create(\n    market_data_api_token='your-market-data-api-token',\n    trading_api_token='your-trading-api-token',\n)\n\n# get venues\nresponse = client.market_data.venues.get()\nprint(response.results)\n\n# get instruments\nresponse = client.market_data.instruments.get(\n    isin=[\"US88160R1014\", \"US0231351067\"]\n)\nresponse = client.market_data.instruments.get(\n    tradable=True,\n)\n# automatically iterate over all pages. auto_iter() is available on all list responses\nfor instrument in response.auto_iter():\n    print(instrument)\n\nresponse = client.market_data.instruments.get(\n    type=['stock', 'etf'],\n    currency=['EUR'],\n    limit=10,\n    sorting='asc'\n)\n\n# get latest ohlc\nresponse = client.market_data.ohlc.get(\n    isin=['US88160R1014'],\n    period='m1',\n    from_='latest',\n    epoch=True,\n    decimals=True\n)\n\n# get ohlc\nresponse = client.market_data.ohlc.get(\n    isin=['US88160R1014'],\n    period='d1',\n    from_=datetime(2021, 1, 2)\n)\n\n# get latest quotes\nresponse = client.market_data.quotes.get_latest(\n    isin=['US88160R1014', 'US0231351067'],\n    epoch=True,\n    sorting='asc'\n)\n\n# get trades\nresponse = client.market_data.trades.get_latest(\n    isin=['US88160R1014', 'US0231351067'],\n    decimals=True\n)\n```\n\n### Streaming API Usage\n```python\nfrom lemon import api\n\nclient = api.create(...)\n\n# get live streaming authentication token\nresponse = client.streaming.authenticate()\n```\n\n#### Streaming API example\nThis example relies on that you have both this SDK installed as well as paho-mqtt package.\n\nBelow is an example usage of live streaming quotes through alby mqtt broker using paho mqtt client.\nWhen connecting to the broker the on_connect callback will be triggered.\nThis in return will trigger the on_subscribe callback where we can let the broker know what ISINS we are interested in\nThere is a limitation to only have 4 channels connected at once. \nYou may be able to create more than 4 channels - however we then may close any one of them at any time.\n\nAfter that we will simply get all the quote updates through the on_message callback.\n\n```python\nfrom lemon import api\nimport paho.mqtt.client as mqtt\n\nclient = api.create(...)\n\n# get live streaming authentication token\nresponse = client.streaming.authenticate()\n\ndef on_connect(mqtt_client, userdata, flags, rc):\n    mqtt_client.subscribe(response.user_id)\n\ndef on_subscribe(mqtt_client, userdata, level, buff):\n    mqtt_client.publish(f\"{response.user_id}.subscriptions\", \"US88160R1014,US0231351067\")\n\ndef on_message(mqtt_client, userdata, msg):\n    data = json.loads(msg.payload)\n    quote = Quote._from_data(data, int, int)\n\n# initiate mqtt- client for streaming\nmqtt_client = mqtt.Client(\"Ably_Client\")\nmqtt_client.username_pw_set(username=response.token)\nmqtt_client.on_connect = on_connect # callbck to handle connect\nmqtt_client.on_subscribe = on_subscribe # callbck to handle subscribe\nmqtt_client.on_message = on_message # callbck to handle message\n\nmqtt_client.connect(\"mqtt.ably.io\")\nmqtt_client.loop_forever() # start the mqtt client and loop forever\n```\n\n### Trading API usage\n\n```python\nfrom lemon import api\n\nclient = api.create(...)\n\n# create buy order\nresponse = client.trading.orders.create(\n    isin='US88160R1014',\n    side='buy',\n    quantity=1,\n)\norder_id = response.results.id\n\n# activate buy order\nresponse = client.trading.orders.activate(order_id=order_id)\n\n# get buy order status\nresponse = client.trading.orders.get_order(order_id=order_id)\n\n# get orders\nresponse = client.trading.orders.get()\n\n# iterate over all orders of all pages\nfor order in response.auto_iter():\n    print(order)\n\n# cancel order\n# create an order first\nresponse = client.trading.orders.create(\n    isin='US88160R1014', \n    side='buy', \n    quantity=1,\n)\n# cancel the order via order_id\nresponse = client.trading.orders.cancel(order_id=response.results.id)\n\n# update account\nresponse = client.trading.account.update(\n    address_street='Ritterstrasse',\n    address_city=\"Berlin\"\n)\n\n# withdraw money from account\nresponse = client.trading.account.withdraw(\n    amount=100000,\n    pin=\"1234\"\n)\n\n# get bank statements\nresponse = client.trading.account.get_bank_statements(\n    type='eod_balance',\n    from_=\"beginning\"\n)\n\n# get documents\nresponse = client.trading.account.get_documents()\n\n# get document\nresponse = client.trading.account.get_document(document_id='doc_xyz')\n\n# get user\nresponse = client.trading.user.get()\n\n# get positions\nresponse = client.trading.positions.get(isin='US88160R1014')\n\n# get statements\nresponse = client.trading.positions.get_statements()\n\n# get performance\nresponse = client.trading.positions.get_performance()\n```\n\n### Direct API calls\n\nIt is possible to call Market Data API/Trading API endpoints directly by providing path to the endpoint \nand optionally - query parameters and payload to be sent.  SDK currently supports `GET|POST|PUT|DELETE` methods.\n\n```python\nfrom lemon import api\n\nclient = api.create(...)\n\nresponse = client.trading.put(url=\"account\", json={\"address_street\": 'New street name'})\nresponse = client.market_data.get(url=\"instruments\", params={\"search\": \"t*sla\"})\n```\n\n### Error handling\n\nError structure available in the SDK is presented below\n\n* `BaseLemonError` - base class for all errors thrown within the SDK\n    * `LemonError` - base class of errors returned by API. It contains information directly from it, such as `status`, `error_code`, `error_message`, ...\n        * `InvalidQueryError` - HTTP request validation error\n        * `AuthenticationError` - authentication error\n        * `InternalServerError` - internal API error\n        * `BusinessLogicError` - a business logic error caused by specific conditions of the system preventing from fulfilling the request\n    * `APIError` - error thrown in case when it's impossible to decode the API response\n\nPlease note that errors raised from `requests` module are passed as they are.\n\n```python\nfrom lemon import api, errors\n\nclient = api.create(...)\n\ntry:\n    response = client.trading.orders.create(isin='...', side='buy', quantity=1)\nexcept errors.InvalidQueryError:\n    ...\nexcept errors.AuthenticationError:\n    ...\nexcept errors.InternalServerError:\n    ...\nexcept errors.BusinessLogicError as err:\n    if err.error_code == 'some_specific_error':\n        print(err.error_message)\n        ... # do something\n    ...\nexcept errors.LemonError:  # InvalidRequestError/AuthenticationError/InternalServerError/BusinessLogicError\n    ...\nexcept errors.APIError:\n    ...\nexcept errors.BaseLemonError:  # catches all errors defined above\n    ...\nexcept:  # other errors, including errors from `requests` module\n    ...\n```\n\n### Model serialization\n\nEvery response(or response nested structure) can be serialized to python dictionary or JSON:\n\n```python\nfrom lemon import api\n\nclient = api.create(\n    market_data_api_token='your-market-data-api-token',\n    trading_api_token='your-trading-api-token',\n)\nresponse = client.market_data.instruments.get()\n\nprint(response.dict())\nprint(response.json())\nprint(response.results[0].dict())\nprint(response.results[0].json())\n```\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": null,
@@ -854,7 +853,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15251361,
+        "last_serial": 15958652,
         "urls": [
             {
                 "comment_text": null,
@@ -893,6 +892,125 @@
                 "upload_time": "2022-09-29T09:00:17",
                 "upload_time_iso_8601": "2022-09-29T09:00:17.639429Z",
                 "url": "https://files.pythonhosted.org/packages/34/55/519d5e7ba73cd0b02d820000f2eb0637d93cfe8c67dc3bb09c447185b4f3/lemon-1.2.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.3.0": {
+        "info": {
+            "author": null,
+            "author_email": "\"lemon.markets\" <support@lemon.markets>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Natural Language :: English",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Topic :: Internet :: WWW/HTTP",
+                "Topic :: Software Development :: Libraries"
+            ],
+            "description": "# lemon.markets Python SDK\n\n[![License](https://img.shields.io/github/license/lemon-markets/sdk-python)](./LICENSE)\n[![Tests](https://img.shields.io/github/workflow/status/lemon-markets/sdk-python/tests/main?label=tests)](https://github.com/lemon-markets/sdk-python/actions)\n[![Python versions](https://img.shields.io/pypi/pyversions/lemon.svg)](https://pypi.python.org/pypi/lemon/)\n[![PyPI](https://img.shields.io/pypi/v/lemon)](https://pypi.python.org/pypi/lemon/)\n\n[lemon.markets](https://lemon.markets) Python SDK facilitates communication with the\n[lemon.markets](https://lemon.markets) API for Python programs. The library implements all calls to the endpoints\ndefined in the Market Data API and Trading API. We currently do not support asynchronous calls.\n\n## Documentation\n\nSee the [API docs](https://docs.lemon.markets/).\n\n## Installation\n\nYou can install library using [pip](http://pypi.python.org/pypi/pip):\n\n```bash\npip install lemon\n````\n\nRequirements:\n\n- Python 3.7+\n- `requests`\n- `pytz`\n- `typing-extensions`\n\n## Usage\n\n### SDK client\n\nTo create and configure our SDK client you will need to have separate API tokens for `Market Data API` and `Trading API`. You also need to choose which environment you want to use for trading: `paper` or `live`, defaults to `paper`.\nFor how to obtain and use our api token, see [here](https://docs.lemon.markets/authentication).\nThe snippet below shows how to properly create a SDK client:\n```python\nfrom lemon import api\n\nclient = api.create(\n    market_data_api_token='your-market-data-api-token',\n    trading_api_token='your-trading-api-token',\n    env='paper'  # or env='live'\n)\n```\n\n`lemon.api.create` method allows also to configure:\n\n- `timeout` - default timeout for requests\n- `retry_count` - default number of retries for requests\n- `retry_backoff_factor` - default retry backoff factor for retries\n\nThe SDK client consists of three parts:\n\n- `market_data` - let's you access the Market Data API endpoints\n- `streaming` - let's you retrieve an authentication token that you can use to stream live data\n- `trading` - let's you access the Trading API endpoints. Choose the desired target environment (paper or live) in the client configuration.\n\n### Market Data API usage\n\n```python\nfrom lemon import api\nfrom datetime import datetime, timezone\n\nclient = api.create(\n    market_data_api_token='your-market-data-api-token',\n    trading_api_token='your-trading-api-token',\n)\n\n# get venues\nresponse = client.market_data.venues.get()\nprint(response.results)\n\n# get instruments\nresponse = client.market_data.instruments.get(\n    isin=[\"US88160R1014\", \"US0231351067\"]\n)\nresponse = client.market_data.instruments.get(\n    tradable=True,\n)\n# automatically iterate over all pages. auto_iter() is available on all list responses\nfor instrument in response.auto_iter():\n    print(instrument)\n\nresponse = client.market_data.instruments.get(\n    type=['stock', 'etf'],\n    currency=['EUR'],\n    limit=10,\n    sorting='asc'\n)\n\n# get latest ohlc\nresponse = client.market_data.ohlc.get(\n    isin=['US88160R1014'],\n    period='m1',\n    from_='latest',\n    epoch=True,\n    decimals=True\n)\n\n# get ohlc\nresponse = client.market_data.ohlc.get(\n    isin=['US88160R1014'],\n    period='d1',\n    from_=datetime(2021, 1, 2)\n)\n\n# get latest quotes\nresponse = client.market_data.quotes.get_latest(\n    isin=['US88160R1014', 'US0231351067'],\n    epoch=True,\n    sorting='asc'\n)\n\n# get historical quotes\n# for period <timestamp, timestamp + 1 day)\nresponse = client.market_data.quotes.get(\n    isin=\"US88160R1014\",\n    from_=datetime(2022, 10, 5, tzinfo=timezone.utc),\n)\n# for period <timestamp - 1 day, timestamp)\nresponse = client.market_data.quotes.get(\n    isin=\"US88160R1014\",\n    to=datetime(2022, 10, 5, tzinfo=timezone.utc),\n)\n# for specific period <from, to) - timedelta has to be <= 1 day\nresponse = client.market_data.quotes.get(\n    isin=\"US88160R1014\",\n    from_=datetime(2022, 10, 5, tzinfo=timezone.utc),\n    to=datetime(2022, 10, 5, 15,  tzinfo=timezone.utc),\n)\n# if you don't provide from/to - endpoint works the same as 'client.market_data.quotes.get_latest'\nresponse = client.market_data.quotes.get(isin=\"US88160R1014\")\n\n# get trades\nresponse = client.market_data.trades.get_latest(\n    isin=['US88160R1014', 'US0231351067'],\n    decimals=True\n)\n\n# get historical trades\n# for period <timestamp, timestamp + 1 day)\nresponse = client.market_data.trades.get(\n    isin=\"US88160R1014\",\n    from_=datetime(2022, 10, 5, tzinfo=timezone.utc),\n)\n# for period <timestamp - 1 day, timestamp)\nresponse = client.market_data.trades.get(\n    isin=\"US88160R1014\",\n    to=datetime(2022, 10, 5, tzinfo=timezone.utc),\n)\n# for specific period <from, to) - timedelta has to be <= 1 day\nresponse = client.market_data.trades.get(\n    isin=\"US88160R1014\",\n    from_=datetime(2022, 10, 5, tzinfo=timezone.utc),\n    to=datetime(2022, 10, 5, 15,  tzinfo=timezone.utc),\n)\n# if you don't provide from/to - endpoint works the same as 'client.market_data.trades.get_latest'\nresponse = client.market_data.trades.get(isin=\"US88160R1014\")\n```\n\n### Streaming API Usage\n```python\nfrom lemon import api\n\nclient = api.create(...)\n\n# get live streaming authentication token\nresponse = client.streaming.authenticate()\n```\n\n#### Streaming API example\nThis example relies on that you have both this SDK installed as well as paho-mqtt package.\n\nBelow is an example usage of live streaming quotes through alby mqtt broker using paho mqtt client.\nWhen connecting to the broker the on_connect callback will be triggered.\nThis in return will trigger the on_subscribe callback where we can let the broker know what ISINS we are interested in\nThere is a limitation to only have 4 channels connected at once.\nYou may be able to create more than 4 channels - however we then may close any one of them at any time.\n\nAfter that we will simply get all the quote updates through the on_message callback.\n\n```python\nfrom lemon import api\nfrom lemon.market_data.model import Quote\nimport paho.mqtt.client as mqtt\nimport json\n\nclient = api.create(...)\n\n# get live streaming authentication token\nresponse = client.streaming.authenticate()\n\ndef on_connect(mqtt_client, userdata, flags, rc):\n    mqtt_client.subscribe(response.user_id)\n\ndef on_subscribe(mqtt_client, userdata, level, buff):\n    mqtt_client.publish(f\"{response.user_id}.subscriptions\", \"US88160R1014,US0231351067\")\n\ndef on_message(mqtt_client, userdata, msg):\n    data = json.loads(msg.payload)\n    quote = Quote._from_data(data, int, int)\n\n# initiate mqtt- client for streaming\nmqtt_client = mqtt.Client(\"Ably_Client\")\nmqtt_client.username_pw_set(username=response.token)\nmqtt_client.on_connect = on_connect # callbck to handle connect\nmqtt_client.on_subscribe = on_subscribe # callbck to handle subscribe\nmqtt_client.on_message = on_message # callbck to handle message\n\nmqtt_client.connect(\"mqtt.ably.io\")\nmqtt_client.loop_forever() # start the mqtt client and loop forever\n```\n\n### Trading API usage\n\n```python\nfrom lemon import api\n\nclient = api.create(...)\n\n# create buy order\nresponse = client.trading.orders.create(\n    isin='US88160R1014',\n    side='buy',\n    quantity=1,\n)\norder_id = response.results.id\n\n# activate buy order\nresponse = client.trading.orders.activate(order_id=order_id)\n\n# get buy order status\nresponse = client.trading.orders.get_order(order_id=order_id)\n\n# get orders\nresponse = client.trading.orders.get()\n\n# iterate over all orders of all pages\nfor order in response.auto_iter():\n    print(order)\n\n# cancel order\n# create an order first\nresponse = client.trading.orders.create(\n    isin='US88160R1014',\n    side='buy',\n    quantity=1,\n)\n# cancel the order via order_id\nresponse = client.trading.orders.cancel(order_id=response.results.id)\n\n# update account\nresponse = client.trading.account.update(\n    address_street='Ritterstrasse',\n    address_city=\"Berlin\"\n)\n\n# withdraw money from account\nresponse = client.trading.account.withdraw(\n    amount=100000,\n    pin=\"1234\"\n)\n\n# get bank statements\nresponse = client.trading.account.get_bank_statements(\n    type='eod_balance',\n    from_=\"beginning\"\n)\n\n# get documents\nresponse = client.trading.account.get_documents()\n\n# get document\nresponse = client.trading.account.get_document(document_id='doc_xyz')\n\n# get user\nresponse = client.trading.user.get()\n\n# get positions\nresponse = client.trading.positions.get(isin='US88160R1014')\n\n# get statements\nresponse = client.trading.positions.get_statements()\n\n# get performance\nresponse = client.trading.positions.get_performance()\n```\n\n### Direct API calls\n\nIt is possible to call Market Data API/Trading API endpoints directly by providing path to the endpoint\nand optionally - query parameters and payload to be sent.  SDK currently supports `GET|POST|PUT|DELETE` methods.\n\n```python\nfrom lemon import api\n\nclient = api.create(...)\n\nresponse = client.trading.put(url=\"account\", json={\"address_street\": 'New street name'})\nresponse = client.market_data.get(url=\"instruments\", params={\"search\": \"t*sla\"})\n```\n\n### Error handling\n\nError structure available in the SDK is presented below\n\n* `BaseLemonError` - base class for all errors thrown within the SDK\n    * `LemonError` - base class of errors returned by API. It contains information directly from it, such as `status`, `error_code`, `error_message`, ...\n        * `InvalidQueryError` - HTTP request validation error\n        * `AuthenticationError` - authentication error\n        * `InternalServerError` - internal API error\n        * `BusinessLogicError` - a business logic error caused by specific conditions of the system preventing from fulfilling the request\n    * `APIError` - error thrown in case when it's impossible to decode the API response\n\nPlease note that errors raised from `requests` module are passed as they are.\n\n```python\nfrom lemon import api, errors\n\nclient = api.create(...)\n\ntry:\n    response = client.trading.orders.create(isin='...', side='buy', quantity=1)\nexcept errors.InvalidQueryError:\n    ...\nexcept errors.AuthenticationError:\n    ...\nexcept errors.InternalServerError:\n    ...\nexcept errors.BusinessLogicError as err:\n    if err.error_code == 'some_specific_error':\n        print(err.error_message)\n        ... # do something\n    ...\nexcept errors.LemonError:  # InvalidRequestError/AuthenticationError/InternalServerError/BusinessLogicError\n    ...\nexcept errors.APIError:\n    ...\nexcept errors.BaseLemonError:  # catches all errors defined above\n    ...\nexcept:  # other errors, including errors from `requests` module\n    ...\n```\n\n### Model serialization\n\nEvery response(or response nested structure) can be serialized to python dictionary or JSON:\n\n```python\nfrom lemon import api\n\nclient = api.create(\n    market_data_api_token='your-market-data-api-token',\n    trading_api_token='your-trading-api-token',\n)\nresponse = client.market_data.instruments.get()\n\nprint(response.dict())\nprint(response.json())\nprint(response.results[0].dict())\nprint(response.results[0].json())\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": null,
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": null,
+            "keywords": null,
+            "license": null,
+            "maintainer": null,
+            "maintainer_email": null,
+            "name": "lemon",
+            "package_url": "https://pypi.org/project/lemon/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/lemon/",
+            "project_urls": {
+                "Changes": "https://github.com/lemon-markets/sdk-python/blob/master/CHANGELOG.md",
+                "Documentation": "https://docs.lemon.markets/",
+                "Download": "https://pypi.python.org/pypi/lemon/",
+                "Home": "https://www.lemon.markets/",
+                "Source": "https://github.com/lemon-markets/sdk-python/",
+                "Tracker": "https://github.com/lemon-markets/sdk-python/issues/"
+            },
+            "release_url": "https://pypi.org/project/lemon/1.3.0/",
+            "requires_dist": [
+                "pytz>=2022.1",
+                "requests>=2.27.1",
+                "typing-extensions>=4.2.0",
+                "urllib3>=1.26.0,<2",
+                "autoflake ; extra == \"dev\"",
+                "black ; extra == \"dev\"",
+                "isort ; extra == \"dev\"",
+                "mypy ; extra == \"dev\"",
+                "mypy-extensions ; extra == \"dev\"",
+                "pylint ; extra == \"dev\"",
+                "types-requests ; extra == \"dev\"",
+                "types-pytz ; extra == \"dev\"",
+                "pytest ; extra == \"test\"",
+                "pytest-cov ; extra == \"test\"",
+                "pytest-dotenv ; extra == \"test\"",
+                "pytest_httpserver ; extra == \"test\""
+            ],
+            "requires_python": ">=3.7,<4",
+            "summary": "Official Python client for lemon.markets API",
+            "version": "1.3.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15958652,
+        "urls": [
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "d5d8b7fa2e061a157f8f61214e4f9541",
+                    "sha256": "13e60331d4e8d9908e7cdfab1664b09c2024e818a5b15a385cadc1127780e0a0"
+                },
+                "downloads": -1,
+                "filename": "lemon-1.3.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "d5d8b7fa2e061a157f8f61214e4f9541",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7,<4",
+                "size": 25934,
+                "upload_time": "2022-12-01T17:53:07",
+                "upload_time_iso_8601": "2022-12-01T17:53:07.660028Z",
+                "url": "https://files.pythonhosted.org/packages/69/5f/0f4cc1531ea43e32b296af62c773b4a5b34c9d0adadf8d98ce731f950ad6/lemon-1.3.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "6fd6027c4f1e4109032c5efe488db6f1",
+                    "sha256": "7ce662952319c54328367202d15f8fe14017cf3f631c643d55cc40636568dc41"
+                },
+                "downloads": -1,
+                "filename": "lemon-1.3.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6fd6027c4f1e4109032c5efe488db6f1",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<4",
+                "size": 20506,
+                "upload_time": "2022-12-01T17:53:10",
+                "upload_time_iso_8601": "2022-12-01T17:53:10.082083Z",
+                "url": "https://files.pythonhosted.org/packages/cc/94/09587137435dcaf93ef7f5836539152ff3b5f0e15faee1f6f2ddfe17bcb8/lemon-1.3.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -31,7 +31,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15953358,
+        "last_serial": 15957638,
         "urls": [
             {
                 "comment_text": "",
@@ -82,7 +82,6 @@
             "author_email": "vincent@vincent-jacuqes.net",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "<!--\nCopyright 2020-2022 Laurent Cabaret\nCopyright 2020-2022 Vincent Jacques\n-->\n\n*Chrones* is a software development tool to visualize runtime statistics (CPU percentage, GPU percentage, memory usage, *etc.*) about your program and correlate them with the phases of your program.\n\nIt aims at being very simple to use and provide useful information out-of-the box *and* at being customizable to your specific use cases.\n\nHere is an example of graph produced by *Chrones* about a shell script launching a few executables (single-threaded, custom multi-threaded, OpenMP multi-threaded, and CUDA):\n\n@todo Insert example image\n\n*Chrones* was sponsored by [Laurent Cabaret](https://cabaretl.pages.centralesupelec.fr/cv/) from the [MICS](http://www.mics.centralesupelec.fr/) and written by [Vincent Jacques](https://vincent-jacques.net).\n\n@todo (Laurent) Review the paragraph about sponsoring above\n\nIt's licensed under the [MIT license](http://choosealicense.com/licenses/mit/).\nIts [documentation and source code](https://github.com/jacquev6/Chrones) are on GitHub.\n\n@todo (Laurent) Is MIT license above OK?\n\nQuestions? Remarks? Bugs? Want to contribute? [Open an issue](https://github.com/jacquev6/Chrones/issues)!\n\n<!-- @todo Insert paragraph about Chrones' clients? -->\n\n# Conceptual overview\n\n*Chrones* consist of three parts: instrumentation (optional), monitoring and reporting.\n\nThe instrumentation part of *Chrones* runs inside your program after you've modified it.\nIt's used as a library for your programming language.\nTo use it, you add one-liners to the functions you want to know about.\nAfter that, your program logs insider timing information about these functions.\n\nThe monitoring part is a wrapper around your program.\nIt runs your program as you instruct it to, preserving its access to the standard input and outputs, the environment, and its command-line.\nWhile doing so, it monitors your program's whole process tree and logs resource usage metrics.\n\nThe reporting part of *Chrones* reads the logs produced by the instrumentation and monitoring, and produces human-readable reports including graphs.\n\nThe instrumentation part of *Chrones* is completely optional.\nYou can use the monitoring part on non-instrumented programs,\nor even on partially instrumented programs like a shell script calling an instrumented executable and a non-instrumented executable.\nThe graphs produced by *Chrones*' reporting will just miss information about your program's phases.\n\nWe've chosen the command-line as the main user interface for *Chrones*' to allow easy integration into your automated workflows.\nIt can also be used as a Python library for advanced use-cases.\n\nPlease note that *Chrones* currently only works on Linux.\nFurthermore, the C++ instrumentation requires g++.\nWe would gladly accept contributions that extend *Chrones*' usability.\n\n*Chrones*' instrumentation libraries are available for Python, C++ and the shell language.\n\n# Expected performance\n\nThe instrumentation part of *Chrones* accurately measures and reports durations down to the millisecond.\nIts monitoring part takes samples a few times per second.\nNo nanoseconds in this project; *Chrones* is well suited for programs that run for longer than a dozen seconds.\n\nOverhead introduced by *Chrones* in C++ programs is less than a second per million instrumented blocks.\nDon't use it for functions called billions of times.\n\n# Get started\n\n## Install *Chrones*\n\nThe monitoring and reporting parts of *Chrones* are distributed as a [Python package on PyPI](https://pypi.org/project/Chrones/).\nInstall them with `pip install Chrones`.\n\n<details>\n<summary>And at the moment that's all you need.</summary>\n\nThe instrumentation parts are distributed in language-specific ways.\n\nThe Python version comes with the `Chrones` Python packages you've just installed.\n\nThe C++ and shell languages don't really have package managers, so the C++ and shell versions happen to also be distributed within the Python package.\n\nVersions for other languages will be distributed using the appropriate packages managers.\n</details>\n\n## (Optional) Instrument your code\n\n### Concepts\n\nThe instrumentation libraries are based on the following concepts:\n\n#### Coordinator\n\nThe *coordinator* is a single object that centralizes measurements and writes them into a log file.\n\nIt also takes care of enabling or disabling instrumentation: the log will be created if and only if it detects it's being run inside *Chrones*' monitoring.\nThis lets you run your programm outside *Chrones*' monitoring as if it was not instrumented.\n\n#### Chrone\n\nA *chrone* is the main instrumentation tool.\nYou can think of it as a stopwatch that logs an event when it's started and another event when it's stoped.\n\nMultiple chrones can be nested.\nThis makes them particularly suitable to instrument [structured code](https://en.wikipedia.org/wiki/Structured_programming) with blocks and functions (*i.e.* the vast majority of modern programs).\nFrom the log of the nested chrones, *Chrones*' reporting is able to reconstruct the evolution of the call stack(s) of the program.\n\n@todo Talk about name, label, and index\n\n#### Mini-chrone\n\n@todo Define, explain the added value\n\n### Language-specific instructions\n\nThe *Chrones* instrumentation library is currently available for the following languages:\n\n#### Shell\n\nFirst, import *Chrones* and initialize the coordinator with:\n\n    eval $(chrones shell activate program-name)\n\nwhere `program-name` is... the name of your program.\n\nYou can then use the two functions `chrones_start` and `chrones_stop` to instrument your shell functions:\n\n    function foo {\n        chrones_start foo\n\n        # Do something\n\n        chrones_stop\n    }\n\n@todo Name, label, and index\n\n#### C++\n\nFirst, `#include <chrones.hpp>`.\nThe header is distributed within *Chrones*' Python package.\nYou can get is location with `chrones config c++ header-location`, that you can pass to the `-I` option of you compiler.\nFor example, `g++ foo.cpp -I$(chrones config c++ header-location) -o foo`.\n\nCreate the coordinator at global scope, before your `main` function:\n\n    CHRONABLE(\"program-name\")\n\n    int main() {\n        // Do something\n    }\n\nwhere `program-name` is... the name of your program.\n\nThen you can instrument functions and blocks using the `CHRONE` macro:\n\n    void foo() {\n        CHRONE();\n\n        // Do something\n    }\n\n    void bar() {\n        // Do something\n\n        {\n            CHRONE(\"block label\");\n        }\n    }\n\n*Chrones*' instrumentation can be statically disabled by passing `-DCHRONES_DISABLED` to the compiler.\nIn that case, all macros provided by the header will be empty and your code will compile exactly as if it was not using *Chrones*.\n\n@todo Name, label, and index\n\n#### Python\n\nFirst, import *Chrones*' decorator: `from chrones.instumentation import chrone`.\n\nThen, decorate your functions:\n\n    @chrone\n    def foo():\n        # Do something\n\nYou can also instrument blocks that are not functions:\n\n    with chrone(\"bar\"):\n        # Do something\n\n@todo Name, label, and index\n\n## Run using `chrones run`\n\nCompile your executable(s) if required.\nThen launch them using `chrones run -- your_program --with --its --options`.\n\nEverything before the `--` is interpreted as options for `chrones run`.\nEverything after is passed as-is to your program.\nThe standard input and output are passed unchanged to your program.\n\nHave a look at `chrones run --help` for its detailed usage.\n\n## Generate report\n\nRun `chrones report` to generate a report in the current directory.\n\nHave a look at `chrones report --help` for its detailed usage.\n\n## Use *Chrones* as a library\n\nOut of the box, *Chrones* produces generic reports and graphs, but you can customize them by using *Chrones* as a Python library.\n\n@todo Describe\n\n# Code of the example image\n\nAs a complete example, here is the code of the shell script that was used to generate the example image at the top of this file:\n\n@todo Create shell script\n\nAnd the various executables called by the script:\n\n@todo Create code for each executable\n\nThis code is compiled using these commands:\n\n@todo Create shell script for compiling\n\nAnd executed like this:\n\n@todo Create shell script for running\n\n@todo Generate the example image using codes and commands above (literraly, by automating extracting them from this very file during `./run-development-cycle.sh`)\n\n# Developing Chrones itself\n\nDependencies:\n- a reasonably recent version of Docker\n- a reasonably recent version of Bash\n\nTo build everything and run all tests:\n\n    ./run-development-cycle.sh --long\n\nTo skip particularly long tests:\n\n    ./run-development-cycle.sh\n\nOr even:\n\n    ./run-development-cycle.sh --quick\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -113,7 +112,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15953358,
+        "last_serial": 15957638,
         "urls": [
             {
                 "comment_text": "",
@@ -152,6 +151,253 @@
                 "upload_time": "2022-12-01T10:18:44",
                 "upload_time_iso_8601": "2022-12-01T10:18:44.028394Z",
                 "url": "https://files.pythonhosted.org/packages/a3/69/fca9ec843e2767f54c7155d4370127238d997b2a69dc54b24b01b94f6cf3/Chrones-0.0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.3": {
+        "info": {
+            "author": "Vincent Jacques",
+            "author_email": "vincent@vincent-jacuqes.net",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/jacquev6/Chrones",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "Chrones",
+            "package_url": "https://pypi.org/project/Chrones/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/Chrones/",
+            "project_urls": {
+                "Homepage": "https://github.com/jacquev6/Chrones"
+            },
+            "release_url": "https://pypi.org/project/Chrones/0.0.3/",
+            "requires_dist": [
+                "click",
+                "matplotlib"
+            ],
+            "requires_python": "",
+            "summary": "Software development tool to visualize runtime statistics about your program and correlate them with its phases",
+            "version": "0.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15957638,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4932865638568f5eeef917c098801d79",
+                    "sha256": "9c8be48e12c7f324dfdb3a464e4234060a4455be4dc98c7e19daeed5355dade4"
+                },
+                "downloads": -1,
+                "filename": "Chrones-0.0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "4932865638568f5eeef917c098801d79",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 10373,
+                "upload_time": "2022-12-01T15:08:21",
+                "upload_time_iso_8601": "2022-12-01T15:08:21.969189Z",
+                "url": "https://files.pythonhosted.org/packages/40/a6/351fb8408aa22da68ae63102867e54f319e0bbb44e0553f36114184b3d81/Chrones-0.0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c5b0f42ab012f270db0300ebae32d87b",
+                    "sha256": "82255390a6b8792528d8b69708798a0aa84bcc2fc78a441820364d05a1caa292"
+                },
+                "downloads": -1,
+                "filename": "Chrones-0.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c5b0f42ab012f270db0300ebae32d87b",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 32934,
+                "upload_time": "2022-12-01T15:08:24",
+                "upload_time_iso_8601": "2022-12-01T15:08:24.656323Z",
+                "url": "https://files.pythonhosted.org/packages/46/29/f57cee0c34ab10c30735292bde19a0b53841c090b55e7da8f0ff18d4dc7e/Chrones-0.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.5": {
+        "info": {
+            "author": "Vincent Jacques",
+            "author_email": "vincent@vincent-jacuqes.net",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/jacquev6/Chrones",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "Chrones",
+            "package_url": "https://pypi.org/project/Chrones/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/Chrones/",
+            "project_urls": {
+                "Homepage": "https://github.com/jacquev6/Chrones"
+            },
+            "release_url": "https://pypi.org/project/Chrones/0.0.5/",
+            "requires_dist": [
+                "click",
+                "matplotlib"
+            ],
+            "requires_python": "",
+            "summary": "Software development tool to visualize runtime statistics about your program and correlate them with its phases",
+            "version": "0.0.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15957638,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "db71c95c7a9337521987838f4691a5ff",
+                    "sha256": "3a01bf15601befc5a1293ab3e1f5a1a9411732d51c3c9a1af370499591a6b5b7"
+                },
+                "downloads": -1,
+                "filename": "Chrones-0.0.5-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "db71c95c7a9337521987838f4691a5ff",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 10381,
+                "upload_time": "2022-12-01T15:19:40",
+                "upload_time_iso_8601": "2022-12-01T15:19:40.804946Z",
+                "url": "https://files.pythonhosted.org/packages/b0/de/09201c844b4cbe5f1bb79111ad3dd0149047414ab817e330f44f8a274e8e/Chrones-0.0.5-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c19a0b3faf017303ce333c2d7a9af441",
+                    "sha256": "4ed9e8d2d6782a5f7e681eb3906e8a57b01487242e07d5073a372e10942dfaed"
+                },
+                "downloads": -1,
+                "filename": "Chrones-0.0.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c19a0b3faf017303ce333c2d7a9af441",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 33022,
+                "upload_time": "2022-12-01T15:19:43",
+                "upload_time_iso_8601": "2022-12-01T15:19:43.701628Z",
+                "url": "https://files.pythonhosted.org/packages/68/e8/4e95f83119410e99794e40ad151a213dab0e07497711c3a99aa1d454a387/Chrones-0.0.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.6": {
+        "info": {
+            "author": "Vincent Jacques",
+            "author_email": "vincent@vincent-jacuqes.net",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "<!--\nCopyright 2020-2022 Laurent Cabaret\nCopyright 2020-2022 Vincent Jacques\n-->\n\n*Chrones* is a software development tool to visualize runtime statistics (CPU percentage, GPU percentage, memory usage, *etc.*) about your program and correlate them with the phases of your program.\n\nIt aims at being very simple to use and provide useful information out-of-the box *and* at being customizable to your specific use cases.\n\nHere is an example of graph produced by *Chrones* about a shell script launching a few executables (see [at the end of this Readme](#code-of-the-example-image) exactly how this image is generated):\n\n![Example](https://github.com/jacquev6/Chrones/raw/v0.0.6/example/example.png)\n\n*Chrones* was sponsored by [Laurent Cabaret](https://cabaretl.pages.centralesupelec.fr/en/publications/) from the [MICS](http://www.mics.centralesupelec.fr/) and written by [Vincent Jacques](https://vincent-jacques.net).\n\nIt's licensed under the [MIT license](http://choosealicense.com/licenses/mit/).\nIts [documentation and source code](https://github.com/jacquev6/Chrones) are on GitHub.\n\nQuestions? Remarks? Bugs? Want to contribute? Open [an issue](https://github.com/jacquev6/Chrones/issues) or [a discussion](https://github.com/jacquev6/Chrones/discussions)!\n\n<!-- @todo Insert paragraph about Chrones' clients? -->\n\n# Conceptual overview\n\n*Chrones* consist of three parts: instrumentation (optional), monitoring and reporting.\n\nThe instrumentation part of *Chrones* runs inside your program after you've modified it.\nIt's used as a library for your programming language.\nTo use it, you add one-liners to the functions you want to know about.\nAfter that, your program logs insider timing information about these functions.\n\nThe monitoring part is a wrapper around your program.\nIt runs your program as you instruct it to, preserving its access to the standard input and outputs, the environment, and its command-line.\nWhile doing so, it monitors your program's whole process tree and logs resource usage metrics.\n\nThe reporting part of *Chrones* reads the logs produced by the instrumentation and monitoring, and produces human-readable reports including graphs.\n\nThe instrumentation part of *Chrones* is completely optional.\nYou can use the monitoring part on non-instrumented programs,\nor even on partially instrumented programs like a shell script calling an instrumented executable and a non-instrumented executable.\nThe graphs produced by *Chrones*' reporting will just miss information about your program's phases.\n\nWe've chosen the command-line as the main user interface for *Chrones*' to allow easy integration into your automated workflows.\nIt can also be used as a Python library for advanced use-cases.\n\nPlease note that *Chrones* currently only works on Linux.\nFurthermore, the C++ instrumentation requires g++.\nWe would gladly accept contributions that extend *Chrones*' usability.\n\n*Chrones*' instrumentation libraries are available for Python, C++ and the shell language.\n\n# Expected performance\n\nThe instrumentation part of *Chrones* accurately measures and reports durations down to the millisecond.\nIts monitoring part takes samples a few times per second.\nNo nanoseconds in this project; *Chrones* is well suited for programs that run for longer than a dozen seconds.\n\nOverhead introduced by *Chrones* in C++ programs is less than a second per million instrumented blocks.\nDon't use it for functions called billions of times.\n\n# Get started\n\n## Install *Chrones*\n\nThe monitoring and reporting parts of *Chrones* are distributed as a [Python package on PyPI](https://pypi.org/project/Chrones/).\nInstall them with `pip install Chrones`.\n\n<details>\n<summary>And at the moment that's all you need.</summary>\n\nThe instrumentation parts are distributed in language-specific ways.\n\nThe Python version comes with the `Chrones` Python packages you've just installed.\n\nThe C++ and shell languages don't really have package managers, so the C++ and shell versions happen to also be distributed within the Python package.\n\nVersions for other languages will be distributed using the appropriate packages managers.\n</details>\n\n## (Optional) Instrument your code\n\n### Concepts\n\nThe instrumentation libraries are based on the following concepts:\n\n#### Coordinator\n\nThe *coordinator* is a single object that centralizes measurements and writes them into a log file.\n\nIt also takes care of enabling or disabling instrumentation: the log will be created if and only if it detects it's being run inside *Chrones*' monitoring.\nThis lets you run your programm outside *Chrones*' monitoring as if it was not instrumented.\n\n#### Chrone\n\nA *chrone* is the main instrumentation tool.\nYou can think of it as a stopwatch that logs an event when it's started and another event when it's stoped.\n\nMultiple chrones can be nested.\nThis makes them particularly suitable to instrument [structured code](https://en.wikipedia.org/wiki/Structured_programming) with blocks and functions (*i.e.* the vast majority of modern programs).\nFrom the log of the nested chrones, *Chrones*' reporting is able to reconstruct the evolution of the call stack(s) of the program.\n\n@todo Talk about name, label, and index\n\n#### Mini-chrone\n\n@todo Define, explain the added value\n\n### Language-specific instructions\n\nThe *Chrones* instrumentation library is currently available for the following languages:\n\n#### Shell\n\nFirst, import *Chrones* and initialize the coordinator with:\n\n    source <(chrones shell activate program-name)\n\nwhere `program-name` is... the name of your program.\n\nYou can then use the two functions `chrones_start` and `chrones_stop` to instrument your shell functions:\n\n    function foo {\n        chrones_start foo\n\n        # Do something\n\n        chrones_stop\n    }\n\n@todo Name, label, and index\n\n#### C++\n\nFirst, `#include <chrones.hpp>`.\nThe header is distributed within *Chrones*' Python package.\nYou can get is location with `chrones config c++ header-location`, that you can pass to the `-I` option of you compiler.\nFor example, `g++ foo.cpp -I$(chrones config c++ header-location) -o foo`.\n\nCreate the coordinator at global scope, before your `main` function:\n\n    CHRONABLE(\"program-name\")\n\n    int main() {\n        // Do something\n    }\n\nwhere `program-name` is... the name of your program.\n\nThen you can instrument functions and blocks using the `CHRONE` macro:\n\n    void foo() {\n        CHRONE();\n\n        // Do something\n    }\n\n    void bar() {\n        // Do something\n\n        {\n            CHRONE(\"block label\");\n        }\n    }\n\n*Chrones*' instrumentation can be statically disabled by passing `-DCHRONES_DISABLED` to the compiler.\nIn that case, all macros provided by the header will be empty and your code will compile exactly as if it was not using *Chrones*.\n\n@todo Name, label, and index\n\n#### Python\n\nFirst, import *Chrones*' decorator: `from chrones.instumentation import chrone`.\n\nThen, decorate your functions:\n\n    @chrone\n    def foo():\n        # Do something\n\nYou can also instrument blocks that are not functions:\n\n    with chrone(\"bar\"):\n        # Do something\n\n@todo Name, label, and index\n\n## Run using `chrones run`\n\nCompile your executable(s) if required.\nThen launch them using `chrones run -- your_program --with --its --options`.\n\nEverything before the `--` is interpreted as options for `chrones run`.\nEverything after is passed as-is to your program.\nThe standard input and output are passed unchanged to your program.\n\nHave a look at `chrones run --help` for its detailed usage.\n\n## Generate report\n\nRun `chrones report` to generate a report in the current directory.\n\nHave a look at `chrones report --help` for its detailed usage.\n\n## Use *Chrones* as a library\n\nOut of the box, *Chrones* produces generic reports and graphs, but you can customize them by using *Chrones* as a Python library.\n\n@todo Describe\n\n# Code of the example image\n\nAs a complete example, here is the shell script that the image at the top of this Readme is about:\n\n<!-- START example.sh -->\n    # File name: example.sh\n\n    source <(chrones shell activate example)\n\n    chrones_start call-single\n    ./single\n    chrones_stop\n<!-- STOP -->\n\nAnd the various executables called by the script:\n\n<!-- START single.cpp -->\n    // File name: single.cpp\n\n    #include <chrones.hpp>\n\n    CHRONABLE(\"single\");\n\n    void something_long() {\n        CHRONE();\n    }\n\n    void something_else() {\n        CHRONE();\n    }\n\n    int main() {\n        CHRONE();\n\n        {\n            CHRONE(\"loop\");\n            for (int i = 0; i != 10; ++i) {\n                CHRONE(\"iteration\", i);\n                something_long();\n                something_else();\n            }\n        }\n    }\n<!-- STOP -->\n\nThis code is built using these commands:\n\n<!-- START build.sh -->\n    g++ -std=c++2a -O3 -I$(chrones config c++ header-location) single.cpp -o single\n<!-- STOP -->\n\nIt's executed like this:\n\n<!-- START run.sh -->\n    chrones run -- ./example.sh\n<!-- STOP -->\n\nAnd the report is created like this:\n\n<!-- START report.sh -->\n    chrones report\n<!-- STOP -->\n\n@todo Generate the example image using codes and commands above (literraly, by automating extracting them from this very file during `./run-development-cycle.py`)\n\n# Developing Chrones itself\n\nDependencies:\n- a reasonably recent version of Docker\n- a reasonably recent version of Bash\n\nTo build everything and run all tests:\n\n    ./run-development-cycle.py --long\n\nTo skip particularly long tests:\n\n    ./run-development-cycle.py\n\nOr even:\n\n    ./run-development-cycle.py --quick\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/jacquev6/Chrones",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "Chrones",
+            "package_url": "https://pypi.org/project/Chrones/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/Chrones/",
+            "project_urls": {
+                "Homepage": "https://github.com/jacquev6/Chrones"
+            },
+            "release_url": "https://pypi.org/project/Chrones/0.0.6/",
+            "requires_dist": [
+                "click",
+                "matplotlib"
+            ],
+            "requires_python": "",
+            "summary": "Software development tool to visualize runtime statistics about your program and correlate them with its phases",
+            "version": "0.0.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15957638,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "39b93bd7137bb0d3d37e5ffcbd5d6b0d",
+                    "sha256": "fbdb18e38fc2d56bce8e97f01b5e33d586cdf24bf952ca4d85f722e9af430764"
+                },
+                "downloads": -1,
+                "filename": "Chrones-0.0.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "39b93bd7137bb0d3d37e5ffcbd5d6b0d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 11263,
+                "upload_time": "2022-12-01T16:34:55",
+                "upload_time_iso_8601": "2022-12-01T16:34:55.114672Z",
+                "url": "https://files.pythonhosted.org/packages/6c/f1/51394207ac67c7e334edfd55599a22953f5913a12302b2e25b68e44076f7/Chrones-0.0.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3b4d7b6932ef5a3e8ec5d857cc2523eb",
+                    "sha256": "8ed58f6060309f7109b003c72d12adcf443e8d699e90b5a172c45b9874528b2f"
+                },
+                "downloads": -1,
+                "filename": "Chrones-0.0.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "3b4d7b6932ef5a3e8ec5d857cc2523eb",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 33685,
+                "upload_time": "2022-12-01T16:34:57",
+                "upload_time_iso_8601": "2022-12-01T16:34:57.434044Z",
+                "url": "https://files.pythonhosted.org/packages/70/fc/a864043d44a080d1c27c629c87179470dd7e769f5bd7ccbb0434bd385901/Chrones-0.0.6.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

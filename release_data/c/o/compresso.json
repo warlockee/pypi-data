@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12684386,
+        "last_serial": 15958564,
         "urls": [
             {
                 "comment_text": "",
@@ -355,7 +355,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12684386,
+        "last_serial": 15958564,
         "urls": [
             {
                 "comment_text": "",
@@ -867,7 +867,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12684386,
+        "last_serial": 15958564,
         "urls": [
             {
                 "comment_text": "",
@@ -1379,7 +1379,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12684386,
+        "last_serial": 15958564,
         "urls": [
             {
                 "comment_text": "",
@@ -1891,7 +1891,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12684386,
+        "last_serial": 15958564,
         "urls": [
             {
                 "comment_text": "",
@@ -2403,7 +2403,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12684386,
+        "last_serial": 15958564,
         "urls": [
             {
                 "comment_text": "",
@@ -2915,7 +2915,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12684386,
+        "last_serial": 15958564,
         "urls": [
             {
                 "comment_text": "",
@@ -3416,7 +3416,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Scientific/Engineering"
             ],
-            "description": "# Compresso: Efficient Compression of Segmentation Data For Connectomics (PyPI edition)\n\n[![PyPI version](https://badge.fury.io/py/compresso.svg)](https://badge.fury.io/py/compresso)\n[![Paper](https://img.shields.io/badge/paper-accepted-red.svg?colorB=f52ef0)](https://vcg.seas.harvard.edu/publications/compresso-efficient-compression-of-segmentation-data-for-connectomics)\n[![MICCAI](https://img.shields.io/badge/presentation-MICCAI%202017-red.svg?colorB=135f89)](http://www.miccai2017.org/schedule)\n\n\n![Segmentations](/banner.png?raw=true)\n\n```python\nimport compresso \nimport numpy as np \n\nlabels = np.array(...)\ncompressed_labels = compresso.compress(labels) # 3d numpy array -> compressed bytes\nreconstituted_labels = compresso.decompress(compressed_labels) # compressed bytes -> 3d numpy array\n\n# Adds an index and modifies the stream to enable \n# Random access to Z slices. Format Version 1.\ncompressed_labels = compresso.compress(labels, random_access_z_index=True)\nreconstituted_labels = compresso.decompress(compressed_labels, z=3) # one z slice\nreconstituted_labels = compresso.decompress(compressed_labels, z=(1,5)) # four slices\n\n# A convenience object that simulates an array\n# to efficiently extract image data\narr = compresso.CompressoArray(compressed_labels)\nimg = arr[:,:,1:5] # same four slices as above\n\n# Returns header info as dict\n# Has array dimensions and data width information.\nheader = compresso.header(compressed_labels) \n\n# Extract the unique labels from a stream without \n# decompressing to a full 3D array. Fast and low memory.\nuniq_labels = compresso.labels(compressed_labels)\n\n# Remap labels without decompressing. Could\n# be useful for e.g. proofreading.\ncompressed_remapped = compresso.remap(\n  compressed_labels, { 1: 2, 2: 3, ... },\n  preserve_missing_labels=True\n)\n\n# Checks if the stream appears to be valid.\n# This is a superficial check of headers.\nis_valid = compresso.valid(stream)\n```\n\n```bash\n# CLI compression of numpy data\n# Compresso is designed to use a second stage compressor\n# so use gzip, lzma, or others on the output file.\n$ compresso data.npy # -> data.npy.cpso\n$ compresso -d data.npy.cpso # -> data.npy\n$ compresso --help\n```\n\n*NOTE: This is an extensive modification of the work by Matejek et al. which can be found here: https://github.com/VCG/compresso. It is not compatible with RhoANA streams.*\n\n> Recent advances in segmentation methods for connectomics and biomedical imaging produce very large datasets with labels that assign object classes to image pixels. The resulting label volumes are bigger than the raw image data and need compression for efficient storage and transfer. General-purpose compression methods are less effective because the label data consists of large low-frequency regions with structured boundaries unlike natural image data. We present Compresso, a new compression scheme for label data that outperforms existing approaches by using a sliding window to exploit redundancy across border regions in 2D and 3D. We compare our method to existing compression schemes and provide a detailed evaluation on eleven biomedical and image segmentation datasets. Our method provides a factor of 600-2200x compression for label volumes, with running times suitable for practice.\n\n**Paper**: Matejek _et al._, \"Compresso: Efficient Compression of Segmentation Data For Connectomics\", Proceedings of the International Conference on Medical Image Computing and Computer-Assisted Intervention (MICCAI), 2017, 10-14. \\[[CITE](https://scholar.google.com/scholar?q=Compresso%3A+Efficient+Compression+of+Segmentation+Data+For+Connectomics) | [PDF](https://vcg.seas.harvard.edu/publications/compresso-efficient-compression-of-segmentation-data-for-connectomics/paper)\\]\n\nIn more concrete but simple terms, compresso represents the boundary between segments as a boolean bit packed field. Long runs of zeros are run length encoded. The 4-connected components within that field are mapped to a corresponding label. Boundary voxels are decoded with reference to their neighbors, or if that fails, by storing their label. A second stage of compression is then applied, such as gzip or lzma. There's a few more details but that's a reasonable overview.\n\n## Setup\n\nRequires Python 3.6+\n\n```bash\npip install compresso\n```\n\n## Versions\n\n| Major Version | Format Version | Description                                                    |\n|---------------|----------------|----------------------------------------------------------------|\n| 1             | -              | Initial Release. Not usable due to bugs. No format versioning. |\n| 2             | 0              | First major release.                                           |\n| 3             | 0,1            | Introduces random access to z slices in format version 1.                                         |\n\n## Compresso Stream Format\n\n| Section   | Bytes                                     | Description                                                                                                     |\n|-----------|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------|\n| Header    | 36                                        | Metadata incl. length of fields.                                                                                |\n| ids       | header.data_width * header.id_size        | Map of CCL regions to labels.                                                                                   |\n| values    | window_size * header.value_size           | Values of renumbered windows. Bitfields describing boundaries.                                                  |\n| locations | header.data_width * header.locations_size | Sequence of 7 control codes and labels + 7 that describe how to decode indeterminate locations in the boundary. |\n| windows   | The rest of the stream.                   | Sequence of numbers to be remapped from values. Describes the boundary structure of labels.                     |\n| z_index   | (optional tail) 2 * width * header.s      | Offsets into label values and locations to enable random access to slices. Format Version 1.                              |\n\n`window_size` is the smallest data type that will contain `xstep * ystep * zstep`. For example, `steps=(4,4,1)` uses uint16 while `steps=(8,8,1)` uses uint64.\n\nThe byte width of the `z_index` is the smallest unsigned integer type that will contain \n\n## Codec Changes\n\nThe original codec has been updated and is no longer compatible with the original. Below are the important changes we made that differ from the code published alongside the paper. \n\nImplementation wise, we also fixed up several bugs, added guards against data corruption, did some performance tuning, and made sure that the entire codec is implemented in C++ and called by Python. Thus, the codec is usable in both C++ and Python as well as any languages, such as Web Assembly, that C++ can be transpiled to. \n\nThank you to the original authors for publishing your code and algorithm from which this repo is derived.\n\n### Updated Header\n\nThe previous header was 72 bytes. We updated the header to be only 35 bytes. It now includes the magic number `cpso`, a version number, and the data width of the labels. \nThis additional information makes detecting valid compresso streams easier, allows for updating the format in the future, and allows us to assume smaller byte widths than 64-bit.  \n\n| Attribute         | Value             | Type    | Description                                     |\n|-------------------|-------------------|---------|-------------------------------------------------|\n| magic             | cpso              | char[4] | File magic number.                              |\n| format_version    | 0 or 1            | u8      | Version of the compresso stream.                |\n| data_width        | 1,2,4,or 8        | u8      | Size of the labels in bytes.                    |\n| sx, sy, sz        | >= 0              | u16 x 3 | Size of array dimensions.                       |\n| xstep,ystep,zstep | 0 < product <= 64 | u8 x 3  | Size of structure grid.                         |\n| id_size           | >= 0              | u64     | Size of array mapping of CCL regions to labels. |\n| value_size        | >= 0              | u32     | Size of array mapping windows to renumbering.   |\n| location_size     | >= 0              | u64     | Size of indeterminate locations array.          |\n| connectivity      | 4 or 6            | u8      | Connectivity for connected components.          |\n\n### Char Byte Stream \n\nThe previous implementation treated the byte stream as uniform u64 little endian. We now emit the encoded stream as `unsigned char` and write each appropriate data type in little endian.\n\n### Variable Data Widths\n\nThe labels may assume any unsigned integer data width, which reduces the size of the ids and locations stream when appropriate. The encoded boundaries are reduced to the smallest size that fits. A 4x4x1 window is represented with u16, an 8x8x1 with u64. Less commonly used, but a 4x4x2 would be represented with u32, and a 4x2x1 would get a u8.\n\n*Note that at this time only 4x4x1 and 8x8x1 are supported in this implementation, but the protocol will make those assumptions.*\n\n### Supports Full Integer Range in Indeterminate Locations\n\nThe previous codec reserved 6 integers for instructions in the locations stream, but this meant that six segmentation labels were not representable. We added a seventh reserved instruction that indicates the next byte in the stream is the label and then we can use the full range of the integer to represent that number.\n\nThis potentially expands the size of the compressed stream. However, we only use this instruction for non-representable numbers, so for most data it should cause zero increase and minimal increase so long as the non-representable numbers in indeterminate locations are rare. The upside is compresso now handles all possible inputs.\n\n### Supports 4 and 6 Connected Components\n\n6-connected CCL seems like it would be a win because it would reduce the number of duplicated IDs that need to be stored. However, in an experiment we found that it did significantly decrease IDs, but at the expense of adding many more boundary voxels (since you need to consider the Z direction now) and increasing the number of indeterminate locations far more. It ended up being slower and larger on some connectomics segmentation we experimented with. \n\nHowever, we suspect that there are some images where 6 would do better. An obvious example is a solid\ncolor image that has no boundaries. The images where 6 shines will probably have sparser and straighter boundaries so that fewer additional boundary voxels are introduced.\n\n### Random Access to Z-Slices (Format Version 1)\n\nWe make two changes to the codec in order to allow random access to Z slices. First, we disable indeterminate location codes 4 and 5 which refer to other slices, making each slice independently decodable. We also add a tail of size `2 * index_width * sz` which contains unsigned 8, 16, 32, or 64 bit offsets into the labels and locations streams for each slice which are arranged as all the labels then all the locations (they are not interleaved). The streams are difference coded to reduce the magnitude of the integers. The byte width is determined by the smallest unsigned integer type that will be able to represent 2 * sx * sy which is a coarse upper bound for the locations stream.\n\nThe overall impact of this change is a slight increase in the size of the compresso stream and a possible impact on the compressibility if the vertical references were heavily used, such as on a checkerboard type image.\n\nThis feature can be disabled by setting `compress(..., random_access_z_index=False)` which will emit a format version 0 stream. When this feature is enabled, it sets the format version to 1. This implementation can encode and decode both format versions.\n\nThis feature is not supported when `connectivity=6` due to the required interdependence of the slices.\n\n### Results From the Paper\n\n**Compression Performance**\n\n![Compression Performance of Connectomics Datasets](compression-performance.png?raw=true)\n\nCompression ratios of general-purpose compression methods combined with Compresso and Neuroglancer. Compresso paired with LZMA yields the best compression ratios for all connectomics datasets (left) and in average (four out of five) for the others (right).\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -3448,7 +3447,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12684386,
+        "last_serial": 15958564,
         "urls": [
             {
                 "comment_text": "",
@@ -4487,6 +4486,739 @@
                 "upload_time": "2022-01-25T05:27:16",
                 "upload_time_iso_8601": "2022-01-25T05:27:16.465643Z",
                 "url": "https://files.pythonhosted.org/packages/28/43/9253d2ae8b6771a788ca6f7754faf5a58a83469a217f43830230aec5ec3c/compresso-3.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "3.1.0": {
+        "info": {
+            "author": "William Silversmith",
+            "author_email": "ws9@princeton.edu",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering"
+            ],
+            "description": "# Compresso: Efficient Compression of Segmentation Data For Connectomics (PyPI edition)\n\n[![PyPI version](https://badge.fury.io/py/compresso.svg)](https://badge.fury.io/py/compresso)\n[![Paper](https://img.shields.io/badge/paper-accepted-red.svg?colorB=f52ef0)](https://vcg.seas.harvard.edu/publications/compresso-efficient-compression-of-segmentation-data-for-connectomics)\n[![MICCAI](https://img.shields.io/badge/presentation-MICCAI%202017-red.svg?colorB=135f89)](http://www.miccai2017.org/schedule)\n\n\n![Segmentations](/banner.png?raw=true)\n\n```python\nimport compresso \nimport numpy as np \n\nlabels = np.array(...)\ncompressed_labels = compresso.compress(labels) # 3d numpy array -> compressed bytes\nreconstituted_labels = compresso.decompress(compressed_labels) # compressed bytes -> 3d numpy array\n\n# Adds an index and modifies the stream to enable \n# Random access to Z slices. Format Version 1.\ncompressed_labels = compresso.compress(labels, random_access_z_index=True)\nreconstituted_labels = compresso.decompress(compressed_labels, z=3) # one z slice\nreconstituted_labels = compresso.decompress(compressed_labels, z=(1,5)) # four slices\n\n# A convenience object that simulates an array\n# to efficiently extract image data\narr = compresso.CompressoArray(compressed_labels)\nimg = arr[:,:,1:5] # same four slices as above\n\n# Returns header info as dict\n# Has array dimensions and data width information.\nheader = compresso.header(compressed_labels) \n\n# Extract the unique labels from a stream without \n# decompressing to a full 3D array. Fast and low memory.\nuniq_labels = compresso.labels(compressed_labels)\n\n# Remap labels without decompressing. Could\n# be useful for e.g. proofreading.\ncompressed_remapped = compresso.remap(\n  compressed_labels, { 1: 2, 2: 3, ... },\n  preserve_missing_labels=True\n)\n\n# Checks if the stream appears to be valid.\n# This is a superficial check of headers.\nis_valid = compresso.valid(stream)\n```\n\n```bash\n# CLI compression of numpy data\n# Compresso is designed to use a second stage compressor\n# so use gzip, lzma, or others on the output file.\n$ compresso data.npy # -> data.npy.cpso\n$ compresso -d data.npy.cpso # -> data.npy\n$ compresso --help\n```\n\n*NOTE: This is an extensive modification of the work by Matejek et al. which can be found here: https://github.com/VCG/compresso. It is not compatible with RhoANA streams.*\n\n> Recent advances in segmentation methods for connectomics and biomedical imaging produce very large datasets with labels that assign object classes to image pixels. The resulting label volumes are bigger than the raw image data and need compression for efficient storage and transfer. General-purpose compression methods are less effective because the label data consists of large low-frequency regions with structured boundaries unlike natural image data. We present Compresso, a new compression scheme for label data that outperforms existing approaches by using a sliding window to exploit redundancy across border regions in 2D and 3D. We compare our method to existing compression schemes and provide a detailed evaluation on eleven biomedical and image segmentation datasets. Our method provides a factor of 600-2200x compression for label volumes, with running times suitable for practice.\n\n**Paper**: Matejek _et al._, \"Compresso: Efficient Compression of Segmentation Data For Connectomics\", Proceedings of the International Conference on Medical Image Computing and Computer-Assisted Intervention (MICCAI), 2017, 10-14. \\[[CITE](https://scholar.google.com/scholar?q=Compresso%3A+Efficient+Compression+of+Segmentation+Data+For+Connectomics) | [PDF](https://vcg.seas.harvard.edu/publications/compresso-efficient-compression-of-segmentation-data-for-connectomics/paper)\\]\n\nIn more concrete but simple terms, compresso represents the boundary between segments as a boolean bit packed field. Long runs of zeros are run length encoded. The 4-connected components within that field are mapped to a corresponding label. Boundary voxels are decoded with reference to their neighbors, or if that fails, by storing their label. A second stage of compression is then applied, such as gzip or lzma. There's a few more details but that's a reasonable overview.\n\n## Setup\n\nRequires Python 3.6+\n\n```bash\npip install compresso\n```\n\n## Versions\n\n| Major Version | Format Version | Description                                                    |\n|---------------|----------------|----------------------------------------------------------------|\n| 1             | -              | Initial Release. Not usable due to bugs. No format versioning. |\n| 2             | 0              | First major release.                                           |\n| 3             | 0,1            | Introduces random access to z slices in format version 1.                                         |\n\n## Compresso Stream Format\n\n| Section   | Bytes                                     | Description                                                                                                     |\n|-----------|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------|\n| Header    | 36                                        | Metadata incl. length of fields.                                                                                |\n| ids       | header.data_width * header.id_size        | Map of CCL regions to labels.                                                                                   |\n| values    | window_size * header.value_size           | Values of renumbered windows. Bitfields describing boundaries.                                                  |\n| locations | header.data_width * header.locations_size | Sequence of 7 control codes and labels + 7 that describe how to decode indeterminate locations in the boundary. |\n| windows   | The rest of the stream.                   | Sequence of numbers to be remapped from values. Describes the boundary structure of labels.                     |\n| z_index   | (optional tail) 2 * width * header.sz     | Offsets into label values and locations to enable random access to slices. Format Version 1.                              |\n\n`window_size` is the smallest data type that will contain `xstep * ystep * zstep`. For example, `steps=(4,4,1)` uses uint16 while `steps=(8,8,1)` uses uint64.\n\nThe byte width of the `z_index` is the smallest unsigned integer type that will contain `2 * sx * sy`.\n\n## Codec Changes\n\nThe original codec has been updated and is no longer compatible with the original. Below are the important changes we made that differ from the code published alongside the paper. \n\nImplementation wise, we also fixed up several bugs, added guards against data corruption, did some performance tuning, and made sure that the entire codec is implemented in C++ and called by Python. Thus, the codec is usable in both C++ and Python as well as any languages, such as Web Assembly, that C++ can be transpiled to. \n\nThank you to the original authors for publishing your code and algorithm from which this repo is derived.\n\n### Updated Header\n\nThe previous header was 72 bytes. We updated the header to be only 35 bytes. It now includes the magic number `cpso`, a version number, and the data width of the labels. \nThis additional information makes detecting valid compresso streams easier, allows for updating the format in the future, and allows us to assume smaller byte widths than 64-bit.  \n\n| Attribute         | Value             | Type    | Description                                     |\n|-------------------|-------------------|---------|-------------------------------------------------|\n| magic             | cpso              | char[4] | File magic number.                              |\n| format_version    | 0 or 1            | u8      | Version of the compresso stream.                |\n| data_width        | 1,2,4,or 8        | u8      | Size of the labels in bytes.                    |\n| sx, sy, sz        | >= 0              | u16 x 3 | Size of array dimensions.                       |\n| xstep,ystep,zstep | 0 < product <= 64 | u8 x 3  | Size of structure grid.                         |\n| id_size           | >= 0              | u64     | Size of array mapping of CCL regions to labels. |\n| value_size        | >= 0              | u32     | Size of array mapping windows to renumbering.   |\n| location_size     | >= 0              | u64     | Size of indeterminate locations array.          |\n| connectivity      | 4 or 6            | u8      | Connectivity for connected components.          |\n\n### Char Byte Stream \n\nThe previous implementation treated the byte stream as uniform u64 little endian. We now emit the encoded stream as `unsigned char` and write each appropriate data type in little endian.\n\n### Variable Data Widths\n\nThe labels may assume any unsigned integer data width, which reduces the size of the ids and locations stream when appropriate. The encoded boundaries are reduced to the smallest size that fits. A 4x4x1 window is represented with u16, an 8x8x1 with u64. Less commonly used, but a 4x4x2 would be represented with u32, and a 4x2x1 would get a u8.\n\n*Note that at this time only 4x4x1 and 8x8x1 are supported in this implementation, but the protocol will make those assumptions.*\n\n### Supports Full Integer Range in Indeterminate Locations\n\nThe previous codec reserved 6 integers for instructions in the locations stream, but this meant that six segmentation labels were not representable. We added a seventh reserved instruction that indicates the next byte in the stream is the label and then we can use the full range of the integer to represent that number.\n\nThis potentially expands the size of the compressed stream. However, we only use this instruction for non-representable numbers, so for most data it should cause zero increase and minimal increase so long as the non-representable numbers in indeterminate locations are rare. The upside is compresso now handles all possible inputs.\n\n### Supports 4 and 6 Connected Components\n\n6-connected CCL seems like it would be a win because it would reduce the number of duplicated IDs that need to be stored. However, in an experiment we found that it did significantly decrease IDs, but at the expense of adding many more boundary voxels (since you need to consider the Z direction now) and increasing the number of indeterminate locations far more. It ended up being slower and larger on some connectomics segmentation we experimented with. \n\nHowever, we suspect that there are some images where 6 would do better. An obvious example is a solid\ncolor image that has no boundaries. The images where 6 shines will probably have sparser and straighter boundaries so that fewer additional boundary voxels are introduced.\n\n### Random Access to Z-Slices (Format Version 1)\n\nWe make two changes to the codec in order to allow random access to Z slices. First, we disable indeterminate location codes 4 and 5 which refer to other slices, making each slice independently decodable. We also add a tail of size `2 * index_width * sz` which contains unsigned 8, 16, 32, or 64 bit offsets into the labels and locations streams for each slice which are arranged as all the labels then all the locations (they are not interleaved). The streams are difference coded to reduce the magnitude of the integers. The byte width is determined by the smallest unsigned integer type that will be able to represent 2 * sx * sy which is a coarse upper bound for the locations stream.\n\nThe overall impact of this change is a slight increase in the size of the compresso stream and a possible impact on the compressibility if the vertical references were heavily used, such as on a checkerboard type image.\n\nThis feature can be disabled by setting `compress(..., random_access_z_index=False)` which will emit a format version 0 stream. When this feature is enabled, it sets the format version to 1. This implementation can encode and decode both format versions.\n\nThis feature is not supported when `connectivity=6` due to the required interdependence of the slices.\n\n### Results From the Paper\n\n**Compression Performance**\n\n![Compression Performance of Connectomics Datasets](compression-performance.png?raw=true)\n\nCompression ratios of general-purpose compression methods combined with Compresso and Neuroglancer. Compresso paired with LZMA yields the best compression ratios for all connectomics datasets (left) and in average (four out of five) for the others (right).\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/seung-lab/compresso",
+            "keywords": "",
+            "license": "License :: OSI Approved :: MIT License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "compresso",
+            "package_url": "https://pypi.org/project/compresso/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/compresso/",
+            "project_urls": {
+                "Homepage": "https://github.com/seung-lab/compresso"
+            },
+            "release_url": "https://pypi.org/project/compresso/3.1.0/",
+            "requires_dist": [
+                "click",
+                "numpy"
+            ],
+            "requires_python": "",
+            "summary": "compresso algorithm variant based on work by Matejek et al.",
+            "version": "3.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15958564,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "233b5d91cf8a776cd3c216e0cb668402",
+                    "sha256": "6c33a6ea8ae4262bf9217d20d710f86aed00f3e6c95124ad2da9430cff4aa3b9"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp310-cp310-macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "233b5d91cf8a776cd3c216e0cb668402",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 571729,
+                "upload_time": "2022-12-01T17:39:56",
+                "upload_time_iso_8601": "2022-12-01T17:39:56.865547Z",
+                "url": "https://files.pythonhosted.org/packages/ee/d6/6a1adf837fb9d63d556510cde5310692446bb2cae3cf982e888591e87c72/compresso-3.1.0-cp310-cp310-macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "df40f2290097b0214d4aa5389cb10b62",
+                    "sha256": "bc45f5c0a42dd62841fe6981601c85ae295eccf3a7c386cabe21c51a9ea5bf79"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp310-cp310-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "df40f2290097b0214d4aa5389cb10b62",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 315233,
+                "upload_time": "2022-12-01T17:39:59",
+                "upload_time_iso_8601": "2022-12-01T17:39:59.193576Z",
+                "url": "https://files.pythonhosted.org/packages/51/5f/3b95dedb58efe4f5e27d35ad6c392ec2bdb153aed8f06dd616aa8048f145/compresso-3.1.0-cp310-cp310-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "90333612df939cb0725f25ba2546c9d6",
+                    "sha256": "8d182dcfd161d19e01682d80aa9e8b9112ea6c073e6a3e11c269f999a29942e6"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "90333612df939cb0725f25ba2546c9d6",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 2179493,
+                "upload_time": "2022-12-01T17:40:01",
+                "upload_time_iso_8601": "2022-12-01T17:40:01.914868Z",
+                "url": "https://files.pythonhosted.org/packages/16/c5/cdac678cd9af260c8663a028f791156a00076bc0c4220b8ffc071608a04c/compresso-3.1.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4de7bc61e02882d20116a4b9984fba0e",
+                    "sha256": "fbc8657689fc8c0ce3be02c6280aa5695ce0c36b5f8f490132d029d2d4235bb6"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "4de7bc61e02882d20116a4b9984fba0e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 2144633,
+                "upload_time": "2022-12-01T17:40:06",
+                "upload_time_iso_8601": "2022-12-01T17:40:06.604452Z",
+                "url": "https://files.pythonhosted.org/packages/b7/35/bf3b69aadaffbdb8b66b074f6af6fdb2cab27f4856c4642ed00a1f3b2a73/compresso-3.1.0-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c5549a50ca81e6f21510b0191cab459d",
+                    "sha256": "2bdfada6482c8143e265238aad7c84a07ad20b3ccafb780350b0c069776a9745"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "c5549a50ca81e6f21510b0191cab459d",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 2230197,
+                "upload_time": "2022-12-01T17:40:10",
+                "upload_time_iso_8601": "2022-12-01T17:40:10.205140Z",
+                "url": "https://files.pythonhosted.org/packages/b0/66/0cf935a8cdc5e58e8d43f650830c6236f3c361f442621a99309bbfb27a9d/compresso-3.1.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d0a4d6a8c21df376cec3fc60fbe97192",
+                    "sha256": "6dbacf723c8abf881ee8ff4e70c26979bb438d8071320bc72f99c2e66e0f2639"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp310-cp310-win32.whl",
+                "has_sig": false,
+                "md5_digest": "d0a4d6a8c21df376cec3fc60fbe97192",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 191784,
+                "upload_time": "2022-12-01T17:40:12",
+                "upload_time_iso_8601": "2022-12-01T17:40:12.137482Z",
+                "url": "https://files.pythonhosted.org/packages/0b/2f/7e5a8ab9ae587aeac5c668f66f8f56ac458e261a470ae2a2d9e67cb625cf/compresso-3.1.0-cp310-cp310-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "711db3d6a5216dc63732963e9a341e85",
+                    "sha256": "bc8135c8fe160d45bc044bd97918b66adb45a1672589f3ac89feb8dba6766435"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp310-cp310-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "711db3d6a5216dc63732963e9a341e85",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 218605,
+                "upload_time": "2022-12-01T17:40:13",
+                "upload_time_iso_8601": "2022-12-01T17:40:13.860804Z",
+                "url": "https://files.pythonhosted.org/packages/5b/34/a915c2259c3e92ca8df0362886e465b55d10eb2ef340b37ce38c84c38211/compresso-3.1.0-cp310-cp310-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d05fa66ea41e3cdd7e371337b58080b3",
+                    "sha256": "04a206f384175d6be4922ddb7ecb6755dc7dcdeb68ee1fc9416c64dac6032e93"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp311-cp311-macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "d05fa66ea41e3cdd7e371337b58080b3",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": null,
+                "size": 563494,
+                "upload_time": "2022-12-01T17:40:15",
+                "upload_time_iso_8601": "2022-12-01T17:40:15.180958Z",
+                "url": "https://files.pythonhosted.org/packages/0f/95/beb22e05073db123158950659aac742e43452e1ac0d5fbc26d2390fa2179/compresso-3.1.0-cp311-cp311-macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "01e5310a7399cc0d64c25ec8e5572630",
+                    "sha256": "30ca75fc78a8e552a6fab14737f5b5f44e1c7a590da0e8f3c2f289743486b5cb"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp36-cp36m-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "01e5310a7399cc0d64c25ec8e5572630",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 305553,
+                "upload_time": "2022-12-01T17:40:16",
+                "upload_time_iso_8601": "2022-12-01T17:40:16.410460Z",
+                "url": "https://files.pythonhosted.org/packages/2d/38/486908cb0431e8949cddec799ee4b99e6c22d835a83d4f4dd9db317aaf4e/compresso-3.1.0-cp36-cp36m-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "acc3476e43c0c6c5cd6073eca51dd3bd",
+                    "sha256": "18cb65279c6a99d3eb686ab0e948c9bf8764a0db2989db071070fa508ff3f9ec"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "acc3476e43c0c6c5cd6073eca51dd3bd",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 2072490,
+                "upload_time": "2022-12-01T17:40:18",
+                "upload_time_iso_8601": "2022-12-01T17:40:18.277904Z",
+                "url": "https://files.pythonhosted.org/packages/a9/04/91edd37cf23abf5a6db51a0e22a9004e81fa5e0a3a29ffb26eb3706627b2/compresso-3.1.0-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "88f28d08ec5d4508e43307bdb740de33",
+                    "sha256": "6e331bfeec147d740b4e697484200ee6543d939a5f4d7815fc134bef871e0966"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp36-cp36m-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "88f28d08ec5d4508e43307bdb740de33",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 2034515,
+                "upload_time": "2022-12-01T17:40:20",
+                "upload_time_iso_8601": "2022-12-01T17:40:20.334596Z",
+                "url": "https://files.pythonhosted.org/packages/1b/60/8e0c29e85733dd700498259b58f50e66793925196088ee3077ade14c8719/compresso-3.1.0-cp36-cp36m-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "73ee43b52cebd5805a5b820626e10f23",
+                    "sha256": "c8598d4c6d91aed8cb141c03b261c2f217715031bc80059370b82bffa7f32b14"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "73ee43b52cebd5805a5b820626e10f23",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 2118580,
+                "upload_time": "2022-12-01T17:40:22",
+                "upload_time_iso_8601": "2022-12-01T17:40:22.042916Z",
+                "url": "https://files.pythonhosted.org/packages/5b/5d/dd19221e1aefdef6f3a068f9e84bc1b4d5c251c05743bca6edad8e271489/compresso-3.1.0-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "096423884a2d90f4e0d99e90f2b8cd88",
+                    "sha256": "f825976d9eed1f506fc9d057eb6aa9db4f3bce2c0d9fdcb7a4acb70a81942d61"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp36-cp36m-win32.whl",
+                "has_sig": false,
+                "md5_digest": "096423884a2d90f4e0d99e90f2b8cd88",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 186705,
+                "upload_time": "2022-12-01T17:40:23",
+                "upload_time_iso_8601": "2022-12-01T17:40:23.854200Z",
+                "url": "https://files.pythonhosted.org/packages/fe/15/2c21ae9f5d9889a02bc167c119f7b466f7b843ad50412ab6646537516fd8/compresso-3.1.0-cp36-cp36m-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "68db15abc41d6fa46f8d42f467e273b7",
+                    "sha256": "fc8d5568337026495a8bcee9fbc6640acbdca2be9dfa0d56b34addf145396c77"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp36-cp36m-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "68db15abc41d6fa46f8d42f467e273b7",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": null,
+                "size": 212845,
+                "upload_time": "2022-12-01T17:40:25",
+                "upload_time_iso_8601": "2022-12-01T17:40:25.005775Z",
+                "url": "https://files.pythonhosted.org/packages/7d/10/9e9f639cbb72dd7f8cfd24579946c4b56c2770a81f958829107b8a33e5b7/compresso-3.1.0-cp36-cp36m-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b93407df91c7b2725f0c68300ff3ae33",
+                    "sha256": "e6dc02ee10bd7d9da12e36bf4888baff9a45e2ab8e2aab4c6d34b304ac286459"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp37-cp37m-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "b93407df91c7b2725f0c68300ff3ae33",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 306579,
+                "upload_time": "2022-12-01T17:40:26",
+                "upload_time_iso_8601": "2022-12-01T17:40:26.796004Z",
+                "url": "https://files.pythonhosted.org/packages/17/d1/cb73952bf7da42a5cfc823018c04ccd95a78b57beff1afde28a3a45b31d9/compresso-3.1.0-cp37-cp37m-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d83733ef7b3bf74c996b9708949ffb1a",
+                    "sha256": "2f75a6cb3cbda7ba60c3407cb610b87b63105bbcab6ae0ea2e6d1d0b05fd4ab6"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "d83733ef7b3bf74c996b9708949ffb1a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 2068689,
+                "upload_time": "2022-12-01T17:40:28",
+                "upload_time_iso_8601": "2022-12-01T17:40:28.868678Z",
+                "url": "https://files.pythonhosted.org/packages/f1/fe/06cc767720620bd115e379c8f34daa33334e04f193eeac08fbd2c07466fc/compresso-3.1.0-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "958a8f09ce7da0b93edc430336b6ad10",
+                    "sha256": "f306f3c421afe0c9df521a0cdbfe7c20c9978f8428244c2b87060356eb743004"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp37-cp37m-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "958a8f09ce7da0b93edc430336b6ad10",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 2032320,
+                "upload_time": "2022-12-01T17:40:31",
+                "upload_time_iso_8601": "2022-12-01T17:40:31.000556Z",
+                "url": "https://files.pythonhosted.org/packages/06/bc/6e16a0375e1e3d0559ce22606d168c359ba412b13e6e7f06328d2ee1f4f7/compresso-3.1.0-cp37-cp37m-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "814ca5cd94f4c22b62a9b9c72b2a4669",
+                    "sha256": "edafdb5df2d2022049bc93bae2ce199ca9e26701425b99fb4647eb7e236cfa27"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "814ca5cd94f4c22b62a9b9c72b2a4669",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 2110559,
+                "upload_time": "2022-12-01T17:40:35",
+                "upload_time_iso_8601": "2022-12-01T17:40:35.761286Z",
+                "url": "https://files.pythonhosted.org/packages/cd/56/a98768f13d4154fc1445167fca7868a35f745a51cf25607a80255c72d585/compresso-3.1.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "060f1ae1257e500c41331ec7d16509b2",
+                    "sha256": "5da8b5e67d60d7d386785522727a81f163cd75a0c7995131ff3d7f50aad59e00"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp37-cp37m-win32.whl",
+                "has_sig": false,
+                "md5_digest": "060f1ae1257e500c41331ec7d16509b2",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 186706,
+                "upload_time": "2022-12-01T17:40:37",
+                "upload_time_iso_8601": "2022-12-01T17:40:37.797504Z",
+                "url": "https://files.pythonhosted.org/packages/41/51/c4ffa0d803505880dad08aa83a0bad22574039f48514d3253a862bdd01ce/compresso-3.1.0-cp37-cp37m-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3006c5af0024baea92e9da3b091119ec",
+                    "sha256": "14dbf0e279c6af091d0756a4d8150e487795127fa580503d9d02b9a2d8870da1"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp37-cp37m-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "3006c5af0024baea92e9da3b091119ec",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": null,
+                "size": 212835,
+                "upload_time": "2022-12-01T17:40:39",
+                "upload_time_iso_8601": "2022-12-01T17:40:39.176048Z",
+                "url": "https://files.pythonhosted.org/packages/57/30/383a490a2722b41bb84affb9526f7ea32542716fb65b9d78244c9543506a/compresso-3.1.0-cp37-cp37m-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "486e3b2fb248380fd924cf849b23c762",
+                    "sha256": "ca0047e8b5b5a99959347d68e623a4aa26e09044ba3b424adcd5be91ca0d064d"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp38-cp38-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "486e3b2fb248380fd924cf849b23c762",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 311666,
+                "upload_time": "2022-12-01T17:40:40",
+                "upload_time_iso_8601": "2022-12-01T17:40:40.653988Z",
+                "url": "https://files.pythonhosted.org/packages/4a/ab/8bbf940eab8652772a74b1723ee386d83f236ecd950c31465d2b831667f8/compresso-3.1.0-cp38-cp38-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8178bc98d04a171038308874cbdbfc2d",
+                    "sha256": "e722d7a96355496a22076f79daaeea51bdfcd034313d6eeed67613c20298695c"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp38-cp38-macosx_11_0_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "8178bc98d04a171038308874cbdbfc2d",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 572701,
+                "upload_time": "2022-12-01T17:40:42",
+                "upload_time_iso_8601": "2022-12-01T17:40:42.102045Z",
+                "url": "https://files.pythonhosted.org/packages/97/e3/676986e4dbe2cc7b1658a1e5dbf94001392b4d0dcf30e641eb4c131f3188/compresso-3.1.0-cp38-cp38-macosx_11_0_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ad3a97c0324d25bd04145d28b4f60f1c",
+                    "sha256": "3f53abe061530ce5bcf83e786c273f901ad3a75f0d3a0a9492337463947f7194"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "ad3a97c0324d25bd04145d28b4f60f1c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 2197995,
+                "upload_time": "2022-12-01T17:40:43",
+                "upload_time_iso_8601": "2022-12-01T17:40:43.944058Z",
+                "url": "https://files.pythonhosted.org/packages/38/f5/a8766d3e9244361be7da8d9180ee04bae20a3de32ed014aadb032fd0af56/compresso-3.1.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9fe5cdc55893ddf6c9a1aa184236f70a",
+                    "sha256": "1e9892d1967e9ccb374f1e5ab52ba2766add03609cac76d263416de82a95bcfe"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp38-cp38-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "9fe5cdc55893ddf6c9a1aa184236f70a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 2176282,
+                "upload_time": "2022-12-01T17:40:45",
+                "upload_time_iso_8601": "2022-12-01T17:40:45.841565Z",
+                "url": "https://files.pythonhosted.org/packages/05/78/56b3c65d799291ab83451b349733a3a8a2b76f24ddb7ede56ebf3d7da5b6/compresso-3.1.0-cp38-cp38-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "83f4819aacbe72780ca298632a7f2c91",
+                    "sha256": "46720c1bba9fd3dc778c7cede147c3f96795ef96cf65061c1afe79e3af35e589"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "83f4819aacbe72780ca298632a7f2c91",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 2253124,
+                "upload_time": "2022-12-01T17:40:48",
+                "upload_time_iso_8601": "2022-12-01T17:40:48.267774Z",
+                "url": "https://files.pythonhosted.org/packages/5a/b3/af3557584aa0b870a74c6e985ce54da23d9eca052dc349d3cb3bac92f56f/compresso-3.1.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "992096f06661b46e05967cc20ee8fcef",
+                    "sha256": "46ada4afaca79d718292f1b5bd709f4fb9f01871b9e16bcce6f4e38f50b96379"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp38-cp38-win32.whl",
+                "has_sig": false,
+                "md5_digest": "992096f06661b46e05967cc20ee8fcef",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 191680,
+                "upload_time": "2022-12-01T17:40:49",
+                "upload_time_iso_8601": "2022-12-01T17:40:49.854338Z",
+                "url": "https://files.pythonhosted.org/packages/51/c7/49e7608613b658b5312f4afda83b077080f6af833bf3d97c5a95b6325c59/compresso-3.1.0-cp38-cp38-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e25281dc262312a242c8cf50e6db289f",
+                    "sha256": "98be99f3d218b1cd8e7c4fa762a5a1218288f1e9910510869e173ea89a002311"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp38-cp38-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "e25281dc262312a242c8cf50e6db289f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 218280,
+                "upload_time": "2022-12-01T17:40:51",
+                "upload_time_iso_8601": "2022-12-01T17:40:51.206421Z",
+                "url": "https://files.pythonhosted.org/packages/af/44/a6223376f2136a7dadf86792efe3793aa6861b9df9ed4d03256ee6ea6fce/compresso-3.1.0-cp38-cp38-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "68e26db9a9e37cfb937d78e7756d857a",
+                    "sha256": "55357463733c0b1128ac597460e1693b756ca0f2e9547841a516f52eb24f0c97"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp39-cp39-macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "68e26db9a9e37cfb937d78e7756d857a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 576530,
+                "upload_time": "2022-12-01T17:40:53",
+                "upload_time_iso_8601": "2022-12-01T17:40:53.396088Z",
+                "url": "https://files.pythonhosted.org/packages/c3/e4/55e36e7ab3d8bae30f5ee8e9af767094380f47103a1840cd0174ef624e6e/compresso-3.1.0-cp39-cp39-macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "326c696ec6d622e6b3947b530a761d6e",
+                    "sha256": "71e165054837ee645129d360d4119249b2822313274e5b73770f519fcff1d3bd"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp39-cp39-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "326c696ec6d622e6b3947b530a761d6e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 315214,
+                "upload_time": "2022-12-01T17:40:54",
+                "upload_time_iso_8601": "2022-12-01T17:40:54.811053Z",
+                "url": "https://files.pythonhosted.org/packages/2f/f4/bc5c740faa49d8b8cd8f124d1d368146fa01934abd523f5869a94ab0b1c6/compresso-3.1.0-cp39-cp39-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b72556b62192f392c4a59e588cef2d09",
+                    "sha256": "7e864f1658db1a1bd9c485b580b4573fb35707f626aaeddd9a4a3ae9ab2caac9"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "b72556b62192f392c4a59e588cef2d09",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 2174649,
+                "upload_time": "2022-12-01T17:40:56",
+                "upload_time_iso_8601": "2022-12-01T17:40:56.444644Z",
+                "url": "https://files.pythonhosted.org/packages/f8/b5/ce5f4f79aa5bb49404e8700d846e310ec328e64a6a5f14ac289a328e76b4/compresso-3.1.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8e60557b000f5b17ef2deb30adab03b1",
+                    "sha256": "59e7ddcd7cbb65c0b32b13199798a4358102a3fe33be2507e68f195603f3dbb1"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "8e60557b000f5b17ef2deb30adab03b1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 2149492,
+                "upload_time": "2022-12-01T17:40:58",
+                "upload_time_iso_8601": "2022-12-01T17:40:58.183144Z",
+                "url": "https://files.pythonhosted.org/packages/ec/66/9ea9f6e214f69d227af937bd122212f62bc3db016002abe91c9be4cac638/compresso-3.1.0-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "16da02624fd177efba2f78fe58c05d02",
+                    "sha256": "997099d58bec2aded08c471a1281931216c9b0d40d7eaf95e9cc35880dd06972"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "16da02624fd177efba2f78fe58c05d02",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 2224907,
+                "upload_time": "2022-12-01T17:41:00",
+                "upload_time_iso_8601": "2022-12-01T17:41:00.213460Z",
+                "url": "https://files.pythonhosted.org/packages/57/61/74d4cdfc8e9dc60aa3187dd9c0c5fca5ea4d314620f0c4328c73aaabb571/compresso-3.1.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "91b476c362f09645c489d3eee4d0120b",
+                    "sha256": "fe9a3da85a0a6021c3ee6343b48555dcf0a177d6432f61c8f0fd9fbc2472efb8"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp39-cp39-win32.whl",
+                "has_sig": false,
+                "md5_digest": "91b476c362f09645c489d3eee4d0120b",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 191886,
+                "upload_time": "2022-12-01T17:41:01",
+                "upload_time_iso_8601": "2022-12-01T17:41:01.436274Z",
+                "url": "https://files.pythonhosted.org/packages/ce/8a/f38f58444c2d7a4e45a609e60bf158e64cf0ecc8ed892b131f024ad4c408/compresso-3.1.0-cp39-cp39-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cfe95329b6ebda8250e91e6f3680c87e",
+                    "sha256": "1dfb913ef2551caa835a6cbf574af0e93f27498c018e71589680d23fe9eac9f7"
+                },
+                "downloads": -1,
+                "filename": "compresso-3.1.0-cp39-cp39-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "cfe95329b6ebda8250e91e6f3680c87e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": null,
+                "size": 218570,
+                "upload_time": "2022-12-01T17:41:02",
+                "upload_time_iso_8601": "2022-12-01T17:41:02.918546Z",
+                "url": "https://files.pythonhosted.org/packages/6e/ed/b69b46e88059bc3204035228cbd71795e6de3bca980c18f4f03872c9fa76/compresso-3.1.0-cp39-cp39-win_amd64.whl",
                 "yanked": false,
                 "yanked_reason": null
             }

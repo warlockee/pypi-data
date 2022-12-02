@@ -48,7 +48,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15838239,
+        "last_serial": 15958902,
         "urls": [
             {
                 "comment_text": "",
@@ -142,7 +142,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15838239,
+        "last_serial": 15958902,
         "urls": [
             {
                 "comment_text": "",
@@ -236,7 +236,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15838239,
+        "last_serial": 15958902,
         "urls": [
             {
                 "comment_text": "",
@@ -331,7 +331,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15838239,
+        "last_serial": 15958902,
         "urls": [
             {
                 "comment_text": "",
@@ -391,7 +391,6 @@
                 "Programming Language :: Python :: 3.7",
                 "Programming Language :: Python :: 3.8"
             ],
-            "description": "=============\nB-Open Haunts\n=============\n\n.. image:: https://raw.githubusercontent.com/keul/haunts/main/docs/fear-of-the-worklog.jpg\n        :target: https://dungeonsdragons.fandom.com/wiki/Haunt\n        :alt: Haunt monster\n\n\\  \n\n.. image:: https://img.shields.io/pypi/v/haunts.svg\n        :target: https://pypi.python.org/pypi/haunts\n\n.. contents:: Table of Contents\n\nWhat is does\n============\n\nFill Google Calendars with events taken from a Google Spreadsheet.\n\nHow to install\n==============\n\n.. code-block:: bash\n\n   pip install haunts\n\nPrerequisites\n=============\n\nTo use Google Calendar and Google Spreasheet APIs you must generate a Google API application and download a *credentials.json*:\n\n* Run ``haunts --config``. It will create the ``~/.haunts`` folder and an ``haunts.ini`` file inside it.\n* Edit the ``haunts.ini`` file by setting the ``CONTROLLER_SHEET_DOCUMENT_ID``\n* Go to https://console.cloud.google.com/home/dashboard and create a Project called *haunts*.\n  \n  * In the search bar, search *Credentials APIs and services* and enable it.\n  * Click on *Create Credentials*, set *Desktop* as the *type* and save the json file as ``~/.haunts/credentials.json``.\n  * In the search bar, search *Google Sheets API* and *Google Calendar API* and activate them.\n  \n* Run ``haunts`` normally.\n  It will ask you to authenticate to both the Google Sheets and the Google Calendar APIs (a browser should be automatically opened for you).\n  This action will create the following files: ``~/.haunts/calendars-token.json`` and ``~/.haunts/sheets-token.json``\n\nHow to use\n==========\n\nCommand line help is accessible using:\n\n.. code-block:: bash\n\n   haunts --help\n\nUsage\n\n.. code-block:: bash\n\n   haunts <SHEET_NAME>\n\nYou can limits events interaction to a single day, or a set of days by using the ``-d`` parameter (can be used multiple times):\n\n.. code-block:: bash\n\n   haunts --day=2021-07-08 <SHEET_NAME>\n\nHow it works\n------------\n\nThe command will try to access a Google Spreatsheet you must own (write access required), specifically it will read a single sheet at time inside the spreadsheet.\n\nSheet definition\n----------------\n\nThe referenced sheet must contains a set of columns. Headers names are important but orders matters not.\nAny additional columns will be ignored.\n\nAn `example sheet\n<https://docs.google.com/spreadsheets/d/18ADhaNhEyr05cyNqXU-o-V4ialrzW9CS3XiFLM-glT4/edit#gid=998726384>`_ is provided.\n\nThe partition in multiple sheets is designed to keep every month in a separate sheet, but this is not strictly checked.\n\nEvery sheet should contains following headers:\n\n**Date**\n  (date)\n  \n  The day where the event will be created\n\n**Start time**\n  (time string in format ``HH:MM`` or empty) - *optional column*\n  \n  If provided, the current event will start at given time. This will influence also events defined after this row\n\n**Spent**\n  (number or empty)\n  \n  How long the event will last. Leave empty to create a full-day event\n\n**Project**\n  (string)\n  \n  Project name as it's named in the *config* sheet (see below)\n\n**Activity**\n  (string)\n  \n  Summary of the event\n\n**Details**\n  (string, optional)\n  \n  Additional text for the event description\n\n**Event id**\n  (string)\n  \n  Leave this empty. It will be filled with the id of the generated event\n\n**Link**\n  (text)\n  \n  Leave this empty. It will be filled with a link to the event inside Google Calendar\n\n**Action**\n  (char)\n  \n  See below. If empty: it will be filled with an ``I`` when an event is created\n\nConfiguring projects\n~~~~~~~~~~~~~~~~~~~~\n\nThe spreadsheet must also contains a *configuration sheet* (default name is ``config``, can be changed in the .ini) where you must put two columns (with headers):\n\n**id**\n  The id of a Google Calendar associated to this project.\n  You must have write access to this calendar.\n\n**name**\n  The name of the project, like an alias to the calendar\n\nA project name can be associated to the same calendar id multiple times.\n\nValues in the ``name`` column are the only valid values for the ``Project`` column introduced above\n\nHow events will be filled\n-------------------------\n\nLet says you run something like this:\n\n.. code-block:: bash\n\n   haunts --day=2021-07-08 July\n\n*haunts*  will access the sheet named ``July`` in the spreadsheet configured in the .ini file.\nOnly rows where the ``Date`` filed will match the ``--day`` parameter will be considered (if this param is not provided: the full sheet content is analyzed).\n\nFor every rows that match, *haunts* will:\n\n- Generate a new event, starting from a default time (this can be configured in the .ini).\n  The event will last for ``Spent`` hours\n- The next event will start where the previous ended\n- If the event will be successfully created, an \"I\" will be placed in the ``Action`` column.\n  This will make future executions to ignore the line.\n- Other columns will be read or filled as described above.\n\nActions\n-------\n\nPossible values you can find (or put yourself) in the ``Action`` column:\n\n- ``I``\n  \n  *Ignore*: execution will just ignore this line\n- ``D``\n  \n  *Delete*: execution will clear ``Action``, ``Event id`` and ``Link`` cells for this row, and delete the related calendar event.\n  So: next execution will likely fill this line again (this is a poor-man-edit)\n\nTODO and known issues\n=====================\n\n* Rows in the sheet must be sorted ascending\n* *haunts* will not check for already filled time slots (yet?), so overlapping of events may happens\n\nWhy?!\n=====\n\nIn `B-Open\n<https://www.bopen.eu/>`_ this is how we register our worklogs, participation to projects in multiple Google Calendars.\n\nOK, but why \"haunts\"?!\n----------------------\n\nAn haunt is a monster from `Dungeons&Dragons\n<https://dungeonsdragons.fandom.com/wiki/Haunt>`_, which is translated in the italian version of the game as \"Presenza\".\n\nBut \"presenza\" is the same term used in italian for \"participation\", so how we call our worklogs.\n\nAnd filling worklogs haunt us.\n\n.. image:: https://raw.githubusercontent.com/keul/haunts/main/docs/pm.gif\n\nCredits\n=======\n\nDevelopers and contributors.\n\n* keul <l.fabbri@bopen.eu> (main worklogs hater)\n* francesconazzaro (how-to-use-google-api-evangelist)\n\n\nHistory\n=======\n\n0.3.1 (2022-11-21)\n------------------\n\n- bugfix: if a row uses an ``I`` action, everything there is ignored\n- When a project is not found: do not stop haunts but skip the line and report that when execution ends.\n  Closes #14\n- Empty lines now supported.\n  Closes #12\n- Human readable error message when the sheet is not found.\n  Closes #11\n\n0.3.0 (2022-05-02)\n------------------\n\n- Fixed: ``START_TIME`` default was not used.\n  Closes #4\n- New: new action: ``D``\n- New: added \"Start time\" feature.\n  Closes #7\n- Fix: reduces number of writes.\n  Closes #6\n- Fix: do not fail badly when max number of requests per minutes is reached.\n  See #1\n- New: added \"--config\" for initial env configuration, improved documentation\n\n0.2.1 (2022-02-10)\n------------------\n\n- Fixed full day criteria\n\n\n0.2.0 (2021-07-29)\n------------------\n\n- Added support for full-day event\n\n0.1.0 (2021-07-10)\n------------------\n\n* Initial release\n\n\n",
             "description_content_type": "",
             "docs_url": null,
             "download_url": "",
@@ -429,7 +428,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15838239,
+        "last_serial": 15958902,
         "urls": [
             {
                 "comment_text": "",
@@ -468,6 +467,105 @@
                 "upload_time": "2022-11-21T09:55:30",
                 "upload_time_iso_8601": "2022-11-21T09:55:30.169563Z",
                 "url": "https://files.pythonhosted.org/packages/91/e3/cf34d0aad6f3470304cafa3500421fe23aa1d94a1902c412a495404b46b9/haunts-0.3.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.0": {
+        "info": {
+            "author": "Luca Fabbri",
+            "author_email": "l.fabbri@bopen.eu",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: End Users/Desktop",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Natural Language :: English",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "=============\nB-Open Haunts\n=============\n\n.. image:: https://raw.githubusercontent.com/keul/haunts/main/docs/fear-of-the-worklog.jpg\n        :target: https://dungeonsdragons.fandom.com/wiki/Haunt\n        :alt: Haunt monster\n\n\\  \n\n.. image:: https://img.shields.io/pypi/v/haunts.svg\n        :target: https://pypi.python.org/pypi/haunts\n\n.. contents:: Table of Contents\n\nWhat is does\n============\n\nFill Google Calendars with events taken from a Google Spreadsheet.\n\nHow to install\n==============\n\n.. code-block:: bash\n\n   pip install haunts\n\nPrerequisites\n=============\n\nTo use Google Calendar and Google Spreasheet APIs you must generate a Google API application and download a *credentials.json*:\n\n* Run ``haunts --config``. It will create the ``~/.haunts`` folder and an ``haunts.ini`` file inside it.\n* Edit the ``haunts.ini`` file by setting the ``CONTROLLER_SHEET_DOCUMENT_ID``\n* Go to https://console.cloud.google.com/home/dashboard and create a Project called *haunts*.\n  \n  * In the search bar, search *Credentials APIs and services* and enable it.\n  * Click on *Create Credentials*, set *Desktop* as the *type* and save the json file as ``~/.haunts/credentials.json``.\n  * In the search bar, search *Google Sheets API* and *Google Calendar API* and activate them.\n  \n* Run ``haunts`` normally.\n  It will ask you to authenticate to both the Google Sheets and the Google Calendar APIs (a browser should be automatically opened for you).\n  This action will create the following files: ``~/.haunts/calendars-token.json`` and ``~/.haunts/sheets-token.json``\n\nHow to use\n==========\n\nCommand line help is accessible using:\n\n.. code-block:: bash\n\n   haunts --help\n\nUsage\n\n.. code-block:: bash\n\n   haunts <SHEET_NAME>\n\n\u2026or\u2026\n\n.. code-block:: bash\n\n   haunts -a <ACTION> <SHEET_NAME>\n\nYou can limit events interaction to a single day, or a set of days by using the ``-d`` parameter (can be used multiple times):\n\n.. code-block:: bash\n\n   haunts --day=2021-07-08 <SHEET_NAME>\n\nYou can limit events interaction to a single calendar, or a set of calendars by using the ``-p`` parameter (can be used multiple times):\n\n.. code-block:: bash\n\n   haunts --project=Foo <SHEET_NAME>\n\nHow it works\n------------\n\nWhat haunts does depends on the ``--action`` parameter.\n\nIn its default configuration (if ``--action`` is omitted, or equal to ``sync``), the command will try to access a Google Spreatsheet you must own (write access required), specifically it will read a single sheet at time inside the spreadsheet.\n\nAlternatively you can use the ``report`` value. In this case it just access the Google Spreadsheet to collect data on its content.\n\nSheet definition\n----------------\n\nThe referenced sheet must contains a set of columns. Headers names are important but orders matters not.\nAny additional columns will be ignored.\n\nAn `example sheet\n<https://docs.google.com/spreadsheets/d/18ADhaNhEyr05cyNqXU-o-V4ialrzW9CS3XiFLM-glT4/edit#gid=998726384>`_ is provided.\n\nThe partition in multiple sheets is designed to keep every month in a separate sheet, but this is not strictly checked.\n\nEvery sheet should contains following headers:\n\n**Date**\n  (date)\n  \n  The day where the event will be created\n\n**Start time**\n  (time string in format ``HH:MM`` or empty) - *optional column*\n  \n  If provided, the current event will start at given time. This will influence also events defined after this row\n\n**Spent**\n  (number or empty)\n  \n  How long the event will last. Leave empty to create a full-day event\n\n**Project**\n  (string)\n  \n  Project name as it's named in the *config* sheet (see below)\n\n**Activity**\n  (string)\n  \n  Summary of the event\n\n**Details**\n  (string, optional)\n  \n  Additional text for the event description\n\n**Event id**\n  (string)\n  \n  Leave this empty. It will be filled with the id of the generated event\n\n**Link**\n  (text)\n  \n  Leave this empty. It will be filled with a link to the event inside Google Calendar\n\n**Action**\n  (char)\n  \n  See below. If empty: it will be filled with an ``I`` when an event is created\n\nConfiguring projects\n~~~~~~~~~~~~~~~~~~~~\n\nThe spreadsheet must also contains a *configuration sheet* (default name is ``config``, can be changed in the .ini) where you must put two columns (with headers):\n\n**id**\n  The id of a Google Calendar associated to this project.\n  You must have write access to this calendar.\n\n**name**\n  The name of the project, like an alias to the calendar\n\nA project name can be associated to the same calendar id multiple times.\n\nValues in the ``name`` column are the only valid values for the ``Project`` column introduced above\n\nHow events will be filled\n-------------------------\n\nLet says you run something like this:\n\n.. code-block:: bash\n\n   haunts --day=2021-07-08 July\n\n*haunts*  will access the sheet named ``July`` in the spreadsheet configured in the .ini file.\nOnly rows where the ``Date`` filed will match the ``--day`` parameter will be considered (if this param is not provided: the full sheet content is analyzed).\n\nFor every rows that match, *haunts* will:\n\n- Generate a new event, starting from a default time (this can be configured in the .ini).\n  The event will last for ``Spent`` hours\n- The next event will start where the previous ended\n- If the event will be successfully created, an \"I\" will be placed in the ``Action`` column.\n  This will make future executions to ignore the line.\n- Other columns will be read or filled as described above.\n\nActions\n-------\n\nPossible values you can find (or put yourself) in the ``Action`` column:\n\n- ``I``\n  \n  *Ignore*: execution will just ignore this line\n- ``D``\n  \n  *Delete*: execution will clear ``Action``, ``Event id`` and ``Link`` cells for this row, and delete the related calendar event.\n  So: next execution will likely fill this line again (this is a poor-man-edit)\n\nReporting feature\n-----------------\n\nUsing ``haunts -a report <SHEET_NAME>`` will read the source Spreadsheet to collect statistical data.\n\nBoth ``-p`` and ``-d`` parameters are allowed.\n\nThe resulting table can be something like the following:\n\n.. code-block:: none\n\n   Date        Project      Total\n   ----------  ---------  -------\n   2022-11-20  Calendar1        2\n   2022-11-20  Calendar2        1\n   2022-11-21  Calendar2        5\n   2022-11-21  Calendar3        3\n   2022-11-23  Calendar1       10\n   2022-11-24  Calendar1        8\n   2022-11-26  Calendar4        9\n   2022-11-27  Calendar4        8\n   2022-11-27  Calendar5        1\n   ----------  ---------  -------\n                               47\n\nFor every calendar and day found in the sheet, it report a total of hours spent.\n\nFull day events are taken into account, and the overwork is also supported by configuring both ``OVERTIME_FROM`` and ``WORKING_HOURS`` (default is 8).\n\nTODO and known issues\n=====================\n\n* Rows in the sheet must be sorted ascending\n* *haunts* will not check for already filled time slots (yet?), so overlapping of events may happens\n\nWhy?!\n=====\n\nIn `B-Open\n<https://www.bopen.eu/>`_ this is how we register our worklogs, participation to projects in multiple Google Calendars.\n\nOK, but why \"haunts\"?!\n----------------------\n\nAn haunt is a monster from `Dungeons&Dragons\n<https://dungeonsdragons.fandom.com/wiki/Haunt>`_, which is translated in the italian version of the game as \"Presenza\".\n\nBut \"presenza\" is the same term used in italian for \"participation\", so how we call our worklogs.\n\nAnd filling worklogs haunt us.\n\n.. image:: https://raw.githubusercontent.com/keul/haunts/main/docs/pm.gif\n\nCredits\n=======\n\nDevelopers and contributors.\n\n* keul (main-worklogs-hater)\n* francesconazzaro (how-to-use-google-api-evangelist)\n* gcammarota (reporting-tool-guy)\n\n\n\nHistory\n=======\n\n0.4.0 (2022-12-01)\n------------------\n\n- Added ``-p`` parameter, to just act on specific project(s)\n- Added ``--action``, and implemented ``report`` action (credits to @gcammarota)\n- More detailed logging when deleting events with action ``D``\n\n0.3.1 (2022-11-21)\n------------------\n\n- bugfix: if a row uses an ``I`` action, everything there is ignored\n- When a project is not found: do not stop haunts but skip the line and report that when execution ends.\n  Closes #14\n- Empty lines now supported.\n  Closes #12\n- Human readable error message when the sheet is not found.\n  Closes #11\n\n0.3.0 (2022-05-02)\n------------------\n\n- Fixed: ``START_TIME`` default was not used.\n  Closes #4\n- New: new action: ``D``\n- New: added \"Start time\" feature.\n  Closes #7\n- Fix: reduces number of writes.\n  Closes #6\n- Fix: do not fail badly when max number of requests per minutes is reached.\n  See #1\n- New: added \"--config\" for initial env configuration, improved documentation\n\n0.2.1 (2022-02-10)\n------------------\n\n- Fixed full day criteria\n\n0.2.0 (2021-07-29)\n------------------\n\n- Added support for full-day event\n\n0.1.0 (2021-07-10)\n------------------\n\n* Initial release\n\n\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/keul/haunts",
+            "keywords": "google-calendar spreadsheet reports",
+            "license": "GNU General Public License v3",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "haunts",
+            "package_url": "https://pypi.org/project/haunts/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/haunts/",
+            "project_urls": {
+                "Homepage": "https://github.com/keul/haunts"
+            },
+            "release_url": "https://pypi.org/project/haunts/0.4.0/",
+            "requires_dist": [
+                "setuptools",
+                "Click (>=7.0)",
+                "colorama",
+                "python-dateutil",
+                "google-api-python-client",
+                "google-auth-httplib2",
+                "google-auth-oauthlib",
+                "google-auth (<2dev)",
+                "tabulate"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "Fill and sync Google Calendars with events taken from a Google spreadsheet",
+            "version": "0.4.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15958902,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e20d6ff56ceaaf706f48ce20be14bebb",
+                    "sha256": "6f190633f1354d2fc532730cc92be0517dfbb32126e441dea0b0b2b742301f1f"
+                },
+                "downloads": -1,
+                "filename": "haunts-0.4.0-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e20d6ff56ceaaf706f48ce20be14bebb",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": ">=3.8",
+                "size": 15974,
+                "upload_time": "2022-12-01T18:21:36",
+                "upload_time_iso_8601": "2022-12-01T18:21:36.721450Z",
+                "url": "https://files.pythonhosted.org/packages/a5/35/edc244e5ce9c452598e8c8a1a6da4e463d3ad584841a0a0ba55959e61f2b/haunts-0.4.0-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e65eea150dfbe2b033a98e5d0b6b7d25",
+                    "sha256": "be2abd94f8abb20c51a940fa6940eafa61420b639fd799d758068d3a03d75419"
+                },
+                "downloads": -1,
+                "filename": "haunts-0.4.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e65eea150dfbe2b033a98e5d0b6b7d25",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 169765,
+                "upload_time": "2022-12-01T18:21:39",
+                "upload_time_iso_8601": "2022-12-01T18:21:39.626726Z",
+                "url": "https://files.pythonhosted.org/packages/6c/c7/7cc1620f3047e20ee2bae439fbd814a927742e8f1d50f0d7711599c17479/haunts-0.4.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
