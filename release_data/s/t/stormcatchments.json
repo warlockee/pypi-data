@@ -1,16 +1,18 @@
 {
-    "0.1.1": {
+    "0.3.0": {
         "info": {
             "author": "Thomas Ott",
             "author_email": "tommy.ott617@gmail.com",
             "bugtrack_url": null,
             "classifiers": [
-                "License :: OSI Approved :: MIT License",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
                 "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Scientific/Engineering :: GIS",
                 "Topic :: Scientific/Engineering :: Hydrology"
             ],
+            "description": "# stormcatchments\n[![PyPi](https://img.shields.io/pypi/v/stormcatchments.svg)](https://pypi.python.org/pypi/stormcatchments)\n\n## Stormwater network aware catchment delineation\n\nConverts existing stormwater infrastucture GIS feature data (points and lines) into a\n```networkx``` directed graph (```DiGraph```) object, then utilizes the ```DiGraph``` to\nincorporate subsurface flows into urban stormwater catchment delineation.\n\nDependencies of ```stormcatchments``` include:\n- [```geopandas```](https://github.com/geopandas/geopandas)\n- [```networkx```](https://github.com/networkx/networkx)\n- [```pysheds```](https://github.com/mdbartos/pysheds)\n- [```rtree```](https://github.com/Toblerity/rtree)\n\nSimilar libraries/projects:\n- [```s2g```](https://github.com/caesar0301/s2g)\n- [```networkx``` module ```nx_shp.py```](https://github.com/networkx/networkx/blob/6e20b952a957af820990f68d9237609198088816/networkx/readwrite/nx_shp.py)\n\n\n## Installation\n\nTo install from PyPI:\n```\npip install stormcatchments\n```\n\n## Input data requirements\n\nTo utilize this package, you need both **point** and **line** spatial data, which could represent a network of catchbasins and stormlines. The file format does not matter as long as it can be successfully read into a ```geopandas.GeoDataFrame```. The line data must connect to the points, and lines must have verticies snapped to the points.\n\nThis was initially developed for [Vermont Agency of Natural Resources stormwater infrastructure dataset](https://gis-vtanr.hub.arcgis.com/maps/VTANR::stormwater-infrastructure/explore?location=43.609172%2C-72.968811%2C14.15). However, the package is intended to generalize to any infrastructure dataset that meets these basic requirements.\n\n\n## Example Usage\n\n### Imports\n```python\nimport geopandas as gpd\nimport stormcatchments as sc\n```\n### Read infrastructure data\n```python\nstorm_lines = gpd.read_file('tests/test_data/johnson_vt/storm_lines.shp')\nstorm_lines.set_index('OBJECTID', inplace=True)\nstorm_pts = gpd.read_file('tests/test_data/johnson_vt/storm_pts.shp')\nstorm_pts.set_index('OBJECTID', inplace=True)\n```\n### Initialize Network object and resolve directions\n```python\n# storm_pts contains a column \"Type\" with integer values describing what type of \n# structure each point represents\nsinks = [2, 8] # Corresponds to catchbasins and culvert inlets\nsources = [5, 9] # Corresponds to outfalls and culvert outlets\n\nnet = sc.Network(\n  storm_lines, storm_pts, type_column='Type', sink_types=sinks, source_types=sources\n)\n```\nRefer to [Mapping flow sinks and sources](#mapping-flow-sinks-and-sources) below for more information on initializing a ```Network```\n### Resolve flow directions of the Network\n```python\nnet.resolve_directions(method='from_sources', verbose=True)\n```\nOutput:\n```\nAdding edges...\nSuccesfully resolved direction for 202 edges\n```\nRefer to [Determining subsurface flow direction](#determining-subsurface-flow-direction) below for more information of resolving ```Network``` directions\n### Preprocess terrain data\n```python\ngrid, fdir, acc = sc.terrain.preprocess_dem('tests/test_data/johnson_vt/dem.tif')\n```\nNote that ```sc.terrain.preprocess_dem()``` uses default settings for ```pysheds```. It's worth experimenting with this step to try and improve results with your DEM.\n### Initialize Delineate object and get a stormcatchment\n```python\ngrid_epsg = 6589\ndelin = sc.Delineate(net, grid, fdir, acc, grid_epsg)\n\n# (x, y) coordinates in same CRS as grid\npour_pt = (484636, 237170)\n# get stormcatchment using the default accumulation threshold\nstormcatchment = delin.get_stormcatchment(pour_pt, acc_thresh=1000)\n```\n### Also get the original catchment (network unaware) to compare results\n```python\ncatchment = sc.delineate.get_catchment(\n  pour_pt, grid, fdir, acc, grid_epsg, acc_thresh=1000\n)\n```\n### Plot original catchment in blue and stormcatchment in orange\nThis uses the built-in ```net.draw()``` method, which adds a ```contextily``` basemap when ```add_basemap=True```. Note that the orange stormcatchment incorporates a large hillside \nthat pipes to the pour point.\n```python\nimport matplotlib.pyplot as plt\n\nfig, ax = plt.subplots(figsize=(12, 12))\nstormcatchment.plot(ax=ax, ec='orange', fc='orange', alpha=0.5, linewidth=3)\ncatchment.plot(ax=ax, ec='blue', fc='blue', alpha=0.5, linewidth=3)\nnet.draw(ax=ax, add_basemap=True)\n```\n![Plot of catchment and stormcatchment](img/example_stormcatchment.png)\n\n\n## Mapping flow sinks and sources\n\nFlow sinks are where flow can enter a subsurface system (such as a catchbasin). Flow sources are where flow can exit a subsurface system (such as an outfall). Initializing the ```network.Network``` requires either:\n- Manually setting two ```bool``` columns in the point ```GeoDataFrame```, named ```IS_SINK``` and ```IS_SOURCE``` that are set to ```True``` if a point falls into either category.\n- Defining a ```type_column``` in the point data, then supplying a ```list``` of ```sink_types``` and a ```list``` of ```source_types``` to lookup in the ```type_column```. This will then be mapped onto two ```bool``` columns in the point data named ```IS_SINK``` and ```IS_SOURCE```.\n\n\n## Determining subsurface flow direction\n\nResolving the flow direction of subsurface stormwater networks, which is done during ```network.Network.resolve_directions()```, can be done in three ways:\n1) ```from_sources```: This is the default. This method traces networks upstream from their discharge points. This assumes that subnetworks are comprised of one or more flow sinks that flow to a single flow source. If multiple flow sources are connected to a given flow sink, this method will run into issues since determining which flow source is the terminal node in the graph would need to incorporate pipe elevation data somehow.\n2) ```vertex_order```: This defines the subsurface flow direction using the order of verticies in the line data (flowing from the first to last vertex).\n3) ```vertex_order_r```: This is the same as above, but in reverse (flowing from last to first vertex).\n\nTwo other potential methods that are not yet implemented are:\n- Using surface elevation data as an analog for for subsurface pipe elevations. In flat urban settings this would likely have a lot of issues/inaccuracies.\n- Using pipe invert data from the attributes of point or line data. This would require manual preparation by the user but would be the most accurate method.\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -21,7 +23,7 @@
             },
             "home_page": "https://github.com/t-ott/stormcatchments",
             "keywords": "",
-            "license": "",
+            "license": "GPLv3",
             "maintainer": "",
             "maintainer_email": "",
             "name": "stormcatchments",
@@ -31,458 +33,7 @@
             "project_urls": {
                 "Homepage": "https://github.com/t-ott/stormcatchments"
             },
-            "release_url": "https://pypi.org/project/stormcatchments/0.1.1/",
-            "requires_dist": [
-                "geopandas",
-                "networkx",
-                "pysheds",
-                "rtree"
-            ],
-            "requires_python": "",
-            "summary": "Stormwater network aware catchment delineation",
-            "version": "0.1.1",
-            "yanked": false,
-            "yanked_reason": null
-        },
-        "last_serial": 15950201,
-        "urls": [
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "246b7925313aeb8434c2c4258f843fff",
-                    "sha256": "37e86373773d576587e3c2f619bde9ad582e6e24268a28f48b49d0f2f1681553"
-                },
-                "downloads": -1,
-                "filename": "stormcatchments-0.1.1-py3-none-any.whl",
-                "has_sig": false,
-                "md5_digest": "246b7925313aeb8434c2c4258f843fff",
-                "packagetype": "bdist_wheel",
-                "python_version": "py3",
-                "requires_python": null,
-                "size": 4438,
-                "upload_time": "2022-11-06T13:58:59",
-                "upload_time_iso_8601": "2022-11-06T13:58:59.382556Z",
-                "url": "https://files.pythonhosted.org/packages/2d/bb/0fd11b8b5fb89103122a00e1ddd842a4b34f20b1e824494d79d27feaaec9/stormcatchments-0.1.1-py3-none-any.whl",
-                "yanked": false,
-                "yanked_reason": null
-            },
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "50b5ca7690fa82a29731ae0afb1ab53b",
-                    "sha256": "ceea47520f6582e3424578bece3b5c8355e691f2ac6287cad70cc8db22d2c8c6"
-                },
-                "downloads": -1,
-                "filename": "stormcatchments-0.1.1.tar.gz",
-                "has_sig": false,
-                "md5_digest": "50b5ca7690fa82a29731ae0afb1ab53b",
-                "packagetype": "sdist",
-                "python_version": "source",
-                "requires_python": null,
-                "size": 9017472,
-                "upload_time": "2022-11-06T13:59:12",
-                "upload_time_iso_8601": "2022-11-06T13:59:12.345716Z",
-                "url": "https://files.pythonhosted.org/packages/15/20/8c80f6fa8fce8362e3b9bf263c23d8c437f7cb1dfc35e8ebb1b2b9be63cd/stormcatchments-0.1.1.tar.gz",
-                "yanked": false,
-                "yanked_reason": null
-            }
-        ],
-        "vulnerabilities": []
-    },
-    "0.1.2": {
-        "info": {
-            "author": "Thomas Ott",
-            "author_email": "tommy.ott617@gmail.com",
-            "bugtrack_url": null,
-            "classifiers": [
-                "License :: OSI Approved :: MIT License",
-                "Programming Language :: Python :: 3",
-                "Programming Language :: Python :: 3.9",
-                "Topic :: Scientific/Engineering :: GIS",
-                "Topic :: Scientific/Engineering :: Hydrology"
-            ],
-            "description_content_type": "text/markdown",
-            "docs_url": null,
-            "download_url": "",
-            "downloads": {
-                "last_day": -1,
-                "last_month": -1,
-                "last_week": -1
-            },
-            "home_page": "https://github.com/t-ott/stormcatchments",
-            "keywords": "",
-            "license": "MIT",
-            "maintainer": "",
-            "maintainer_email": "",
-            "name": "stormcatchments",
-            "package_url": "https://pypi.org/project/stormcatchments/",
-            "platform": null,
-            "project_url": "https://pypi.org/project/stormcatchments/",
-            "project_urls": {
-                "Homepage": "https://github.com/t-ott/stormcatchments"
-            },
-            "release_url": "https://pypi.org/project/stormcatchments/0.1.2/",
-            "requires_dist": [
-                "geopandas",
-                "networkx",
-                "pysheds",
-                "rtree"
-            ],
-            "requires_python": "",
-            "summary": "Stormwater network aware catchment delineation",
-            "version": "0.1.2",
-            "yanked": false,
-            "yanked_reason": null
-        },
-        "last_serial": 15950201,
-        "urls": [
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "54e4f37cff9a8093761f39d6de476f7f",
-                    "sha256": "c5f164bec2b0e7a3f1955317f6f9becc66e5b2ede3c530a75cde918ba4de3831"
-                },
-                "downloads": -1,
-                "filename": "stormcatchments-0.1.2-py3-none-any.whl",
-                "has_sig": false,
-                "md5_digest": "54e4f37cff9a8093761f39d6de476f7f",
-                "packagetype": "bdist_wheel",
-                "python_version": "py3",
-                "requires_python": null,
-                "size": 17627,
-                "upload_time": "2022-11-06T14:18:34",
-                "upload_time_iso_8601": "2022-11-06T14:18:34.711488Z",
-                "url": "https://files.pythonhosted.org/packages/12/03/4b97afab5ffe5ea5c9e8d3fe303274b4f6f80de9724edeee3d1ecf02d0d4/stormcatchments-0.1.2-py3-none-any.whl",
-                "yanked": false,
-                "yanked_reason": null
-            },
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "efaef01225531d9ea22b5b60d0069e6f",
-                    "sha256": "4ec5f52aa59da173a211e99da1a80a5650670a70087436981796abfaf3739151"
-                },
-                "downloads": -1,
-                "filename": "stormcatchments-0.1.2.tar.gz",
-                "has_sig": false,
-                "md5_digest": "efaef01225531d9ea22b5b60d0069e6f",
-                "packagetype": "sdist",
-                "python_version": "source",
-                "requires_python": null,
-                "size": 9018396,
-                "upload_time": "2022-11-06T14:18:55",
-                "upload_time_iso_8601": "2022-11-06T14:18:55.018065Z",
-                "url": "https://files.pythonhosted.org/packages/79/44/a29cd6977827f5de3b051c6fbbb09aa1f919248f05814a87f850f1119072/stormcatchments-0.1.2.tar.gz",
-                "yanked": false,
-                "yanked_reason": null
-            }
-        ],
-        "vulnerabilities": []
-    },
-    "0.2.0": {
-        "info": {
-            "author": "Thomas Ott",
-            "author_email": "tommy.ott617@gmail.com",
-            "bugtrack_url": null,
-            "classifiers": [
-                "License :: OSI Approved :: MIT License",
-                "Programming Language :: Python :: 3",
-                "Programming Language :: Python :: 3.9",
-                "Topic :: Scientific/Engineering :: GIS",
-                "Topic :: Scientific/Engineering :: Hydrology"
-            ],
-            "description_content_type": "text/markdown",
-            "docs_url": null,
-            "download_url": "",
-            "downloads": {
-                "last_day": -1,
-                "last_month": -1,
-                "last_week": -1
-            },
-            "home_page": "https://github.com/t-ott/stormcatchments",
-            "keywords": "",
-            "license": "MIT",
-            "maintainer": "",
-            "maintainer_email": "",
-            "name": "stormcatchments",
-            "package_url": "https://pypi.org/project/stormcatchments/",
-            "platform": null,
-            "project_url": "https://pypi.org/project/stormcatchments/",
-            "project_urls": {
-                "Homepage": "https://github.com/t-ott/stormcatchments"
-            },
-            "release_url": "https://pypi.org/project/stormcatchments/0.2.0/",
-            "requires_dist": [
-                "geopandas",
-                "networkx",
-                "pysheds",
-                "rtree"
-            ],
-            "requires_python": "",
-            "summary": "Stormwater network aware catchment delineation",
-            "version": "0.2.0",
-            "yanked": false,
-            "yanked_reason": null
-        },
-        "last_serial": 15950201,
-        "urls": [
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "5bd6e33899919534578839e31c4db8ff",
-                    "sha256": "55704719fd20c511ac32d6acdd940f256701a59d75094e0dc25d8dc3ae080b97"
-                },
-                "downloads": -1,
-                "filename": "stormcatchments-0.2.0-py3-none-any.whl",
-                "has_sig": false,
-                "md5_digest": "5bd6e33899919534578839e31c4db8ff",
-                "packagetype": "bdist_wheel",
-                "python_version": "py3",
-                "requires_python": null,
-                "size": 18039,
-                "upload_time": "2022-11-19T15:14:55",
-                "upload_time_iso_8601": "2022-11-19T15:14:55.825850Z",
-                "url": "https://files.pythonhosted.org/packages/5b/cf/28c4ee868f467b867dd15923c1c491b63887814ca48919f68c71ddb2ea26/stormcatchments-0.2.0-py3-none-any.whl",
-                "yanked": false,
-                "yanked_reason": null
-            },
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "d426420cc1147ddd8122d6579af0a86f",
-                    "sha256": "daaa833b6a6c34c3ec9e0e55eb8730497dc981ba0ea7bbd8047529f0beaf0b5f"
-                },
-                "downloads": -1,
-                "filename": "stormcatchments-0.2.0.tar.gz",
-                "has_sig": false,
-                "md5_digest": "d426420cc1147ddd8122d6579af0a86f",
-                "packagetype": "sdist",
-                "python_version": "source",
-                "requires_python": null,
-                "size": 9306997,
-                "upload_time": "2022-11-19T15:15:16",
-                "upload_time_iso_8601": "2022-11-19T15:15:16.035585Z",
-                "url": "https://files.pythonhosted.org/packages/21/25/456417aee55ba5df13cac7179900c724080c43ff0a6c6f7d80126eb06384/stormcatchments-0.2.0.tar.gz",
-                "yanked": false,
-                "yanked_reason": null
-            }
-        ],
-        "vulnerabilities": []
-    },
-    "0.2.1": {
-        "info": {
-            "author": "Thomas Ott",
-            "author_email": "tommy.ott617@gmail.com",
-            "bugtrack_url": null,
-            "classifiers": [
-                "License :: OSI Approved :: MIT License",
-                "Programming Language :: Python :: 3",
-                "Programming Language :: Python :: 3.9",
-                "Topic :: Scientific/Engineering :: GIS",
-                "Topic :: Scientific/Engineering :: Hydrology"
-            ],
-            "description_content_type": "text/markdown",
-            "docs_url": null,
-            "download_url": "",
-            "downloads": {
-                "last_day": -1,
-                "last_month": -1,
-                "last_week": -1
-            },
-            "home_page": "https://github.com/t-ott/stormcatchments",
-            "keywords": "",
-            "license": "MIT",
-            "maintainer": "",
-            "maintainer_email": "",
-            "name": "stormcatchments",
-            "package_url": "https://pypi.org/project/stormcatchments/",
-            "platform": null,
-            "project_url": "https://pypi.org/project/stormcatchments/",
-            "project_urls": {
-                "Homepage": "https://github.com/t-ott/stormcatchments"
-            },
-            "release_url": "https://pypi.org/project/stormcatchments/0.2.1/",
-            "requires_dist": [
-                "geopandas",
-                "networkx",
-                "pysheds",
-                "rtree"
-            ],
-            "requires_python": "",
-            "summary": "Stormwater network aware catchment delineation",
-            "version": "0.2.1",
-            "yanked": false,
-            "yanked_reason": null
-        },
-        "last_serial": 15950201,
-        "urls": [
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "c214257120e5cc7cb3d928674faf841c",
-                    "sha256": "15ab76ad7a8f644db2324610ec1ebf9ac60c70be010907bf542565e83650c6ad"
-                },
-                "downloads": -1,
-                "filename": "stormcatchments-0.2.1-py3-none-any.whl",
-                "has_sig": false,
-                "md5_digest": "c214257120e5cc7cb3d928674faf841c",
-                "packagetype": "bdist_wheel",
-                "python_version": "py3",
-                "requires_python": null,
-                "size": 18029,
-                "upload_time": "2022-11-21T13:09:34",
-                "upload_time_iso_8601": "2022-11-21T13:09:34.913556Z",
-                "url": "https://files.pythonhosted.org/packages/84/f9/b7f7278af227c9135cf6719cd846d27e6fd986027616108ea8d0b954c58d/stormcatchments-0.2.1-py3-none-any.whl",
-                "yanked": false,
-                "yanked_reason": null
-            },
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "f6b4d093593ffe47408f206d740975c7",
-                    "sha256": "0b022cd302c7532741b1bde6e9f76f0b54f83052695cd608699af6625855c4f9"
-                },
-                "downloads": -1,
-                "filename": "stormcatchments-0.2.1.tar.gz",
-                "has_sig": false,
-                "md5_digest": "f6b4d093593ffe47408f206d740975c7",
-                "packagetype": "sdist",
-                "python_version": "source",
-                "requires_python": null,
-                "size": 9307026,
-                "upload_time": "2022-11-21T13:10:01",
-                "upload_time_iso_8601": "2022-11-21T13:10:01.601345Z",
-                "url": "https://files.pythonhosted.org/packages/07/7b/ac9759c6772baa13030da7ec3e6cfbc7c8315f2507be548f90a9760f81c3/stormcatchments-0.2.1.tar.gz",
-                "yanked": false,
-                "yanked_reason": null
-            }
-        ],
-        "vulnerabilities": []
-    },
-    "0.2.2": {
-        "info": {
-            "author": "Thomas Ott",
-            "author_email": "tommy.ott617@gmail.com",
-            "bugtrack_url": null,
-            "classifiers": [
-                "License :: OSI Approved :: MIT License",
-                "Programming Language :: Python :: 3",
-                "Programming Language :: Python :: 3.9",
-                "Topic :: Scientific/Engineering :: GIS",
-                "Topic :: Scientific/Engineering :: Hydrology"
-            ],
-            "description_content_type": "text/markdown",
-            "docs_url": null,
-            "download_url": "",
-            "downloads": {
-                "last_day": -1,
-                "last_month": -1,
-                "last_week": -1
-            },
-            "home_page": "https://github.com/t-ott/stormcatchments",
-            "keywords": "",
-            "license": "MIT",
-            "maintainer": "",
-            "maintainer_email": "",
-            "name": "stormcatchments",
-            "package_url": "https://pypi.org/project/stormcatchments/",
-            "platform": null,
-            "project_url": "https://pypi.org/project/stormcatchments/",
-            "project_urls": {
-                "Homepage": "https://github.com/t-ott/stormcatchments"
-            },
-            "release_url": "https://pypi.org/project/stormcatchments/0.2.2/",
-            "requires_dist": [
-                "geopandas",
-                "networkx",
-                "pysheds",
-                "rtree"
-            ],
-            "requires_python": "",
-            "summary": "Stormwater network aware catchment delineation",
-            "version": "0.2.2",
-            "yanked": false,
-            "yanked_reason": null
-        },
-        "last_serial": 15950201,
-        "urls": [
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "fad16e721eb5ca161ec6ccaeedb6d0b0",
-                    "sha256": "75fe3c3921ffdd576e5ffe619adf7434f63340cea918569a5d67326b2c9fc0a7"
-                },
-                "downloads": -1,
-                "filename": "stormcatchments-0.2.2-py3-none-any.whl",
-                "has_sig": false,
-                "md5_digest": "fad16e721eb5ca161ec6ccaeedb6d0b0",
-                "packagetype": "bdist_wheel",
-                "python_version": "py3",
-                "requires_python": null,
-                "size": 13787,
-                "upload_time": "2022-11-28T12:33:37",
-                "upload_time_iso_8601": "2022-11-28T12:33:37.408969Z",
-                "url": "https://files.pythonhosted.org/packages/81/35/2225f4f022410b88b04244bae76163ca62b8a6ed1a3e2b74deb918ceafcf/stormcatchments-0.2.2-py3-none-any.whl",
-                "yanked": false,
-                "yanked_reason": null
-            },
-            {
-                "comment_text": "",
-                "digests": {
-                    "md5": "d8eb9dbe3187d2423169a8ac1d953508",
-                    "sha256": "120d2d44f8e27d7ff7a5fcbad0d8a511b98c4fbb9fc0c7aaec736996a1c08209"
-                },
-                "downloads": -1,
-                "filename": "stormcatchments-0.2.2.tar.gz",
-                "has_sig": false,
-                "md5_digest": "d8eb9dbe3187d2423169a8ac1d953508",
-                "packagetype": "sdist",
-                "python_version": "source",
-                "requires_python": null,
-                "size": 9306085,
-                "upload_time": "2022-11-28T12:33:51",
-                "upload_time_iso_8601": "2022-11-28T12:33:51.560654Z",
-                "url": "https://files.pythonhosted.org/packages/85/50/c5038fb77f3a62553f1c4037e9b8778d24dd44a1a6770ca6c58beafed7d5/stormcatchments-0.2.2.tar.gz",
-                "yanked": false,
-                "yanked_reason": null
-            }
-        ],
-        "vulnerabilities": []
-    },
-    "0.2.3": {
-        "info": {
-            "author": "Thomas Ott",
-            "author_email": "tommy.ott617@gmail.com",
-            "bugtrack_url": null,
-            "classifiers": [
-                "License :: OSI Approved :: MIT License",
-                "Programming Language :: Python :: 3",
-                "Programming Language :: Python :: 3.9",
-                "Topic :: Scientific/Engineering :: GIS",
-                "Topic :: Scientific/Engineering :: Hydrology"
-            ],
-            "description": "# stormcatchments\n[![PyPi](https://img.shields.io/pypi/v/stormcatchments.svg)](https://pypi.python.org/pypi/stormcatchments)\n\n## Stormwater network aware catchment delineation\n\nConverts existing stormwater infrastucture GIS feature data (points and lines) into a\n```networkx``` directed graph (```DiGraph```) object, then utilizes the ```DiGraph``` to\nincorporate subsurface flows into urban stormwater catchment delineation.\n\nDependencies include:\n- ```geopandas```\n- ```networkx```\n- ```pysheds```\n- ```rtree```\n\nSimilar libraries/projects:\n- [```s2g```](https://github.com/caesar0301/s2g)\n- [```networkx``` module ```nx_shp.py```](https://github.com/networkx/networkx/blob/6e20b952a957af820990f68d9237609198088816/networkx/readwrite/nx_shp.py)\n\n\n## Installation\n\nTo install from PyPI:\n```\npip install stormcatchments\n```\n\n## Input data requirements\n\nTo utilize this package, you need both **point** and **line** spatial data, which could represent a network of catchbasins and stormlines. The file format does not matter as long as it can be successfully read into a ```geopandas.GeoDataFrame```. The line data must connect to the points, and lines must have verticies snapped to the points.\n\nThis was initially developed for [Vermont Agency of Natural Resources stormwater infrastructure dataset](https://gis-vtanr.hub.arcgis.com/maps/VTANR::stormwater-infrastructure/explore?location=43.609172%2C-72.968811%2C14.15). However, the package is intended to generalize to any infrastructure dataset that meets these basic requirements.\n\n\n## Example Usage\n\n### Imports\n```python\nimport geopandas as gpd\nimport stormcatchments as sc\n```\n### Read infrastructure data\n```python\nstorm_lines = gpd.read_file('tests/test_data/johnson_vt/storm_lines.shp')\nstorm_lines.set_index('OBJECTID', inplace=True)\nstorm_pts = gpd.read_file('tests/test_data/johnson_vt/storm_pts.shp')\nstorm_pts.set_index('OBJECTID', inplace=True)\n```\n### Initialize Network object and resolve directions\n```python\n# storm_pts contains a column \"Type\" with integer values describing what type of \n# structure each point represents\nsinks = [2, 8] # Corresponds to catchbasins and culvert inlets\nsources = [5, 9] # Corresponds to outfalls and culvert outlets\n\nnet = sc.Network(\n  storm_lines, storm_pts, type_column='Type', sink_types=sinks, source_types=sources\n)\n```\nRefer to [Mapping flow sinks and sources](#mapping-flow-sinks-and-sources) below for more information on initializing a ```Network```\n### Resolve flow directions of the Network\n```python\nnet.resolve_directions(method='from_sources', verbose=True)\n```\nOutput:\n```\nAdding edges...\nSuccesfully resolved direction for 202 edges\n```\nRefer to [Determining subsurface flow direction](#determining-subsurface-flow-direction) below for more information of resolving ```Network``` directions\n### Preprocess terrain data\n```python\ngrid, fdir, acc = sc.terrain.preprocess_dem('tests/test_data/johnson_vt/dem.tif')\n```\nNote that ```sc.terrain.preprocess_dem()``` uses default settings for ```pysheds```. It's worth experimenting with this step to try and improve results with your DEM.\n### Initialize Delineate object and get a stormcatchment\n```python\ngrid_epsg = 6589\ndelin = sc.Delineate(net, grid, fdir, acc, grid_epsg)\n\n# (x, y) coordinates in same CRS as grid\npour_pt = (484636, 237170)\n# get stormcatchment using the default accumulation threshold\nstormcatchment = delin.get_stormcatchment(pour_pt, acc_thresh=1000)\n```\n### Also get the original catchment (network unaware) to compare results\n```python\ncatchment = sc.delineate.get_catchment(\n  pour_pt, grid, fdir, acc, grid_epsg, acc_thresh=1000\n)\n```\n### Plot original catchment in blue and stormcatchment in orange\nThis uses the built-in ```net.draw()``` method, which adds a ```contextily``` basemap when ```add_basemap=True```. Note that the orange stormcatchment incorporates a large hillside \nthat pipes to the pour point.\n```python\nimport matplotlib.pyplot as plt\n\nfig, ax = plt.subplots(figsize=(12, 12))\nstormcatchment.plot(ax=ax, ec='orange', fc='orange', alpha=0.5, linewidth=3)\ncatchment.plot(ax=ax, ec='blue', fc='blue', alpha=0.5, linewidth=3)\nnet.draw(ax=ax, add_basemap=True)\n```\n![Plot of catchment and stormcatchment](img/example_stormcatchment.png)\n\n\n## Mapping flow sinks and sources\n\nFlow sinks are where flow can enter a subsurface system (such as a catchbasin). Flow sources are where flow can exit a subsurface system (such as an outfall). Initializing the ```network.Network``` requires either:\n- Manually setting two ```bool``` columns in the point ```GeoDataFrame```, named ```IS_SINK``` and ```IS_SOURCE``` that are set to ```True``` if a point falls into either category.\n- Defining a ```type_column``` in the point data, then supplying a ```list``` of ```sink_types``` and a ```list``` of ```source_types``` to lookup in the ```type_column```. This will then be mapped onto two ```bool``` columns in the point data named ```IS_SINK``` and ```IS_SOURCE```.\n\n\n## Determining subsurface flow direction\n\nResolving the flow direction of subsurface stormwater networks, which is done during ```network.Network.resolve_directions()```, can be done in three ways:\n1) ```from_sources```: This is the default. This method traces networks upstream from their discharge points. This assumes that subnetworks are comprised of one or more flow sinks that flow to a single flow source. If multiple flow sources are connected to a given flow sink, this method will run into issues since determining which flow source is the terminal node in the graph would need to incorporate pipe elevation data somehow.\n2) ```vertex_order```: This defines the subsurface flow direction using the order of verticies in the line data (flowing from the first to last vertex).\n3) ```vertex_order_r```: This is the same as above, but in reverse (flowing from last to first vertex).\n\nTwo other potential methods that are not yet implemented are:\n- Using surface elevation data as an analog for for subsurface pipe elevations. In flat urban settings this would likely have a lot of issues/inaccuracies.\n- Using pipe invert data from the attributes of point or line data. This would require manual preparation by the user but would be the most accurate method.\n\n\n",
-            "description_content_type": "text/markdown",
-            "docs_url": null,
-            "download_url": "",
-            "downloads": {
-                "last_day": -1,
-                "last_month": -1,
-                "last_week": -1
-            },
-            "home_page": "https://github.com/t-ott/stormcatchments",
-            "keywords": "",
-            "license": "MIT",
-            "maintainer": "",
-            "maintainer_email": "",
-            "name": "stormcatchments",
-            "package_url": "https://pypi.org/project/stormcatchments/",
-            "platform": null,
-            "project_url": "https://pypi.org/project/stormcatchments/",
-            "project_urls": {
-                "Homepage": "https://github.com/t-ott/stormcatchments"
-            },
-            "release_url": "https://pypi.org/project/stormcatchments/0.2.3/",
+            "release_url": "https://pypi.org/project/stormcatchments/0.3.0/",
             "requires_dist": [
                 "geopandas",
                 "networkx",
@@ -492,51 +43,51 @@
                 "pytest ; extra == 'dev'",
                 "matplotlib ; extra == 'plotting'"
             ],
-            "requires_python": "",
+            "requires_python": ">=3.8",
             "summary": "Stormwater network aware catchment delineation",
-            "version": "0.2.3",
+            "version": "0.3.0",
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15950201,
+        "last_serial": 15969400,
         "urls": [
             {
                 "comment_text": "",
                 "digests": {
-                    "md5": "4f12ee3bd5b0189e0a2e6c54a738b40b",
-                    "sha256": "20823a1474bcd40f47cdf3c15df89007b412e193e7a658e34cbb53621f35bdcf"
+                    "md5": "91eb7b1d67ed38b14d6326218f62d6dd",
+                    "sha256": "8436d058bb22df7881a181cfe18226c2b9c91f4999db0e4dd2db14ac55541ba4"
                 },
                 "downloads": -1,
-                "filename": "stormcatchments-0.2.3-py3-none-any.whl",
+                "filename": "stormcatchments-0.3.0-py3-none-any.whl",
                 "has_sig": false,
-                "md5_digest": "4f12ee3bd5b0189e0a2e6c54a738b40b",
+                "md5_digest": "91eb7b1d67ed38b14d6326218f62d6dd",
                 "packagetype": "bdist_wheel",
                 "python_version": "py3",
-                "requires_python": null,
-                "size": 13892,
-                "upload_time": "2022-12-01T03:15:23",
-                "upload_time_iso_8601": "2022-12-01T03:15:23.102795Z",
-                "url": "https://files.pythonhosted.org/packages/14/e2/116c74f6c946436e0b3e39b035971983a5a47a5fffdab87559d2e145ac47/stormcatchments-0.2.3-py3-none-any.whl",
+                "requires_python": ">=3.8",
+                "size": 25446,
+                "upload_time": "2022-12-02T12:07:32",
+                "upload_time_iso_8601": "2022-12-02T12:07:32.968637Z",
+                "url": "https://files.pythonhosted.org/packages/a0/0d/347b97dcaaec8bba6d1fab578bb15303a526ea9d0b298dc89b57a921af24/stormcatchments-0.3.0-py3-none-any.whl",
                 "yanked": false,
                 "yanked_reason": null
             },
             {
                 "comment_text": "",
                 "digests": {
-                    "md5": "07d93497ae4878bbb55d83e2300601c0",
-                    "sha256": "1d0ed01910e9fb20135943d041a0a05eca252424e21577bcf3e3b8f40c867c8c"
+                    "md5": "e385b39cdcd3aae56a9b233cf35d5287",
+                    "sha256": "30cf0a591778279e0ab2258c5cb5b3ec8958337c1580a84797b8f51f0e1bd05f"
                 },
                 "downloads": -1,
-                "filename": "stormcatchments-0.2.3.tar.gz",
+                "filename": "stormcatchments-0.3.0.tar.gz",
                 "has_sig": false,
-                "md5_digest": "07d93497ae4878bbb55d83e2300601c0",
+                "md5_digest": "e385b39cdcd3aae56a9b233cf35d5287",
                 "packagetype": "sdist",
                 "python_version": "source",
-                "requires_python": null,
-                "size": 9306257,
-                "upload_time": "2022-12-01T03:15:35",
-                "upload_time_iso_8601": "2022-12-01T03:15:35.490380Z",
-                "url": "https://files.pythonhosted.org/packages/1e/ca/9a4be9920b6964450dd27ea4d798e5d870251dcb781647b3c1a1528bc119/stormcatchments-0.2.3.tar.gz",
+                "requires_python": ">=3.8",
+                "size": 9318975,
+                "upload_time": "2022-12-02T12:07:44",
+                "upload_time_iso_8601": "2022-12-02T12:07:44.585401Z",
+                "url": "https://files.pythonhosted.org/packages/17/e7/bd6bc738dc1a6438346be6ef48fdf20f66f59dab06feffac30125da471ea/stormcatchments-0.3.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

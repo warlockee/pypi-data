@@ -44,7 +44,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15206633,
+        "last_serial": 15968809,
         "urls": [
             {
                 "comment_text": "",
@@ -374,7 +374,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15206633,
+        "last_serial": 15968809,
         "urls": [
             {
                 "comment_text": "",
@@ -654,7 +654,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# Althaia\n\n[![PyPI Version](https://badgen.net/pypi/v/althaia)](https://pypi.org/project/althaia/)\n[![License](https://badgen.net/pypi/license/althaia)](https://pypi.org/project/althaia/)\n[![PyPI Python](https://badgen.net/pypi/python/althaia)](https://pypi.org/project/althaia/)\n[![Downloads](https://pepy.tech/badge/althaia)](https://pepy.tech/project/althaia)\n\nAlthaia: _from Latin althaea, from Greek althaia - marsh mallow (literally: healing plant), from Greek althein to heal_\n\n## What is it?\n\nAlthaia is a very simple fork of [marshmallow][], with patches to improve the performance when dumping large sets\nof data. It is then also compiled via [cython][] for some extra performance boost. Ideally, these patches will\none day find their way into the upstream marshmallow in some cleaner form, and this package will become obsolete.\n\n## How does it work?\n\nDuring the serialization process, marshmallow repeats a lot of lookup operations for each object it's attempting to\nserialize, even though these values never change during the single execution. The main patch in this repo is\nbasically reading those values once and creating a serializer function, which is much more performant on large\ndata sets.\n\nThe entire thing is then compiled into C extension modules and released only as binary wheels.\n\nCheck out the original [upstream PR][] for some discussion.\n\n## How fast is it?\n\nIt really depends on your data and usage, but using the `benchmark.py` test from the upstream marshmallow repo,\nAlthaia seems to shave off some ~55% of execution time on average. These values are an example test run results\nfrom the upstream benchmark:\n\n| Upstream(usec/dump) | Althaia(usec/dump) | Improvement(%) |\n|--------------------:|-------------------:|---------------:|\n|            23586.67 |           10033.57 |          42.54 |\n|           478799.10 |          211586.81 |          44.19 |\n|           231851.84 |          102877.19 |          44.37 |\n\nThe table is the result of the following commands:\n\n    python performance/benchmark.py --object-count 1000\n    python performance/benchmark.py --iterations=5 --repeat=5 --object-count 20000\n    python performance/benchmark.py --iterations=10 --repeat=10 --object-count 10000\n\nThey are also available in this repo as `poetry run task upstream-performance`. Note that you may get different\nresults while running the benchmarks (the numbers above were obtained with Althaia v3.18.0, generally speaking you\nshould be getting better results with newer versions).\n\nContribution into the [serialization benchmark][] is in the works (update: [stalled][serialization-stalled]), but\nlocal run seems to be almost comparable to [Toasted Marshmallow][], which is stuck on an old marshmallow 2.x branch.\nThis means that Althaia gives you (almost) the speed of Toasted Marshmallow, with all the goodies of the latest\nmarshmallow.\n\n| Library               | Many Objects (seconds)  | One Object (seconds) | Relative    |\n| --------------------  | ----------------------- | -------------------  | ----------  |\n| serpyco               | 0.00767612              | 0.00389147           | 1           |\n| Custom                | 0.00965786              | 0.00467634           | 1.23917     |\n| lima                  | 0.0116959               | 0.00583649           | 1.51564     |\n| Pickle                | 0.0137603               | 0.0136833            | 2.37246     |\n| serpy                 | 0.0352728               | 0.0181508            | 4.61839     |\n| Strainer              | 0.0516005               | 0.0260506            | 6.71281     |\n| Toasted Marshmallow   | 0.076792                | 0.0412786            | 10.207      |\n| **Althaia**           | **0.101892**            | **0.0484211**        | **12.9943** |\n| Colander              | 0.208514                | 0.105719             | 27.1649     |\n| Avro                  | 0.303786                | 0.151184             | 39.3314     |\n| Lollipop              | 0.352331                | 0.173141             | 45.4262     |\n| Marshmallow           | 0.531636                | 0.276243             | 69.8398     |\n| Django REST Framework | 0.531175                | 0.387527             | 79.4203     |\n| kim                   | 0.669759                | 0.336132             | 86.9576     |\n\n## Installation\n\n```bash\npip install althaia\n```\n\n**NOTE**: This is still a work in progress and a wheel may not be available for your platform yet. PRs welcome!\n\n## Usage\n\nThere are two ways to use Althaia: as a standalone package, or as a drop-in replacement for marshmallow.\nLatter method is the recommended one. Add the following code as early as possible in your app bootstrap:\n\n```python\nimport althaia\nalthaia.patch()\n```\n\nThis will install a Python meta path importer which will mimic marshmallow for the rest of your project, without any\nchanges to the codebase, i.e. `import marshmallow` will work as expected. If and when this package becomes obsolete,\nthere will be no need to change the rest of your source to revert to upstream marshmallow.\n\nAlternatively, you can use Althaia directly:\n\n```python\nfrom althaia import marshmallow\n# or, e.g.\nfrom althaia.marshmallow import Schema\n```\n\nThough I'm not sure why one would do that.\n\n> Obviously, for all _actual_ usage of marshmallow, you should always refer to the excellent [marshmallow docs][].\n\n## Bugs & Contributing\n\nIf there are bugs, please make sure they are not upstream marshmallow bugs before reporting them. Since the patches\napplied are picking apart some of the marshmallow internals, any breakage should be immediately visible, and the\nchances are that most bugs _will_ be upstream bugs.\n\nContributing [manylinux][] builds for the CI pipeline is most welcome.\n\nIf you have any other ideas on how to tweak the performance, feel free to contribute in any way you can!\n\n## Versioning & Releases\n\nAlthaia will always follow the upstream version of marshmallow to reduce confusion. In other words, Althaia version\n`X.Y.Z` will use marshmallow version `X.Y.Z`.\n\nAdditionally, if it comes to some changes on Althaia side (repo structure, build process, bugfixes),\nPEP440 will be followed and will be released either as alpha, beta, rc (`X.Y.ZaN`, `X.Y.ZbN`, `X.Y.ZrcN`) if there is\nstill no change in the upstream dependency, or post-releases (`X.Y.ZpostN`). Since bugfixing is discouraged for\npost-releases, there may also be a hotfix release as `X.Y.Z.N`, where `N` is the hotfix version.\n\n`dev` releases may appear on test PyPI (`X.Y.Z.devN`), but these are not relevant to the general public.\n\nThere will obviously be some delay between marshmallow and Althaia releases, and it is inevitable that I will get\nsloppy over time, so feel free to create a GitHub issue if you need an urgent update to latest marshmallow.\n\n## Developing\n\nAlthaia is using [Poetry][] with a custom build script, and some [taskipy][] scripts to facilitate things.\nYou can see them defined in `pyproject.toml`, or just type `poetry run task --list`.\n\nPreparing a new version TL;DR:\n\n* Edit `pyproject.toml` and change the version of the packages for upstream marshmallow and Althaia itself.\n* Run `poetry run task version-check`.\n* Run `poetry run task build`.\n* Run `poetry run task upstream-test`.\n* [Optional] Run `poetry run task upstream-performance`.\n* [Optional] Inspect the wheel content with `poetry run task inspect`.\n* Run `poetry run task publish-test` to deploy to test PyPI.\n\n## Known Issues\n\n* If you have any marshmallow warnings ignored in your `pytest.ini`, i.e. you have `filterwarnings` set up\n  to ignore an error starting with `marshmallow.warnings`, you will get an import error even if you're doing\n  `althaia.patch()` in your `conftest.py`. As a workaround, you can change it to start with\n  `althaia.marshmallow.warnings`. This happens because pytest is trying to import marshmallow before Althaia\n  gets a chance to patch the importer.\n\n[marshmallow]: https://github.com/marshmallow-code/marshmallow\n[cython]: https://github.com/cython/cython\n[upstream PR]: https://github.com/marshmallow-code/marshmallow/pull/1649\n[serialization benchmark]: https://voidfiles.github.io/python-serialization-benchmark/\n[serialization-stalled]: https://github.com/voidfiles/python-serialization-benchmark/issues/26\n[Toasted Marshmallow]: https://github.com/lyft/toasted-marshmallow\n[marshmallow docs]: https://marshmallow.readthedocs.io/en/stable/\n[manylinux]: https://github.com/pypa/manylinux\n[Poetry]: https://python-poetry.org/\n[taskipy]: https://github.com/illBeRoy/taskipy\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -686,7 +685,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15206633,
+        "last_serial": 15968809,
         "urls": [
             {
                 "comment_text": "",
@@ -945,6 +944,319 @@
                 "upload_time": "2022-09-25T18:53:09",
                 "upload_time_iso_8601": "2022-09-25T18:53:09.195287Z",
                 "url": "https://files.pythonhosted.org/packages/71/54/d4c6f25e7afc01acac7d4160fc3c22d1da7beccb196120cd9f4682bcfd4f/althaia-3.18.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "3.19.0": {
+        "info": {
+            "author": "Dusko Simidzija",
+            "author_email": "dusko.simidzija@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# Althaia\n\n[![PyPI Version](https://badgen.net/pypi/v/althaia)](https://pypi.org/project/althaia/)\n[![License](https://badgen.net/pypi/license/althaia)](https://pypi.org/project/althaia/)\n[![PyPI Python](https://badgen.net/pypi/python/althaia)](https://pypi.org/project/althaia/)\n[![Downloads](https://pepy.tech/badge/althaia)](https://pepy.tech/project/althaia)\n\nAlthaia: _from Latin althaea, from Greek althaia - marsh mallow (literally: healing plant), from Greek althein to heal_\n\n## What is it?\n\nAlthaia is a very simple fork of [marshmallow][], with patches to improve the performance when dumping large sets\nof data. It is then also compiled via [cython][] for some extra performance boost. Ideally, these patches will\none day find their way into the upstream marshmallow in some cleaner form, and this package will become obsolete.\n\n## How does it work?\n\nDuring the serialization process, marshmallow repeats a lot of lookup operations for each object it's attempting to\nserialize, even though these values never change during the single execution. The main patch in this repo is\nbasically reading those values once and creating a serializer function, which is much more performant on large\ndata sets.\n\nThe entire thing is then compiled into C extension modules and released only as binary wheels.\n\nCheck out the original [upstream PR][] for some discussion.\n\n## How fast is it?\n\nIt really depends on your data and usage, but using the `benchmark.py` test from the upstream marshmallow repo,\nAlthaia seems to shave off some ~55% of execution time on average. These values are an example test run results\nfrom the upstream benchmark:\n\n| Upstream(usec/dump) | Althaia(usec/dump) | Improvement(%) |\n|--------------------:|-------------------:|---------------:|\n|            23586.67 |           10033.57 |          42.54 |\n|           478799.10 |          211586.81 |          44.19 |\n|           231851.84 |          102877.19 |          44.37 |\n\nThe table is the result of the following commands:\n\n    python performance/benchmark.py --object-count 1000\n    python performance/benchmark.py --iterations=5 --repeat=5 --object-count 20000\n    python performance/benchmark.py --iterations=10 --repeat=10 --object-count 10000\n\nThey are also available in this repo as `poetry run task upstream-performance`. Note that you may get different\nresults while running the benchmarks (the numbers above were obtained with Althaia v3.18.0, generally speaking you\nshould be getting better results with newer versions).\n\nContribution into the [serialization benchmark][] is in the works (update: [stalled][serialization-stalled]), but\nlocal run seems to be almost comparable to [Toasted Marshmallow][], which is stuck on an old marshmallow 2.x branch.\nThis means that Althaia gives you (almost) the speed of Toasted Marshmallow, with all the goodies of the latest\nmarshmallow.\n\n| Library               | Many Objects (seconds)  | One Object (seconds) | Relative    |\n| --------------------  | ----------------------- | -------------------  | ----------  |\n| serpyco               | 0.00767612              | 0.00389147           | 1           |\n| Custom                | 0.00965786              | 0.00467634           | 1.23917     |\n| lima                  | 0.0116959               | 0.00583649           | 1.51564     |\n| Pickle                | 0.0137603               | 0.0136833            | 2.37246     |\n| serpy                 | 0.0352728               | 0.0181508            | 4.61839     |\n| Strainer              | 0.0516005               | 0.0260506            | 6.71281     |\n| Toasted Marshmallow   | 0.076792                | 0.0412786            | 10.207      |\n| **Althaia**           | **0.101892**            | **0.0484211**        | **12.9943** |\n| Colander              | 0.208514                | 0.105719             | 27.1649     |\n| Avro                  | 0.303786                | 0.151184             | 39.3314     |\n| Lollipop              | 0.352331                | 0.173141             | 45.4262     |\n| Marshmallow           | 0.531636                | 0.276243             | 69.8398     |\n| Django REST Framework | 0.531175                | 0.387527             | 79.4203     |\n| kim                   | 0.669759                | 0.336132             | 86.9576     |\n\n## Installation\n\n```bash\npip install althaia\n```\n\n**NOTE**: This is still a work in progress and a wheel may not be available for your platform yet. PRs welcome!\n\n## Usage\n\nThere are two ways to use Althaia: as a standalone package, or as a drop-in replacement for marshmallow.\nLatter method is the recommended one. Add the following code as early as possible in your app bootstrap:\n\n```python\nimport althaia\nalthaia.patch()\n```\n\nThis will install a Python meta path importer which will mimic marshmallow for the rest of your project, without any\nchanges to the codebase, i.e. `import marshmallow` will work as expected. If and when this package becomes obsolete,\nthere will be no need to change the rest of your source to revert to upstream marshmallow.\n\nAlternatively, you can use Althaia directly:\n\n```python\nfrom althaia import marshmallow\n# or, e.g.\nfrom althaia.marshmallow import Schema\n```\n\nThough I'm not sure why one would do that.\n\n> Obviously, for all _actual_ usage of marshmallow, you should always refer to the excellent [marshmallow docs][].\n\n## Bugs & Contributing\n\nIf there are bugs, please make sure they are not upstream marshmallow bugs before reporting them. Since the patches\napplied are picking apart some of the marshmallow internals, any breakage should be immediately visible, and the\nchances are that most bugs _will_ be upstream bugs.\n\nContributing [manylinux][] builds for the CI pipeline is most welcome.\n\nIf you have any other ideas on how to tweak the performance, feel free to contribute in any way you can!\n\n## Versioning & Releases\n\nAlthaia will always follow the upstream version of marshmallow to reduce confusion. In other words, Althaia version\n`X.Y.Z` will use marshmallow version `X.Y.Z`.\n\nAdditionally, if it comes to some changes on Althaia side (repo structure, build process, bugfixes),\nPEP440 will be followed and will be released either as alpha, beta, rc (`X.Y.ZaN`, `X.Y.ZbN`, `X.Y.ZrcN`) if there is\nstill no change in the upstream dependency, or post-releases (`X.Y.ZpostN`). Since bugfixing is discouraged for\npost-releases, there may also be a hotfix release as `X.Y.Z.N`, where `N` is the hotfix version.\n\n`dev` releases may appear on test PyPI (`X.Y.Z.devN`), but these are not relevant to the general public.\n\nThere will obviously be some delay between marshmallow and Althaia releases, and it is inevitable that I will get\nsloppy over time, so feel free to create a GitHub issue if you need an urgent update to latest marshmallow.\n\n## Developing\n\nAlthaia is using [Poetry][] with a custom build script, and some [taskipy][] scripts to facilitate things.\nYou can see them defined in `pyproject.toml`, or just type `poetry run task --list`.\n\nPreparing a new version TL;DR:\n\n* Edit `pyproject.toml` and change the version of the packages for upstream marshmallow and Althaia itself.\n* Run `poetry run task version-check`.\n* Run `poetry run task build`.\n* Run `poetry run task upstream-test`.\n* [Optional] Run `poetry run task upstream-performance`.\n* [Optional] Inspect the wheel content with `poetry run task inspect`.\n* Run `poetry run task publish-test` to deploy to test PyPI.\n\n## Known Issues\n\n* If you have any marshmallow warnings ignored in your `pytest.ini`, i.e. you have `filterwarnings` set up\n  to ignore an error starting with `marshmallow.warnings`, you will get an import error even if you're doing\n  `althaia.patch()` in your `conftest.py`. As a workaround, you can change it to start with\n  `althaia.marshmallow.warnings`. This happens because pytest is trying to import marshmallow before Althaia\n  gets a chance to patch the importer.\n\n[marshmallow]: https://github.com/marshmallow-code/marshmallow\n[cython]: https://github.com/cython/cython\n[upstream PR]: https://github.com/marshmallow-code/marshmallow/pull/1649\n[serialization benchmark]: https://voidfiles.github.io/python-serialization-benchmark/\n[serialization-stalled]: https://github.com/voidfiles/python-serialization-benchmark/issues/26\n[Toasted Marshmallow]: https://github.com/lyft/toasted-marshmallow\n[marshmallow docs]: https://marshmallow.readthedocs.io/en/stable/\n[manylinux]: https://github.com/pypa/manylinux\n[Poetry]: https://python-poetry.org/\n[taskipy]: https://github.com/illBeRoy/taskipy\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://dsimidzija.github.io",
+            "keywords": "serialization,rest,json,api,marshal,marshalling,deserialization,validation,schema",
+            "license": "MIT",
+            "maintainer": "Dusko Simidzija",
+            "maintainer_email": "dusko.simidzija@gmail.com",
+            "name": "althaia",
+            "package_url": "https://pypi.org/project/althaia/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/althaia/",
+            "project_urls": {
+                "Homepage": "https://dsimidzija.github.io",
+                "Repository": "https://github.com/dsimidzija/python-althaia"
+            },
+            "release_url": "https://pypi.org/project/althaia/3.19.0/",
+            "requires_dist": [
+                "packaging (>=17.0)"
+            ],
+            "requires_python": ">=3.7,<4.0",
+            "summary": "Marshmallow fork optimized for dumping speed.",
+            "version": "3.19.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15968809,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a772c3cba1df3ec758edfa26b6ac25e7",
+                    "sha256": "78d4f0b70826729e72c81786a0ed7ca2fd52e6895bec5ef61e9d6d9dd830cdd9"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp310-cp310-macosx_11_0_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "a772c3cba1df3ec758edfa26b6ac25e7",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7,<4.0",
+                "size": 957102,
+                "upload_time": "2022-12-02T10:51:09",
+                "upload_time_iso_8601": "2022-12-02T10:51:09.251580Z",
+                "url": "https://files.pythonhosted.org/packages/f2/a3/97e1dbb6d3b849884f18c54ae4735937de87d261e3b063e1c47e8a09d1d6/althaia-3.19.0-cp310-cp310-macosx_11_0_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6184110a95bc7afbfec8b3bfa2d27d7a",
+                    "sha256": "6708b005cd295b14bc6d1b7dda5ec091cb2653292b30f3d9516b55f363797b22"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "6184110a95bc7afbfec8b3bfa2d27d7a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7,<4.0",
+                "size": 1077340,
+                "upload_time": "2022-12-02T10:51:10",
+                "upload_time_iso_8601": "2022-12-02T10:51:10.663349Z",
+                "url": "https://files.pythonhosted.org/packages/74/22/87e45158366522192c2771b8af6cdb4c18540b0f15a884571798f1b8b105/althaia-3.19.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "924d15f07d2a520d5b931b4c1adf9dbc",
+                    "sha256": "efc057df04105e47da467851d2c0d515e62ca0ca10d0425b5dc90009e8267588"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp310-cp310-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "924d15f07d2a520d5b931b4c1adf9dbc",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7,<4.0",
+                "size": 1081360,
+                "upload_time": "2022-12-02T10:51:12",
+                "upload_time_iso_8601": "2022-12-02T10:51:12.042353Z",
+                "url": "https://files.pythonhosted.org/packages/11/15/1250e71e5aa02f19ea8d8998b9dea7560c05259ab636d54be27d3268c395/althaia-3.19.0-cp310-cp310-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "81774f03b1aa9090cc27fed4c0e477f9",
+                    "sha256": "e29acd8033d35507d38dc053118d018729287bfe8a2ca5be217c20ba192d83bc"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp310-cp310-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "81774f03b1aa9090cc27fed4c0e477f9",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7,<4.0",
+                "size": 720811,
+                "upload_time": "2022-12-02T10:51:13",
+                "upload_time_iso_8601": "2022-12-02T10:51:13.664218Z",
+                "url": "https://files.pythonhosted.org/packages/a0/eb/aa00e85d94267197b6e519c9062b66b3b8b38f64bc7ec0c343cd7caae689/althaia-3.19.0-cp310-cp310-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "11fa7149632282f3a2ddb23bfc739c2a",
+                    "sha256": "d0c4f892802e37671484e008425587ca1e0bfe7f16ae10442ece043a8f0ace53"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp38-cp38-macosx_10_16_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "11fa7149632282f3a2ddb23bfc739c2a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7,<4.0",
+                "size": 951701,
+                "upload_time": "2022-12-02T10:51:15",
+                "upload_time_iso_8601": "2022-12-02T10:51:15.535153Z",
+                "url": "https://files.pythonhosted.org/packages/47/24/e8c1aaf8c902a163e02e294dc5d8537ef334de65b42216d56e947026c20a/althaia-3.19.0-cp38-cp38-macosx_10_16_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7f2f55771fe60510b46e5711e87163fe",
+                    "sha256": "71256a8f7d99963f087947b3e3aa0f18163b0ec6fc879ccd8eb4328b63252348"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "7f2f55771fe60510b46e5711e87163fe",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7,<4.0",
+                "size": 1082974,
+                "upload_time": "2022-12-02T10:51:17",
+                "upload_time_iso_8601": "2022-12-02T10:51:17.018857Z",
+                "url": "https://files.pythonhosted.org/packages/4a/1d/b5f8eda08c7f04e510fa16068537482cf3ac49dd3b77492a50d70f1c75fd/althaia-3.19.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d501771a0c05be1eba616ea20b9019c5",
+                    "sha256": "0f1bc51b1556d0402269c61e8d98d4bb6b1024ad2c6d86c07c8f7531c43ac4f2"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp38-cp38-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d501771a0c05be1eba616ea20b9019c5",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7,<4.0",
+                "size": 1086554,
+                "upload_time": "2022-12-02T10:51:18",
+                "upload_time_iso_8601": "2022-12-02T10:51:18.462869Z",
+                "url": "https://files.pythonhosted.org/packages/f4/d9/8e532f9f43b7695d4a8e5182e2aa8c06083480a6520b789fc66fe5b96af5/althaia-3.19.0-cp38-cp38-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "84897fe891cdbe756582fb642fffe5ea",
+                    "sha256": "5764706cd16dd885249d0ae13607653836a7a57aa49a2f7b8c9290ab20c30101"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp38-cp38-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "84897fe891cdbe756582fb642fffe5ea",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7,<4.0",
+                "size": 728048,
+                "upload_time": "2022-12-02T10:51:20",
+                "upload_time_iso_8601": "2022-12-02T10:51:20.158614Z",
+                "url": "https://files.pythonhosted.org/packages/c4/5e/bab7bebc7ffffed3aa3f44d7905f18a317044cd34696000ed80d29c1bc3c/althaia-3.19.0-cp38-cp38-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0e2165c70f0e19131b56439ccdd2a071",
+                    "sha256": "a77668b06a19d28d30aadff1f0004140f959cb3bff17e2ab088b0969516927e2"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp39-cp39-macosx_11_0_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "0e2165c70f0e19131b56439ccdd2a071",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7,<4.0",
+                "size": 958921,
+                "upload_time": "2022-12-02T10:51:21",
+                "upload_time_iso_8601": "2022-12-02T10:51:21.578421Z",
+                "url": "https://files.pythonhosted.org/packages/6c/d6/01b167d7c5547754c02f3d0786c858ef3717fa233e7bccf96625fa9b8413/althaia-3.19.0-cp39-cp39-macosx_11_0_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c6d8019dea35af014c45a6b03f3ab308",
+                    "sha256": "6a58129fee1367481ea16c6e0912e16c15aa6d2eab7b021a1ac549cd0df78923"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "c6d8019dea35af014c45a6b03f3ab308",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7,<4.0",
+                "size": 1079466,
+                "upload_time": "2022-12-02T10:51:23",
+                "upload_time_iso_8601": "2022-12-02T10:51:23.034872Z",
+                "url": "https://files.pythonhosted.org/packages/ce/d2/2208df6882bb186c1a5caa5bf429f7e4f8033e1465e81ee466870f788241/althaia-3.19.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "76980699a1685613606d0809d62773ad",
+                    "sha256": "49c0d26cdb7b74b627f926c551da86b5fb39a32fcf13060612fae4f22d5ff387"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp39-cp39-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "76980699a1685613606d0809d62773ad",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7,<4.0",
+                "size": 1083079,
+                "upload_time": "2022-12-02T10:51:24",
+                "upload_time_iso_8601": "2022-12-02T10:51:24.598358Z",
+                "url": "https://files.pythonhosted.org/packages/23/50/8d9d3ec726f65700f4f812936e6db68114df9609cb3303827c428b4a6cd8/althaia-3.19.0-cp39-cp39-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d36765cce16c6eac9507549cc90862d2",
+                    "sha256": "398b901ab7441f50a5c5fd1dff21a49b54406ad819e8b72a43650f38a0195333"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0-cp39-cp39-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "d36765cce16c6eac9507549cc90862d2",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7,<4.0",
+                "size": 720767,
+                "upload_time": "2022-12-02T10:51:26",
+                "upload_time_iso_8601": "2022-12-02T10:51:26.049750Z",
+                "url": "https://files.pythonhosted.org/packages/61/87/c72f63b963caed40d5419b52bad05b92f13abf13a7c4a44517f2b13bf300/althaia-3.19.0-cp39-cp39-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1da491a8c1af78d046bcc4da04ee03e4",
+                    "sha256": "dfe152de48026c2e8e5bb3ce12a1723e33b2b5d2b49915c4fc82bb50b690ae10"
+                },
+                "downloads": -1,
+                "filename": "althaia-3.19.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "1da491a8c1af78d046bcc4da04ee03e4",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<4.0",
+                "size": 51449,
+                "upload_time": "2022-12-02T10:51:27",
+                "upload_time_iso_8601": "2022-12-02T10:51:27.487633Z",
+                "url": "https://files.pythonhosted.org/packages/2e/7c/ecd60c698340de06f91e21ddb7c7d0fc18e6e786209aaa809112c1225fa8/althaia-3.19.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

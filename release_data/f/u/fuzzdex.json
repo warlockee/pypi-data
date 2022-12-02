@@ -35,7 +35,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15731158,
+        "last_serial": 15969207,
         "urls": [
             {
                 "comment_text": "",
@@ -136,7 +136,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15731158,
+        "last_serial": 15969207,
         "urls": [
             {
                 "comment_text": "",
@@ -237,7 +237,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15731158,
+        "last_serial": 15969207,
         "urls": [
             {
                 "comment_text": "",
@@ -343,7 +343,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15731158,
+        "last_serial": 15969207,
         "urls": [
             {
                 "comment_text": "",
@@ -489,7 +489,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15731158,
+        "last_serial": 15969207,
         "urls": [
             {
                 "comment_text": "",
@@ -635,7 +635,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15731158,
+        "last_serial": 15969207,
         "urls": [
             {
                 "comment_text": "",
@@ -781,7 +781,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15731158,
+        "last_serial": 15969207,
         "urls": [
             {
                 "comment_text": "",
@@ -927,7 +927,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15731158,
+        "last_serial": 15969207,
         "urls": [
             {
                 "comment_text": "",
@@ -1045,7 +1045,6 @@
                 "Topic :: Scientific/Engineering :: GIS",
                 "Topic :: Text Processing :: Indexing"
             ],
-            "description": "# FuzzDex\n\nFuzzDex is a fast Python library, written in Rust. It implements an in-memory\n`fuzzy index` that works like an error-tolerant dictionary keyed by a human\ninput.\n\n## Algorithm\n\nYou load into fuzzdex series of short phrases - like street names consisting of\none or multiple words, with an numerical index that identifies this street names\nin related dictionary of cities.\n\nThen, you can query the index using a `must-token` (currently only one, but\ncould be altered to use more) and additional `should-tokens` to read a total of\n`limit` of possibly matching phrases.\n\nMust-token is trigramized (warszawa -> war ars rsz sza zaw awa) and all phrases\ncontaining given trigrams are initially read from the index. Trigrams have\nscores, the more common they are, the less they increase the phrase score.\nTrigrams of should-tokens additionally alter the score (positively when they\nmatch), but don't add additional phrases from index. Phrases are then sorted by\nscore.\n\nTop phrases are filtered to contain an optional constraint and the must-token\nwith a maximal editing distance (Levenshtein) until `limit` of phrases is\ngathered.\n\nInternally, the results of a must-token search are LRU cached as in practise\nit's pretty often repeated. Should-tokens vary and they are always recalculated.\n\n## Usecases\n\nIt was designed to match parts of a user supplied physical addresses to a data\nextracted from the OpenStreet map - in order to find streets and cities.\n\nAddress is first tokenized and then it's parts are matched against fuzzy\ndictionary of cities and streets. Additional constraints can limit the matched\nstreets only to given city - or finding cities that have a given street.\n\nData is first searched for using trigrams (warszawa -> war ars rsz sza zaw awa),\nand then additionally filtered using maximal Levenshtein editing distance.\n\nOriginal solution used fuzzy query of the Elasticsearch database, which worked -\nbut was 21x slower in our tests.\n\n## Example\n\n```python\nimport fuzzdex\n# Create two fuzzy indices with cities and streets.\ncities = fuzzdex.FuzzDex()\n# Warsaw has streets: Czerniakowska, Nowy \u015awiat and Wawelska\ncities.add_phrase(\"Warsaw\", 1, constraints={1, 2, 3})\n# Wroc\u0142aw only Czerniawska\ncities.add_phrase(\"Wroc\u0142aw\", 2, constraints={4})\n\nstreets = fuzzdex.FuzzDex()\n# Streets with reversed constraints and own indices:\nstreets.add_phrase(\"Czerniakowska\", 1, constraints={1})\nstreets.add_phrase(\"Nowy \u015awiat\", 2, constraints={1})\nstreets.add_phrase(\"Wawelska\", 3, constraints={1})\n\nstreets.add_phrase(\"Czerniawska\", 4, constraints={2})\n\n# This recalculates trigram scores and makes index immutable:\ncities.finish()\nstreets.finish()\n\n# warszawa matches warsaw at editing distance 2.\ncities.search([\"warszawa\"], [], max_distance=2, limit=60)\n#    [{'origin': 'Warsaw', 'index': 1, 'token': 'warsaw',\n#      'distance': 2, 'score': 200000.0, 'should_score': 0.0}]\n#\n# NOTE: Currently only a single `must` token is supported.\n#\n# `\u015bwiat` adds additional should score to the result and places it higher\n# in case the limit is set:\nstreets.search([\"nowy\"], [\"\u015bwiat\"], max_distance=2, constraint=1)\n#    [{'origin': 'Nowy \u015awiat', 'index': 2, 'token': 'nowy',\n#      'distance': 0, 'score': 5.999, 'should_score': 7.4999}]\n\n# Won't match with constraint 2.\nstreets.search([\"nowy\"], [\"\u015bwiat\"], constraint=2)\n#    []\n\n# Quering for `czerniawska` will return `czerniakowska` (no constraints),\n# but with a lower score and higher distance:\nIn [22]: streets.search([\"czerniawska\"], [], max_distance=2)\nOut[22]:\n#  [{'origin': 'Czerniawska', 'index': 4, 'token': 'czerniawska',\n#   'distance': 0, 'score': 9.49995231628418, 'should_score': 0.0},\n#  {'origin': 'Czerniakowska', 'index': 1, 'token': 'czerniakowska',\n#   'distance': 2, 'score': 6.4999680519104, 'should_score': 0.0}]\n```\n\n## Installation, development\n\nYou can install fuzzdex from PyPI when using one of the architectures it's\npublished for (x86_64, few Python versions).\n\n    pip3 install fuzzdex\n\nOr use `maturin` to build it locally:\n\n    pipenv install --dev\n    pipenv shell\n    maturin develop -r\n    pytest\n\nYou can also use cargo and copy or link the .so file directly (rename\nlibfuzzdex.so to fuzzdex.so):\n\n    cargo build --release\n    ln -s target/release/libfuzzdex.so fuzzdex.so\n\n`build.sh` has commands for building manylinux packages for PyPI.\n\n",
             "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
             "docs_url": null,
             "download_url": "",
@@ -1074,7 +1073,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15731158,
+        "last_serial": 15969207,
         "urls": [
             {
                 "comment_text": "",
@@ -1173,6 +1172,154 @@
                 "upload_time": "2022-11-11T01:09:21",
                 "upload_time_iso_8601": "2022-11-11T01:09:21.311652Z",
                 "url": "https://files.pythonhosted.org/packages/19/b9/8d93fb506059c5f45b28ce7483e15e1b8611d8f13e7343fb4fbb796ad799/fuzzdex-1.1.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.2.0": {
+        "info": {
+            "author": "Tomasz bla Fortuna <bla@thera.be>",
+            "author_email": "Tomasz bla Fortuna <bla@thera.be>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Rust",
+                "Topic :: Scientific/Engineering :: GIS",
+                "Topic :: Text Processing :: Indexing",
+                "Topic :: Text Processing :: Linguistic"
+            ],
+            "description": "# FuzzDex\n\nFuzzDex is a fast Python library, written in Rust. It implements an in-memory\n`fuzzy index` that works like an error-tolerant dictionary keyed by a human\ninput.\n\n## Algorithm\n\nYou load into fuzzdex series of short phrases - like street names consisting of\none or multiple words, with an numerical index that identifies this street names\nin related dictionary of cities.\n\nThen, you can query the index using a `must-token` (currently only one, but\ncould be altered to use more) and additional `should-tokens` to read a total of\n`limit` of possibly matching phrases.\n\nMust-token is trigramized (warszawa -> war ars rsz sza zaw awa) and all phrases\ncontaining given trigrams are initially read from the index. Trigrams have\nscores, the more common they are, the less they increase the phrase score.\nTrigrams of should-tokens additionally alter the score (positively when they\nmatch), but don't add additional phrases from index. Phrases are then sorted by\nscore.\n\nTop phrases are filtered to contain an optional constraint and the must-token\nwith a maximal editing distance (Levenshtein) until `limit` of phrases is\ngathered.\n\nInternally, the results of a must-token search are LRU cached as in practise\nit's pretty often repeated. Should-tokens vary and they are always recalculated.\n\n## Usecases\n\nIt was designed to match parts of a user supplied physical addresses to a data\nextracted from the OpenStreet map - in order to find streets and cities.\n\nAddress is first tokenized and then it's parts are matched against fuzzy\ndictionary of cities and streets. Additional constraints can limit the matched\nstreets only to given city - or finding cities that have a given street.\n\nData is first searched for using trigrams (warszawa -> war ars rsz sza zaw awa),\nand then additionally filtered using maximal Levenshtein editing distance.\n\nOriginal solution used fuzzy query of the Elasticsearch database, which worked -\nbut was 21x slower in our tests.\n\n## Example\n\n```python\nimport fuzzdex\n# Create two fuzzy indices with cities and streets.\ncities = fuzzdex.FuzzDex()\n# Warsaw has streets: Czerniakowska, Nowy \u015awiat and Wawelska\ncities.add_phrase(\"Warsaw\", 1, constraints={1, 2, 3})\n# Wroc\u0142aw only Czerniawska\ncities.add_phrase(\"Wroc\u0142aw\", 2, constraints={4})\n\nstreets = fuzzdex.FuzzDex()\n# Streets with reversed constraints and own indices:\nstreets.add_phrase(\"Czerniakowska\", 1, constraints={1})\nstreets.add_phrase(\"Nowy \u015awiat\", 2, constraints={1})\nstreets.add_phrase(\"Wawelska\", 3, constraints={1})\n\nstreets.add_phrase(\"Czerniawska\", 4, constraints={2})\n\n# This recalculates trigram scores and makes index immutable:\ncities.finish()\nstreets.finish()\n\n# warszawa matches warsaw at editing distance 2.\ncities.search([\"warszawa\"], [], max_distance=2, limit=60)\n#    [{'origin': 'Warsaw', 'index': 1, 'token': 'warsaw',\n#      'distance': 2, 'score': 200000.0, 'should_score': 0.0}]\n#\n# NOTE: Currently only a single `must` token is supported.\n#\n# `\u015bwiat` adds additional should score to the result and places it higher\n# in case the limit is set:\nstreets.search([\"nowy\"], [\"\u015bwiat\"], max_distance=2, constraint=1)\n#    [{'origin': 'Nowy \u015awiat', 'index': 2, 'token': 'nowy',\n#      'distance': 0, 'score': 5.999, 'should_score': 7.4999}]\n\n# Won't match with constraint 2.\nstreets.search([\"nowy\"], [\"\u015bwiat\"], constraint=2)\n#    []\n\n# Quering for `czerniawska` will return `czerniakowska` (no constraints),\n# but with a lower score and higher distance:\nIn [22]: streets.search([\"czerniawska\"], [], max_distance=2)\nOut[22]:\n#  [{'origin': 'Czerniawska', 'index': 4, 'token': 'czerniawska',\n#   'distance': 0, 'score': 9.49995231628418, 'should_score': 0.0},\n#  {'origin': 'Czerniakowska', 'index': 1, 'token': 'czerniakowska',\n#   'distance': 2, 'score': 6.4999680519104, 'should_score': 0.0}]\n```\n\n## Installation, development\n\nYou can install fuzzdex from PyPI when using one of the architectures it's\npublished for (x86_64, few Python versions).\n\n    pip3 install fuzzdex\n\nOr use `maturin` to build it locally:\n\n    pipenv install --dev\n    pipenv shell\n    maturin develop -r\n    pytest\n\nYou can also use cargo and copy or link the .so file directly (rename\nlibfuzzdex.so to fuzzdex.so):\n\n    cargo build --release\n    ln -s target/release/libfuzzdex.so fuzzdex.so\n\n`build.sh` has commands for building manylinux packages for PyPI.\n\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/blaa/fuzzdex",
+            "keywords": "fuzzy,dictionary,geocoding",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "fuzzdex",
+            "package_url": "https://pypi.org/project/fuzzdex/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/fuzzdex/",
+            "project_urls": {
+                "Homepage": "https://github.com/blaa/fuzzdex"
+            },
+            "release_url": "https://pypi.org/project/fuzzdex/1.2.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "",
+            "version": "1.2.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15969207,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2a36b886ac82cca76d92d55c353c5663",
+                    "sha256": "d7ad5bf11f6b164f8d47840a92c993070cbfa5e2d0cfb655c4a4853c26546313"
+                },
+                "downloads": -1,
+                "filename": "fuzzdex-1.2.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "2a36b886ac82cca76d92d55c353c5663",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 1655367,
+                "upload_time": "2022-12-02T11:42:29",
+                "upload_time_iso_8601": "2022-12-02T11:42:29.667223Z",
+                "url": "https://files.pythonhosted.org/packages/eb/21/edce86bbadfd15cbe6fc1955dec9bd8f14e06fb7f27fe32a5c5bbadd306c/fuzzdex-1.2.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "42da06b35a6ee228f702247c83dc5b59",
+                    "sha256": "3af5e446f5747244939e843d5e7c4baa4d5774ffcb9f84d2361b6ca279e386e5"
+                },
+                "downloads": -1,
+                "filename": "fuzzdex-1.2.0-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "42da06b35a6ee228f702247c83dc5b59",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 1655367,
+                "upload_time": "2022-12-02T11:42:32",
+                "upload_time_iso_8601": "2022-12-02T11:42:32.880719Z",
+                "url": "https://files.pythonhosted.org/packages/c6/9c/4fba37487988b39b2b4e0f4ab618bbb03662bfa45e26590b0f27b85cd0c2/fuzzdex-1.2.0-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d9d00939135a8b3dae99443dcbbbf08a",
+                    "sha256": "1994b1ae47a95f27b281cd769048c753b31ab947b41c0ca8a7664c42e0c4efd7"
+                },
+                "downloads": -1,
+                "filename": "fuzzdex-1.2.0-cp37-cp37m-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d9d00939135a8b3dae99443dcbbbf08a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 1654831,
+                "upload_time": "2022-12-02T11:42:35",
+                "upload_time_iso_8601": "2022-12-02T11:42:35.415664Z",
+                "url": "https://files.pythonhosted.org/packages/d0/cd/a8bf3dfaa3c8815cb12a1a9db9659c239689267acb2630dda521e2c92c4c/fuzzdex-1.2.0-cp37-cp37m-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "43dfba837e2d14f1bdd6c31f27c5f8b7",
+                    "sha256": "b38ebba889a7df4c5b8fb55760e56e9c787bd2050158f8b217080e2490f13476"
+                },
+                "downloads": -1,
+                "filename": "fuzzdex-1.2.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "43dfba837e2d14f1bdd6c31f27c5f8b7",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 1655061,
+                "upload_time": "2022-12-02T11:42:38",
+                "upload_time_iso_8601": "2022-12-02T11:42:38.133383Z",
+                "url": "https://files.pythonhosted.org/packages/06/60/e181b66083c1bdde1c80c9f871fcf8dee7d4e0722a921c5dec915f066e65/fuzzdex-1.2.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "13ab1ead0918fdb9039f2be198a10d2f",
+                    "sha256": "4222fdf8a790247a998ac3080d473e4ba90b7b5f3f53b1f67915c2cd24f51f29"
+                },
+                "downloads": -1,
+                "filename": "fuzzdex-1.2.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "13ab1ead0918fdb9039f2be198a10d2f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 1655648,
+                "upload_time": "2022-12-02T11:42:41",
+                "upload_time_iso_8601": "2022-12-02T11:42:41.231229Z",
+                "url": "https://files.pythonhosted.org/packages/1a/a1/3b16b7374435a5b1d9a4544136156392d1b6c6e9553151bc0df1425eaec9/fuzzdex-1.2.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.whl",
                 "yanked": false,
                 "yanked_reason": null
             }

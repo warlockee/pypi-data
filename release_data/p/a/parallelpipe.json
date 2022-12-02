@@ -15,7 +15,6 @@
                 "Programming Language :: Python :: 3.4",
                 "Programming Language :: Python :: 3.5"
             ],
-            "description": "parallelpipe\n============\n\n|Build Status|\n\nparallelpipe is a pipeline parallelization library for Python.\n\nA pipeline is composed by one or more stages. Each stage take the output\nof the previous stage as an input and performs some operations on it\nlike map, filter, reduce, etc. This is an extension of the normal\nproducer/consumer pattern where we can have multiple stages. Every stage\nreceives the input data in a queue and push the results to another queue\nthat is connected with the next stage.\n\n \n\nIn this example we define a stage function that takes as an input an\niterator returning urls and return the corresponding content after\ndownloading it:\n\n.. code:: python\n\n    from parallelpipe import stage\n    import requests\n        \n    @stage(workers=4)\n    def fetch_urls(urls):\n        for url in urls:\n            result = requests.get(url)\n            yield result.content\n\nTo use this stage just run\n\n.. code:: python\n\n    urls = ['http://test.com', ...]\n    pipe = urls | fetch_urls\n    for content in pipe.results():\n         print(len(content))\n\nWe built a basic pipe with only one stage. This stage have 4 workers\nthat will start processing in parallel the input urls. The main process\nwill receive the downloaded content as soon as one of them is available\nand print the corresponding length. Notice that a pipeline input can be\nany iterable; this will be automatically wrapped into a stage.\n\nLet's say we are interested into the title string inside the HTML\ncontent. We can add another stage to do that:\n\n.. code:: python\n\n    import re\n    RE_TITLE = re.compile(\"<title>(.*?)</title>\", re.M)\n\n    @stage(workers=2)\n    def get_titles(contents):\n        for content in contents:\n            match = RE_TITLE.search(content)\n            if match is not None:\n                yield match.group(1)\n\n    pipe = urls | fetch_urls | get_titles\n    for title in pipe.results():\n        print(title)\n\nAgain this second stage will start processing the content as soon as it\nis available and yield his output. Notice that also this task is\nparallelized, since we set workers to 2. As you can see this stage is\nnot an exact map, since the number of titles returned could be less then\nthe number of document (we check for the presence of the title tag).\n\nLet's add now one more stage to return the most common title:\n\n.. code:: python\n\n    from collections import Counter\n\n    @stage()\n    def most_common(titles):\n        commons = Counter(titles).most_common(1)\n        yield commons[0]\n\n    pipe = urls | fetch_urls | get_titles | most_common\n    print(pipe.execute())\n\nTo calculate the most common title we need to aggregate all results, so\nwe can use only one worker. We also use ``pipe.execute()`` instead of\n``pipe.results()`` because we know only one result will be returned.\n\nParametrical stage\n------------------\n\n.. code:: python\n\n    @stage(workers=4)\n    def add_n(input, n):\n        for number in input:\n             yield number + n\n\n    pipe = range(100) | add_n(7)\n    for result in pipe.results():\n         print(result)\n\nIn this example our stage function not only require the input iterator\nbut also one or more extra parameter to perform his computation. In the\nmoment we build our pipeline we can configure this extra paramerters\nsimply calling the stage with them as input. Remember, all parameters\ncan be passed except for the first one that is the mandatory input\niterator.\n\nMapping stage\n-------------\n\nIf your stage do pure mapping, i.e. it return exactly one result for\nevery input element you can simplify your code using the ``map_stage``\ndecorator:\n\n.. code:: python\n\n    from parallelpipe import map_stage\n\n    @map_stage(workers=4)\n    def add_n(number, n):\n        return number + n\n\nQueue Size\n----------\n\nWhen you build a stage you can define how big his output queue is.\nSetting an output queue limit can be useful if the current stage can\nproduce much faster then how the following stage can consume. In this\ncase, once the queue size is reached the stage stop processing his input\nand wait for the consumer to free a slot.\n\n.. code:: python\n\n    # only 30 elements can queue in output before blocking this stage\n    @stage(workers=4, qsize=30)\n    def add_n(input, n):\n        for number in input:\n             yield number + n\n\nBy default ``qsize=0`` that means the queue have no limit.\n\nSetup a stage\n-------------\n\nSetup the stage queue and workers can also be done after defining the\nstage calling the ``setup()`` method.\n\n.. code:: python\n\n    add_n.setup(workers=2, qsize=0)\n\nUse the Stage class directly\n----------------------------\n\nSo far we built stages using decorators on functions, but we can also\nuse the Stage class directly:\n\n.. code:: python\n\n    from parallelpipe import Stage\n\n    def add_n(input, n):\n        for number in input:\n             yield number + n\n     \n    pipe = Stage(range, 10) | Stage(add_n, 5)\n\nAs you can see in the previous example the Stage class take as input an\niterator function and any extra parameters needed by it. The first stage\nis a producer so will not be called with any input iterator. When we use\nthe stage class explictly we can use ``setup()`` to configure how many\nworkers we need and the queue size:\n\n.. code:: python\n\n    pipe = Stage(range, 10).setup(qsize=5) | Stage(add_n, 5).setup(workers=2)\n\nThe ``setup()`` method return the stage itself, so we can set it up\nduring the pipeline definition.\n\nException handling\n------------------\n\nDuring the execution of your stage function an exception can occur. When\na stage detects an exception it will automatically consume and ignore\nall the input from the previous stage and then a ``TaskException`` will\nbe throw on the main process.\n\n.. code:: python\n\n    @stage(workers=2)\n    def add_one(numbers):\n        for number in numbers:\n            yield number + 1\n\n.. code:: python\n\n    >>> pipe = [2, 3, \"ops\", 7] | add_one\n    >>> print(sum(pipe.results()))\n    Process add_one-0:\n    Traceback (most recent call last):\n      File \"/Users/gt/miniconda2/lib/python2.7/multiprocessing/process.py\", line 258, in _bootstrap\n        self.run()\n      File \"/Users/gt/Desktop/code/parallelpipe/parallelpipe.py\", line 67, in run\n        for item in res:\n      File \"example.py\", line 7, in add_one\n        yield number + 1\n    TypeError: cannot concatenate 'str' and 'int' objects\n    Traceback (most recent call last):\n      File \"example.py\", line 10, in <module>\n        print(sum(pipe.results()))\n      File \"/Users/gt/Desktop/code/parallelpipe/parallelpipe.py\", line 249, in results\n        raise TaskException(msg)\n    parallelpipe.TaskException: The task \"add_one-0\" raised TypeError(\"cannot concatenate 'str' and 'int' objects\",)\n\nIf you want to avoid that a single bad input blocks your pipeline you\ncan of course catch any exception inside the stage function so that the\npipeline can continue and produce the rest of the results.\n\n.. |Build Status| image:: https://travis-ci.org/gtsystem/parallelpipe.svg?branch=master\n   :target: https://travis-ci.org/gtsystem/parallelpipe",
             "description_content_type": null,
             "docs_url": null,
             "download_url": "UNKNOWN",
@@ -45,7 +44,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 2175756,
+        "last_serial": 15968847,
         "urls": [
             {
                 "comment_text": "",
@@ -64,6 +63,79 @@
                 "upload_time": "2016-06-19T13:25:00",
                 "upload_time_iso_8601": "2016-06-19T13:25:00.893306Z",
                 "url": "https://files.pythonhosted.org/packages/71/a7/aa834d3446e53a2c223cb16d20058a79070ae8e1a4cf98677dd63835baee/parallelpipe-0.2.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.0": {
+        "info": {
+            "author": "Giuseppe Tribulato",
+            "author_email": "gtsystem@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# parallelpipe\n\n[![Build Status](https://travis-ci.org/gtsystem/parallelpipe.svg?branch=master)](https://travis-ci.org/gtsystem/parallelpipe)\n\nparallelpipe is a pipeline parallelization library for Python.\n\nA pipeline is composed by one or more stages. Each stage take the output of the previous stage  as an input and performs some operations on it like map, filter, reduce, etc. This is an extension of the normal producer/consumer pattern where we can have multiple stages. Every stage receives the input data in a queue and push the results to another queue that is connected with the next stage. \n\n![](documentation/pipeline2.png)\n\nIn this example we define a stage function that takes as an input an iterator returning urls and return the corresponding content after downloading it:\n\n```python\nfrom parallelpipe import stage\nimport requests\n\t\n@stage(workers=4)\ndef fetch_urls(urls):\n    for url in urls:\n      \tresult = requests.get(url)\n        yield result.content\n```\n\nTo use this stage just run\n\n```python\nurls = ['http://test.com', ...]\npipe = urls | fetch_urls\nfor content in pipe.results():\n\t print(len(content))\n```\n\nWe built a basic pipe with only one stage. This stage have 4 workers that will start processing in parallel the input urls. The main process will receive the downloaded content as soon as one of them is available and print the corresponding length. Notice that a pipeline input can be any iterable; this will be automatically wrapped into a stage.\n\nLet's say we are interested into the title string inside the HTML content. We can add another stage to do that:\n\n```python\nimport re\nRE_TITLE = re.compile(\"<title>(.*?)</title>\", re.M)\n\n@stage(workers=2)\ndef get_titles(contents):\n    for content in contents:\n        match = RE_TITLE.search(content)\n        if match is not None:\n            yield match.group(1)\n\npipe = urls | fetch_urls | get_titles\nfor title in pipe.results():\n    print(title)\n```\n\nAgain this second stage will start processing the content as soon as it is available and yield his output.\nNotice that also this task is parallelized, since we set workers to 2.\nAs you can see this stage is not an exact map, since  the number of titles returned could be less then the number of document (we check for the presence of the title tag).\n\nLet's add now one more stage to return the most common title:\n\n```python\nfrom collections import Counter\n\n@stage()\ndef most_common(titles):\n    commons = Counter(titles).most_common(1)\n    yield commons[0]\n\npipe = urls | fetch_urls | get_titles | most_common\nprint(pipe.execute())\n```\n\nTo calculate the most common title we need to aggregate all results, so we can use only one worker.\nWe also use ``pipe.execute()`` instead of ``pipe.results()`` because we know only one result will be returned.\n\n### Parametrical stage\n\n```python\n@stage(workers=4)\ndef add_n(input, n):\n\tfor number in input:\n\t\t yield number + n\n\npipe = range(100) | add_n(7)\nfor result in pipe.results():\n\t print(result)\n```\n\nIn this example our stage function not only require the input iterator but also one or more extra parameter to perform his computation. In the moment we build our pipeline we can configure this extra paramerters simply calling the stage with them as input. Remember, all parameters can be passed except for the first one that is the mandatory input iterator.\n\n### Mapping stage\n\nIf your stage do pure mapping, i.e. it return exactly one result for every input element you can simplify your code using the ``map_stage`` decorator:\n\n```python\nfrom parallelpipe import map_stage\n\n@map_stage(workers=4)\ndef add_n(number, n):\n\treturn number + n\n``` \n\n### Queue Size\n\nWhen you build a stage you can define how big his output queue is. \nSetting an output queue limit can be useful if the current stage can produce much faster then how the following stage can consume. In this case, once the queue size is reached the stage stop processing his input and wait for the consumer to free a slot.\n\n```python\n# only 30 elements can queue in output before blocking this stage\n@stage(workers=4, qsize=30)\ndef add_n(input, n):\n\tfor number in input:\n\t\t yield number + n\n```\n\nBy default ``qsize=0`` that means the queue have no limit.\n\n### Setup a stage\n\nSetup the stage queue and workers can also be done after defining the stage calling the ``setup()`` method.\n\n```python\nadd_n.setup(workers=2, qsize=0)\n```\n\n### Use the Stage class directly\n\nSo far we built stages using decorators on functions, but we can also use the Stage class directly: \n\n```python\nfrom parallelpipe import Stage\n\ndef add_n(input, n):\n    for number in input:\n         yield number + n\n \npipe = Stage(range, 10) | Stage(add_n, 5)\n```\n\nAs you can see in the previous example the Stage class take as input an iterator function and any extra parameters needed by it. The first stage is a producer so will not be called with any input iterator.\nWhen we use the stage class explictly we can use ``setup()`` to configure how many workers we need and the queue size:\n\n```python\npipe = Stage(range, 10).setup(qsize=5) | Stage(add_n, 5).setup(workers=2)\n```\n\nThe ``setup()`` method return the stage itself, so we can set it up during the pipeline definition.\n\n### Exception handling\n\nDuring the execution of your stage function an exception can occur. When a stage detects an exception it will automatically consume and ignore all the input from the previous stage and then a ``TaskException`` will be throw on the main process.\n\n```python\n@stage(workers=2)\ndef add_one(numbers):\n    for number in numbers:\n        yield number + 1\n```\n\n```python\n>>> pipe = [2, 3, \"ops\", 7] | add_one\n>>> print(sum(pipe.results()))\nProcess add_one-0:\nTraceback (most recent call last):\n  File \"/Users/gt/miniconda2/lib/python2.7/multiprocessing/process.py\", line 258, in _bootstrap\n    self.run()\n  File \"/Users/gt/Desktop/code/parallelpipe/parallelpipe.py\", line 67, in run\n    for item in res:\n  File \"example.py\", line 7, in add_one\n    yield number + 1\nTypeError: cannot concatenate 'str' and 'int' objects\nTraceback (most recent call last):\n  File \"example.py\", line 10, in <module>\n    print(sum(pipe.results()))\n  File \"/Users/gt/Desktop/code/parallelpipe/parallelpipe.py\", line 249, in results\n    raise TaskException(msg)\nparallelpipe.TaskException: The task \"add_one-0\" raised TypeError(\"cannot concatenate 'str' and 'int' objects\",)\n```\n\nIf you want to avoid that a single bad input blocks your pipeline you can of course catch any exception inside the stage function so that the pipeline can continue and produce the rest of the results.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/gtsystem/parallelpipe",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "parallelpipe",
+            "package_url": "https://pypi.org/project/parallelpipe/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/parallelpipe/",
+            "project_urls": {
+                "Homepage": "https://github.com/gtsystem/parallelpipe"
+            },
+            "release_url": "https://pypi.org/project/parallelpipe/0.3.0/",
+            "requires_dist": [
+                "dill"
+            ],
+            "requires_python": "",
+            "summary": "Pipeline parallelization library",
+            "version": "0.3.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15968847,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "61151eb2a8948fb66e4bbb46175a726a",
+                    "sha256": "1040034722c0e20f161dd838d24d15aed9c54ebd988f2c7fdaf0f368d048d7c4"
+                },
+                "downloads": -1,
+                "filename": "parallelpipe-0.3.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "61151eb2a8948fb66e4bbb46175a726a",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 7068,
+                "upload_time": "2022-12-02T10:56:12",
+                "upload_time_iso_8601": "2022-12-02T10:56:12.932109Z",
+                "url": "https://files.pythonhosted.org/packages/3b/a3/7177d26fa8cb95189d3c950ad7a7a79433a3b68e60a1328e8844aff81b9b/parallelpipe-0.3.0-py3-none-any.whl",
                 "yanked": false,
                 "yanked_reason": null
             }

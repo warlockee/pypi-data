@@ -1,0 +1,108 @@
+{
+    "8.0.0": {
+        "info": {
+            "author": "Th\u00e9ophile Brezot <theophile.brezot@cosmian.com>, Bruno Grieder <bruno.grieder@cosmian.com>",
+            "author_email": "Th\u00e9ophile Brezot <theophile.brezot@cosmian.com>, Bruno Grieder <bruno.grieder@cosmian.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Python :: Implementation :: PyPy",
+                "Programming Language :: Rust"
+            ],
+            "description": "# CoverCrypt &emsp; [![Build Status]][actions] [![Latest Version]][crates.io]\n\n[build status]: https://img.shields.io/github/workflow/status/Cosmian/cosmian_cover_crypt/CI%20checks/main\n[actions]: https://github.com/Cosmian/cosmian_cover_crypt/actions?query=branch%3Amain\n[latest version]: https://img.shields.io/crates/v/cosmian_cover_crypt.svg\n[crates.io]: https://crates.io/crates/cosmian_cover_crypt\n\nImplementation of the [CoverCrypt](bib/CoverCrypt.pdf) algorithm which allows\ncreating ciphertexts for a set of attributes and issuing user keys with access\npolicies over these attributes.\n\n<!-- toc -->\n\n- [Getting started](#getting-started)\n- [Building and testing](#building-and-testing)\n  - [Building the library for a different glibc](#building-the-library-for-a-different-glibc)\n  - [Build and tests for Pyo3](#build-and-tests-for-pyo3)\n- [Features and Benchmarks](#features-and-benchmarks)\n  - [Key generation](#key-generation)\n  - [Serialization](#serialization)\n  - [Secret key encapsulation](#secret-key-encapsulation)\n  - [Secret key decapsulation](#secret-key-decapsulation)\n- [Documentation](#documentation)\n\n<!-- tocstop -->\n\n## Getting started\n\nThe following code sample introduces the CoverCrypt functionalities. It can be\nrun from `examples/runme.rs` using `cargo run --example runme`.\n\n```rust\nuse abe_policy::{AccessPolicy, Attribute, Policy, PolicyAxis};\nuse cosmian_cover_crypt::{\n    interfaces::statics::{CoverCryptX25519Aes256, EncryptedHeader},\n    CoverCrypt,\n};\n\n// The first attribute axis will be a security level.\n// This axis is hierarchical, i.e. users matching\n// `Security Level::Confidential` can also decrypt\n// messages encrypted for `Security Level::Protected`.\nlet sec_level = PolicyAxis::new(\n    \"Security Level\",\n    &[\"Protected\", \"Confidential\", \"Top Secret\"],\n    true,\n);\n\n// Another attribute axis will be department names.\n// This axis is *not* hierarchical.\nlet department = PolicyAxis::new(\"Department\", &[\"R&D\", \"HR\", \"MKG\", \"FIN\"], false);\n\n// Generate a new `Policy` object with a 100 revocations allowed.\nlet mut policy = Policy::new(100);\n\n// Add the two generated axes to the policy\npolicy.add_axis(&sec_level).unwrap();\npolicy.add_axis(&department).unwrap();\n\n// Setup CoverCrypt and generate master keys\nlet cover_crypt = CoverCryptX25519Aes256::default();\nlet (mut msk, mut mpk) = cover_crypt.generate_master_keys(&policy).unwrap();\n\n// The user has a security clearance `Security Level::Top Secret`,\n// and belongs to the finance department (`Department::FIN`).\nlet access_policy =\n    AccessPolicy::from_boolean_expression(\"Security Level::Top Secret && Department::FIN\")\n        .unwrap();\nlet mut usk = cover_crypt\n    .generate_user_secret_key(&msk, &access_policy, &policy)\n    .unwrap();\n\n// Encrypt\nlet (_, encrypted_header) = EncryptedHeader::generate(\n    &cover_crypt,\n    &policy,\n    &mpk,\n    &access_policy.attributes(),\n    None,\n    None,\n)\n.unwrap();\n\n// The user is able to decrypt the encrypted header.\nassert!(encrypted_header.decrypt(&cover_crypt, &usk, None).is_ok());\n\n//\n// Rotate the `Security Level::Top Secret` attribute\npolicy\n    .rotate(&Attribute::from((\"Security Level\", \"Top Secret\")))\n    .unwrap();\n\n// Master keys need to be updated to take into account the policy rotation\ncover_crypt\n    .update_master_keys(&policy, &mut msk, &mut mpk)\n    .unwrap();\n\n// Encrypt with rotated attribute\nlet (_, new_encrypted_header) = EncryptedHeader::generate(\n    &cover_crypt,\n    &policy,\n    &mpk,\n    &[Attribute::from((\"Security Level\", \"Top Secret\"))],\n    None,\n    None,\n)\n.unwrap();\n\n// user cannot decrypt the newly encrypted header\nassert!(new_encrypted_header\n    .decrypt(&cover_crypt, &usk, None)\n    .is_err());\n\n// refresh user secret key, do not grant old encryption access\ncover_crypt\n    .refresh_user_secret_key(&mut usk, &access_policy, &msk, &policy, false)\n    .unwrap();\n\n// The user with refreshed key is able to decrypt the newly encrypted header.\nassert!(new_encrypted_header\n    .decrypt(&cover_crypt, &usk, None)\n    .is_ok());\n\n// But it cannot decrypt old ciphertexts\nassert!(encrypted_header.decrypt(&cover_crypt, &usk, None).is_err());\n```\n\n## Building and testing\n\nTo build the core only, run:\n\n```bash\ncargo build --release\n```\n\nTo build the FFI interface:\n\n```bash\ncargo build --release --features interfaces\n```\n\nTo build everything (including the FFI):\n\n```bash\ncargo build --release --all-features\n```\n\nThe latter will build a shared library. On Linux, one can verify that the FFI\nsymbols are present using:\n\n```bash\nobjdump -T  target/release/libcosmian_cover_crypt.so\n```\n\nThe code contains numerous tests that you can run using:\n\n```bash\ncargo test --release --all-features\n```\n\nBenchmarks can be run using (one can pass any feature flag):\n\n```bash\ncargo bench\n```\n\n### Building the library for a different glibc\n\nGo to the [build](build/glibc-2.17/) directory for an example on how to build for GLIBC 2.17\n\n### Build and tests for Pyo3\n\n> When a new function/class is added to the PyO3 interface, write its signature in `python/cosmian_cover_crypt/__init__.pyi`.\n\n- See `gitlab-ci` for release build using manylinux (<https://github.com/pypa/manylinux#manylinux>)\n\n```bash\n./python/scripts/test.sh\n```\n\n## Features and Benchmarks\n\nIn CoverCrypt, messages are encrypted using a symmetric scheme. The right\nmanagement is performed by a novel asymmetric scheme which is used to\nencapsulate a symmetric key. This encapsulation is stored in an object called\nencrypted header, along with the symmetric ciphertext.\n\nThis design brings several advantages:\n\n- the central authority has a unique key to protect (the master secret key);\n- encapsulation can be performed without the need to store any sensitive\n  information (public cryptography);\n- encryption is as fast as symmetric schemes can be.\n\nThe benchmarks presented in this section are run on a Intel(R) Core(TM)\ni7-10750H CPU @ 3.20GHz.\n\n### Key generation\n\nAsymmetric keys must be generated beforehand. This is the role of a central\nauthority, which is in charge of:\n\n- generating and updating the master keys according to the right policy;\n- generate and update user secret keys.\n\nThe CoverCrypt APIs exposes everything that is needed:\n\n- `CoverCrypt::setup` : generate master keys\n- `CoverCrypt::join` : create a user secret key for the given rights\n- `CoverCrypt::update` : update the master keys for the given policy\n- `CoverCrypt::refresh` : refresh a user secret key from the master secret key\n\nThe key generations may be long if the policy contains many rights or if there\nare many users. But this is usually run once at setup. Key updates and refresh\nstay fast if the change in the policy is small.\n\n### Serialization\n\nThe size of the serialized keys and encapsulation is given by the following formulas:\n\n- master secret key:\n\n```c\n3 * PRIVATE_KEY_LENGTH + LEB128_sizeof(partitions.len()) \\\n    + sum(LEB128_sizeof(sizeof(partition)) + sizeof(partition) + PRIVATE_KEY_LENGTH)\n```\n\n- public key:\n\n```c\n2 * PUBLIC_KEY_LENGTH + LEB128_sizeof(partitions.len()) \\\n    + sum(LEB128_sizeof(sizeof(partition)) + sizeof(partition) + PUBLIC_KEY_LENGTH)\n```\n\n- user secret key:\n\n```c\n2 * PRIVATE_KEY_LENGTH + LEB128_sizeof(partitions.len()) \\\n    + sum(LEB128_sizeof(sizeof(partition)) + sizeof(partition) + PRIVATE_KEY_LENGTH)\n```\n\n- encapsulation:\n\n```c\n2 * PUBLIC_KEY_LENGTH + LEB128_sizeof(partitions.len()) + sum(TAG_LENGTH + PRIVATE_KEY_LENGTH)\n```\n\n- encrypted header (see below):\n\n```c\nsizeof(encapsulation) + DEM_ENCRYPTION_OVERHEAD + sizeof(plaintext)\n```\n\nNOTE: For our implementation `CoverCryptX25519Aes256`:\n\n- `PUBLIC_KEY_LENGTH` is 32 bytes\n- `PRIVATE_KEY_LENGTH` is 32 bytes\n- `TAG_LENGTH` is 32 bytes\n- `DEM_ENCRYPTION_OVERHEAD` is 28 bytes (12 bytes for the MAC tag and 16 bytes for the nonce)\n- `LEB128_sizeof(partitions.len())` is equal to 1 byte if the number of partitions is less than `2^7`\n\nBelow id given the size of an encapsulation given a number of partitions.\n\n| Nb. of partitions | encapsulation size (in bytes) |\n| ----------------- | ----------------------------- |\n| 1                 | 129                           |\n| 2                 | 193                           |\n| 3                 | 257                           |\n| 4                 | 321                           |\n| 5                 | 385                           |\n\n### Secret key encapsulation\n\nThis is the core of the CoverCrypt scheme. It allows creating a symmetric key\nand its encapsulation for a given set of rights.\n\nTo ease the management of the encapsulations, an object `EncryptedHeader`is\nprovided in the API. An encrypted header holds an encapsulation and a symmetric\nciphertext of an optional additional data. This additional data can be useful\nto store metadata.\n\n**Note**: encapsulations grow bigger with the size of the target set of rights\nand so does the encapsulation time. The following benchmark gives the size of\nthe encrypted header and the encryption time given the number of rights in the\ntarget set (one right = one partition).\n\n```c\nBench header encryption size: 1 partition: 126 bytes, 3 partitions: 190 bytes\n\nHeader encryption/1 partition\n                        time:   [187.07 \u00b5s 187.10 \u00b5s 187.14 \u00b5s]\n\nHeader encryption/3 partitions\n                        time:   [319.33 \u00b5s 319.41 \u00b5s 319.51 \u00b5s]\n```\n\n### Secret key decapsulation\n\nA user can retrieve the symmetric key needed to decrypt a CoverCrypt ciphertext\nby decrypting the associated `EncryptedHeader`. This is only possible if the\nuser secret keys contains the appropriate rights.\n\n```c\nHeader decryption/1 partition access\n                        time:   [252.55 \u00b5s 252.66 \u00b5s 252.79 \u00b5s]\n\nHeader decryption/3 partition access\n                        time:   [318.59 \u00b5s 318.66 \u00b5s 318.74 \u00b5s]\n```\n\n## Documentation\n\nA formal description and proof of the CoverCrypt scheme is given in\n[this paper](./bib/CoverCrypt.pdf).\nIt also contains an interesting discussion about the implementation.\n\nThe developer documentation can be found on\n[doc.rs](https://docs.rs/cosmian_cover_crypt/6.0.8/cosmian_cover_crypt/index.html)\n\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT/Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "cover-crypt",
+            "package_url": "https://pypi.org/project/cover-crypt/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/cover-crypt/",
+            "project_urls": {
+                "Source Code": "https://github.com/Cosmian/cover_crypt"
+            },
+            "release_url": "https://pypi.org/project/cover-crypt/8.0.0/",
+            "requires_dist": [
+                "cffi"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Key Policy attribute encryption based on subset cover",
+            "version": "8.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15968481,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "55a05149b97b49c77282cb49c5678694",
+                    "sha256": "aa2e9971d6101d1b4421d27d52d135edf26bd7bf89d21aa524ccf6585d92970a"
+                },
+                "downloads": -1,
+                "filename": "cover_crypt-8.0.0-cp37-abi3-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "55a05149b97b49c77282cb49c5678694",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 446519,
+                "upload_time": "2022-12-02T10:16:09",
+                "upload_time_iso_8601": "2022-12-02T10:16:09.098964Z",
+                "url": "https://files.pythonhosted.org/packages/0f/1f/fab7f85f075a1c5b4ed5f09a9215d3a6a947df92e2130499e1c712630f0b/cover_crypt-8.0.0-cp37-abi3-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8c1dcaa8f339dc47b299a6768ce0d50d",
+                    "sha256": "d864ad0e34c2e8d1347f94982559cac91d802489d4a3845e0f60a7b17bee7e45"
+                },
+                "downloads": -1,
+                "filename": "cover_crypt-8.0.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "8c1dcaa8f339dc47b299a6768ce0d50d",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 457089,
+                "upload_time": "2022-12-02T10:16:12",
+                "upload_time_iso_8601": "2022-12-02T10:16:12.175831Z",
+                "url": "https://files.pythonhosted.org/packages/c0/20/edb3d31d75fcc9e6636f6394abb8f3d67d02b3be84625f828f85fd80fe54/cover_crypt-8.0.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "16e65fa6151e9239a482a552da58929d",
+                    "sha256": "8eab2752c999f16cefd2d5488d55d2f00c84f4f36dffe0a4b63823c8d4646ecc"
+                },
+                "downloads": -1,
+                "filename": "cover_crypt-8.0.0-cp37-abi3-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "16e65fa6151e9239a482a552da58929d",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 959471,
+                "upload_time": "2022-12-02T10:16:15",
+                "upload_time_iso_8601": "2022-12-02T10:16:15.092151Z",
+                "url": "https://files.pythonhosted.org/packages/c4/2f/cd340b6d08265737af8bc5a8bd6bfa766bbf767d8c6820287632be4d7574/cover_crypt-8.0.0-cp37-abi3-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
