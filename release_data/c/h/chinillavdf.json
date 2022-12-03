@@ -1,0 +1,362 @@
+{
+    "1.0.8": {
+        "info": {
+            "author": "Edward Teach",
+            "author_email": "edward@chinilla.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# Chinilla VDF\r\n\r\n![Build](https://github.com/Chinilla/chinillavdf/workflows/Build/badge.svg)\r\n![PyPI](https://img.shields.io/pypi/v/chinillavdf?logo=pypi)\r\n![PyPI - Format](https://img.shields.io/pypi/format/chinillavdf?logo=pypi)\r\n![GitHub](https://img.shields.io/github/license/Chinilla/chinillavdf?logo=Github)\r\n\r\n[![Total alerts](https://img.shields.io/lgtm/alerts/g/Chinilla/chinillavdf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/Chinilla/chinillavdf/alerts/)\r\n[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/Chinilla/chinillavdf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/Chinilla/chinillavdf/context:python)\r\n[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/Chinilla/chinillavdf.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/Chinilla/chinillavdf/context:cpp)\r\n\r\n## Building a wheel\r\n\r\nCompiling chinillavdf requires cmake, boost and GMP/MPIR.\r\n\r\n```bash\r\npython3 -m venv venv\r\nsource venv/bin/activate\r\n\r\npip install wheel setuptools_scm pybind11\r\npip wheel .\r\n```\r\n\r\nThe primary build process for this repository is to use GitHub Actions to\r\nbuild binary wheels for MacOS, Linux (x64 and aarch64), and Windows and\r\npublish them with a source wheel on PyPi. See `.github/workflows/build.yml`.\r\nCMake uses\r\n[FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html)\r\nto download [pybind11](https://github.com/pybind/pybind11).\r\nBuilding is then managed by\r\n[cibuildwheel](https://github.com/joerick/cibuildwheel). Further installation\r\nis then available via `pip install chinillavdf` e.g.\r\n\r\n## Building Timelord and related binaries\r\n\r\nIn addition to building the required binary and source wheels for Windows,\r\nMacOS and Linux, chinillavdf can be used to compile vdf_client and vdf_bench.\r\nvdf_client is the core VDF process that completes the Proof of Time submitted\r\nto it by the Timelord. The repo also includes a benchmarking tool to get a\r\nsense of the iterations per second of a given CPU called vdf_bench. Try\r\n`./vdf_bench square_asm 250000` for an ips estimate.\r\n\r\nTo build vdf_client set the environment variable BUILD_VDF_CLIENT to \"Y\".\r\n`export BUILD_VDF_CLIENT=Y`.\r\n\r\nSimilarly, to build vdf_bench set the environment variable BUILD_VDF_BENCH to\r\n\"Y\". `export BUILD_VDF_BENCH=Y`.\r\n\r\nThis is currently automated via pip in the\r\n[install-timelord.sh](https://github.com/Chinilla/chinilla-blockchain/blob/master/install-timelord.sh)\r\nscript in the\r\n[chinilla-blockchain repository](https://github.com/Chinilla/chinilla-blockchain)\r\nwhich depends on this repository.\r\n\r\nIf you're running a timelord, the following tests are available, depending of which type of timelord you are running:\r\n\r\n`./1weso_test`, in case you're running in sanitizer_mode.\r\n\r\n`./2weso_test`, in case you're running a timelord that extends the chain and you're running the slow algorithm.\r\n\r\n`./prover_test`, in case you're running a timelord that extends the chain and you're running the fast algorithm.\r\n\r\nThose tests will simulate the vdf_client and verify for correctness the produced proofs.\r\n\r\n## Contributing and workflow\r\n\r\nContributions are welcome and more details are available in chinilla-blockchain's\r\n[CONTRIBUTING.md](https://github.com/Chinilla/chinilla-blockchain/blob/master/CONTRIBUTING.md).\r\n\r\nThe master branch is the currently released latest version on PyPI. Note that\r\nat times chinillavdf will be ahead of the release version that chinilla-blockchain\r\nrequires in it's master/release version in preparation for a new chinilla-blockchain\r\nrelease. Please branch or fork master and then create a pull request to the\r\nmaster branch. Linear merging is enforced on master and merging requires a\r\ncompleted review. PRs will kick off a ci build and analysis of chinillavdf at\r\n[lgtm.com](https://lgtm.com/projects/g/Chinilla/chinillavdf/?mode=list). Please\r\nmake sure your build is passing and that it does not increase alerts at lgtm.\r\n\r\n## Background from prior VDF competitions\r\n\r\nCopyright 2018 [Ilya Gorodetskov](http://www.sundersoft.com/)\r\ngeneric@sundersoft.com\r\n\r\nLicensed under the Apache License, Version 2.0 (the \"License\");\r\nyou may not use this file except in compliance with the License.\r\nYou may obtain a copy of the License at\r\n\r\n[http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)\r\n\r\nUnless required by applicable law or agreed to in writing, software\r\ndistributed under the License is distributed on an \"AS IS\" BASIS,\r\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\r\nSee the License for the specific language governing permissions and\r\nlimitations under the License.\r\n\r\nOur VDF construction is described in classgroup.pdf. The implementation details about squaring and proving phrases are described below.\r\n\r\n## Main VDF Loop\r\n\r\nThe main VDF loop produces repeated squarings of the generator form (i.e. calculates y(n) = g^(2^n)) as fast as possible, until the program is interrupted. Sundersoft's entry from [Chinilla's 2nd VDF contest](https://github.com/Chinilla/vdfcontest2results) is used, together with the fast reducer used in Pulmark's entry. This approach is described below:\r\n\r\nThe NUDUPL algorithm is used. The equations are based on cryptoslava's equations from the 1st contest. They were modified slightly to increase the level of parallelism.\r\n\r\nThe GCD is a custom implementation with scalar integers. There are two base cases: one uses a lookup table with continued fractions and the other uses the euclidean algorithm with a division table. The division table algorithm is slightly faster even though it has about 2x as many iterations.\r\n\r\nAfter the base case, there is a 128 bit GCD that generates 64 bit cofactor matricies with Lehmer's algorithm. This is required to make the long integer multiplications efficient (Flint's implementation doesn't do this).\r\n\r\nThe GCD also implements Flint's partial xgcd function, but the output is slightly different. This implementation will always return an A value which is > the threshold and a B value which is <= the threshold. For a normal GCD, the threshold is 0, B is 0, and A is the GCD. Also the interfaces are slightly different.\r\n\r\nScalar integers are used for the GCD. I don't expect any speedup for the SIMD integers that were used in the last implementation since the GCD only uses 64x1024 multiplications, which are too small and have too high of a carry overhead for the SIMD version to be faster. In either case, most of the time seems to be spent in the base case so it shouldn't matter too much.\r\n\r\nIf SIMD integers are used with AVX-512, doubles have to be used because the multiplier sizes for doubles are significantly larger than for integers. There is an AVX-512 extension to support larger integer multiplications but no processor implements it yet. It should be possible to do a 50 bit multiply-add into a 100 bit accumulator with 4 fused multiply-adds if the accumulators have a special nonzero initial value and the inputs are scaled before the multiplication. This would make AVX-512 about 2.5x faster than scalar code for 1024x1024 integer multiplications (assuming the scalar code is unrolled and uses ADOX/ADCX/MULX properly, and the CPU can execute this at 1 cycle per iteration which it probably can't).\r\n\r\nThe GCD is parallelized by calculating the cofactors in a separate slave thread. The master thread will calculate the cofactor matricies and send them to the slave thread. Other calculations are also parallelized.\r\n\r\nThe VDF implementation from the first contest is still used as a fallback and is called about once every 5000 iterations. The GCD will encounter large quotients about this often and these are not implemented. This has a negligible effect on performance. Also, the NUDUPL case where A<=L is not implemented; it will fall back to the old implementation in this case (this never happens outside of the first 20 or so iterations).\r\n\r\nThere is also corruption detection by calculating C with a non-exact division and making sure the remainder is 0. This detected all injected random corruptions that I tested. No corruptions caused by bugs were observed during testing. This cannot correct for the sign of B being wrong.\r\n\r\n### GCD continued fraction lookup table\r\n\r\nThe is implemented in gcd_base_continued_fractions.h and asm_gcd_base_continued_fractions.h. The division table implementation is the same as the previous entry and was discussed there. Currently the division table is only used if AVX2 is enabled but it could be ported to SSE or scalar code easily. Both implementations have about the same performance.\r\n\r\nThe initial quotient sequence of gcd(a,b) is the same as the initial quotient sequence of gcd(a*2^n/b, 2^n) for any n. This is because the GCD quotients are the same as the continued fraction quotients of a/b, and the initial continued fraction quotients only depend on the initial bits of a/b. This makes it feasible to have a lookup table since it now only has one input.\r\n\r\na*2^n/b is calculated by doing a double precision division of a/b, and then truncating the lower bits. Some of the exponent bits are used in the table in addition to the fraction bits; this makes each slot of the table vary in size depending on what the exponent is. If the result is outside the table bounds, then the division result is floored to fall back to the euclidean algorithm (this is very rare).\r\n\r\nThe table is calculated by iterating all of the possible continued fractions that have a certain initial quotient sequence. Iteration ends when all of these fractions are either outside the table or they don't fully contain at least one slot of the table. Each slot that is fully contained by such a fraction is updated so that its quotient sequence equals the fraction's initial quotient sequence. Once this is complete, the cofactor matricies are calculated from the quotient sequences. Each cofactor matrix is 4 doubles.\r\n\r\nThe resulting code seems to have too many instructions so it doesn't perform very well. There might be some way to optimize it. It was written for SSE so that it would run on both processors.\r\n\r\nThis might work better on an FPGA possibly with low latency DRAM or SRAM (compared to the euclidean algorithm with a division table). There is no limit to the size of the table but doubling the latency would require the number of bits in the table to also be doubled to have the same performance.\r\n\r\n### Other GCD code\r\n\r\nThe gcd_128 function calculates a 128 bit GCD using Lehmer's algorithm. It is pretty straightforward and uses only unsigned arithmetic. Each cofactor matrix can only have two possible signs: [+ -; - +] or [- +; + -]. The gcd_unsigned function uses unsigned arithmetic and a jump table to apply the 64-bit cofactor matricies to the A and B values. It uses ADOX/ADCX/MULX if they are available and falls back to ADC/MUL otherwise. It will track the last known size of A to speed up the bit shifts required to get the top 128 bits of A.\r\n\r\nNo attempt was made to try to do the A and B long integer multiplications on a separate thread; I wouldn't expect any performance improvement from this.\r\n\r\n### Threads\r\n\r\nThere is a master thread and a slave thread. The slave thread only exists for each batch of 5000 or so squarings and is then destroyed and recreated for the next batch (this has no measurable overhead). If the original VDF is used as a fallback, the batch ends and the slave thread is destroyed.\r\n\r\nEach thread has a 64-bit counter that only it can write to. Also, during a squaring iteration, it will not overwrite any value that it has previously written and transmitted to the other thread. Each squaring is split up into phases. Each thread will update its counter at the start of the phase (the counter can only be increased, not decreased). It can then wait on the other thread's counter to reach a certain value as part of a spin loop. If the spin loop takes too long, an error condition is raised and the batch ends; this should prevent any deadlocks from happening.\r\n\r\nNo CPU fences or atomics are required since each value can only be written to by one thread and since x86 enforces acquire/release ordering on all memory operations. Compiler memory fences are still required to prevent the compiler from caching or reordering memory operations.\r\n\r\nThe GCD master thread will increment the counter when a new cofactor matrix has been outputted. The slave thread will spin on this counter and then apply the cofactor matrix to the U or V vector to get a new U or V vector.\r\n\r\nIt was attempted to use modular arithmetic to calculate k directly but this slowed down the program due to GMP's modulo or integer multiply operations not having enough performance. This also makes the integer multiplications bigger.\r\n\r\nThe speedup isn't very high since most of the time is spent in the GCD base case and these can't be parallelized.\r\n\r\n## Generating proofs\r\n\r\nThe nested wesolowski proofs (n-wesolowski) are used to check the correctness of a VDF result. (Simple) Wesolowski proofs are described in [A Survey of Two Verifiable Delay Functions](https://theory.stanford.edu/~dabo/papers/VDFsurvey.pdf). In order to prove h = g^(2^T), a n-wesolowski proof uses n intermediate simple wesolowski proofs. Given h, g, T, t1, t2, ..., tn, h1, h2, ..., hn, a correct n-wesolowski proof will verify the following:\r\n\r\n```cpp\r\nh1 = g^(2^t1)\r\nh2 = h1^(2^t2)\r\nh3 = h2^(2^t3)\r\n...\r\nhn = h(n-1)^(2^tn)\r\n```\r\n\r\nAdditionally, we must have:\r\n\r\n```cpp\r\nt1 + t2 + ... + tn = T\r\nhn = h\r\n```\r\n\r\nThe algorithm will generate at most 64-wesolowski proofs. Some intermediates wesolowski proofs are stored in parallel with the main VDF loop. The goal is to have a n-wesolowski proof almost ready as soon as the main VDF loop finishes computing h = g^(2^T), for a T that we're interested in. We'll call a segment a tuple (y, x, T) for which we're interested in a simple wesolowski proof that y = x^(2^T). We'll call a segment finished when we've finished computing its proof.\r\n\r\n### Segmenets stored\r\n\r\nWe'll store finished segments of length 2^x for x being multiples of 2 greater than or equal to 16. The current implementation limits the maximum segment size to 2^30, but this can be increased if needed. Let P = 16+2&ast;l. After each 2^P steps calculated by the main VDF loop, we'll store a segment proving that we've correctly done the 2^P steps. Formally, let x be the form after k&ast;2^P steps, y be the form after (k+1)&ast;2^P steps, for each k >= 0, for each P = 16+2&ast;l. Then, we'll store a segment (y, x, 2^P), together with a simple wesolowski proof.\r\n\r\n### Segment threads\r\n\r\nIn order to finish a segment of length T=2^P, the number of iterations to run for is T/k + l&ast;2^(k+1) and the intermediate storage required is T/(k&ast;l), for some parameters k and l, as described in the paper. The squarings used to finish a segment are about 2 times as slow as the ones used by the main VDF loop. Even so, finishing a segment is much faster than producing its y value by the main VDF loop. This allows, by the time the main VDF loop finishes 2^16 more steps, to perform work on finishing multiple segments.\r\n\r\nThe parameters used in finishing segments, for T=2^16, are k=10 and l=1. Above that, parameters are k=12 and l=2^(P-18). Note that, for P >= 18, the intermediate storage needed for a segment is constant (i.e. 2^18/12 forms stored in memory).\r\n\r\nProver class is responsible to finish a segment. It implements pause/resume functionality, so its work can be paused, and later resumed from the point it stopped. For each unfinished segment generated by the main VDF loop, a Prover instance is created, which will eventually finish the segment.\r\n\r\nSegment threads are responsible for deciding which Prover instance is currently running. In the current implementation, there are 3 segment threads (however the number is configurable), so at most 3 Prover instances will run at once, at different threads (other Provers will be paused). The segment threads will always pick the segments with the shortest length to run. In case of a tie, the segments received the earliest will have priority. Every time a new segment arrives, or a segment gets finished, some pausing/resuming of Provers is done, if needed. Pausing is done to have at most 3 Provers running at any time, whilst resuming is done if less than 3 Provers are working, but some Provers are paused.\r\n\r\nAll the segments of lengths 2^16, 2^18 and 2^20 will be finished relatively soon after the main VDF worker produced them, while the segments of length 2^22 and upwards will lag behind the main VDF worker a little. Eventually, all the higher size segments will be finished, the work on them being done repeatedly via pausing (when a smaller size segment arrives) and resuming (when all smaller size segments are finished).\r\n\r\nCurrently, 4 more segment threads are added after the main VDF loop finishes 500 million iterations (after about 1 hour of running). This is done to be completely sure even the very big sized segments will be finished. This optimisation is only allowed on machines supporting at least 16 concurrent threads.\r\n\r\n### Generating n-wesolowski proof\r\n\r\nLet T an iteration we are interested in. Firstly, the main VDF Loop will need to calculate at least T iterations. Then, in order to get fast a n-wesolowski proof, we'll concatenate finished segments. We want the proof to be as short as possible, so we'll always pick finished segments of the maximum length possible. If such segments aren't finished, we'll choose lower length segments. A segment of length 2^(16 + 2&ast;p) can always be replaced with 4 segments of length 2^(16 + 2&ast;p - 2). The proof will be created shortly after the main VDF loop produced the result, as the 2^16 length segments will always be up to date with the main VDF loop (and, at worst case, we can always concatenate 2^16 length segments, if bigger sizes are not finished yet). It's possible after the concatenation that we'll still need to prove up to 2^16 iterations (no segment is able to cover anything less than 2^16). This last work is done in parallel with the main VDF loop, as an optimisation.\r\n\r\nThe program limits the proof size to 64-wesolowski. If number of iterations is very large, it's possible the concatenation won't fit into this. In this case, the program will attempt again to prove every minute, until there are enough large segments to fit the 64-wesolowski limit. However, almost in all cases, the concatenation will fit the 64-wesolowski limit in the first try.\r\n\r\nSince the maximum segment size is 2^30 and we can use at most 64 segments in a concatenation, the program will prove at most 2^36 iterations. This can be increased if needed.\r\n\r\n### Intermediates storage\r\n\r\nIn order to finish segments, some intermediate values need to be stored for each segment. For each different possible segment length, we use a sliding window of length 20 to store those. Hence, for each segment length, we'll store only the intermediates values needed for the last 20 segments produced by the main VDF loop. Since finishing segments is faster than producing them by the main VDF loop, we assume the segment threads won't be behind by more than 20 segments from the main VDF loop, for each segment length. Thanks to the sliding window technique, the memory used will always be constant.\r\n\r\nGenerally, the main VDF loop performs all the storing, after computing a form we're interested in. However, since storing is very frequent and expensive (GMP operations), this will slow down the main VDF loop.\r\n\r\nFor the machines having at least 16 concurrent threads, an optimization is provided: the main VDF loop does only repeated squaring, without storing any form. After each 2^15 steps are performed, a new thread starts redoing the work for 2^15 more steps, this time storing the intermediate values as well. All the intermediates threads and the main VDF loop will work in parallel. The only purpose of the main VDF loop becomes now to produce the starting values for the intermediate threads, as fast as possible. The squarings used in the intermediates threads will be 2 times slower than the ones used in the main VDF loop. It's expected the intermediates will only lag behind the main VDF loop by 2^15 iterations, at any point: after 2^16 iterations are done by the main VDF loop, the first thread doing the first 2^15 intermediate values is already finished. Also, at that point, half of the work of the second thread doing the last 2^15 intermediates values should be already done.\r\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/Chinilla/chinillavdf",
+            "keywords": "",
+            "license": "Apache License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "chinillavdf",
+            "package_url": "https://pypi.org/project/chinillavdf/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/chinillavdf/",
+            "project_urls": {
+                "Homepage": "https://github.com/Chinilla/chinillavdf"
+            },
+            "release_url": "https://pypi.org/project/chinillavdf/1.0.8/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "Chinilla vdf verification (wraps C++)",
+            "version": "1.0.8",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15977275,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "aaea8e287f69f8fbf404af9219b22fe1",
+                    "sha256": "72a1fbbc05726833bbd885f21941e7d6665aa3b7c9fe351abca1bbdad96ae1e5"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp310-cp310-macosx_10_14_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "aaea8e287f69f8fbf404af9219b22fe1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 336807,
+                "upload_time": "2022-12-03T07:59:16",
+                "upload_time_iso_8601": "2022-12-03T07:59:16.683561Z",
+                "url": "https://files.pythonhosted.org/packages/b5/2e/a1c6495ca7a158f6964dc17ee0cdca181c7662ae33148b1e3d0c9c96bbfb/chinillavdf-1.0.8-cp310-cp310-macosx_10_14_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "165352f867b2bde8edbae481bdd6040d",
+                    "sha256": "d831de8359c064ae2ae8ab4ef96f4449c673a571d63d9d6a5e3a1499363a7b32"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "165352f867b2bde8edbae481bdd6040d",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 462157,
+                "upload_time": "2022-12-03T07:59:31",
+                "upload_time_iso_8601": "2022-12-03T07:59:31.938903Z",
+                "url": "https://files.pythonhosted.org/packages/74/6d/900fa3cc0d4d8709240eab476a7841d084d203fd989a4b0882335232da61/chinillavdf-1.0.8-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "541e33bdacf4bf97730ea177bede7cda",
+                    "sha256": "f75c318e2cedb0e157093d2c9e98fa59daff0461055f781bab53ca273cfa5de2"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp310-cp310-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "541e33bdacf4bf97730ea177bede7cda",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 1884199,
+                "upload_time": "2022-12-03T07:59:21",
+                "upload_time_iso_8601": "2022-12-03T07:59:21.033035Z",
+                "url": "https://files.pythonhosted.org/packages/05/19/78f97c5f3f69836cc9bde2500ed22eb4f7ba284b70cf2e4421bd473b7f1e/chinillavdf-1.0.8-cp310-cp310-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fd9d18c92e7a8f1dde28e38a9cf95a67",
+                    "sha256": "632e806a56086561ff9355c70c06f74c849faf62c9c597a71a7f3db77300899b"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp311-cp311-macosx_10_14_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "fd9d18c92e7a8f1dde28e38a9cf95a67",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 336806,
+                "upload_time": "2022-12-03T07:59:33",
+                "upload_time_iso_8601": "2022-12-03T07:59:33.066363Z",
+                "url": "https://files.pythonhosted.org/packages/90/94/0981205f80e44c632941e450c76fff09f8e91691634e212d6085dc05f592/chinillavdf-1.0.8-cp311-cp311-macosx_10_14_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "63dbca10819a86ff3118d253df57c77e",
+                    "sha256": "08bf800f0399bfd8eec72cb09268a8011442b77ba7948ebffdd90d945831d447"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "63dbca10819a86ff3118d253df57c77e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 474702,
+                "upload_time": "2022-12-03T07:59:24",
+                "upload_time_iso_8601": "2022-12-03T07:59:24.215616Z",
+                "url": "https://files.pythonhosted.org/packages/ad/49/c7baa87e5a28db799de53add051af69de0bad14f7eaad72eaabddf28789d/chinillavdf-1.0.8-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3b60c67db79ba0f7624b569408f4b7e8",
+                    "sha256": "2729e892562fd3f13c173c9d0fd1ca84ed1e3c2d24ad513e2f0707900b642f63"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp311-cp311-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "3b60c67db79ba0f7624b569408f4b7e8",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 1884261,
+                "upload_time": "2022-12-03T07:59:22",
+                "upload_time_iso_8601": "2022-12-03T07:59:22.961083Z",
+                "url": "https://files.pythonhosted.org/packages/5f/a6/63f04713f33706298e29230fa4ea1ad7c1e3649c85b44ee82838275fe2e2/chinillavdf-1.0.8-cp311-cp311-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0de1e49c53105c8eb329fdf2e4c7a14a",
+                    "sha256": "14b3321aedd4260b48089aec4d23f41775e1a044e4d88236a4f55b22cb3335bc"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp37-cp37m-macosx_10_14_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "0de1e49c53105c8eb329fdf2e4c7a14a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 336781,
+                "upload_time": "2022-12-03T07:59:13",
+                "upload_time_iso_8601": "2022-12-03T07:59:13.993970Z",
+                "url": "https://files.pythonhosted.org/packages/f1/80/5e1ce4baae4aadb856b2e7ae9fc56ce60273c56ad22e07cbecff9c968ada/chinillavdf-1.0.8-cp37-cp37m-macosx_10_14_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e71b32e919c75dd112a3f7ebe14ad2d7",
+                    "sha256": "9d9c99e8037ed383a511be2fe7e9d108b152601d6d3016f7b61363c994246d99"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp37-cp37m-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "e71b32e919c75dd112a3f7ebe14ad2d7",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 464137,
+                "upload_time": "2022-12-03T07:59:25",
+                "upload_time_iso_8601": "2022-12-03T07:59:25.753266Z",
+                "url": "https://files.pythonhosted.org/packages/91/bc/9c106e72c92960510497f163955b13732c5d67b6f9d2344a50ab212c6339/chinillavdf-1.0.8-cp37-cp37m-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e6b842a31f91c232475981353a3532ac",
+                    "sha256": "8c30df24aa16a17b97c108406706c4cb5a41d748ca0c8703fb2c6ef22b3333d6"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp37-cp37m-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "e6b842a31f91c232475981353a3532ac",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 1884444,
+                "upload_time": "2022-12-03T07:59:11",
+                "upload_time_iso_8601": "2022-12-03T07:59:11.927606Z",
+                "url": "https://files.pythonhosted.org/packages/cc/88/f82b9a62d2940163dd862b2a9f20e54f5e7cbb02c5bae1232b7a5ec56a56/chinillavdf-1.0.8-cp37-cp37m-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bf7888d7c0c47423fa3cd3177abfa093",
+                    "sha256": "711617db2ab7e26f6402d292c82e87cd91fc36ffeb1829ededa64cedaad4277c"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp38-cp38-macosx_10_14_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "bf7888d7c0c47423fa3cd3177abfa093",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 336905,
+                "upload_time": "2022-12-03T07:59:29",
+                "upload_time_iso_8601": "2022-12-03T07:59:29.128097Z",
+                "url": "https://files.pythonhosted.org/packages/18/1f/2c2211bc82ffcaa302aa35d771709c11c3cf04093a4537814822af907aa0/chinillavdf-1.0.8-cp38-cp38-macosx_10_14_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f3b17629758142655a65cc8df35b97b3",
+                    "sha256": "a1fb8008320c23f37bcd48bdd4f0fb9149357b574c125e468e67f876f31adeb3"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp38-cp38-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "f3b17629758142655a65cc8df35b97b3",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 462032,
+                "upload_time": "2022-12-03T07:59:27",
+                "upload_time_iso_8601": "2022-12-03T07:59:27.272978Z",
+                "url": "https://files.pythonhosted.org/packages/1b/76/37d5536c8abd83585814b50cd472ae854a105d7d58dc603a7325fcb86062/chinillavdf-1.0.8-cp38-cp38-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f79b028ebd9d8bb823a657813887b987",
+                    "sha256": "e963d119d371b1fc22c6772552a2b988c23437184bab74f59a1f38ae802909ef"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp38-cp38-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "f79b028ebd9d8bb823a657813887b987",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 1884260,
+                "upload_time": "2022-12-03T07:59:18",
+                "upload_time_iso_8601": "2022-12-03T07:59:18.019610Z",
+                "url": "https://files.pythonhosted.org/packages/09/5c/8d3159e9bc3de8bbcc2c77701a03c57cb78a22e1d6405412b66be84838fa/chinillavdf-1.0.8-cp38-cp38-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6a2b9ce3fe7cf357b6893ac7a9de97df",
+                    "sha256": "d0de79b2e30f31d75a06a8e5f2e1650eb1a1890c22616cf83f371c47e653ad8b"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp39-cp39-macosx_10_14_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "6a2b9ce3fe7cf357b6893ac7a9de97df",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 336916,
+                "upload_time": "2022-12-03T07:59:15",
+                "upload_time_iso_8601": "2022-12-03T07:59:15.213566Z",
+                "url": "https://files.pythonhosted.org/packages/5b/bc/89e50ea3dc54d4a40505d34b0457914ef1a0b7d629c27779108b1974c87e/chinillavdf-1.0.8-cp39-cp39-macosx_10_14_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "dee1385d3a697c10a8f4fd7cba86784c",
+                    "sha256": "b05c42d9981f1cee0d9ea158c20a332d8b9ef474e4c929b38927d6ded4004442"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp39-cp39-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "dee1385d3a697c10a8f4fd7cba86784c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 462284,
+                "upload_time": "2022-12-03T07:59:30",
+                "upload_time_iso_8601": "2022-12-03T07:59:30.677823Z",
+                "url": "https://files.pythonhosted.org/packages/b6/66/afc4be47d4cea9f531f94a31f4b230e15006a32a0eb8de82b570ea48a9e2/chinillavdf-1.0.8-cp39-cp39-manylinux_2_12_x86_64.manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e1c8dce162761bc9006ffe0d7d676fe1",
+                    "sha256": "e15107663c0231b16fca0aaa630e33772b3b9690bdedc66284ee9bb93ef7d26e"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8-cp39-cp39-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "e1c8dce162761bc9006ffe0d7d676fe1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 1884313,
+                "upload_time": "2022-12-03T07:59:19",
+                "upload_time_iso_8601": "2022-12-03T07:59:19.627286Z",
+                "url": "https://files.pythonhosted.org/packages/ed/50/0b42cbdef7024eaada76c614c20b07ff3f0b89101b9fd27cdc63e73c11cb/chinillavdf-1.0.8-cp39-cp39-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "485a26cb5695291306a81a2ca3ad5441",
+                    "sha256": "d3fda634d97aebc745658a76d43e182d2ffb1c91027fe720ab33bbe5839d3b1a"
+                },
+                "downloads": -1,
+                "filename": "chinillavdf-1.0.8.tar.gz",
+                "has_sig": false,
+                "md5_digest": "485a26cb5695291306a81a2ca3ad5441",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 639263,
+                "upload_time": "2022-12-03T07:59:34",
+                "upload_time_iso_8601": "2022-12-03T07:59:34.378401Z",
+                "url": "https://files.pythonhosted.org/packages/b2/56/91608f38caee92e80cf46422077c6a65226de707ac1d1953c4e175f0f024/chinillavdf-1.0.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

@@ -35,7 +35,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15975048,
+        "last_serial": 15977713,
         "urls": [
             {
                 "comment_text": "",
@@ -166,7 +166,6 @@
             "author_email": "alpetrov@ethz.ch",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# pyapriltags: Python bindings for the Apriltags library\n\nThese are Python bindings for the [Apriltags 3](https://github.com/AprilRobotics/apriltags) library developed by [AprilRobotics](https://april.eecs.umich.edu/).\nInspired by the [Apriltags2 bindings](https://github.com/swatbotics/apriltag) by [Matt Zucker](https://github.com/mzucker).\nForked from [dt-apriltags](https://github.com/duckietown/lib-dt-apriltags).\n\nThe original library is published with a [BSD 2-Clause license](https://github.com/AprilRobotics/apriltag/blob/master/LICENSE.md).\n\n## Installation\n\n### The easy way\nYou can install using `pip` (or `pip3` for Python 3):\n```\npip install pyapriltags\n```\n\nAnd if you want a particular release, add it like this:\n```\npip install pyapriltags@v3.3.0\n```\n\n### Build it yourself\n\nClone this repository and navigate in it. Then initialize the Apriltags submodule:\n```\n$ git submodule init\n$ git submodule update\n```\n\nBuild the Apriltags C library and embed the newly-built library into the pip wheel.\n```\n$ make build\n```\n\nThe new wheel will be available in the directory `dist/`.\nYou can now install the wheel\n```\npip install pyapriltags-VERSION-py3-none-ARCH.whl\n```\nNOTE: based on the current `VERSION` of this library and your OS, together with the architecture of your CPU `ARCH`, the filename above varies.\n\n\n## Release wheels\n\nAll the wheels built inside `dist/` can be released (pushed to Pypi.org) by running the command\n```\nmake upload\n```\n\n\n### Release all\n\nUse the following command to build and release wheels for Python 3 and CPU architecture `amd64`, `aarch64` and `arm32v7`.\n```\nmake release-all\n```\n\n\n## Usage\n\nSome examples of usage can be seen in the `test.py` file.\nThe `Detector` class is a wrapper around the Apriltags functionality. You can initialize it as following:\n\n```\nat_detector = Detector(searchpath=['apriltags'],\n                       families='tag36h11',\n                       nthreads=1,\n                       quad_decimate=1.0,\n                       quad_sigma=0.0,\n                       refine_edges=1,\n                       decode_sharpening=0.25,\n                       debug=0)\n```\n\nThe options are:\n\n| **Option**        \t| **Default**   \t| **Explanation**                                                                                                                                                                                                                                                                                                                  \t|\n|-------------------\t|---------------\t|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\t|\n| families          \t| 'tag36h11'    \t| Tag families, separated with a space                                                                                                                                                                                                                                                                                             \t|\n| nthreads          \t| 1             \t| Number of threads                                                                                                                                                                                                                                                                                                                \t|\n| quad_decimate     \t| 2.0           \t| Detection of quads can be done on a lower-resolution image, improving speed at a cost of pose accuracy and a slight decrease in detection rate. Decoding the binary payload is still done at full resolution. Set this to 1.0 to use the full resolution.                                                                        \t|\n| quad_sigma        \t| 0.0           \t| What Gaussian blur should be applied to the segmented image. Parameter is the standard deviation in pixels. Very noisy images benefit from non-zero values (e.g. 0.8)                                                                                                                                                            \t|\n| refine_edges      \t| 1             \t| When non-zero, the edges of the each quad are adjusted to \"snap to\" strong gradients nearby. This is useful when decimation is employed, as it can increase the quality of the initial quad estimate substantially. Generally recommended to be on (1). Very computationally inexpensive. Option is ignored if quad_decimate = 1 \t|\n| decode_sharpening \t| 0.25          \t| How much sharpening should be done to decoded images? This can help decode small tags but may or may not help in odd lighting conditions or low light conditions                                                                                                                                                                 \t|\n| searchpath        \t| ['apriltags'] \t| Where to look for the Apriltag 3 library, must be a list                                                                                                                                                                                                                                                                         \t|\n| debug             \t| 0             \t| If 1, will save debug images. Runs very slow\n\nDetection of tags in images is done by running the `detect` method of the detector:\n\n```\ntags = at_detector.detect(img, estimate_tag_pose=False, camera_params=None, tag_size=None)\n```\n\nIf you also want to extract the tag pose, `estimate_tag_pose` should be set to `True` and `camera_params` (`[fx, fy, cx, cy]`) and `tag_size` (in meters) should be supplied. The `detect` method returns a list of `Detection` objects each having the following attributes (note that the ones with an asterisks are computed only if `estimate_tag_pose=True`):\n\n| **Attribute**   \t| **Explanation**                                                                                                                                                                                                                                                                                                                                                                                            \t|\n|-----------------\t|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\t|\n| tag_family      \t| The family of the tag.                                                                                                                                                                                                                                                                                                                                                                                     \t|\n| tag_id          \t| The decoded ID of the tag.                                                                                                                                                                                                                                                                                                                                                                                 \t|\n| hamming         \t| How many error bits were corrected? Note: accepting large numbers of corrected errors leads to greatly increased false positive rates. NOTE: As of this implementation, the detector cannot detect tags with a Hamming distance greater than 2.                                                                                                                                                            \t|\n| decision_margin \t| A measure of the quality of the binary decoding process: the average difference between the intensity of a data bit versus the decision threshold. Higher numbers roughly indicate better decodes. This is a reasonable measure of detection accuracy only for very small tags-- not effective for larger tags (where we could have sampled anywhere within a bit cell and still gotten a good detection.) \t|\n| homography      \t| The 3x3 homography matrix describing the projection from an \"ideal\" tag (with corners at (-1,1), (1,1), (1,-1), and (-1, -1)) to pixels in the image.                                                                                                             \t|\n| center          \t| The center of the detection in image pixel coordinates.                                                                                                                                                                                                                                                                                                                                                    \t|\n| corners         \t| The corners of the tag in image pixel coordinates. These always wrap counter-clock wise around the tag.                                                                                                                                                                                                                                                                                                    \t|\n| pose_R*         \t| Rotation matrix of the pose estimate.                                                                                                                                                                                                                                                                                                                                                                      \t|\n| pose_t*         \t| Translation of the pose estimate.                                                                                                                                                                                                                                                                                                                                                                          \t|\n| pose_err*       \t| Object-space error of the estimation.                                                                                                                                                                                                                                                                                                                                                                      \t|\n\n## Custom layouts\n\nIf you want to use a custom layout, you need to create the C source and header files for it and then build the library again. Then use the new `libapriltag.so` library. You can find more information on the original [Apriltags repository](https://github.com/AprilRobotics/apriltags).\n\n\n## Developer notes\n\nThe wheel is built inside a Docker container. The Dockerfile in the root of this repository is a template for the build environment. The build environment is based on `ubuntu:latest` and python3 is installed on the fly.\nThe `make build` command will create the build environment if it does not exist before building the wheel.\n\nOnce the build environment (Docker image) is ready, a Docker container is launched with the following configuration:\n- the root of this repository mounted to `/apriltag`;\n- the directory `dist/` is mounted as destination directory under `/out`;\n\nThe building script from `assets/build.sh` will be executed inside the container. The build steps are:\n- configure a cmake build in `/builds/<arch>` from the apriltag library from submodule `apriltags/`\n- run cmake build\n- copy so/.dylib/.dll library file to `/dist/<arch>` (inside the container)\n- repeat above steps for: `win64`, `macos arm64`, `macos x86_64`, `linux x86_64`, `linux aarch64`, `linux armv7l`\n- build python wheel (the .so library is embedded as `package_data`)\n- copy wheel file to `/out` (will pop up in `dist/` outside the container)\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -197,7 +196,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15975048,
+        "last_serial": 15977713,
         "urls": [
             {
                 "comment_text": "",
@@ -316,6 +315,168 @@
                 "upload_time": "2022-12-02T23:09:54",
                 "upload_time_iso_8601": "2022-12-02T23:09:54.923723Z",
                 "url": "https://files.pythonhosted.org/packages/f6/83/633e319f9e04c5418a0e2973aaefc6f33980f26d2c869900149fea880ee7/pyapriltags-3.3.0.post1-py3-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "3.3.0.post2": {
+        "info": {
+            "author": "Aleksandar Petrov",
+            "author_email": "alpetrov@ethz.ch",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# pyapriltags: Python bindings for the Apriltags library\n\nThese are Python bindings for the [Apriltags 3](https://github.com/AprilRobotics/apriltags) library developed by [AprilRobotics](https://april.eecs.umich.edu/).\nInspired by the [Apriltags2 bindings](https://github.com/swatbotics/apriltag) by [Matt Zucker](https://github.com/mzucker).\nForked from [dt-apriltags](https://github.com/duckietown/lib-dt-apriltags).\n\nThe original library is published with a [BSD 2-Clause license](https://github.com/AprilRobotics/apriltag/blob/master/LICENSE.md).\n\n## Installation\n\n### The easy way\nYou can install using `pip` (or `pip3` for Python 3):\n```\npip install pyapriltags\n```\n\nAnd if you want a particular release, add it like this:\n```\npip install pyapriltags@v3.3.0\n```\n\n### Build it yourself\n\nClone this repository and navigate in it. Then initialize the Apriltags submodule:\n```\n$ git submodule init\n$ git submodule update\n```\n\nBuild the Apriltags C library and embed the newly-built library into the pip wheel.\n```\n$ make build\n```\n\nThe new wheel will be available in the directory `dist/`.\nYou can now install the wheel\n```\npip install pyapriltags-VERSION-py3-none-ARCH.whl\n```\nNOTE: based on the current `VERSION` of this library and your OS, together with the architecture of your CPU `ARCH`, the filename above varies.\n\n\n## Release wheels\n\nAll the wheels built inside `dist/` can be released (pushed to Pypi.org) by running the command\n```\nmake upload\n```\n\n\n### Release all\n\nUse the following command to build and release wheels for Python 3 and CPU architecture `amd64`, `aarch64` and `arm32v7`.\n```\nmake release-all\n```\n\n\n## Usage\n\nSome examples of usage can be seen in the `test.py` file.\nThe `Detector` class is a wrapper around the Apriltags functionality. You can initialize it as following:\n\n```\nat_detector = Detector(searchpath=['apriltags'],\n                       families='tag36h11',\n                       nthreads=1,\n                       quad_decimate=1.0,\n                       quad_sigma=0.0,\n                       refine_edges=1,\n                       decode_sharpening=0.25,\n                       debug=0)\n```\n\nThe options are:\n\n| **Option**        \t| **Default**   \t| **Explanation**                                                                                                                                                                                                                                                                                                                  \t|\n|-------------------\t|---------------\t|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\t|\n| families          \t| 'tag36h11'    \t| Tag families, separated with a space                                                                                                                                                                                                                                                                                             \t|\n| nthreads          \t| 1             \t| Number of threads                                                                                                                                                                                                                                                                                                                \t|\n| quad_decimate     \t| 2.0           \t| Detection of quads can be done on a lower-resolution image, improving speed at a cost of pose accuracy and a slight decrease in detection rate. Decoding the binary payload is still done at full resolution. Set this to 1.0 to use the full resolution.                                                                        \t|\n| quad_sigma        \t| 0.0           \t| What Gaussian blur should be applied to the segmented image. Parameter is the standard deviation in pixels. Very noisy images benefit from non-zero values (e.g. 0.8)                                                                                                                                                            \t|\n| refine_edges      \t| 1             \t| When non-zero, the edges of the each quad are adjusted to \"snap to\" strong gradients nearby. This is useful when decimation is employed, as it can increase the quality of the initial quad estimate substantially. Generally recommended to be on (1). Very computationally inexpensive. Option is ignored if quad_decimate = 1 \t|\n| decode_sharpening \t| 0.25          \t| How much sharpening should be done to decoded images? This can help decode small tags but may or may not help in odd lighting conditions or low light conditions                                                                                                                                                                 \t|\n| searchpath        \t| ['apriltags'] \t| Where to look for the Apriltag 3 library, must be a list                                                                                                                                                                                                                                                                         \t|\n| debug             \t| 0             \t| If 1, will save debug images. Runs very slow\n\nDetection of tags in images is done by running the `detect` method of the detector:\n\n```\ntags = at_detector.detect(img, estimate_tag_pose=False, camera_params=None, tag_size=None)\n```\n\nIf you also want to extract the tag pose, `estimate_tag_pose` should be set to `True` and `camera_params` (`[fx, fy, cx, cy]`) and `tag_size` (in meters) should be supplied. The `detect` method returns a list of `Detection` objects each having the following attributes (note that the ones with an asterisks are computed only if `estimate_tag_pose=True`):\n\n| **Attribute**   \t| **Explanation**                                                                                                                                                                                                                                                                                                                                                                                            \t|\n|-----------------\t|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------\t|\n| tag_family      \t| The family of the tag.                                                                                                                                                                                                                                                                                                                                                                                     \t|\n| tag_id          \t| The decoded ID of the tag.                                                                                                                                                                                                                                                                                                                                                                                 \t|\n| hamming         \t| How many error bits were corrected? Note: accepting large numbers of corrected errors leads to greatly increased false positive rates. NOTE: As of this implementation, the detector cannot detect tags with a Hamming distance greater than 2.                                                                                                                                                            \t|\n| decision_margin \t| A measure of the quality of the binary decoding process: the average difference between the intensity of a data bit versus the decision threshold. Higher numbers roughly indicate better decodes. This is a reasonable measure of detection accuracy only for very small tags-- not effective for larger tags (where we could have sampled anywhere within a bit cell and still gotten a good detection.) \t|\n| homography      \t| The 3x3 homography matrix describing the projection from an \"ideal\" tag (with corners at (-1,1), (1,1), (1,-1), and (-1, -1)) to pixels in the image.                                                                                                             \t|\n| center          \t| The center of the detection in image pixel coordinates.                                                                                                                                                                                                                                                                                                                                                    \t|\n| corners         \t| The corners of the tag in image pixel coordinates. These always wrap counter-clock wise around the tag.                                                                                                                                                                                                                                                                                                    \t|\n| pose_R*         \t| Rotation matrix of the pose estimate.                                                                                                                                                                                                                                                                                                                                                                      \t|\n| pose_t*         \t| Translation of the pose estimate.                                                                                                                                                                                                                                                                                                                                                                          \t|\n| pose_err*       \t| Object-space error of the estimation.                                                                                                                                                                                                                                                                                                                                                                      \t|\n\n## Custom layouts\n\nIf you want to use a custom layout, you need to create the C source and header files for it and then build the library again. Then use the new `libapriltag.so` library. You can find more information on the original [Apriltags repository](https://github.com/AprilRobotics/apriltags).\n\n\n## Developer notes\n\nThe wheel is built inside a Docker container. The Dockerfile in the root of this repository is a template for the build environment. The build environment is based on `ubuntu:latest` and python3 is installed on the fly.\nThe `make build` command will create the build environment if it does not exist before building the wheel.\n\nOnce the build environment (Docker image) is ready, a Docker container is launched with the following configuration:\n- the root of this repository mounted to `/apriltag`;\n- the directory `dist/` is mounted as destination directory under `/out`;\n\nThe building script from `assets/build.sh` will be executed inside the container. The build steps are:\n- configure a cmake build in `/builds/<arch>` from the apriltag library from submodule `apriltags/`\n- run cmake build\n- copy so/.dylib/.dll library file to `/dist/<arch>` (inside the container)\n- repeat above steps for: `win64`, `macos arm64`, `macos x86_64`, `linux x86_64`, `linux aarch64`, `linux armv7l`\n- build python wheel (the .so library is embedded as `package_data`)\n- copy wheel file to `/out` (will pop up in `dist/` outside the container)\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/WillB97/pyapriltags",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "Will Barber",
+            "maintainer_email": "",
+            "name": "pyapriltags",
+            "package_url": "https://pypi.org/project/pyapriltags/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pyapriltags/",
+            "project_urls": {
+                "Homepage": "https://github.com/WillB97/pyapriltags"
+            },
+            "release_url": "https://pypi.org/project/pyapriltags/3.3.0.post2/",
+            "requires_dist": [
+                "numpy"
+            ],
+            "requires_python": "",
+            "summary": "Python bindings for the Apriltags library",
+            "version": "3.3.0.post2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15977713,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5a04cfcc9409f7a6fe5139793b9dd699",
+                    "sha256": "a2efd3c144b32f2add5fb2d45a0f3e8db4b8dcfdd8f11a6639a68604d603c62c"
+                },
+                "downloads": -1,
+                "filename": "pyapriltags-3.3.0.post2-py3-none-macosx_11_0_arm64.whl",
+                "has_sig": false,
+                "md5_digest": "5a04cfcc9409f7a6fe5139793b9dd699",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 1178066,
+                "upload_time": "2022-12-03T09:39:23",
+                "upload_time_iso_8601": "2022-12-03T09:39:23.122479Z",
+                "url": "https://files.pythonhosted.org/packages/3f/67/9c5c5c79036aa92253b5af756a026e7b28f790ed4b6b866aefb733c049a8/pyapriltags-3.3.0.post2-py3-none-macosx_11_0_arm64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d3c9ecbc568eabe02a208d00d7626852",
+                    "sha256": "284abde2e43c747d03f676a1337aad4f1b06e9774a6f8a6d6208dba0f599ce6a"
+                },
+                "downloads": -1,
+                "filename": "pyapriltags-3.3.0.post2-py3-none-macosx_11_0_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d3c9ecbc568eabe02a208d00d7626852",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 1187009,
+                "upload_time": "2022-12-03T09:39:25",
+                "upload_time_iso_8601": "2022-12-03T09:39:25.796060Z",
+                "url": "https://files.pythonhosted.org/packages/ac/b1/420598e9482a26851af3f5259852cf114c73b58fea4a10ae94ee74975674/pyapriltags-3.3.0.post2-py3-none-macosx_11_0_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "38f3f54ae731122e274717a823068a87",
+                    "sha256": "64ec89417fca2b4c67e8edd01a3b2507e83e48069822f3411f55e671d7bc8168"
+                },
+                "downloads": -1,
+                "filename": "pyapriltags-3.3.0.post2-py3-none-manylinux2010_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "38f3f54ae731122e274717a823068a87",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 1193557,
+                "upload_time": "2022-12-03T09:39:28",
+                "upload_time_iso_8601": "2022-12-03T09:39:28.472666Z",
+                "url": "https://files.pythonhosted.org/packages/68/26/d52ccfd67a4370dcffcefb017565120e82e75d2ec194bd091fb1b4ef72a7/pyapriltags-3.3.0.post2-py3-none-manylinux2010_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "90623c5db5c810f136c3d0e397b01adb",
+                    "sha256": "8ae61edead3f14edb5658b061a510c48986a0c86994a9859d168a8005f0d6246"
+                },
+                "downloads": -1,
+                "filename": "pyapriltags-3.3.0.post2-py3-none-manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "90623c5db5c810f136c3d0e397b01adb",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 1185865,
+                "upload_time": "2022-12-03T09:39:30",
+                "upload_time_iso_8601": "2022-12-03T09:39:30.654584Z",
+                "url": "https://files.pythonhosted.org/packages/ee/2b/9386f775396c370f7881ba2c91769d845160e66f5a1720170b39da546227/pyapriltags-3.3.0.post2-py3-none-manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6e196169935e6884fd65dca64badabca",
+                    "sha256": "74d4341aec91d47660761c9dc0c4dc4a36b1297ebd8a6229e953b088ae712077"
+                },
+                "downloads": -1,
+                "filename": "pyapriltags-3.3.0.post2-py3-none-manylinux2014_armv7l.whl",
+                "has_sig": false,
+                "md5_digest": "6e196169935e6884fd65dca64badabca",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 1164837,
+                "upload_time": "2022-12-03T09:39:32",
+                "upload_time_iso_8601": "2022-12-03T09:39:32.661473Z",
+                "url": "https://files.pythonhosted.org/packages/ba/77/6de6ba4a844403a2ec52f91d61a60144646ebdeec2e6cd7bbd04e48054e3/pyapriltags-3.3.0.post2-py3-none-manylinux2014_armv7l.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cabca8387d9af7f98c78610f546f4dd1",
+                    "sha256": "925e240e7204229a043e3b1512821bde698a0ae0412bc40b9cee08191582b7cd"
+                },
+                "downloads": -1,
+                "filename": "pyapriltags-3.3.0.post2-py3-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "cabca8387d9af7f98c78610f546f4dd1",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 1377384,
+                "upload_time": "2022-12-03T09:39:34",
+                "upload_time_iso_8601": "2022-12-03T09:39:34.743802Z",
+                "url": "https://files.pythonhosted.org/packages/7e/64/ddde55d3c1e981f536db145a2797abf15537bb8e7490ecbfef86dc8fc2ef/pyapriltags-3.3.0.post2-py3-none-win_amd64.whl",
                 "yanked": false,
                 "yanked_reason": null
             }
