@@ -68,7 +68,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15906835,
+        "last_serial": 15974978,
         "urls": [
             {
                 "comment_text": "",
@@ -182,7 +182,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15906835,
+        "last_serial": 15974978,
         "urls": [
             {
                 "comment_text": "",
@@ -296,7 +296,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15906835,
+        "last_serial": 15974978,
         "urls": [
             {
                 "comment_text": "",
@@ -410,7 +410,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15906835,
+        "last_serial": 15974978,
         "urls": [
             {
                 "comment_text": "",
@@ -525,7 +525,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15906835,
+        "last_serial": 15974978,
         "urls": [
             {
                 "comment_text": "",
@@ -590,7 +590,6 @@
                 "Topic :: Software Development :: Libraries",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "<p align=\"center\">\n<img src=\"https://user-images.githubusercontent.com/34196005/180642397-1f56d9c7-dee2-48d4-acbf-c3bc62f36150.png\" width=\"500\">\n</p>\n\n<p align=\"center\">\n    Easiest way of fine-tuning HuggingFace video classification models.\n</p>\n\n<div align=\"center\">\n    <a href=\"https://badge.fury.io/py/video-transformers\"><img src=\"https://badge.fury.io/py/video-transformers.svg\" alt=\"pypi version\"></a>\n    <a href=\"https://pepy.tech/project/video-transformers\"><img src=\"https://pepy.tech/badge/video-transformers\" alt=\"total downloads\"></a>\n    <a href=\"https://twitter.com/fcakyon\"><img src=\"https://img.shields.io/twitter/follow/fcakyon?color=blue&logo=twitter&style=flat\" alt=\"fcakyon twitter\"></a>\n</div>\n\n## \ud83d\ude80 Features\n\n`video-transformers` uses:\n\n- \ud83e\udd17 [accelerate](https://github.com/huggingface/accelerate) for distributed training,\n\n- \ud83e\udd17 [evaluate](https://github.com/huggingface/evaluate) for evaluation,\n\n- [pytorchvideo](https://github.com/facebookresearch/pytorchvideo) for dataloading\n\nand supports:\n\n- creating and fine-tunining video models using [transformers](https://github.com/huggingface/transformers) and [timm](https://github.com/rwightman/pytorch-image-models) vision models\n\n- experiment tracking with [neptune](https://neptune.ai/), [tensorboard](https://www.tensorflow.org/tensorboard) and other trackers\n\n- exporting fine-tuned models in [ONNX](https://onnx.ai/) format\n\n- pushing fine-tuned models into [HuggingFace Hub](https://huggingface.co/models?pipeline_tag=image-classification&sort=downloads)\n\n- loading pretrained models from [HuggingFace Hub](https://huggingface.co/models?pipeline_tag=image-classification&sort=downloads)\n\n- Automated [Gradio app](https://gradio.app/), and [space](https://huggingface.co/spaces) creation \n\n## \ud83c\udfc1 Installation\n\n- Install `Pytorch`:\n\n```bash\nconda install pytorch=1.11.0 torchvision=0.12.0 cudatoolkit=11.3 -c pytorch\n```\n\n- Install pytorchvideo from main branch:\n\n```bash\npip install git+https://github.com/facebookresearch/pytorchvideo.git\n```\n\n- Install `video-transformers`:\n\n```bash\npip install video-transformers\n```\n\n## \ud83d\udd25 Usage\n\n- Prepare video classification dataset in such folder structure (.avi and .mp4 extensions are supported):\n\n```bash\ntrain_root\n    label_1\n        video_1\n        video_2\n        ...\n    label_2\n        video_1\n        video_2\n        ...\n    ...\nval_root\n    label_1\n        video_1\n        video_2\n        ...\n    label_2\n        video_1\n        video_2\n        ...\n    ...\n```\n\n- Fine-tune CVT (from HuggingFace) + Transformer based video classifier:\n\n```python\nfrom torch.optim import AdamW\nfrom video_transformers import TimeDistributed, VideoModel\nfrom video_transformers.backbones.transformers import TransformersBackbone\nfrom video_transformers.data import VideoDataModule\nfrom video_transformers.heads import LinearHead\nfrom video_transformers.necks import TransformerNeck\nfrom video_transformers.trainer import trainer_factory\nfrom video_transformers.utils.file import download_ucf6\n\nbackbone = TimeDistributed(TransformersBackbone(\"microsoft/cvt-13\", num_unfrozen_stages=0))\nneck = TransformerNeck(\n    num_features=backbone.num_features,\n    num_timesteps=8,\n    transformer_enc_num_heads=4,\n    transformer_enc_num_layers=2,\n    dropout_p=0.1,\n)\n\ndownload_ucf6(\"./\")\ndatamodule = VideoDataModule(\n    train_root=\"ucf6/train\",\n    val_root=\"ucf6/val\",\n    batch_size=4,\n    num_workers=4,\n    num_timesteps=8,\n    preprocess_input_size=224,\n    preprocess_clip_duration=1,\n    preprocess_means=backbone.mean,\n    preprocess_stds=backbone.std,\n    preprocess_min_short_side=256,\n    preprocess_max_short_side=320,\n    preprocess_horizontal_flip_p=0.5,\n)\n\nhead = LinearHead(hidden_size=neck.num_features, num_classes=datamodule.num_classes)\nmodel = VideoModel(backbone, head, neck)\n\noptimizer = AdamW(model.parameters(), lr=1e-4)\n\nTrainer = trainer_factory(\"single_label_classification\")\ntrainer = Trainer(\n    datamodule,\n    model,\n    optimizer=optimizer,\n    max_epochs=8\n)\n\ntrainer.fit()\n\n```\n\n- Fine-tune MobileViT (from Timm) + GRU based video classifier:\n\n```python\nfrom video_transformers import TimeDistributed, VideoModel\nfrom video_transformers.backbones.timm import TimmBackbone\nfrom video_transformers.data import VideoDataModule\nfrom video_transformers.heads import LinearHead\nfrom video_transformers.necks import GRUNeck\nfrom video_transformers.trainer import trainer_factory\nfrom video_transformers.utils.file import download_ucf6\n\nbackbone = TimeDistributed(TimmBackbone(\"mobilevitv2_100\", num_unfrozen_stages=0))\nneck = GRUNeck(num_features=backbone.num_features, hidden_size=128, num_layers=2, return_last=True)\n\ndownload_ucf6(\"./\")\ndatamodule = VideoDataModule(\n    train_root=\"ucf6/train\",\n    val_root=\"ucf6/val\",\n    batch_size=4,\n    num_workers=4,\n    num_timesteps=8,\n    preprocess_input_size=224,\n    preprocess_clip_duration=1,\n    preprocess_means=backbone.mean,\n    preprocess_stds=backbone.std,\n    preprocess_min_short_side=256,\n    preprocess_max_short_side=320,\n    preprocess_horizontal_flip_p=0.5,\n)\n\nhead = LinearHead(hidden_size=neck.hidden_size, num_classes=datamodule.num_classes)\nmodel = VideoModel(backbone, head, neck)\n\nTrainer = trainer_factory(\"single_label_classification\")\ntrainer = Trainer(\n    datamodule,\n    model,\n    max_epochs=8\n)\n\ntrainer.fit()\n\n```\n\n- Perform prediction for a single file or folder of videos:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(model_name_or_path)\n\nmodel.predict(video_path=\"video.mp4\")\n>> [{'filename': \"video.mp4\", 'predictions': {'class1': 0.98, 'class2': 0.02}}]\n```\n\n\n## \ud83e\udd17 Full HuggingFace Integration\n\n- Push your fine-tuned model to the hub:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\n\nmodel.push_to_hub('model_name')\n```\n\n- Load any pretrained video-transformer model from the hub:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\n\nmodel.from_pretrained('account_name/model_name')\n```\n\n- Push your model to HuggingFace hub with auto-generated model-cards:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\nmodel.push_to_hub('account_name/app_name')\n```\n\n- (Incoming feature) Push your model as a Gradio app to HuggingFace Space:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\nmodel.push_to_space('account_name/app_name')\n```\n\n## \ud83d\udcc8 Multiple tracker support\n\n- Tensorboard tracker is enabled by default.\n\n- To add Neptune/Layer ... tracking:\n\n```python\nfrom video_transformers.tracking import NeptuneTracker\nfrom accelerate.tracking import WandBTracker\n\ntrackers = [\n    NeptuneTracker(EXPERIMENT_NAME, api_token=NEPTUNE_API_TOKEN, project=NEPTUNE_PROJECT),\n    WandBTracker(project_name=WANDB_PROJECT)\n]\n\ntrainer = Trainer(\n    datamodule,\n    model,\n    trackers=trackers\n)\n\n```\n\n## \ud83d\udd78\ufe0f ONNX support\n\n- Convert your trained models into ONNX format for deployment:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\nmodel.to_onnx(quantize=False, opset_version=12, export_dir=\"runs/exports/\", export_filename=\"model.onnx\")\n```\n\n## \ud83e\udd17 Gradio support\n\n- Convert your trained models into Gradio App for deployment:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\nmodel.to_gradio(examples=['video.mp4'], export_dir=\"runs/exports/\", export_filename=\"app.py\")\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -640,7 +639,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15906835,
+        "last_serial": 15974978,
         "urls": [
             {
                 "comment_text": "",
@@ -679,6 +678,121 @@
                 "upload_time": "2022-11-27T20:20:13",
                 "upload_time_iso_8601": "2022-11-27T20:20:13.402232Z",
                 "url": "https://files.pythonhosted.org/packages/7f/34/9f9807b49ccd5329e9304538fdf1f306e3470f675acf7126de704f789c71/video-transformers-0.0.7.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.8": {
+        "info": {
+            "author": "fcakyon",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Science/Research",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Education",
+                "Topic :: Scientific/Engineering",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence",
+                "Topic :: Software Development :: Libraries",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "<p align=\"center\">\n<img src=\"https://user-images.githubusercontent.com/34196005/180642397-1f56d9c7-dee2-48d4-acbf-c3bc62f36150.png\" width=\"500\">\n</p>\n\n<p align=\"center\">\n    Easiest way of fine-tuning HuggingFace video classification models.\n</p>\n\n<div align=\"center\">\n    <a href=\"https://badge.fury.io/py/video-transformers\"><img src=\"https://badge.fury.io/py/video-transformers.svg\" alt=\"pypi version\"></a>\n    <a href=\"https://pepy.tech/project/video-transformers\"><img src=\"https://pepy.tech/badge/video-transformers\" alt=\"total downloads\"></a>\n    <a href=\"https://twitter.com/fcakyon\"><img src=\"https://img.shields.io/twitter/follow/fcakyon?color=blue&logo=twitter&style=flat\" alt=\"fcakyon twitter\"></a>\n</div>\n\n## \ud83d\ude80 Features\n\n`video-transformers` uses:\n\n- \ud83e\udd17 [accelerate](https://github.com/huggingface/accelerate) for distributed training,\n\n- \ud83e\udd17 [evaluate](https://github.com/huggingface/evaluate) for evaluation,\n\n- [pytorchvideo](https://github.com/facebookresearch/pytorchvideo) for dataloading\n\nand supports:\n\n- creating and fine-tunining video models using [transformers](https://github.com/huggingface/transformers) and [timm](https://github.com/rwightman/pytorch-image-models) vision models\n\n- experiment tracking with [neptune](https://neptune.ai/), [tensorboard](https://www.tensorflow.org/tensorboard) and other trackers\n\n- exporting fine-tuned models in [ONNX](https://onnx.ai/) format\n\n- pushing fine-tuned models into [HuggingFace Hub](https://huggingface.co/models?pipeline_tag=image-classification&sort=downloads)\n\n- loading pretrained models from [HuggingFace Hub](https://huggingface.co/models?pipeline_tag=image-classification&sort=downloads)\n\n- Automated [Gradio app](https://gradio.app/), and [space](https://huggingface.co/spaces) creation \n\n## \ud83c\udfc1 Installation\n\n- Install `Pytorch`:\n\n```bash\nconda install pytorch=1.11.0 torchvision=0.12.0 cudatoolkit=11.3 -c pytorch\n```\n\n- Install pytorchvideo and transformers from main branch:\n\n```bash\npip install git+https://github.com/facebookresearch/pytorchvideo.git\npip install git+https://github.com/huggingface/transformers.git\n```\n\n- Install `video-transformers`:\n\n```bash\npip install video-transformers\n```\n\n## \ud83d\udd25 Usage\n\n- Prepare video classification dataset in such folder structure (.avi and .mp4 extensions are supported):\n\n```bash\ntrain_root\n    label_1\n        video_1\n        video_2\n        ...\n    label_2\n        video_1\n        video_2\n        ...\n    ...\nval_root\n    label_1\n        video_1\n        video_2\n        ...\n    label_2\n        video_1\n        video_2\n        ...\n    ...\n```\n\n- Fine-tune Timesformer (from HuggingFace) video classifier:\n\n```python\nfrom torch.optim import AdamW\nfrom video_transformers import VideoModel\nfrom video_transformers.backbones.transformers import TransformersBackbone\nfrom video_transformers.data import VideoDataModule\nfrom video_transformers.heads import LinearHead\nfrom video_transformers.trainer import trainer_factory\nfrom video_transformers.utils.file import download_ucf6\n\nbackbone = TransformersBackbone(\"facebook/timesformer-base-finetuned-k400\", num_unfrozen_stages=1)\n\ndownload_ucf6(\"./\")\ndatamodule = VideoDataModule(\n    train_root=\"ucf6/train\",\n    val_root=\"ucf6/val\",\n    batch_size=4,\n    num_workers=4,\n    num_timesteps=8,\n    preprocess_input_size=224,\n    preprocess_clip_duration=1,\n    preprocess_means=backbone.mean,\n    preprocess_stds=backbone.std,\n    preprocess_min_short_side=256,\n    preprocess_max_short_side=320,\n    preprocess_horizontal_flip_p=0.5,\n)\n\nhead = LinearHead(hidden_size=backbone.num_features, num_classes=datamodule.num_classes)\nmodel = VideoModel(backbone, head)\n\noptimizer = AdamW(model.parameters(), lr=1e-4)\n\nTrainer = trainer_factory(\"single_label_classification\")\ntrainer = Trainer(datamodule, model, optimizer=optimizer, max_epochs=8)\n\ntrainer.fit()\n\n```\n\n- Fine-tune ConvNeXT (from HuggingFace) + Transformer based video classifier:\n\n```python\nfrom torch.optim import AdamW\nfrom video_transformers import TimeDistributed, VideoModel\nfrom video_transformers.backbones.transformers import TransformersBackbone\nfrom video_transformers.data import VideoDataModule\nfrom video_transformers.heads import LinearHead\nfrom video_transformers.necks import TransformerNeck\nfrom video_transformers.trainer import trainer_factory\nfrom video_transformers.utils.file import download_ucf6\n\nbackbone = TimeDistributed(TransformersBackbone(\"facebook/convnext-small-224\", num_unfrozen_stages=1))\nneck = TransformerNeck(\n    num_features=backbone.num_features,\n    num_timesteps=8,\n    transformer_enc_num_heads=4,\n    transformer_enc_num_layers=2,\n    dropout_p=0.1,\n)\n\ndownload_ucf6(\"./\")\ndatamodule = VideoDataModule(\n    train_root=\"ucf6/train\",\n    val_root=\"ucf6/val\",\n    batch_size=4,\n    num_workers=4,\n    num_timesteps=8,\n    preprocess_input_size=224,\n    preprocess_clip_duration=1,\n    preprocess_means=backbone.mean,\n    preprocess_stds=backbone.std,\n    preprocess_min_short_side=256,\n    preprocess_max_short_side=320,\n    preprocess_horizontal_flip_p=0.5,\n)\n\nhead = LinearHead(hidden_size=neck.num_features, num_classes=datamodule.num_classes)\nmodel = VideoModel(backbone, head, neck)\n\noptimizer = AdamW(model.parameters(), lr=1e-4)\n\nTrainer = trainer_factory(\"single_label_classification\")\ntrainer = Trainer(\n    datamodule,\n    model,\n    optimizer=optimizer,\n    max_epochs=8\n)\n\ntrainer.fit()\n\n```\n\n- Fine-tune Resnet18 (from HuggingFace) + GRU based video classifier:\n\n```python\nfrom video_transformers import TimeDistributed, VideoModel\nfrom video_transformers.backbones.transformers import TransformersBackbone\nfrom video_transformers.data import VideoDataModule\nfrom video_transformers.heads import LinearHead\nfrom video_transformers.necks import GRUNeck\nfrom video_transformers.trainer import trainer_factory\nfrom video_transformers.utils.file import download_ucf6\n\nbackbone = TimeDistributed(TransformersBackbone(\"microsoft/resnet-18\", num_unfrozen_stages=1))\nneck = GRUNeck(num_features=backbone.num_features, hidden_size=128, num_layers=2, return_last=True)\n\ndownload_ucf6(\"./\")\ndatamodule = VideoDataModule(\n    train_root=\"ucf6/train\",\n    val_root=\"ucf6/val\",\n    batch_size=4,\n    num_workers=4,\n    num_timesteps=8,\n    preprocess_input_size=224,\n    preprocess_clip_duration=1,\n    preprocess_means=backbone.mean,\n    preprocess_stds=backbone.std,\n    preprocess_min_short_side=256,\n    preprocess_max_short_side=320,\n    preprocess_horizontal_flip_p=0.5,\n)\n\nhead = LinearHead(hidden_size=neck.hidden_size, num_classes=datamodule.num_classes)\nmodel = VideoModel(backbone, head, neck)\n\nTrainer = trainer_factory(\"single_label_classification\")\ntrainer = Trainer(\n    datamodule,\n    model,\n    max_epochs=8\n)\n\ntrainer.fit()\n\n```\n\n- Perform prediction for a single file or folder of videos:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(model_name_or_path)\n\nmodel.predict(video_or_folder_path=\"video.mp4\")\n>> [{'filename': \"video.mp4\", 'predictions': {'class1': 0.98, 'class2': 0.02}}]\n```\n\n\n## \ud83e\udd17 Full HuggingFace Integration\n\n- Push your fine-tuned model to the hub:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\n\nmodel.push_to_hub('model_name')\n```\n\n- Load any pretrained video-transformer model from the hub:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\n\nmodel.from_pretrained('account_name/model_name')\n```\n\n- Push your model to HuggingFace hub with auto-generated model-cards:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\nmodel.push_to_hub('account_name/app_name')\n```\n\n- (Incoming feature) Push your model as a Gradio app to HuggingFace Space:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\nmodel.push_to_space('account_name/app_name')\n```\n\n## \ud83d\udcc8 Multiple tracker support\n\n- Tensorboard tracker is enabled by default.\n\n- To add Neptune/Layer ... tracking:\n\n```python\nfrom video_transformers.tracking import NeptuneTracker\nfrom accelerate.tracking import WandBTracker\n\ntrackers = [\n    NeptuneTracker(EXPERIMENT_NAME, api_token=NEPTUNE_API_TOKEN, project=NEPTUNE_PROJECT),\n    WandBTracker(project_name=WANDB_PROJECT)\n]\n\ntrainer = Trainer(\n    datamodule,\n    model,\n    trackers=trackers\n)\n\n```\n\n## \ud83d\udd78\ufe0f ONNX support\n\n- Convert your trained models into ONNX format for deployment:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\nmodel.to_onnx(quantize=False, opset_version=12, export_dir=\"runs/exports/\", export_filename=\"model.onnx\")\n```\n\n## \ud83e\udd17 Gradio support\n\n- Convert your trained models into Gradio App for deployment:\n\n```python\nfrom video_transformers import VideoModel\n\nmodel = VideoModel.from_pretrained(\"runs/exp/checkpoint\")\nmodel.to_gradio(examples=['video.mp4'], export_dir=\"runs/exports/\", export_filename=\"app.py\")\n```\n\n\n## Contributing\n\nBefore opening a PR:\n\n- Install required development packages:\n\n```bash\npip install -e .\"[dev]\"\n```\n\n- Reformat with black and isort:\n\n```bash\npython -m tests.run_code_style format\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/fcakyon/video-transformers",
+            "keywords": "machine-learning,deep-learning,ml,pytorch,vision,loss,video-classification,transformers,accelerate,evaluate,huggingface",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "video-transformers",
+            "package_url": "https://pypi.org/project/video-transformers/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/video-transformers/",
+            "project_urls": {
+                "Homepage": "https://github.com/fcakyon/video-transformers"
+            },
+            "release_url": "https://pypi.org/project/video-transformers/0.0.8/",
+            "requires_dist": [
+                "accelerate (<0.15.0,>=0.14.0)",
+                "evaluate (<0.4.0,>=0.3.0)",
+                "transformers (>=4.25.0)",
+                "timm (<0.7.0,>=0.6.12)",
+                "click (==8.0.4)",
+                "balanced-loss",
+                "scikit-learn",
+                "tensorboard",
+                "opencv-python",
+                "gradio (>=3.1.6)",
+                "huggingface-hub (<0.12.0,>=0.11.0)",
+                "importlib-metadata (<4.3,>=1.1.0) ; python_version < \"3.8\"",
+                "black (==21.7b0) ; extra == 'dev'",
+                "flake8 (==3.9.2) ; extra == 'dev'",
+                "isort (==5.9.2) ; extra == 'dev'",
+                "black (==21.7b0) ; extra == 'test'",
+                "flake8 (==3.9.2) ; extra == 'test'",
+                "isort (==5.9.2) ; extra == 'test'",
+                "onnx ; extra == 'test'",
+                "onnxruntime ; extra == 'test'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Easiest way of fine-tuning HuggingFace video classification models.",
+            "version": "0.0.8",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15974978,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1d587a9268a23e7a802ab659f1f0a0d2",
+                    "sha256": "cc410326642d11155f68085cc6653b8483178c3e034bf71af89466f3381d9af1"
+                },
+                "downloads": -1,
+                "filename": "video_transformers-0.0.8-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "1d587a9268a23e7a802ab659f1f0a0d2",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 46006,
+                "upload_time": "2022-12-02T22:58:15",
+                "upload_time_iso_8601": "2022-12-02T22:58:15.735353Z",
+                "url": "https://files.pythonhosted.org/packages/4d/28/f738193a421bb92202e4175bb2c2cfb52a9a61ccaf2614aaac7ff6542b13/video_transformers-0.0.8-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7613eca8270850097eea76809de465bc",
+                    "sha256": "41326c7d193ff9973ac0f28f685cb1692e1be14786926350744cba2bba0f099f"
+                },
+                "downloads": -1,
+                "filename": "video-transformers-0.0.8.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7613eca8270850097eea76809de465bc",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 37453,
+                "upload_time": "2022-12-02T22:58:17",
+                "upload_time_iso_8601": "2022-12-02T22:58:17.776832Z",
+                "url": "https://files.pythonhosted.org/packages/2b/d7/9056e34d5e12f79f2dff29d9e016f1199083fbafd9a0243bda69d8e887e9/video-transformers-0.0.8.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
