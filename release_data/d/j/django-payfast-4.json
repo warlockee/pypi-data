@@ -1,0 +1,70 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Environment :: Web Environment",
+                "Framework :: Django",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "==============\r\ndjango-payfast\r\n==============\r\n\r\nA pluggable Django application for integrating payfast.co.za payment system.\r\n\r\n.. image:: https://img.shields.io/pypi/v/django-payfast.svg\r\n    :target: https://pypi.python.org/pypi/django-payfast\r\n\r\n.. image:: https://img.shields.io/badge/source-GitHub-lightgrey.svg\r\n    :target: https://github.com/pjdelport/django-payfast\r\n\r\n.. image:: https://img.shields.io/github/issues/pjdelport/django-payfast.svg\r\n    :target: https://github.com/pjdelport/django-payfast/issues?q=is:open\r\n\r\n.. image:: https://travis-ci.org/pjdelport/django-payfast.svg?branch=master\r\n    :target: https://travis-ci.org/pjdelport/django-payfast\r\n\r\n.. image:: https://codecov.io/github/pjdelport/django-payfast/coverage.svg?branch=master\r\n    :target: https://codecov.io/github/pjdelport/django-payfast?branch=master\r\n\r\n.. contents::\r\n\r\nInstall\r\n=======\r\n\r\n::\r\n\r\n    $ pip install django-payfast\r\n\r\nThen add 'payfast' to INSTALLED_APPS and execute ::\r\n\r\n    $ python manage.py migrate\r\n\r\n\r\nSettings\r\n========\r\n\r\nSpecify your credentials in settings.py:\r\n\r\n* ``PAYFAST_MERCHANT_ID``\r\n* ``PAYFAST_MERCHANT_KEY``\r\n* ``PAYFAST_URL_BASE``: The public-facing base URL of your site\r\n  (used to qualify the notify URL passed to PayFast)\r\n\r\n``PAYFAST_URL_BASE`` can either be a string, or a callable returning a string.\r\nFor example, if you use Django's sites framework to configure your domain::\r\n\r\n    def PAYFAST_BASE_URL():\r\n        from django.contrib.sites.models import Site\r\n        site = Site.objects.get_current()\r\n        return 'http://{}'.format(site.domain)\r\n\r\n\r\nIf your web server is behind reverse proxy you should also specify\r\n``PAYFAST_IP_HEADER`` option. It's a ``request.META`` key with client ip address\r\n(default is 'REMOTE_ADDR').\r\n\r\nThere is an option with PayFast server IP addresses (``PAYFAST_IP_ADDRESSES``).\r\nIt is a list with current PayFast servers' IP host / network addresses.\r\nIf they will change then override this option in your settings.py.\r\n\r\nYou also have to setup your PayFast account on payfast.co.za. Login into the\r\nadmin panel, go to 'My Account -> Integration', enable the Instant Transaction\r\nNotification (ITN) and provide the Notify URL.\r\n\r\nWhen passing a user to `PayFastForm`, the form will by default look for the\r\n`first_name` and `last_name` fields on the user. If you're using a custom user\r\nmodel with different field names, you can customise how the fields are looked\r\nup by setting these callables::\r\n\r\n    PAYFAST_GET_USER_FIRST_NAME = lambda user: user.my_first_name()\r\n    PAYFAST_GET_USER_LAST_NAME = lambda user: user.my_last_name()\r\n\r\nAlternatively, set these to `None` to disable initialising the PayFast\r\n`name_first` and `name_last` fields from the user.\r\n\r\nUsage\r\n=====\r\n\r\nPayment form\r\n------------\r\n\r\npayfast.forms.PayFastForm can be used to construct the html form. It is\r\na helper form for html output and it shouldn't perform any validation.\r\n\r\nPass all the fields to form 'initial' argument. Form also has an optional\r\n'user' parameter: it is the User instance the order is purchased by. If\r\n'user' is specified, 'name_first', 'name_last' and 'email_address' fields\r\nwill be filled automatically if they are not passed with 'initial'.\r\n\r\nExample::\r\n\r\n    # views.py\r\n\r\n    from django.shortcuts import get_object_or_404\r\n    from django.views.generic.simple import direct_to_template\r\n    from django.contrib.auth.decorators import login_required\r\n\r\n    from payfast.forms import PayFastForm\r\n\r\n    @login_required\r\n    def pay_with_payfast(request, order_id):\r\n\r\n        # Order model have to be defined by user, it is not a part\r\n        # of django-payfast\r\n        order = get_object_or_404(Order, pk = order_id)\r\n\r\n        form = PayFastForm(initial={\r\n            # required params:\r\n            'amount': order.total,\r\n            'item_name': 'the name of the item being charged for',\r\n\r\n            # optional params:\r\n            # 'return_url' : 'http://my-site.com/orders/payfast/return/',\r\n            # 'cancel_url' : 'http://my-site.com/orders/payfast/cancel/'\r\n            # ... etc.\r\n        }, user=order.user)\r\n\r\n        return direct_to_template(request, 'pay_with_payfast.html', {'form': form})\r\n\r\nPlease refer to PayFast docs (http://www.payfast.co.za/c/std/website-payments-variables)\r\nfor more options. 'merchant_id', 'merchant_key', 'notify_url' and\r\n'signature' params are handled automatically.\r\n\r\n\r\nThe template::\r\n\r\n    {% extends 'base.html' %}\r\n\r\n    {% block content %}\r\n        <form action=\"{{ form.target }}\" method=\"POST\">\r\n            <p>{{ form.as_p }}</p>\r\n            <p><input type=\"submit\" value=\"Buy Now\"></p>\r\n        </form>\r\n    {% endblock %}\r\n\r\nThe {{ form.as_p }} output will be a number of ``<input type='hidden'>`` tags.\r\n\r\nPayFastForm has a 'target' attribute with PayFast server URL.\r\n\r\nPlease note that it's up to you to implement the order processing logic.\r\nOrder handling should be performed in ``payfast.signals.data`` signal handler.\r\n\r\n``payfast.signals.notify`` signal\r\n---------------------------------\r\n\r\nWhen PayFast posts data to the Notify URL ``payfast.signals.notify`` signal\r\nis sent. This signal won't be sent for suspicious data (when request is\r\ncoming from untrusted ip, form validation fails or the payment is duplicate).\r\n\r\nSignal subscribers will get an 'order' argument with ``PayFastOrder`` instance.\r\n\r\nExample::\r\n\r\n    import payfast.signals\r\n\r\n    def notify_handler(sender, **kwargs):\r\n        payfast_order = kwargs['order']\r\n\r\n        if payfast_order.payment_status == 'COMPLETE':\r\n\r\n            # The order is paid (merchant_id check and check for duplicate\r\n            # payments is already handled by django-payfast)\r\n\r\n            amount = payfast_order.amount\r\n            # your business logic\r\n            # ...\r\n        else: # the order is not paid\r\n            # your business logic\r\n            # ...\r\n\r\n    payfast.signals.notify.connect(notify_handler)\r\n\r\n\r\nurls.py\r\n-------\r\n\r\nIn order to get Notify URL up and running, include payfast.urls in your urls.py::\r\n\r\n    urlpatterns = patterns('',\r\n        #...\r\n        url(r'^payfast/', include('payfast.urls')),\r\n        #...\r\n    )\r\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/pjdelport/django-payfast",
+            "keywords": "",
+            "license": "MIT license",
+            "maintainer": "Ruan Steenkamp",
+            "maintainer_email": "ruanesteenkamp@gmail.com",
+            "name": "django-payfast-4",
+            "package_url": "https://pypi.org/project/django-payfast-4/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/django-payfast-4/",
+            "project_urls": {
+                "Homepage": "https://github.com/pjdelport/django-payfast"
+            },
+            "release_url": "https://pypi.org/project/django-payfast-4/0.1.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "A pluggable Django application for integrating payfast.co.za payment system.",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15984726,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3d09f9db358e1d2b4b2e02bd4a58e402",
+                    "sha256": "76e613ded0b13ea6a0d519c881d236905ab8956b2f7132dd7ff966c8cae0b342"
+                },
+                "downloads": -1,
+                "filename": "django-payfast-4-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "3d09f9db358e1d2b4b2e02bd4a58e402",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 26347,
+                "upload_time": "2022-12-04T11:46:35",
+                "upload_time_iso_8601": "2022-12-04T11:46:35.697574Z",
+                "url": "https://files.pythonhosted.org/packages/1a/7b/ab1256c7cf4a05834a1debf8e4ef815972b8d4c491eb1b514a91090a9491/django-payfast-4-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
