@@ -63,7 +63,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7169388,
+        "last_serial": 15987810,
         "urls": [
             {
                 "comment_text": "",
@@ -174,7 +174,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7169388,
+        "last_serial": 15987810,
         "urls": [
             {
                 "comment_text": "",
@@ -285,7 +285,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7169388,
+        "last_serial": 15987810,
         "urls": [
             {
                 "comment_text": "",
@@ -396,7 +396,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7169388,
+        "last_serial": 15987810,
         "urls": [
             {
                 "comment_text": "",
@@ -456,7 +456,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Topic :: Internet :: WWW/HTTP"
             ],
-            "description": "*****************\nwebargs-starlette\n*****************\n\n.. image:: https://badgen.net/pypi/v/webargs-starlette\n    :target: https://badge.fury.io/py/webargs-starlette\n    :alt: PyPI version\n\n.. image:: https://dev.azure.com/sloria/sloria/_apis/build/status/sloria.webargs-starlette?branchName=master\n    :target: https://dev.azure.com/sloria/sloria/_build/latest?definitionId=11&branchName=master\n    :alt: Build status\n\n.. image:: https://badgen.net/badge/marshmallow/2,3?list=1\n    :target: https://marshmallow.readthedocs.io/en/latest/upgrading.html\n    :alt: marshmallow 2/3 compatible\n\n.. image:: https://badgen.net/badge/code%20style/black/000\n    :target: https://github.com/ambv/black\n    :alt: code style: black\n\n\nwebargs-starlette is a library for declarative request parsing and\nvalidation with `Starlette <https://github.com/encode/starlette>`_,\nbuilt on top of `webargs <https://github.com/marshmallow-code/webargs>`_.\n\nIt has all the goodness of `webargs <https://github.com/marshmallow-code/webargs>`_, \nwith some extra sugar for type annotations.\n\n.. code-block:: python\n\n    import uvicorn\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs_starlette import use_annotations\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_annotations(location=\"query\")\n    async def index(request, name: str = \"World\"):\n        return JSONResponse({\"Hello\": name})\n\n\n    if __name__ == \"__main__\":\n        uvicorn.run(app, port=5000)\n\n    # curl 'http://localhost:5000/'\n    # {\"Hello\": \"World\"}\n    # curl 'http://localhost:5000/?name=Ada'\n    # {\"Hello\": \"Ada\"}\n\nInstall\n=======\n\n::\n\n    pip install -U webargs-starlette\n\n\nUsage\n=====\n\nParser Usage\n------------\n\nUse ``parser.parse`` to parse a Starlette ``Request`` with a\ndictionary of fields.\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs import fields\n    from webargs_starlette import parser\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    async def homepage(request):\n        args = {\"name\": fields.Str(required=True), \"greeting\": fields.Str(missing=\"hello\")}\n        parsed = await parser.parse(args, request)\n        greeting = parsed[\"greeting\"]\n        name = parsed[\"name\"]\n        return JSONResponse({\"message\": f\"{greeting} {name}\"})\n\n\nDecorators\n----------\n\nUse the ``use_args`` decorator to inject the parsed arguments\ndictionary into the handler function. The following snippet is equivalent to the\nfirst example.\n\n**Important**: Decorated functions MUST be coroutine functions.\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs import fields\n    from webargs_starlette import use_args\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_args({\"name\": fields.Str(required=True), \"greeting\": fields.Str(missing=\"hello\")})\n    async def homepage(request, args):\n        greeting = args[\"greeting\"]\n        name = args[\"name\"]\n        return JSONResponse({\"message\": f\"{greeting} {name}\"})\n\n\nThe ``use_kwargs`` decorator injects the parsed arguments as keyword arguments.\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs import fields\n    from webargs_starlette import use_args\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_kwargs(\n        {\"name\": fields.Str(required=True), \"greeting\": fields.Str(missing=\"hello\")}\n    )\n    async def homepage(request, name, greeting):\n        return JSONResponse({\"message\": f\"{greeting} {name}\"})\n\n\nSee `decorator_example.py <https://github.com/sloria/webargs-starlette/blob/master/examples/decorator_example.py>`_\nfor a more complete example of ``use_args`` and ``use_kwargs`` usage.\n\nError Handling\n--------------\n\nWhen validation fails, the parser will raise a ``WebargsHTTPException``,\nwhich is the same as Starlette's ``HTTPException`` with the addition of\nof the ``messages`` (validation messages), ``headers`` , ``exception`` (underlying exception), and ``schema`` (marshmallow ``Schema``) attributes.\n\nYou can use a custom exception handler to return the error messages as\nJSON.\n\n\n.. code-block:: python\n\n    from starlette.responses import JSONResponse\n    from webargs_starlette import WebargsHTTPException\n\n\n    @app.exception_handler(WebargsHTTPException)\n    async def http_exception(request, exc):\n        return JSONResponse(exc.messages, status_code=exc.status_code, headers=exc.headers)\n\n\nAnnotations\n-----------\n\nThe ``use_annotations`` decorator allows you to parse request objects\nusing type annotations.\n\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs_starlette import use_annotations\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_annotations(location=\"query\")\n    async def welcome(request, name: str = \"Friend\"):\n        return JSONResponse({\"message\": f\"Welcome, {name}!\"})\n\n\n    # curl 'http://localhost:5000/'.\n    # {\"message\":\"Welcome, Friend!\"}\n    # curl 'http://localhost:5000/?name=Ada'.\n    # {\"message\":\"Welcome, Ada!\"}\n\nAny annotated argument that doesn't have a default value will be required.\nFor example, if we remove the default for ``name`` in the above example,\nan 422 error response is returned if ``?name`` isn't passed.\n\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs_starlette import use_annotations, WebargsHTTPException\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_annotations(location=\"query\")\n    async def welcome(request, name: str):\n        return JSONResponse({\"message\": f\"Welcome, {name}!\"})\n\n\n    @app.exception_handler(WebargsHTTPException)\n    async def http_exception(request, exc):\n        return JSONResponse(exc.messages, status_code=exc.status_code, headers=exc.headers)\n\n\n    # curl \"http://localhost:5000/\"\n    # {\"name\":[\"Missing data for required field.\"]}\n\nArguments may also be annotated with ``Field`` instances when you need\nmore control. For example, you may want to add a validator.\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs import fields\n    from marshmallow import validate\n    from webargs_starlette import use_annotations, WebargsHTTPException\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_annotations(location=\"query\")\n    async def welcome(request, name: fields.Str(validate=validate.Length(min=2))):\n        return JSONResponse({\"message\": f\"Welcome, {name}!\"})\n\n\n    @app.exception_handler(WebargsHTTPException)\n    async def http_exception(request, exc):\n        return JSONResponse(exc.messages, status_code=exc.status_code, headers=exc.headers)\n\n\n    # curl \"http://localhost:5000/?name=A\"\n    # {\"name\":[\"Shorter than minimum length 2.\"]}\n\n``HTTPEndpoint`` methods may also be decorated with ``use_annotations``.\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from starlette.endpoints import HTTPEndpoint\n    from webargs_starlette import use_annotations\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    class WelcomeEndpoint(HTTPEndpoint):\n        @use_annotations(location=\"query\")\n        async def get(self, request, name: str = \"World\"):\n            return JSONResponse({\"message\": f\"Welcome, {name}!\"})\n\nSee `annotation_example.py <https://github.com/sloria/webargs-starlette/blob/master/examples/annotation_example.py>`_\nfor a more complete example of ``use_annotations`` usage.\n\nMore\n----\n\nFor more information on how to use webargs, see the `webargs documentation <https://webargs.readthedocs.io/>`_.\n\nLicense\n=======\n\nMIT licensed. See the `LICENSE <https://github.com/sloria/webargs-starlette/blob/master/LICENSE>`_ file for more details.\n\n\n",
             "description_content_type": "",
             "docs_url": null,
             "download_url": "",
@@ -510,7 +509,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7169388,
+        "last_serial": 15987810,
         "urls": [
             {
                 "comment_text": "",
@@ -549,6 +548,122 @@
                 "upload_time": "2020-05-05T04:18:33",
                 "upload_time_iso_8601": "2020-05-05T04:18:33.909992Z",
                 "url": "https://files.pythonhosted.org/packages/f2/b8/d3d1d33aa72cd712fb2e3d93f6777da096ce3f9971517118b0e34360e7ac/webargs-starlette-2.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.1.0": {
+        "info": {
+            "author": "Steven Loria",
+            "author_email": "sloria1@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Natural Language :: English",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Internet :: WWW/HTTP"
+            ],
+            "description": "*****************\nwebargs-starlette\n*****************\n\n.. image:: https://badgen.net/pypi/v/webargs-starlette\n    :target: https://badge.fury.io/py/webargs-starlette\n    :alt: PyPI version\n\n.. image:: https://dev.azure.com/sloria/sloria/_apis/build/status/sloria.webargs-starlette?branchName=master\n    :target: https://dev.azure.com/sloria/sloria/_build/latest?definitionId=11&branchName=master\n    :alt: Build status\n\n.. image:: https://badgen.net/badge/marshmallow/3\n    :target: https://marshmallow.readthedocs.io/en/stable/\n    :alt: marshmallow 3 compatible\n\n.. image:: https://badgen.net/badge/code%20style/black/000\n    :target: https://github.com/ambv/black\n    :alt: code style: black\n\n\nwebargs-starlette is a library for declarative request parsing and\nvalidation with `Starlette <https://github.com/encode/starlette>`_,\nbuilt on top of `webargs <https://github.com/marshmallow-code/webargs>`_.\n\nIt has all the goodness of `webargs <https://github.com/marshmallow-code/webargs>`_, \nwith some extra sugar for type annotations.\n\n.. code-block:: python\n\n    import uvicorn\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs_starlette import use_annotations\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_annotations(location=\"query\")\n    async def index(request, name: str = \"World\"):\n        return JSONResponse({\"Hello\": name})\n\n\n    if __name__ == \"__main__\":\n        uvicorn.run(app, port=5000)\n\n    # curl 'http://localhost:5000/'\n    # {\"Hello\": \"World\"}\n    # curl 'http://localhost:5000/?name=Ada'\n    # {\"Hello\": \"Ada\"}\n\nInstall\n=======\n\n::\n\n    pip install -U webargs-starlette\n\n\nUsage\n=====\n\nParser Usage\n------------\n\nUse ``parser.parse`` to parse a Starlette ``Request`` with a\ndictionary of fields.\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs import fields\n    from webargs_starlette import parser\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    async def homepage(request):\n        args = {\n            \"name\": fields.Str(required=True),\n            \"greeting\": fields.Str(load_default=\"hello\"),\n        }\n        parsed = await parser.parse(args, request)\n        greeting = parsed[\"greeting\"]\n        name = parsed[\"name\"]\n        return JSONResponse({\"message\": f\"{greeting} {name}\"})\n\n\nDecorators\n----------\n\nUse the ``use_args`` decorator to inject the parsed arguments\ndictionary into the handler function. The following snippet is equivalent to the\nfirst example.\n\n**Important**: Decorated functions MUST be coroutine functions.\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs import fields\n    from webargs_starlette import use_args\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_args(\n        {\"name\": fields.Str(required=True), \"greeting\": fields.Str(load_default=\"hello\")}\n    )\n    async def homepage(request, args):\n        greeting = args[\"greeting\"]\n        name = args[\"name\"]\n        return JSONResponse({\"message\": f\"{greeting} {name}\"})\n\n\nThe ``use_kwargs`` decorator injects the parsed arguments as keyword arguments.\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs import fields\n    from webargs_starlette import use_args\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_kwargs(\n        {\"name\": fields.Str(required=True), \"greeting\": fields.Str(load_default=\"hello\")}\n    )\n    async def homepage(request, name, greeting):\n        return JSONResponse({\"message\": f\"{greeting} {name}\"})\n\n\nSee `decorator_example.py <https://github.com/sloria/webargs-starlette/blob/master/examples/decorator_example.py>`_\nfor a more complete example of ``use_args`` and ``use_kwargs`` usage.\n\nError Handling\n--------------\n\nWhen validation fails, the parser will raise a ``WebargsHTTPException``,\nwhich is the same as Starlette's ``HTTPException`` with the addition of\nof the ``messages`` (validation messages), ``headers`` , ``exception`` (underlying exception), and ``schema`` (marshmallow ``Schema``) attributes.\n\nYou can use a custom exception handler to return the error messages as\nJSON.\n\n\n.. code-block:: python\n\n    from starlette.responses import JSONResponse\n    from webargs_starlette import WebargsHTTPException\n\n\n    @app.exception_handler(WebargsHTTPException)\n    async def http_exception(request, exc):\n        return JSONResponse(exc.messages, status_code=exc.status_code, headers=exc.headers)\n\n\nAnnotations\n-----------\n\nThe ``use_annotations`` decorator allows you to parse request objects\nusing type annotations.\n\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs_starlette import use_annotations\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_annotations(location=\"query\")\n    async def welcome(request, name: str = \"Friend\"):\n        return JSONResponse({\"message\": f\"Welcome, {name}!\"})\n\n\n    # curl 'http://localhost:5000/'.\n    # {\"message\":\"Welcome, Friend!\"}\n    # curl 'http://localhost:5000/?name=Ada'.\n    # {\"message\":\"Welcome, Ada!\"}\n\nAny annotated argument that doesn't have a default value will be required.\nFor example, if we remove the default for ``name`` in the above example,\nan 422 error response is returned if ``?name`` isn't passed.\n\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs_starlette import use_annotations, WebargsHTTPException\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_annotations(location=\"query\")\n    async def welcome(request, name: str):\n        return JSONResponse({\"message\": f\"Welcome, {name}!\"})\n\n\n    @app.exception_handler(WebargsHTTPException)\n    async def http_exception(request, exc):\n        return JSONResponse(exc.messages, status_code=exc.status_code, headers=exc.headers)\n\n\n    # curl \"http://localhost:5000/\"\n    # {\"name\":[\"Missing data for required field.\"]}\n\nArguments may also be annotated with ``Field`` instances when you need\nmore control. For example, you may want to add a validator.\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from webargs import fields\n    from marshmallow import validate\n    from webargs_starlette import use_annotations, WebargsHTTPException\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    @use_annotations(location=\"query\")\n    async def welcome(request, name: fields.Str(validate=validate.Length(min=2))):\n        return JSONResponse({\"message\": f\"Welcome, {name}!\"})\n\n\n    @app.exception_handler(WebargsHTTPException)\n    async def http_exception(request, exc):\n        return JSONResponse(exc.messages, status_code=exc.status_code, headers=exc.headers)\n\n\n    # curl \"http://localhost:5000/?name=A\"\n    # {\"name\":[\"Shorter than minimum length 2.\"]}\n\n``HTTPEndpoint`` methods may also be decorated with ``use_annotations``.\n\n.. code-block:: python\n\n    from starlette.applications import Starlette\n    from starlette.responses import JSONResponse\n    from starlette.endpoints import HTTPEndpoint\n    from webargs_starlette import use_annotations\n\n    app = Starlette()\n\n\n    @app.route(\"/\")\n    class WelcomeEndpoint(HTTPEndpoint):\n        @use_annotations(location=\"query\")\n        async def get(self, request, name: str = \"World\"):\n            return JSONResponse({\"message\": f\"Welcome, {name}!\"})\n\nSee `annotation_example.py <https://github.com/sloria/webargs-starlette/blob/master/examples/annotation_example.py>`_\nfor a more complete example of ``use_annotations`` usage.\n\nMore\n----\n\nFor more information on how to use webargs, see the `webargs documentation <https://webargs.readthedocs.io/>`_.\n\nLicense\n=======\n\nMIT licensed. See the `LICENSE <https://github.com/sloria/webargs-starlette/blob/master/LICENSE>`_ file for more details.\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/sloria/webargs-starlette",
+            "keywords": "webargs,starlette,asgi,request,parsing",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "webargs-starlette",
+            "package_url": "https://pypi.org/project/webargs-starlette/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/webargs-starlette/",
+            "project_urls": {
+                "Homepage": "https://github.com/sloria/webargs-starlette"
+            },
+            "release_url": "https://pypi.org/project/webargs-starlette/2.1.0/",
+            "requires_dist": [
+                "webargs (~=8.0)",
+                "starlette (>=0.21.0)",
+                "marshmallow (~=3.0)",
+                "pytest ; extra == 'dev'",
+                "mock ; extra == 'dev'",
+                "webtest (~=2.0.32) ; extra == 'dev'",
+                "webtest-asgi (~=1.1.0) ; extra == 'dev'",
+                "mypy (==0.971) ; extra == 'dev'",
+                "flake8 (==5.0.4) ; extra == 'dev'",
+                "flake8-bugbear (==22.8.23) ; extra == 'dev'",
+                "pre-commit (~=2.20) ; extra == 'dev'",
+                "httpie ; extra == 'dev'",
+                "uvicorn ; extra == 'dev'",
+                "tox ; extra == 'dev'",
+                "httpie ; extra == 'examples'",
+                "uvicorn ; extra == 'examples'",
+                "mypy (==0.971) ; extra == 'lint'",
+                "flake8 (==5.0.4) ; extra == 'lint'",
+                "flake8-bugbear (==22.8.23) ; extra == 'lint'",
+                "pre-commit (~=2.20) ; extra == 'lint'",
+                "pytest ; extra == 'tests'",
+                "mock ; extra == 'tests'",
+                "webtest (~=2.0.32) ; extra == 'tests'",
+                "webtest-asgi (~=1.1.0) ; extra == 'tests'"
+            ],
+            "requires_python": "",
+            "summary": "Declarative request parsing and validation for Starlette with webargs",
+            "version": "2.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15987810,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e2d5d414687dae00a7a604b2e28d01d0",
+                    "sha256": "78d513227141a3fc54e6a384ced83b9d623dcf1a3083f878f14dd02ae6bf2cc3"
+                },
+                "downloads": -1,
+                "filename": "webargs_starlette-2.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e2d5d414687dae00a7a604b2e28d01d0",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 8446,
+                "upload_time": "2022-12-04T19:54:23",
+                "upload_time_iso_8601": "2022-12-04T19:54:23.912696Z",
+                "url": "https://files.pythonhosted.org/packages/3a/9d/87a642e299d5257cb7bc8054d97c63be5ed8edd5865ecda44ba0c0534218/webargs_starlette-2.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a46482e0934ebcb1371a286e399dbd75",
+                    "sha256": "2dedf23d27a73c42c9b792735eaff0f05106f2568a6e8e73b32cf7a7a2c168c2"
+                },
+                "downloads": -1,
+                "filename": "webargs-starlette-2.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a46482e0934ebcb1371a286e399dbd75",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 10840,
+                "upload_time": "2022-12-04T19:54:26",
+                "upload_time_iso_8601": "2022-12-04T19:54:26.133124Z",
+                "url": "https://files.pythonhosted.org/packages/30/92/65dc51e47adbd5b3562e5942cc0e1ceb4c6c2c214f8eb102d35749993eef/webargs-starlette-2.1.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

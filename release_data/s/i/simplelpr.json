@@ -1,0 +1,131 @@
+{
+    "3.5.0": {
+        "info": {
+            "author": "Xavier Girones",
+            "author_email": "xavier.girones@warelogic.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Environment :: Console",
+                "Environment :: Web Environment",
+                "Intended Audience :: Developers",
+                "License :: Other/Proprietary License",
+                "Operating System :: Microsoft :: Windows",
+                "Programming Language :: Python",
+                "Topic :: Scientific/Engineering :: Image Recognition"
+            ],
+            "description": "\r\n**SimpleLPR** is a software component for vehicle license plate recognition. It has a very simple programming interface that allows applications to supply a path to an image or a buffer in memory and returns the detected license plate text and its location in the input image. It can be used from C++, .NET-enabled programming languages, or Python. \r\n\r\nTypical detection rates range between 85% and 95%, provided the license plates are in good condition, free of obstructions, and the text height is at least 20 pixels.\r\n\r\nYou can submit your questions/issues/bug reports/feedback to support@warelogic.com\r\n\r\nIntegration is simple and straightforward, as demonstrated in the following example:\r\n\r\n```Python\r\nimport sys, os, argparse\r\n\r\n# Import the SimpleLPR extension.\r\nimport simplelpr\r\n\r\n# Lists all available countries.\r\n\r\ndef list_countries(eng):\r\n    print('List of available countries:')\r\n\r\n    for i in range(0, eng.numSupportedCountries):\r\n        print(eng.get_countryCode(i))\r\n\r\n\r\ndef analyze_file(eng, country_id, img_path, key_path):\r\n    # Enables syntax verification with the selected country.\r\n    eng.set_countryWeight(country_id, 1)\r\n    eng.realizeCountryWeights()\r\n\r\n    # If provided, supplies the product key as a file.\r\n    if key_path is not None:\r\n        eng.set_productKey(key_path)\r\n\r\n    # Alternatively, it could also be supplied from a buffer in memory:\r\n    #\r\n    # with open(key_path, mode='rb') as file:\r\n    #     key_content = file.read()\r\n    # eng.set_productKey( key_content )\r\n\r\n    # Create a Processor object. Every working thread should use its own processor.\r\n    proc = eng.createProcessor()\r\n\r\n    # Enable the plate region detection and crop to plate region features.\r\n    proc.plateRegionDetectionEnabled = True\r\n    proc.cropToPlateRegionEnabled = True\r\n\r\n    # Looks for license plate candidates in an image in the file system.\r\n    cds = proc.analyze(img_path)\r\n\r\n    # Alternatively, the input image could be supplied through an object supporting the buffer protocol:\r\n    #\r\n    # import numpy as np\r\n    # from PIL import Image\r\n    #\r\n    # im = Image.open(img_path)\r\n    # npi = np.asarray(im)\r\n    # cds = proc.analyze(npi)\r\n    #\r\n    # or\r\n    #\r\n    # import cv2\r\n    #\r\n    # im = cv2.imread(img_path)\r\n    # cds = proc.analyze(im)\r\n\r\n    # Show the detection results.\r\n    print('Number of detected candidates:', len(cds))\r\n\r\n    for cand in cds:\r\n        print('-----------------------------')\r\n        print('darkOnLight:', cand.darkOnLight, ', plateDetectionConfidence:', cand.plateDetectionConfidence)\r\n        print('boundingBox:', cand.boundingBox)\r\n        print('plateRegionVertices:', cand.plateRegionVertices)\r\n\r\n        for cm in cand.matches:\r\n            print('\\tcountry:', \"'{:}'\".format(cm.country), ', countryISO:', \"'{:}'\".format(cm.countryISO),\r\n                  ', text:', \"'{:}'\".format(cm.text), ', confidence:', '{:.3f}'.format(cm.confidence))\r\n\r\n            for e in cm.elements:\r\n                print('\\t\\tglyph:', \"'{:}'\".format(e.glyph), ', confidence:', '{:.3f}'.format(e.confidence),\r\n                      ', boundingBox:', e.boundingBox)\r\n\r\n\r\ndef main():\r\n    try:\r\n\r\n        # The simplelpr extension requires 64-bit Python 3.8 or 3.9\r\n\r\n        if sys.version_info[0:2] != (3, 8) and sys.version_info[0:2] != (3, 9):\r\n            raise RuntimeError('This demo requires either Python 3.8 or 3.9')\r\n\r\n        if len(sys.argv) == 1:\r\n            sys.argv.append('--help')\r\n\r\n\r\n        # Create a SimpleLPR engine.\r\n\r\n        setupP = simplelpr.EngineSetupParms()\r\n        eng = simplelpr.SimpleLPR(setupP)\r\n\r\n        print(\"SimpleLPR version:\",\r\n              \"{:}.{:}.{:}.{:}\".format(eng.versionNumber.A, eng.versionNumber.B, eng.versionNumber.C,\r\n                                       eng.versionNumber.D))\r\n\r\n        # Parse the command line arguments.\r\n\r\n        parser = argparse.ArgumentParser(description='SimpleLPR on Python demo application')\r\n        subparsers = parser.add_subparsers(dest='command', help='Sub-command help')\r\n        subparsers.add_parser('list', help='List all available countries')\r\n        parser_analyze = subparsers.add_parser('analyze', help='Looks for license plate candidates in an image')\r\n        parser_analyze.add_argument('country_id', type=str, help='Country string identifier')\r\n        parser_analyze.add_argument('img_path', type=str, help='Path to the image file')\r\n        parser_analyze.add_argument('key_path',\r\n                                    type=str,\r\n                                    nargs='?',\r\n                                    help=\"Path to the registration key file. In case you need to extend the 60-day \"\r\n                                         \"evaluation period you can send an e-mail to 'support@warelogic.com' to \"\r\n                                         \"request a trial key\")\r\n\r\n        args = parser.parse_args()\r\n\r\n        if args.command == 'list':\r\n            # List countries.\r\n            list_countries(eng)\r\n        elif args.command == 'analyze':\r\n            # Analyze an image in the file system.\r\n            analyze_file(eng, args.country_id, args.img_path, args.key_path)\r\n        else:\r\n            # Shouldn't occur.\r\n            raise RuntimeError('Unknown command')\r\n\r\n    except Exception as e:\r\n        print('An exception occurred: {}'.format(e))\r\n\r\n\r\nif __name__ == '__main__':\r\n    main()\r\n\r\n```\r\n\r\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://www.warelogic.com",
+            "keywords": "LPR,ANPR,SDK,toolkit,library,component,number plate recognition,license plate recognition,read license plates,read number plates,shareware",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "SimpleLPR",
+            "package_url": "https://pypi.org/project/SimpleLPR/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/SimpleLPR/",
+            "project_urls": {
+                "Homepage": "https://www.warelogic.com"
+            },
+            "release_url": "https://pypi.org/project/SimpleLPR/3.5.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.8, <3.10",
+            "summary": "SimpleLPR License Plate Recognition (LPR/ANPR) library.",
+            "version": "3.5.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15986994,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0940bec416836d503ea7001d20fbac6b",
+                    "sha256": "637dd0f18b57ca0e81e26ca5c3fe2d2f74f84b04875056bff63ee708226d0c62"
+                },
+                "downloads": -1,
+                "filename": "SimpleLPR-3.5.0-cp38-cp38-manylinux_2_31_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "0940bec416836d503ea7001d20fbac6b",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8, <3.10",
+                "size": 94103814,
+                "upload_time": "2022-12-04T17:19:21",
+                "upload_time_iso_8601": "2022-12-04T17:19:21.271596Z",
+                "url": "https://files.pythonhosted.org/packages/3f/70/a3a8e6ec13679fda9c38dc150ecaa45ccd5e16dd40a75683a77ddc792f2b/SimpleLPR-3.5.0-cp38-cp38-manylinux_2_31_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0a4d53c3940301582e57a2b2f5226ce6",
+                    "sha256": "beb75b3909a29c37c71ee32bfc1aa6bfe4eb3af9c9afbe52028cd4fb32fba43f"
+                },
+                "downloads": -1,
+                "filename": "SimpleLPR-3.5.0-cp38-cp38-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "0a4d53c3940301582e57a2b2f5226ce6",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8, <3.10",
+                "size": 33531338,
+                "upload_time": "2022-12-04T17:15:24",
+                "upload_time_iso_8601": "2022-12-04T17:15:24.481713Z",
+                "url": "https://files.pythonhosted.org/packages/99/85/dedb1fb3ce2e88157b7ca50046825078b464b84846efd28a42c6677dd356/SimpleLPR-3.5.0-cp38-cp38-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4aad5b12be39567e45bf6e868adebd83",
+                    "sha256": "9f2a2478583968290f4055a71c47104e7ff7183092cb53ced313fc6f5943ee33"
+                },
+                "downloads": -1,
+                "filename": "SimpleLPR-3.5.0-cp39-cp39-manylinux_2_31_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "4aad5b12be39567e45bf6e868adebd83",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8, <3.10",
+                "size": 94103813,
+                "upload_time": "2022-12-04T17:21:47",
+                "upload_time_iso_8601": "2022-12-04T17:21:47.276821Z",
+                "url": "https://files.pythonhosted.org/packages/1a/00/b8f041d0509e11d164999f4cc713af431ed25ca16ce45dbdaacdff32f6e4/SimpleLPR-3.5.0-cp39-cp39-manylinux_2_31_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "97cb45875d0d07e55403455b5aa73d07",
+                    "sha256": "cb45242ea026f188611fa06455753ac8ef158463f4c0a7dcb4420dd46912d545"
+                },
+                "downloads": -1,
+                "filename": "SimpleLPR-3.5.0-cp39-cp39-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "97cb45875d0d07e55403455b5aa73d07",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.8, <3.10",
+                "size": 33530007,
+                "upload_time": "2022-12-04T17:16:18",
+                "upload_time_iso_8601": "2022-12-04T17:16:18.937437Z",
+                "url": "https://files.pythonhosted.org/packages/1d/cd/e54073a61f3fd8b9eba314173f486a76e36e36cd4377bfb9d4b8fd9b5248/SimpleLPR-3.5.0-cp39-cp39-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

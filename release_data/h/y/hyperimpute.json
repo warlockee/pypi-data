@@ -64,7 +64,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15799529,
+        "last_serial": 15987716,
         "urls": [
             {
                 "comment_text": "",
@@ -174,7 +174,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15799529,
+        "last_serial": 15987716,
         "urls": [
             {
                 "comment_text": "",
@@ -285,7 +285,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15799529,
+        "last_serial": 15987716,
         "urls": [
             {
                 "comment_text": "",
@@ -396,7 +396,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15799529,
+        "last_serial": 15987716,
         "urls": [
             {
                 "comment_text": "",
@@ -508,7 +508,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15799529,
+        "last_serial": 15987716,
         "urls": [
             {
                 "comment_text": "",
@@ -621,7 +621,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15799529,
+        "last_serial": 15987716,
         "urls": [
             {
                 "comment_text": "",
@@ -678,7 +678,6 @@
                 "Programming Language :: Python :: 3",
                 "Topic :: Scientific/Engineering :: Artificial Intelligence"
             ],
-            "description": "# HyperImpute - A library for NaNs and nulls.\n\n[![Tests](https://github.com/vanderschaarlab/hyperimpute/actions/workflows/test.yml/badge.svg)](https://github.com/vanderschaarlab/hyperimpute/actions/workflows/test.yml)\n[![Package Release](https://github.com/vanderschaarlab/hyperimpute/actions/workflows/release.yml/badge.svg)](https://github.com/vanderschaarlab/hyperimpute/actions/workflows/release.yml)\n[![Documentation Status](https://readthedocs.org/projects/hyperimpute/badge/?version=latest)](https://hyperimpute.readthedocs.io/en/latest/?badge=latest)\n[![Downloads](https://img.shields.io/pypi/dd/hyperimpute)](https://pypi.org/project/hyperimpute/)\n[![arXiv](https://img.shields.io/badge/arXiv-2206.07769-b31b1b.svg)](https://arxiv.org/abs/2206.07769)\n[![Test In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1zGm4VeXsJ-0x6A5_icnknE7mbJ0knUig?usp=sharing)\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)\n\n\n![image](https://github.com/vanderschaarlab/hyperimpute/raw/main/docs/arch.png \"HyperImpute\")\n\n\n\nHyperImpute simplifies the selection process of a data imputation algorithm for your ML pipelines.\nIt includes various novel algorithms for missing data and is compatible with [sklearn](https://scikit-learn.org/stable/).\n\n\n## HyperImpute features\n- :rocket: Fast and extensible dataset imputation algorithms, compatible with sklearn.\n- :key: New iterative imputation method: HyperImpute.\n- :cyclone: Classic methods: MICE, MissForest, GAIN, MIRACLE, MIWAE, Sinkhorn, SoftImpute, etc.\n- :fire: Pluginable architecture.\n\n## :rocket: Installation\n\nThe library can be installed from PyPI using\n```bash\n$ pip install hyperimpute\n```\nor from source, using\n```bash\n$ pip install .\n```\n\n## :boom: Sample Usage\nList available imputers\n```python\nfrom hyperimpute.plugins.imputers import Imputers\n\nimputers = Imputers()\n\nimputers.list()\n```\nImpute a dataset using one of the available methods\n```python\nimport pandas as pd\nimport numpy as np\nfrom hyperimpute.plugins.imputers import Imputers\n\nX = pd.DataFrame([[1, 1, 1, 1], [4, 5, np.nan, np.nan], [3, 3, 9, 9], [2, 2, 2, 2]])\n\nmethod = \"gain\"\n\nplugin = Imputers().get(method)\nout = plugin.fit_transform(X.copy())\n\nprint(method, out)\n```\nSpecify the baseline models for HyperImpute\n```python\nimport pandas as pd\nimport numpy as np\nfrom hyperimpute.plugins.imputers import Imputers\n\nX = pd.DataFrame([[1, 1, 1, 1], [4, 5, np.nan, np.nan], [3, 3, 9, 9], [2, 2, 2, 2]])\n\nplugin = Imputers().get(\n    \"hyperimpute\",\n    optimizer=\"hyperband\",\n    classifier_seed=[\"logistic_regression\"],\n    regression_seed=[\"linear_regression\"],\n)\n\nout = plugin.fit_transform(X.copy())\nprint(out)\n```\nUse an imputer with a SKLearn pipeline\n```python\nimport pandas as pd\nimport numpy as np\n\nfrom sklearn.pipeline import Pipeline\nfrom sklearn.ensemble import RandomForestRegressor\n\nfrom hyperimpute.plugins.imputers import Imputers\n\nX = pd.DataFrame([[1, 1, 1, 1], [4, 5, np.nan, np.nan], [3, 3, 9, 9], [2, 2, 2, 2]])\ny = pd.Series([1, 2, 1, 2])\n\nimputer = Imputers().get(\"hyperimpute\")\n\nestimator = Pipeline(\n    [\n        (\"imputer\", imputer),\n        (\"forest\", RandomForestRegressor(random_state=0, n_estimators=100)),\n    ]\n)\n\nestimator.fit(X, y)\n```\nWrite a new imputation plugin\n```python\nfrom sklearn.impute import KNNImputer\nfrom hyperimpute.plugins.imputers import Imputers, ImputerPlugin\n\nimputers = Imputers()\n\nknn_imputer = \"custom_knn\"\n\nclass KNN(ImputerPlugin):\n    def __init__(self) -> None:\n        super().__init__()\n        self._model = KNNImputer(n_neighbors=2, weights=\"uniform\")\n\n    @staticmethod\n    def name():\n        return knn_imputer\n\n    @staticmethod\n    def hyperparameter_space():\n        return []\n\n    def _fit(self, *args, **kwargs):\n        self._model.fit(*args, **kwargs)\n        return self\n\n    def _transform(self, *args, **kwargs):\n        return self._model.transform(*args, **kwargs)\n\nimputers.add(knn_imputer, KNN)\n\nassert imputers.get(knn_imputer) is not None\n```\nBenchmark imputation models on a dataset\n```python\nfrom sklearn.datasets import load_iris\nfrom hyperimpute.plugins.imputers import Imputers\nfrom hyperimpute.utils.benchmarks import compare_models\n\nX, y = load_iris(as_frame=True, return_X_y=True)\n\nimputer = Imputers().get(\"hyperimpute\")\n\ncompare_models(\n    name=\"example\",\n    evaluated_model=imputer,\n    X_raw=X,\n    ref_methods=[\"ice\", \"missforest\"],\n    scenarios=[\"MAR\"],\n    miss_pct=[0.1, 0.3],\n    n_iter=2,\n)\n```\n\n## \ud83d\udcd3 Tutorials\n - [Tutorial 0: Imputation basics](tutorials/tutorial_00_imputer_plugins.ipynb)\n - [Tutorial 1: AutoML for imputation](tutorials/tutorial_01_bayesian_optimization_over_imputers.ipynb)\n - [Tutorial 2: Benchmark](tutorials/tutorial_02_benchmark_models.ipynb)\n\n## :zap: Imputation methods\nThe following table contains the default imputation plugins:\n\n| Strategy | Description| Code |\n|--- | --- | --- |\n|**HyperImpute**|Iterative imputer using both regression and classification methods based on linear models, trees, XGBoost, CatBoost and neural nets| [`plugin_hyperimpute.py`](src/hyperimpute/plugins/imputers/plugin_hyperimpute.py) |\n|**Mean**|Replace the missing values using the mean along each column with [`SimpleImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html)| [`plugin_mean.py`](src/hyperimpute/plugins/imputers/plugin_mean.py) |\n|**Median**|Replace the missing values using the median along each column with [`SimpleImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html) |  [`plugin_median.py`](src/hyperimpute/plugins/imputers/plugin_median.py) |\n|**Most-frequent**|Replace the missing values using the most frequent value along each column with [`SimpleImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html)|[`plugin_most_freq.py`](src/hyperimpute/plugins/imputers/plugin_most_freq.py) |\n|**MissForest**|Iterative imputation method based on Random Forests using [`IterativeImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html#sklearn.impute.IterativeImputer) and [`ExtraTreesRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.ExtraTreesRegressor.html)| [`plugin_missforest.py`](src/hyperimpute/plugins/imputers/plugin_missforest.py) |\n|**ICE**| Iterative imputation method based on regularized linear regression using [`IterativeImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html#sklearn.impute.IterativeImputer) and [`BayesianRidge`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.BayesianRidge.html)| [`plugin_ice.py`](src/hyperimpute/plugins/imputers/plugin_ice.py)|\n|**MICE**| Multiple imputations based on ICE using [`IterativeImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html#sklearn.impute.IterativeImputer) and [`BayesianRidge`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.BayesianRidge.html)| [`plugin_mice.py`](src/hyperimpute/plugins/imputers/plugin_mice.py) |\n|**SoftImpute**|  [`Low-rank matrix approximation via nuclear-norm regularization`](https://jmlr.org/papers/volume16/hastie15a/hastie15a.pdf)| [`plugin_softimpute.py`](src/hyperimpute/plugins/imputers/plugin_softimpute.py)|\n|**EM**|Iterative procedure which uses other variables to impute a value (Expectation), then checks whether that is the value most likely (Maximization) - [`EM imputation algorithm`](https://joon3216.github.io/research_materials/2019/em_imputation.html)|[`plugin_em.py`](src/hyperimpute/plugins//imputers/plugin_em.py) |\n|**Sinkhorn**|[`Missing Data Imputation using Optimal Transport`](https://arxiv.org/pdf/2002.03860.pdf)|[`plugin_sinkhorn.py`](src/hyperimpute/plugins/imputers/plugin_sinkhorn.py) |\n|**GAIN**|[`GAIN: Missing Data Imputation using Generative Adversarial Nets`](https://arxiv.org/abs/1806.02920)|[`plugin_gain.py`](src/hyperimpute/plugins/imputers/plugin_gain.py) |\n|**MIRACLE**|[`MIRACLE: Causally-Aware Imputation via Learning Missing Data Mechanisms`](https://arxiv.org/abs/2111.03187)|[`plugin_miracle.py`](src/hyperimpute/plugins/imputers/plugin_miracle.py) |\n|**MIWAE**|[`MIWAE: Deep Generative Modelling and Imputation of Incomplete Data`](https://arxiv.org/abs/1812.02633)|[`plugin_miwae.py`](src/hyperimpute/plugins/imputers/plugin_miwae.py) |\n\n\n## :hammer: Tests\n\nInstall the testing dependencies using\n```bash\npip install .[testing]\n```\nThe tests can be executed using\n```bash\npytest -vsx\n```\n## Citing\n\nIf you use this code, please cite the associated paper:\n\n```\n@article{Jarrett2022HyperImpute,\n  doi = {10.48550/ARXIV.2206.07769},\n  url = {https://arxiv.org/abs/2206.07769},\n  author = {Jarrett, Daniel and Cebere, Bogdan and Liu, Tennison and Curth, Alicia and van der Schaar, Mihaela},\n  keywords = {Machine Learning (stat.ML), Machine Learning (cs.LG), FOS: Computer and information sciences, FOS: Computer and information sciences},\n  title = {HyperImpute: Generalized Iterative Imputation with Automatic Model Selection},\n  year = {2022},\n  booktitle={39th International Conference on Machine Learning},\n}\n```\n\n\n",
             "description_content_type": "text/markdown; charset=UTF-8",
             "docs_url": null,
             "download_url": "",
@@ -736,7 +735,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15799529,
+        "last_serial": 15987716,
         "urls": [
             {
                 "comment_text": "",
@@ -775,6 +774,121 @@
                 "upload_time": "2022-11-17T10:04:25",
                 "upload_time_iso_8601": "2022-11-17T10:04:25.998813Z",
                 "url": "https://files.pythonhosted.org/packages/27/52/1ad3152b04250223bdb80cccc1e83410baf25b31855308a19065c6606940/hyperimpute-0.1.8-py3-none-macosx_10_14_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.9": {
+        "info": {
+            "author": "Bogdan Cebere",
+            "author_email": "bcc38@cam.ac.uk",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Healthcare Industry",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence"
+            ],
+            "description": "# HyperImpute - A library for NaNs and nulls.\n\n<div align=\"center\">\n\n[![Tests](https://github.com/vanderschaarlab/hyperimpute/actions/workflows/test.yml/badge.svg)](https://github.com/vanderschaarlab/hyperimpute/actions/workflows/test.yml)\n[![Tutorials](https://github.com/vanderschaarlab/hyperimpute/actions/workflows/test_tutorials.yml/badge.svg)](https://github.com/vanderschaarlab/hyperimpute/actions/workflows/test_tutorials.yml)\n[![Package Release](https://github.com/vanderschaarlab/hyperimpute/actions/workflows/release.yml/badge.svg)](https://github.com/vanderschaarlab/hyperimpute/actions/workflows/release.yml)\n[![Documentation Status](https://readthedocs.org/projects/hyperimpute/badge/?version=latest)](https://hyperimpute.readthedocs.io/en/latest/?badge=latest)\n[![Downloads](https://img.shields.io/pypi/dd/hyperimpute)](https://pypi.org/project/hyperimpute/)\n\n\n[![arXiv](https://img.shields.io/badge/arXiv-2206.07769-b31b1b.svg)](https://arxiv.org/abs/2206.07769)\n[![Test In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1zGm4VeXsJ-0x6A5_icnknE7mbJ0knUig?usp=sharing)\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)\n[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)\n\n\n![image](https://github.com/vanderschaarlab/hyperimpute/raw/main/docs/arch.png \"HyperImpute\")\n\n</div>\n\n\nHyperImpute simplifies the selection process of a data imputation algorithm for your ML pipelines.\nIt includes various novel algorithms for missing data and is compatible with [sklearn](https://scikit-learn.org/stable/).\n\n\n## HyperImpute features\n- :rocket: Fast and extensible dataset imputation algorithms, compatible with sklearn.\n- :key: New iterative imputation method: HyperImpute.\n- :cyclone: Classic methods: MICE, MissForest, GAIN, MIRACLE, MIWAE, Sinkhorn, SoftImpute, etc.\n- :fire: Pluginable architecture.\n\n## :rocket: Installation\n\nThe library can be installed from PyPI using\n```bash\n$ pip install hyperimpute\n```\nor from source, using\n```bash\n$ pip install .\n```\n\n## :boom: Sample Usage\nList available imputers\n```python\nfrom hyperimpute.plugins.imputers import Imputers\n\nimputers = Imputers()\n\nimputers.list()\n```\nImpute a dataset using one of the available methods\n```python\nimport pandas as pd\nimport numpy as np\nfrom hyperimpute.plugins.imputers import Imputers\n\nX = pd.DataFrame([[1, 1, 1, 1], [4, 5, np.nan, np.nan], [3, 3, 9, 9], [2, 2, 2, 2]])\n\nmethod = \"gain\"\n\nplugin = Imputers().get(method)\nout = plugin.fit_transform(X.copy())\n\nprint(method, out)\n```\nSpecify the baseline models for HyperImpute\n```python\nimport pandas as pd\nimport numpy as np\nfrom hyperimpute.plugins.imputers import Imputers\n\nX = pd.DataFrame([[1, 1, 1, 1], [4, 5, np.nan, np.nan], [3, 3, 9, 9], [2, 2, 2, 2]])\n\nplugin = Imputers().get(\n    \"hyperimpute\",\n    optimizer=\"hyperband\",\n    classifier_seed=[\"logistic_regression\"],\n    regression_seed=[\"linear_regression\"],\n)\n\nout = plugin.fit_transform(X.copy())\nprint(out)\n```\nUse an imputer with a SKLearn pipeline\n```python\nimport pandas as pd\nimport numpy as np\n\nfrom sklearn.pipeline import Pipeline\nfrom sklearn.ensemble import RandomForestRegressor\n\nfrom hyperimpute.plugins.imputers import Imputers\n\nX = pd.DataFrame([[1, 1, 1, 1], [4, 5, np.nan, np.nan], [3, 3, 9, 9], [2, 2, 2, 2]])\ny = pd.Series([1, 2, 1, 2])\n\nimputer = Imputers().get(\"hyperimpute\")\n\nestimator = Pipeline(\n    [\n        (\"imputer\", imputer),\n        (\"forest\", RandomForestRegressor(random_state=0, n_estimators=100)),\n    ]\n)\n\nestimator.fit(X, y)\n```\nWrite a new imputation plugin\n```python\nfrom sklearn.impute import KNNImputer\nfrom hyperimpute.plugins.imputers import Imputers, ImputerPlugin\n\nimputers = Imputers()\n\nknn_imputer = \"custom_knn\"\n\nclass KNN(ImputerPlugin):\n    def __init__(self) -> None:\n        super().__init__()\n        self._model = KNNImputer(n_neighbors=2, weights=\"uniform\")\n\n    @staticmethod\n    def name():\n        return knn_imputer\n\n    @staticmethod\n    def hyperparameter_space():\n        return []\n\n    def _fit(self, *args, **kwargs):\n        self._model.fit(*args, **kwargs)\n        return self\n\n    def _transform(self, *args, **kwargs):\n        return self._model.transform(*args, **kwargs)\n\nimputers.add(knn_imputer, KNN)\n\nassert imputers.get(knn_imputer) is not None\n```\nBenchmark imputation models on a dataset\n```python\nfrom sklearn.datasets import load_iris\nfrom hyperimpute.plugins.imputers import Imputers\nfrom hyperimpute.utils.benchmarks import compare_models\n\nX, y = load_iris(as_frame=True, return_X_y=True)\n\nimputer = Imputers().get(\"hyperimpute\")\n\ncompare_models(\n    name=\"example\",\n    evaluated_model=imputer,\n    X_raw=X,\n    ref_methods=[\"ice\", \"missforest\"],\n    scenarios=[\"MAR\"],\n    miss_pct=[0.1, 0.3],\n    n_iter=2,\n)\n```\n\n## \ud83d\udcd3 Tutorials\n - [Tutorial 0: Imputation basics](tutorials/tutorial_00_imputer_plugins.ipynb)\n - [Tutorial 1: AutoML for imputation](tutorials/tutorial_01_bayesian_optimization_over_imputers.ipynb)\n - [Tutorial 2: Benchmark](tutorials/tutorial_02_benchmark_models.ipynb)\n\n## :zap: Imputation methods\nThe following table contains the default imputation plugins:\n\n| Strategy | Description| Code |\n|--- | --- | --- |\n|**HyperImpute**|Iterative imputer using both regression and classification methods based on linear models, trees, XGBoost, CatBoost and neural nets| [`plugin_hyperimpute.py`](src/hyperimpute/plugins/imputers/plugin_hyperimpute.py) |\n|**Mean**|Replace the missing values using the mean along each column with [`SimpleImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html)| [`plugin_mean.py`](src/hyperimpute/plugins/imputers/plugin_mean.py) |\n|**Median**|Replace the missing values using the median along each column with [`SimpleImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html) |  [`plugin_median.py`](src/hyperimpute/plugins/imputers/plugin_median.py) |\n|**Most-frequent**|Replace the missing values using the most frequent value along each column with [`SimpleImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html)|[`plugin_most_freq.py`](src/hyperimpute/plugins/imputers/plugin_most_freq.py) |\n|**MissForest**|Iterative imputation method based on Random Forests using [`IterativeImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html#sklearn.impute.IterativeImputer) and [`ExtraTreesRegressor`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.ExtraTreesRegressor.html)| [`plugin_missforest.py`](src/hyperimpute/plugins/imputers/plugin_missforest.py) |\n|**ICE**| Iterative imputation method based on regularized linear regression using [`IterativeImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html#sklearn.impute.IterativeImputer) and [`BayesianRidge`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.BayesianRidge.html)| [`plugin_ice.py`](src/hyperimpute/plugins/imputers/plugin_ice.py)|\n|**MICE**| Multiple imputations based on ICE using [`IterativeImputer`](https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html#sklearn.impute.IterativeImputer) and [`BayesianRidge`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.BayesianRidge.html)| [`plugin_mice.py`](src/hyperimpute/plugins/imputers/plugin_mice.py) |\n|**SoftImpute**|  [`Low-rank matrix approximation via nuclear-norm regularization`](https://jmlr.org/papers/volume16/hastie15a/hastie15a.pdf)| [`plugin_softimpute.py`](src/hyperimpute/plugins/imputers/plugin_softimpute.py)|\n|**EM**|Iterative procedure which uses other variables to impute a value (Expectation), then checks whether that is the value most likely (Maximization) - [`EM imputation algorithm`](https://joon3216.github.io/research_materials/2019/em_imputation.html)|[`plugin_em.py`](src/hyperimpute/plugins//imputers/plugin_em.py) |\n|**Sinkhorn**|[`Missing Data Imputation using Optimal Transport`](https://arxiv.org/pdf/2002.03860.pdf)|[`plugin_sinkhorn.py`](src/hyperimpute/plugins/imputers/plugin_sinkhorn.py) |\n|**GAIN**|[`GAIN: Missing Data Imputation using Generative Adversarial Nets`](https://arxiv.org/abs/1806.02920)|[`plugin_gain.py`](src/hyperimpute/plugins/imputers/plugin_gain.py) |\n|**MIRACLE**|[`MIRACLE: Causally-Aware Imputation via Learning Missing Data Mechanisms`](https://arxiv.org/abs/2111.03187)|[`plugin_miracle.py`](src/hyperimpute/plugins/imputers/plugin_miracle.py) |\n|**MIWAE**|[`MIWAE: Deep Generative Modelling and Imputation of Incomplete Data`](https://arxiv.org/abs/1812.02633)|[`plugin_miwae.py`](src/hyperimpute/plugins/imputers/plugin_miwae.py) |\n\n\n## :hammer: Tests\n\nInstall the testing dependencies using\n```bash\npip install .[testing]\n```\nThe tests can be executed using\n```bash\npytest -vsx\n```\n## Citing\n\nIf you use this code, please cite the associated paper:\n\n```\n@article{Jarrett2022HyperImpute,\n  doi = {10.48550/ARXIV.2206.07769},\n  url = {https://arxiv.org/abs/2206.07769},\n  author = {Jarrett, Daniel and Cebere, Bogdan and Liu, Tennison and Curth, Alicia and van der Schaar, Mihaela},\n  keywords = {Machine Learning (stat.ML), Machine Learning (cs.LG), FOS: Computer and information sciences, FOS: Computer and information sciences},\n  title = {HyperImpute: Generalized Iterative Imputation with Automatic Model Selection},\n  year = {2022},\n  booktitle={39th International Conference on Machine Learning},\n}\n```\n",
+            "description_content_type": "text/markdown; charset=UTF-8",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://www.vanderschaar-lab.com/",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "hyperimpute",
+            "package_url": "https://pypi.org/project/hyperimpute/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/hyperimpute/",
+            "project_urls": {
+                "Homepage": "https://www.vanderschaar-lab.com/"
+            },
+            "release_url": "https://pypi.org/project/hyperimpute/0.1.9/",
+            "requires_dist": [
+                "scikit-learn (>=1.0)",
+                "pandas (>=1.3)",
+                "torch (>=1.10.0)",
+                "numpy (>=1.20)",
+                "catboost (>=1.0.5)",
+                "optuna (>=2.10)",
+                "loguru (==.0.6.0)",
+                "xgboost (>=1.6.1)",
+                "miracle-imputation (>=0.1.3)",
+                "lightgbm",
+                "redis",
+                "cloudpickle",
+                "geomloss",
+                "pydantic",
+                "jupyter",
+                "notebook",
+                "gpboost",
+                "importlib-metadata ; python_version < \"3.8\"",
+                "setuptools ; extra == 'testing'",
+                "pytest ; extra == 'testing'",
+                "pytest-cov ; extra == 'testing'",
+                "pytest-benchmark ; extra == 'testing'",
+                "tabulate ; extra == 'testing'",
+                "bandit ; extra == 'testing'",
+                "black ; extra == 'testing'",
+                "flake8 ; extra == 'testing'",
+                "pre-commit ; extra == 'testing'",
+                "xlrd ; extra == 'testing'"
+            ],
+            "requires_python": "",
+            "summary": "A library for NaNs and nulls",
+            "version": "0.1.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15987716,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c0bc0f9cf6eebfd18930cd6ffcb4cd4d",
+                    "sha256": "85804822043bf838e7524ba620a61b0f86d3f81c187fe4cb98ab60908e89bab1"
+                },
+                "downloads": -1,
+                "filename": "hyperimpute-0.1.9-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c0bc0f9cf6eebfd18930cd6ffcb4cd4d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 99345,
+                "upload_time": "2022-12-04T19:28:47",
+                "upload_time_iso_8601": "2022-12-04T19:28:47.000893Z",
+                "url": "https://files.pythonhosted.org/packages/47/f0/6daf9663c22f9e24b57596e3086966dcf0aa7e928db392e813f56952bcd8/hyperimpute-0.1.9-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9e95ed55cc6a8dd14a2e72d992e8e6e0",
+                    "sha256": "ea5670401ab7332a519c149c5e2606b2b9b668172a57c2d15999dfd1da3818a6"
+                },
+                "downloads": -1,
+                "filename": "hyperimpute-0.1.9-py3-none-macosx_10_14_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "9e95ed55cc6a8dd14a2e72d992e8e6e0",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 98361,
+                "upload_time": "2022-12-04T19:28:04",
+                "upload_time_iso_8601": "2022-12-04T19:28:04.127891Z",
+                "url": "https://files.pythonhosted.org/packages/07/ce/2e7418c9c0c4014c891fd127d1783b14702f115f6a28ffdbce6a9bcbb3ca/hyperimpute-0.1.9-py3-none-macosx_10_14_x86_64.whl",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -45,7 +45,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9155097,
+        "last_serial": 15988395,
         "urls": [
             {
                 "comment_text": "",
@@ -116,7 +116,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9155097,
+        "last_serial": 15988395,
         "urls": [
             {
                 "comment_text": "",
@@ -190,7 +190,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9155097,
+        "last_serial": 15988395,
         "urls": [
             {
                 "comment_text": "",
@@ -264,7 +264,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9155097,
+        "last_serial": 15988395,
         "urls": [
             {
                 "comment_text": "",
@@ -339,7 +339,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9155097,
+        "last_serial": 15988395,
         "urls": [
             {
                 "comment_text": "",
@@ -435,7 +435,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9155097,
+        "last_serial": 15988395,
         "urls": [
             {
                 "comment_text": "",
@@ -531,7 +531,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9155097,
+        "last_serial": 15988395,
         "urls": [
             {
                 "comment_text": "",
@@ -626,7 +626,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9155097,
+        "last_serial": 15988395,
         "urls": [
             {
                 "comment_text": "",
@@ -692,7 +692,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "mYk's gallery\n#############\n\nIntroduction\n============\n\n`myks-gallery`_ is a simple photo gallery with granular access control.\n\nIt powers my `humble photo gallery`_, allowing me to:\n\n- access my entire photo collection privately,\n- share some albums with family or friends,\n- make some albums public.\n\n.. _myks-gallery: https://github.com/aaugustin/myks-gallery\n.. _humble photo gallery: https://myks.org/photos/\n\nUse case\n========\n\nRather than use a photo manager, I just create a new directory for each event\nand put my photos inside. I include the date of the event in the name of the\ndirectory and I rename photos based on their date and time. Then I regularly\nsynchronize my collection to a remote storage. I serve my gallery from there.\n\nIf you have a similar workflow, you may find myks-gallery useful.\n\nWhenever I upload new photos, I re-scan the collection with ``django-admin\nscanphotos`` or with the button in the admin. myks-gallery detects new albums\nand photos. Then I define users, groups and access policies in the admin.\n\nAlbum access policies control the visibility of albums. Most often, you'll\nenable the \"photos inherit album access policy\" option. If you need more\ncontrol, for instance to share only a subset of an album, you can disable this\noption and use photo access policies. You still need to define an album access\npolicy and it should be a superset of the photo access policies.\n\nObviously, requiring usernames and passwords doesn't work well for sharing\nphotos with relatives. You might want to use django-sesame_.\n\n.. _django-sesame: https://github.com/aaugustin/django-sesame\n\nSetup\n=====\n\nmyks-gallery is a pluggable Django application. It requires:\n\n* Django \u2265 2.2 (LTS)\n* Python \u2265 3.6\n\nArchitecture\n------------\n\nmyks-gallery requires two storage areas:\n\n- The first one contains the original photos. It's a read-only reference. You\n  can upload photos there with `aws s3 sync`_, `gsutil rsync`_, rsync_, etc.\n  depending on the platform.\n- The second one contains downscaled photos and ZIP archives of album exports.\n  It's a cache. You can set up expiry policies and clear it without affecting\n  the gallery, aside from the cost of rescaling images again.\n\nmyks-gallery accesses them through Django's `file storage API`_, meaning that\nyou can use any storage for which a Django storage backend exists. You should\nuse a third-party storage backend if you're storing files in a cloud service\nand Djang's built-in ``FileSystemStorage`` if you're storing them locally on\nthe filesystem, typically for local development.\n\n.. _aws s3 sync: http://docs.aws.amazon.com/cli/latest/reference/s3/sync.html\n.. _gsutil rsync: https://cloud.google.com/storage/docs/gsutil/commands/rsync\n.. _rsync: http://rsync.samba.org/\n.. _file storage API: https://docs.djangoproject.com/en/stable/ref/files/storage/\n\nInstallation guide\n------------------\n\nThis application isn't exactly plug'n'play. There are many moving pieces.\nHere's the general process for integrating myks-gallery into an existing\nwebsite:\n\n1.  Download and install the package from PyPI::\n\n        $ pip install myks-gallery\n\n2.  Add ``gallery.apps.GalleryConfig`` to ``INSTALLED_APPS``::\n\n        INSTALLED_APPS += ['gallery.apps.GalleryConfig']\n\n3.  Configure the settings \u2014 see below for the list.\n\n4.  Add the application to your URLconf with the ``gallery`` application\n    namespace::\n\n        urlpatterns += [\n            path('gallery/', include('gallery.urls', namespace='gallery')),\n        ]\n\n5.  Create a suitable ``base.html`` template. It must provide three blocks:\n    ``title``, ``extrahead``, ``content``, as shown in this `example`_.\n\n6.  Optionally, if you're serving files from the local filesystem, enable\n    `X-accel`_ (nginx) or `mod_xsendfile`_ (Apache) for your photo and cache\n    directories.\n\n7.  Scan your photos with the \"Scan photos\" button in the admin or the\n    ``scanphotos`` management command and define access policies.\n\nThe source_ contains a sample application in the ``example`` directory. It can\nhelp you see how everything fits together. See below for how to run it.\n\n.. _example: https://github.com/aaugustin/myks-gallery/blob/master/example/example/templates/base.html\n.. _X-accel: http://wiki.nginx.org/X-accel\n.. _mod_xsendfile: https://tn123.org/mod_xsendfile/\n.. _source: https://github.com/aaugustin/myks-gallery\n\nAccess control\n--------------\n\nmyks-gallery provides two levels of access control: by album and by photo.\n\nBy default, albums and photos aren't visible by anyone, except users with the\n\"Can see all photos\" permission, including superusers who have it implicitly.\n\nTo make them visible, you must define an access policy. You have two options:\npublic access or access restricted to select users or groups.\n\nAccess policies for albums are configured explicitly in the admin.\n\nIn most cases, you will enable the \"Photos inherit album access policy\"\noption, so that the access policy also applies to all photos in the album.\n\nAccess policies for photos may also be configured for granular control.\n\nFor example, if you want to publish just a few photos in an album, make these\nphotos public, make the album public, but don't enable \"Photos inherit album\naccess policy\". Other photos in the album won't be visible.\n\nAnother example, if you want to share an album privately except for a few\nphotos, set an empty access policy on these photos (e.g. by adding then\nremoving yourself), then allow some groups or users to view the album.\n\nPermissions\n-----------\n\nmyks-gallery defines two permissions for ``django.contrib.auth``:\n\n- \"Can scan the photos directory\" allows using the \"Scan photos\" button in the\n  admin.\n- \"Can see all photos\" allows seeing all albums and all photos regardless of\n  access policies.\n\nSettings\n--------\n\n``GALLERY_PHOTO_STORAGE``\n.........................\n\nDefault: *not defined*\n\nDotted Python path to the Django storage class for the original photos. It\nmust be readable by the application server but should not be writable.\n\nWhile ``GALLERY_PHOTO_STORAGE`` behaves like Django's ``DEFAULT_FILE_STORAGE``\nsetting, you'll usullay point it to a factory function that initializes and\nreturns a Django storage instance because you won't want to use globally\nconfigured values for settings such as the S3 bucket name.\n\nFor compatibility for versions prior to 0.5, if ``GALLERY_PHOTO_STORAGE``\nisn't defined but ``GALLERY_PHOTO_DIR`` is, the photo storage will be set to\n``FileSystemStorage(location=GALLERY_PHOTO_DIR)``.\n\n``GALLERY_CACHE_STORAGE``\n.........................\n\nDefault: *not defined*\n\nDotted Python path to the Django storage class for the thumbnails and album\narchives. It must be readable and writable by the application server.\n\nIt behaves like ``GALLERY_PHOTO_STORAGE``.\n\nFor compatibility for versions prior to 0.5, if ``GALLERY_CACHE_STORAGE``\nisn't defined but ``GALLERY_CACHE_DIR`` is, the photo storage will be set to\n``FileSystemStorage(location=GALLERY_CACHE_DIR)``.\n\n``GALLERY_PATTERNS``\n....................\n\nDefault: ``()``\n\nTuple of (category name, regular expression) defining how to extract album\ninformation \u2014 category, date, name \u2014 from the paths of photo files.\n\nThe regular expressions match paths relative to the root of the photo storage.\nThey contain the following captures:\n\n- ``a_name``: album name (mandatory) \u2014 to capture several bits, use\n  ``a_name1``, ``a_name2``, etc.\n- ``a_year``, ``a_month``, ``a_day``: album date (mandatory)\n- ``p_year``, ``p_month``, ``p_day``, ``p_hour``, ``p_minute``, ``p_second``:\n  photo date and time (optional)\n\nHere's an example, for photos stored with names such as ``2013/01_19_Snow in\nParis/2013-01-19_19-12-43.jpg``::\n\n    GALLERY_PATTERNS = (\n        ('Photos',\n            r'(?P<a_year>\\d{4})/(?P<a_month>\\d{2})_(?P<a_day>\\d{2})_'\n            r'(?P<a_name>[^_/]+)/'\n            r'(?P<p_year>\\d{4})-(?P<p_month>\\d{2})-(?P<p_day>\\d{2})_'\n            r'(?P<p_hour>\\d{2})-(?P<p_minute>\\d{2})-(?P<p_second>\\d{2})\\.jpg'),\n    )\n\n``GALLERY_IGNORES``\n...................\n\nDefault: ``()``\n\nTuple of regular expressions matching paths within ``GALLERY_PHOTO_STORAGE``.\nFiles matching one of these expressions will be ignored when scanning photos.\n\n``GALLERY_RESIZE_PRESETS``\n..........................\n\nDefault: ``{}``\n\nDictionary mapping thumbnail presets names to ``(width, height, crop)``. If\n``crop`` is ``True``, the photo will be cropped and the thumbnail will have\nexactly the requested size. If ``crop`` is ``False``, the thumbnaill will be\nsmaller than the requested size in one dimension to preserve the photo's\naspect ratio.\n\nThe default templates assume the following values::\n\n    GALLERY_RESIZE_PRESETS = {\n        'thumb': (128, 128, True),\n        'standard': (768, 768, False),\n    }\n\nYou may double these sizes for better results on high DPI displays.\n\nThe admin expects a ``'thumb'`` preset.\n\n``GALLERY_RESIZE_OPTIONS``\n..........................\n\nDefault: ``{}``\n\nDictionary mapping image formats names to to dictionaries of options for\nPillow's ``save`` method. Options are described for each file format in\nPillow's documentation.\n\nThe following a reasonable value for high-quality thumbnails and previews::\n\n    GALLERY_RESIZE_OPTIONS = {\n        'JPEG': {'quality': 95, 'optimize': True},\n    }\n\n.. _options:\n\n``GALLERY_SENDFILE_HEADER``\n............................\n\nDefault: ``''``\n\nName of the HTTP header that triggers ``sendfile`` on your web server. Use\n``'X-Accel-Redirect'`` for nginx and ``'X-SendFile'`` for Apache.\n\n``GALLERY_SENDFILE_ROOT``\n.........................\n\nDefault: ``''``\n\nPart to strip at the beginning of the paths in the ``sendfile`` header. The\nheader will contain the absolute path to files, minus this prefix. This is\ngenerally useful for nginx and not necessary for Apache.\n\n``GALLERY_TITLE``\n.................\n\nDefault: ``\"Gallery\"``\n\nTitle of your photo gallery. This is only used by the default templates of the\nindex and year views.\n\n``GALLERY_PREVIEW_COUNT``\n.........................\n\nDefault: ``5``\n\nNumber of thumbnails shown in the preview of each album.\n\n``GALLERY_ARCHIVE_EXPIRY``\n..........................\n\nDefault: ``None`` or ``60``\n\nDuration in days during which album archives are kept in cache. ``None``\ndisables expiration.\n\nWhen using a remote storage system such as S3, configuring an expiry policy\nfor the ``export`` folder directly on the storage system is more efficient.\n\nFor compatibility with versions prior to 0.5, if ``GALLERY_CACHE_DIR`` is\ndefined, ``GALLERY_ARCHIVE_EXPIRY`` defaults to ``60``.\n\n\nRunning the sample application\n==============================\n\n1.  Make sure Django and Pillow are installed\n\n2.  Download some pictures (warning: these files are large, total = 50MB; you\n    can use photos of your own instead as long as you respect the format of\n    the directory name: ``YYYY_MM_DD_album name``)::\n\n    $ cd example\n    $ mkdir cache\n    $ mkdir photos\n    $ mkdir \"photos/2013_01_01_Featured Pictures\"\n    $ cd \"photos/2013_01_01_Featured Pictures\"\n    $ wget http://upload.wikimedia.org/wikipedia/commons/5/51/2012-11-23_16-05-52-grande-cascade-tendon.jpg\n    $ wget http://upload.wikimedia.org/wikipedia/commons/5/56/Crooked_Beak_of_Heaven_Mask.jpg\n    $ wget http://upload.wikimedia.org/wikipedia/commons/a/a4/Iglesia_de_Nuestra_Se%C3%B1ora_de_La_Blanca%2C_Cardej%C3%B3n%2C_Espa%C3%B1a%2C_2012-09-01%2C_DD_02.   JPG\n    $ wget http://upload.wikimedia.org/wikipedia/commons/1/17/Iglesia_del_Esp%C3%ADritu_Santo%2C_Landshut%2C_Alemania%2C_2012-05-27%2C_DD_02.JPG\n    $ wget http://upload.wikimedia.org/wikipedia/commons/3/33/Viru_Bog%2C_Parque_Nacional_Lahemaa%2C_Estonia%2C_2012-08-12%2C_DD_60.JPG\n    $ wget http://upload.wikimedia.org/wikipedia/commons/d/d7/Castillo_Trausnitz%2C_Landshut%2C_Alemania%2C_2012-05-27%2C_DD_18.JPG\n    $ wget http://upload.wikimedia.org/wikipedia/commons/b/b7/Catedral_de_Alejandro_Nevsky%2C_Tallin%2C_Estonia%2C_2012-08-11%2C_DD_46.JPG\n    $ wget http://upload.wikimedia.org/wikipedia/commons/3/3f/Crassula_arborescens%2C_Jard%C3%ADn_Bot%C3%A1nico%2C_M%C3%BAnich%2C_Alemania_2012-04-21%2C_DD_01.JPG\n    $ wget http://upload.wikimedia.org/wikipedia/commons/8/86/Plaza_del_ayuntamiento%2C_Set%C3%BAbal%2C_Portugal%2C_2012-08-17%2C_DD_01.JPG\n    $ wget http://upload.wikimedia.org/wikipedia/commons/7/71/4_cilindros_y_museo_BMW%2C_M%C3%BAnich%2C_Alemania_2012-04-28%2C_DD_02.JPG\n    $ cd ../..\n\n3.  Run the development server::\n\n    $ ./manage.py migrate\n    $ ./manage.py createsuperuser\n    $ ./manage.py runserver\n\n4.  Go to http://localhost:8000/admin/gallery/album/ and log in. Click the\n    \"Scan photos\" link at the top right, and the \"Scan photos\" button on the\n    next page. You should see the following messages:\n\n    * Scanning path/to/myks-gallery/example/photos\n    * Adding album 2013_01_01_Featured Pictures (Photos) as Featured Pictures\n    * Done (0.01s)\n\n    Go to http://localhost:8000/ and enjoy!\n\n    Since you're logged in as an admin user, you can view albums and photos\n    even though you haven't defined any access policies yet.\n\nChangelog\n=========\n\n0.9\n---\n\n*Under development*\n\n0.8\n---\n\n* Changed photo access policies to always override album access policies, even\n  when \"Photos inherit album access policy\" is enabled. This makes it possible\n  to restrict access with photo access policies, rather than just extend it.\n* Updated for Django 3.0.\n\n0.7\n---\n\n* Updated for Django 2.0.\n\n0.6\n---\n\n* Added migrations for compatibility with Django 1.9.\n\nTo upgrade an existing project, run: ``django-admin migrate --fake-initial``.\n\n0.5\n---\n\nThis version uses the Django file storage API for all operations on files,\nmaking it possible to use services such as Amazon S3 or Google Cloud Storage\nfor storing photos and thumbnails. It introduces the ``GALLERY_PHOTO_STORAGE``\nand ``GALLERY_CACHE_STORAGE`` settings. They supersede ``GALLERY_PHOTO_DIR``\nand ``GALLERY_CACHE_DIR``.\n\nWhen upgrading to 0.5 or later, you should clear the cache directory.\nPreviously cached thumbnails and exports won't be used by this version.\n\nIt also include some smaller changes.\n\n* Switched ordering of albums to always show the most recent albums first.\n* Allowed customizing the number of photos in album previews.\n* Preserved original order of photos in album previews.\n* Added pagination on album preview pages.\n* Changed the hashing schema. This invalides the cache. You should clear it.\n* Fixed collision between zip archives containing photos with the same name.\n\n0.4\n---\n\n* Provided exports of albums as zip archives.\n* Fixed preview of photos affected by batch access policy changes.\n\n0.3\n---\n\n* Support for Python 3 and Django 1.6.\n* Hid public albums by default for logged-in users.\n* Switched the default styles to a responsive design.\n* Added an option to scanphotos to precompute thumbnails.\n* Added an option to scanphotos to resynchronize photo dates.\n* Fixed bugs in photo dates.\n\n0.2\n---\n\n* Made most settings optional for easier deployment.\n* Made \"sendfile\" optional and used streaming responses as a fallback.\n* Worked around a crash in libjpeg when creating large JPEG previews.\n* Added many tests.\n\n0.1\n---\n\n* Initial public release, with the history from my private repository.\n* Added documentation (README file).\n* Added a sample application.\n",
             "description_content_type": "text/x-rst",
             "docs_url": null,
             "download_url": "",
@@ -725,7 +724,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9155097,
+        "last_serial": 15988395,
         "urls": [
             {
                 "comment_text": "",
@@ -764,6 +763,205 @@
                 "upload_time": "2021-01-17T08:01:20",
                 "upload_time_iso_8601": "2021-01-17T08:01:20.599549Z",
                 "url": "https://files.pythonhosted.org/packages/cf/a7/3ff6437a1f3f2b36382ab12878ed4a9ef7a473cb6a3592d86758deea903c/myks-gallery-0.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.9": {
+        "info": {
+            "author": "Aymeric Augustin",
+            "author_email": "aymeric.augustin@m4x.org",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Web Environment",
+                "Framework :: Django",
+                "Framework :: Django :: 3.2",
+                "Framework :: Django :: 4.0",
+                "Framework :: Django :: 4.1",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/aaugustin/myks-gallery",
+            "keywords": "",
+            "license": "BSD-3-Clause",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "myks-gallery",
+            "package_url": "https://pypi.org/project/myks-gallery/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/myks-gallery/",
+            "project_urls": {
+                "Homepage": "https://github.com/aaugustin/myks-gallery",
+                "Repository": "https://github.com/aaugustin/myks-gallery"
+            },
+            "release_url": "https://pypi.org/project/myks-gallery/0.9/",
+            "requires_dist": [
+                "django (>=3.2)"
+            ],
+            "requires_python": ">=3.6,<4.0",
+            "summary": "Photo gallery with granular access control",
+            "version": "0.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15988395,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ed4ccf4e4f2428179fe8c43a432c49c2",
+                    "sha256": "5dd84649832d7270591a2bebd715a2e856b50cdb8124affd9a5628d4c8172dd8"
+                },
+                "downloads": -1,
+                "filename": "myks_gallery-0.9-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "ed4ccf4e4f2428179fe8c43a432c49c2",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6,<4.0",
+                "size": 39770,
+                "upload_time": "2022-12-04T19:30:55",
+                "upload_time_iso_8601": "2022-12-04T19:30:55.247304Z",
+                "url": "https://files.pythonhosted.org/packages/07/51/d7e25df1a5b0ccca556a9efe6b387ef6d16621d4bbb9d7d4b4d7673ec8be/myks_gallery-0.9-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "01048bc1d1be512b7ac8083f50a751b6",
+                    "sha256": "308825febb5af3193dc5f29d113a6088a9e67821fa8732b31723034731069ff1"
+                },
+                "downloads": -1,
+                "filename": "myks_gallery-0.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "01048bc1d1be512b7ac8083f50a751b6",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6,<4.0",
+                "size": 35295,
+                "upload_time": "2022-12-04T19:30:57",
+                "upload_time_iso_8601": "2022-12-04T19:30:57.251052Z",
+                "url": "https://files.pythonhosted.org/packages/92/11/64ccd6dc94215137ae85dbf1a0134005d0348f76a5683fd431cb117d5eba/myks_gallery-0.9.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.9.1": {
+        "info": {
+            "author": "Aymeric Augustin",
+            "author_email": "aymeric.augustin@m4x.org",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Web Environment",
+                "Framework :: Django",
+                "Framework :: Django :: 3.2",
+                "Framework :: Django :: 4.0",
+                "Framework :: Django :: 4.1",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "mYk's gallery\n#############\n\nIntroduction\n============\n\n`myks-gallery`_ is a simple photo gallery with granular access control.\n\nIt powers my `humble photo gallery`_, allowing me to:\n\n- access my entire photo collection privately,\n- share some albums with family or friends,\n- make some albums public.\n\n.. _myks-gallery: https://github.com/aaugustin/myks-gallery\n.. _humble photo gallery: https://myks.org/photos/\n\nUse case\n========\n\nRather than use a photo manager, I just create a new directory for each event\nand put my photos inside. I include the date of the event in the name of the\ndirectory and I rename photos based on their date and time. Then I regularly\nsynchronize my collection to a remote storage. I serve my gallery from there.\n\nIf you have a similar workflow, you may find myks-gallery useful.\n\nWhenever I upload new photos, I re-scan the collection with ``django-admin\nscanphotos`` or with the button in the admin. myks-gallery detects new albums\nand photos. Then I define users, groups and access policies in the admin.\n\nAlbum access policies control the visibility of albums. Most often, you'll\nenable the \"photos inherit album access policy\" option. If you need more\ncontrol, for instance to share only a subset of an album, you can disable this\noption and use photo access policies. You still need to define an album access\npolicy and it should be a superset of the photo access policies.\n\nObviously, requiring usernames and passwords doesn't work well for sharing\nphotos with relatives. You might want to use django-sesame_.\n\n.. _django-sesame: https://github.com/aaugustin/django-sesame\n\nSetup\n=====\n\nmyks-gallery is a pluggable Django application. It requires:\n\n* Django \u2265 3.2 (LTS)\n* Python \u2265 3.6\n\nArchitecture\n------------\n\nmyks-gallery requires two storage areas:\n\n- The first one contains the original photos. It's a read-only reference. You\n  can upload photos with `aws s3 sync`_, `gsutil rsync`_, etc.\n- The second one contains resized versions and ZIP archives of album exports.\n  It's a cache. You can set up expiry policies and clear it without affecting\n  the gallery, aside from the cost of rescaling images again.\n\nmyks-gallery accesses them through Django's `file storage API`_, meaning that\nyou can use any storage for which a Django storage backend exists. You should\nuse a third-party storage backend if you're storing files in a cloud service.\n\n.. _aws s3 sync: https://docs.aws.amazon.com/cli/latest/reference/s3/sync.html\n.. _gsutil rsync: https://cloud.google.com/storage/docs/gsutil/commands/rsync\n.. _file storage API: https://docs.djangoproject.com/en/stable/ref/files/storage/\n\nInstallation guide\n------------------\n\nThis application isn't exactly plug'n'play. There are many moving pieces.\nHere's the general process for integrating myks-gallery into an existing\nwebsite:\n\n1.  Download and install the package from PyPI::\n\n        $ pip install myks-gallery Pillow\n\n2.  Add ``gallery.apps.GalleryConfig`` to ``INSTALLED_APPS``::\n\n        INSTALLED_APPS += ['gallery.apps.GalleryConfig']\n\n3.  Configure the settings \u2014 see below for the list.\n\n4.  Add the application to your URLconf with the ``gallery`` application\n    namespace::\n\n        urlpatterns += [\n            path('gallery/', include('gallery.urls', namespace='gallery')),\n        ]\n\n5.  Create a suitable ``base.html`` template. It must provide three blocks:\n    ``title``, ``extrahead``, ``content``, as shown in this `example`_.\n\n6.  Scan your photos with the \"Scan photos\" button in the admin or the\n    ``scanphotos`` management command and define access policies.\n\nThe source_ contains a sample application in the ``example`` directory. It can\nhelp you see how everything fits together. See below for how to run it.\n\n.. _example: https://github.com/aaugustin/myks-gallery/blob/master/example/example/templates/base.html\n.. _X-accel: http://wiki.nginx.org/X-accel\n.. _mod_xsendfile: https://tn123.org/mod_xsendfile/\n.. _source: https://github.com/aaugustin/myks-gallery\n\nAccess control\n--------------\n\nmyks-gallery provides two levels of access control: by album and by photo.\n\nBy default, albums and photos aren't visible by anyone, except users with the\n\"Can see all photos\" permission, including superusers who have it implicitly.\n\nTo make them visible, you must define an access policy. You have two options:\npublic access or access restricted to select users or groups.\n\nAccess policies for albums are configured explicitly in the admin.\n\nIn most cases, you will enable the \"Photos inherit album access policy\"\noption, so that the access policy also applies to all photos in the album.\n\nAccess policies for photos may also be configured for granular control.\n\nFor example, if you want to publish just a few photos in an album, make these\nphotos public, make the album public, but don't enable \"Photos inherit album\naccess policy\". Other photos in the album won't be visible.\n\nAnother example, if you want to share an album privately except for a few\nphotos, set an empty access policy on these photos (e.g. by adding then\nremoving yourself), then allow some groups or users to view the album.\n\nPermissions\n-----------\n\nmyks-gallery defines two permissions for ``django.contrib.auth``:\n\n- \"Can scan the photos directory\" allows using the \"Scan photos\" button in the\n  admin.\n- \"Can see all photos\" allows seeing all albums and all photos regardless of\n  access policies.\n\nSettings\n--------\n\n``GALLERY_PHOTO_STORAGE``\n.........................\n\nDefault: *not defined*\n\nDotted Python path to the Django storage class for the original photos. It\nmust be readable by the application server but should not be writable.\n\nWhile ``GALLERY_PHOTO_STORAGE`` behaves like Django's ``DEFAULT_FILE_STORAGE``\nsetting, you'll usullay point it to a factory function that initializes and\nreturns a Django storage instance because you won't want to use globally\nconfigured values for settings such as the S3 bucket name.\n\n``GALLERY_CACHE_STORAGE``\n.........................\n\nDefault: *not defined*\n\nDotted Python path to the Django storage class for resized versions and album\narchives. It must be readable and writable by the application server.\n\nIt behaves like ``GALLERY_PHOTO_STORAGE``.\n\n``GALLERY_PATTERNS``\n....................\n\nDefault: ``()``\n\nTuple of (category name, regular expression) defining how to extract album\ninformation \u2014 category, date, name \u2014 from the paths of photo files.\n\nThe regular expressions match paths relative to the root of the photo storage.\nThey contain the following captures:\n\n- ``a_name``: album name (mandatory) \u2014 to capture several bits, use\n  ``a_name1``, ``a_name2``, etc.\n- ``a_year``, ``a_month``, ``a_day``: album date (mandatory)\n- ``p_year``, ``p_month``, ``p_day``, ``p_hour``, ``p_minute``, ``p_second``:\n  photo date and time (optional)\n\nHere's an example, for photos stored with names such as ``2013/01_19_Snow in\nParis/2013-01-19_19-12-43.jpg``::\n\n    GALLERY_PATTERNS = (\n        ('Photos',\n            r'(?P<a_year>\\d{4})/(?P<a_month>\\d{2})_(?P<a_day>\\d{2})_'\n            r'(?P<a_name>[^_/]+)/'\n            r'(?P<p_year>\\d{4})-(?P<p_month>\\d{2})-(?P<p_day>\\d{2})_'\n            r'(?P<p_hour>\\d{2})-(?P<p_minute>\\d{2})-(?P<p_second>\\d{2})\\.jpg'),\n    )\n\n``GALLERY_IGNORES``\n...................\n\nDefault: ``()``\n\nTuple of regular expressions matching paths within ``GALLERY_PHOTO_STORAGE``.\nFiles matching one of these expressions will be ignored when scanning photos.\n\n``GALLERY_RESIZE``\n..................\n\nDefault: ``gallery.resizers.pillow.resize``\n\nDotted Python path to the callable providing resizing functionality.\n\n``resize(photo, width, height, crop=True)`` receives an instance of the\n``Photo`` model and returns a URL for the resized version. The original image is\nfound at ``photo.image_name`` in the photo storage.\n\nThe default implementation depends on ``Pillow``.\n\n``GALLERY_RESIZE_PRESETS``\n..........................\n\nDefault: ``{}``\n\nDictionary mapping resizing presets to ``(width, height, crop)`` tuples. If\n``crop`` is ``True``, the photo will be cropped and the thumbnail will have\nexactly the requested size. If ``crop`` is ``False``, the thumbnail will be\nsmaller than the requested size in one dimension to preserve the photo's\naspect ratio.\n\nThe default templates assume the following values::\n\n    GALLERY_RESIZE_PRESETS = {\n        'thumb': (128, 128, True),\n        'standard': (768, 768, False),\n    }\n\nYou may double these sizes for better results on high DPI displays.\n\nThe admin expects a ``'thumb'`` preset.\n\n``GALLERY_RESIZE_OPTIONS``\n..........................\n\nDefault: ``{}``\n\nDictionary mapping image formats names to dictionaries of options for Pillow's\n``save`` method. Pillow's documentation describes options for each file format.\n\nThe following a reasonable value for high-quality thumbnails and previews::\n\n    GALLERY_RESIZE_OPTIONS = {\n        'JPEG': {'quality': 90, 'optimize': True},\n    }\n\nThe default resizer honors this setting. Other resizers may ignore it.\n\n``GALLERY_TITLE``\n.................\n\nDefault: ``\"Gallery\"``\n\nTitle of your photo gallery. This is only used by the default templates of the\nindex and year views.\n\n``GALLERY_PREVIEW_COUNT``\n.........................\n\nDefault: ``5``\n\nNumber of thumbnails shown in the preview of each album.\n\nRunning the sample application\n==============================\n\n1.  Make sure Django and Pillow are installed.\n\n2.  Create directories for storing photos and thumbnails::\n\n        $ cd example\n        $ mkdir media\n        $ mkdir media/cache\n        $ mkdir media/photos\n\n3.  Create an album directory, whose name must contain a date, and download\n    images. `Wikipedia's featured pictures`_ are a good choice::\n\n        $ mkdir \"media/photos/2023_01_01_Featured Pictures\"\n        # ... download pictures to this directory...\n\n    .. _Wikipedia's featured pictures: https://en.wikipedia.org/wiki/Wikipedia:Featured_pictures\n\n4.  Run the development server::\n\n    $ ./manage.py migrate\n    $ ./manage.py createsuperuser\n    $ ./manage.py runserver\n\n5.  Go to http://localhost:8000/admin/gallery/album/ and log in. Click the\n    \"Scan photos\" link at the top right, and the \"Scan photos\" button on the\n    next page. You should see the following messages:\n\n    * Scanning path/to/myks-gallery/example/media/photos\n    * Adding album 2023_01_01_Featured Pictures (Photos) as Featured Pictures\n    * Done (0.01s)\n\n    Go to http://localhost:8000/ and enjoy!\n\n    Since you're logged in as an admin user, you can view albums and photos\n    even though you haven't defined any access policies yet.\n\nChangelog\n=========\n\n1.0\n---\n\n*Under development*\n\n0.9\n---\n\nThis version makes it possible to customize image resizing, for example to\nintegrate an external service, with the ``GALLERY_RESIZE`` setting. Review\n``gallery.resizers.thumbor.resize`` for an example.\n\nSeveral features designed for storing files in the filesystem are removed:\n\n* The ``--resize`` option of ``django-admin scanphotos`` is removed.\n* Expiration of album archives with the ``GALLERY_ARCHIVE_EXPIRY`` setting is\n  removed. Configure lifecycle for the ``export`` folder on the cloud storage\n  service instead.\n* Fallback to the ``GALLERY_PHOTO_DIR`` and ``GALLERY_CACHE_DIR`` settings,\n  deprecated in version 0.5, is removed.\n* Support for serving files privately from the local filesystem is removed,\n  including the ``GALLERY_SENDFILE_HEADER`` and ``GALLERY_SENDFILE_PREFIX``\n  settings.\n\nIt includes smaller changes too.\n\n* Updated for Django 4.0.\n\n0.8\n---\n\n* Changed photo access policies to always override album access policies, even\n  when \"Photos inherit album access policy\" is enabled. This makes it possible\n  to restrict access with photo access policies, rather than just extend it.\n* Updated for Django 3.0.\n\n0.7\n---\n\n* Updated for Django 2.0.\n\n0.6\n---\n\n* Added migrations for compatibility with Django 1.9.\n\nTo upgrade an existing project, run: ``django-admin migrate --fake-initial``.\n\n0.5\n---\n\nThis version uses the Django file storage API for all operations on files,\nmaking it possible to use services such as Amazon S3 or Google Cloud Storage\nfor storing photos and thumbnails. It introduces the ``GALLERY_PHOTO_STORAGE``\nand ``GALLERY_CACHE_STORAGE`` settings. They supersede ``GALLERY_PHOTO_DIR``\nand ``GALLERY_CACHE_DIR``.\n\nWhen upgrading to 0.5 or later, you should clear the cache directory.\nPreviously cached thumbnails and exports won't be used by this version.\n\nIt includes smaller changes too.\n\n* Switched ordering of albums to always show the most recent albums first.\n* Allowed customizing the number of photos in album previews.\n* Preserved original order of photos in album previews.\n* Added pagination on album preview pages.\n* Changed the hashing schema. This invalides the cache. You should clear it.\n* Fixed collision between zip archives containing photos with the same name.\n\n0.4\n---\n\n* Provided exports of albums as zip archives.\n* Fixed preview of photos affected by batch access policy changes.\n\n0.3\n---\n\n* Support for Python 3 and Django 1.6.\n* Hid public albums by default for logged-in users.\n* Switched the default styles to a responsive design.\n* Added an option to scanphotos to precompute thumbnails.\n* Added an option to scanphotos to resynchronize photo dates.\n* Fixed bugs in photo dates.\n\n0.2\n---\n\n* Made most settings optional for easier deployment.\n* Made \"sendfile\" optional and used streaming responses as a fallback.\n* Worked around a crash in libjpeg when creating large JPEG previews.\n* Added many tests.\n\n0.1\n---\n\n* Initial public release, with the history from my private repository.\n* Added documentation (README file).\n* Added a sample application.\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/aaugustin/myks-gallery",
+            "keywords": "",
+            "license": "BSD-3-Clause",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "myks-gallery",
+            "package_url": "https://pypi.org/project/myks-gallery/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/myks-gallery/",
+            "project_urls": {
+                "Homepage": "https://github.com/aaugustin/myks-gallery",
+                "Repository": "https://github.com/aaugustin/myks-gallery"
+            },
+            "release_url": "https://pypi.org/project/myks-gallery/0.9.1/",
+            "requires_dist": [
+                "django (>=3.2)"
+            ],
+            "requires_python": ">=3.6,<4.0",
+            "summary": "Photo gallery with granular access control",
+            "version": "0.9.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15988395,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "18a3fd4f5d22de656edd19b160634c81",
+                    "sha256": "b9446461dc42ef3b974ccd743aecec7ea2651c0a77bb64b4a4c8da3afc2921fd"
+                },
+                "downloads": -1,
+                "filename": "myks_gallery-0.9.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "18a3fd4f5d22de656edd19b160634c81",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6,<4.0",
+                "size": 39823,
+                "upload_time": "2022-12-04T21:36:58",
+                "upload_time_iso_8601": "2022-12-04T21:36:58.921324Z",
+                "url": "https://files.pythonhosted.org/packages/84/81/de8ee8792eabc9f166dcd8ccdffc9d4b685f8bb7ca78618d967f565d06e1/myks_gallery-0.9.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "87bcbc2b3d450bfd03dc0bcd3d2b9556",
+                    "sha256": "0b49fb3ae85d4b319d256d5119bfdc10db67ddfac1dc9cac190c05fb8b812fac"
+                },
+                "downloads": -1,
+                "filename": "myks_gallery-0.9.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "87bcbc2b3d450bfd03dc0bcd3d2b9556",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6,<4.0",
+                "size": 35329,
+                "upload_time": "2022-12-04T21:37:00",
+                "upload_time_iso_8601": "2022-12-04T21:37:00.376337Z",
+                "url": "https://files.pythonhosted.org/packages/f4/39/c0e5f112f05335e920d86a21aa80b28cab772c4aee4f6d16b3df8d757cdf/myks_gallery-0.9.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
