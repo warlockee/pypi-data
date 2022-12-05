@@ -1,0 +1,62 @@
+{
+    "1.0.0": {
+        "info": {
+            "author": "Nesta",
+            "author_email": "dataanalytics@nesta.org.uk",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# Skills Extractor\n\n- Installation\n- Using Nesta's Skills Extractor library\n- Development\n\n## Welcome to Nesta's Skills Extractor Library\n\nWelcome to the documentation of Nesta's skills extractor library.\n\nThis page contains information on how to install and use Nesta's skills extraction library. The skills library allows you to extract skills phrases from job advertisement texts and maps them onto a skills taxonomy of your choice.\n\n![](outputs/reports/figures/highlevel_example.png)\n\nWe currently support three different taxonomies to map onto: the [European Commission\u2019s European Skills, Competences, and Occupations (ESCO)](https://esco.ec.europa.eu/en/about-esco/what-esco), [Lightcast\u2019s Open Skills](https://skills.lightcast.io/) and a \u201ctoy\u201d taxonomy developed internally for the purpose of testing.\n\nIf you'd like to learn more about the models used in the library, please refer to the [model card page](https://nestauk.github.io/ojd_daps_skills/build/html/model_card.html).\n\n## Installation\n\nYou can use pip to install the library:\n\n```\npip install ojd_daps_skills@git+https://github.com/nestauk/ojd_daps_skills@dev#egg=ojd_daps_skills\n```\n\nYou will also need to download [spaCy's](https://spacy.io/models/en) `en_core_web_sm` model:\n\n```\npython -m spacy download en_core_web_sm\n```\n\n### AWS CLI\n\nWhen the package is first used it will automatically download a folder of neccessary data and models. This file is ~ 1GB. Although you don't need to have AWS credentials for this to work, you will need to download the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html).\n\n## TL;DR: Using Nesta's Skills Extractor library\n\nThe library supports three key skills extraction functionalities :\n\n1. Extract AND map skills to a taxonomy of your choice;\n2. Extract skills from job adverts;\n3. Map a list of skills to a taxonomy of your choice.\n\nThe option `local=False` can only be used by those with access to Nesta's S3 bucket.\n\n#### 1. Extract AND map skills\n\nIf you would like to extract AND map skills in one step, you are able to do so with the `extract_skills` method.\n\n```\nfrom ojd_daps_skills.pipeline.extract_skills.extract_skills import ExtractSkills #import the module\n\nes = ExtractSkills(config_name=\"extract_skills_toy\", local=True) #instantiate with toy taxonomy configuration file\n\nes.load() #load necessary models\n\njob_adverts = [\n    \"The job involves communication skills and maths skills\",\n    \"The job involves Excel skills. You will also need good presentation skills\"\n] #toy job advert examples\n\njob_skills_matched = es.extract_skills(job_adverts) #match and extract skills to toy taxonomy\n```\n\nThe outputs are as follows:\n\n```\njob_skills_matched\n>>> [{'SKILL': [('communication skills', ('communication, collaboration and creativity', 'S1')), ('maths skills', ('working with computers', 'S5'))]}, {'SKILL': [('Excel skills', ('working with computers', 'S5')), ('presentation skills', ('communication, collaboration and creativity', 'S1'))]}]\n```\n\n#### 2. Extract skills\n\nYou can simply extract skills from a job advert or list of job adverts:\n\n```\nfrom ojd_daps_skills.pipeline.extract_skills.extract_skills import ExtractSkills #import the module\n\nes = ExtractSkills(config_name=\"extract_skills_toy\", local=True) #instantiate with toy taxonomy configuration file\n\nes.load() #load necessary models\n\njob_adverts = [\n    \"The job involves communication skills and maths skills\",\n    \"The job involves Excel skills. You will also need good presentation skills\"\n] #toy job advert examples\n\npredicted_skills = es.get_skills(job_adverts) #extract skills from list of job adverts\n```\n\nThe outputs are as follows:\n\n```\npredicted_skills\n[{'EXPERIENCE': [], 'SKILL': ['communication skills', 'maths skills'], 'MULTISKILL': []}, {'EXPERIENCE': [], 'SKILL': ['Excel skills', 'presentation skills'], 'MULTISKILL': []}]\n\n```\n\n#### 3. Map skills\n\nYou can map either the `predicted_skills` output from `get_stills` or simply map a list of skills to a taxonomy of your choice. In this instance, we map a list of skills:\n\n```\nfrom ojd_daps_skills.pipeline.extract_skills.extract_skills import ExtractSkills #import the module\n\nes = ExtractSkills(config_name=\"extract_skills_toy\", local=True) #instantiate with toy taxonomy configuration file\n\nes.load() #load necessary models\n\nskills_list = [\n    \"Communication\",\n    \"Excel skills\",\n    \"working with computers\"\n] #list of skills (and/or multiskills) to be matched\n\nskills_list_matched = es.map_skills(skills_list) #match formatted skills to toy taxonomy\n```\n\nThe outputs are as follows:\n\n```\nskills_list_matched\n>>> [{'SKILL': [('Excel skills', ('working with computers', 'S5')), ('Communication', ('use communication techniques', 'cdef')), ('working with computers', ('communication, collaboration and creativity', 'S1'))]}]\n```\n\n## Development\n\nIf you'd like to modify or develop the source code you can clone it by first running:\n\n```\ngit clone git@github.com:nestauk/ojd_daps_skills.git\n```\n\n### Setup\n\n- Meet the data science cookiecutter [requirements](http://nestauk.github.io/ds-cookiecutter/quickstart), in brief:\n  - Install: `direnv` and `conda`\n- Create a blank cookiecutter conda log file:\n  - `mkdir .cookiecutter/state`\n  - `touch .cookiecutter/state/conda-create.log`\n- Run `make install` to configure the development environment\n- Download spacy model:\n  - `python -m spacy download en_core_web_sm`\n\nIf you don't have the AWS CLI installed - you can download a zipped folder of the data [by clicking here](https://open-jobs-indicators.s3.eu-west-1.amazonaws.com/escoe_extension/ojd_daps_skills_data.zip). After downloading and unzipping, it is important that this folder is moved to the project's parent folder - i.e. `ojd_daps_skills/`.\n\n### Project structure\n\nThe project is split into three core pipeline folders:\n\n- [skill_ner](https://github.com/nestauk/ojd_daps_skills/tree/dev/ojd_daps_skills/pipeline/skill_ner) - Training a Named Entity Recognition (NER) model to extract skills from job adverts.\n- [skill_ner_mapping](https://github.com/nestauk/ojd_daps_skills/tree/dev/ojd_daps_skills/pipeline/skill_ner_mapping) - Matching skills to an existing skills taxonomy using semantic similarity.\n- [extract_skills](https://github.com/nestauk/ojd_daps_skills/tree/dev/ojd_daps_skills/pipeline/extract_skills) - User friendly functionality to extract and map skills from job adverts.\n\nMuch more about these steps can be found in each of the pipeline folder READMEs.\n\n![](outputs/reports/figures/overview.png)\n![](outputs/reports/figures/overview_example.png)\n_An example of extracting skills and mapping them to the ESCO taxonomy._\n\n### Testing\n\nSome functions have tests, these can be checked by running\n\n```\npytest\n```\n\n### Contributor guidelines\n\nThe technical and working style guidelines can be found [here](https://github.com/nestauk/ds-cookiecutter/blob/master/GUIDELINES.md).\n\n---\n\n<small><p>Project based on <a target=\"_blank\" href=\"https://github.com/nestauk/ds-cookiecutter\">Nesta's data science project template</a>\n(<a href=\"http://nestauk.github.io/ds-cookiecutter\">Read the docs here</a>).\n</small>\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/nestauk/ojd_daps_skills",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Nesta",
+            "maintainer_email": "dataanalytics@nesta.org.uk",
+            "name": "ojd-daps-skills",
+            "package_url": "https://pypi.org/project/ojd-daps-skills/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/ojd-daps-skills/",
+            "project_urls": {
+                "Homepage": "https://github.com/nestauk/ojd_daps_skills"
+            },
+            "release_url": "https://pypi.org/project/ojd-daps-skills/1.0.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Extract skill phrases from job advertisement texts and map them onto a skills taxonomy of your choice.",
+            "version": "1.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 15994506,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "44e3bd100e203a170d2d2b3a469a172c",
+                    "sha256": "f2b4a6d45a93dc3318756c264b6fc0835394fbaa43d1c5c42c3cfeda7c9acfd7"
+                },
+                "downloads": -1,
+                "filename": "ojd_daps_skills-1.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "44e3bd100e203a170d2d2b3a469a172c",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 5285033,
+                "upload_time": "2022-12-05T11:55:38",
+                "upload_time_iso_8601": "2022-12-05T11:55:38.748732Z",
+                "url": "https://files.pythonhosted.org/packages/88/74/ab147f1c13e4ca013fecb9932bcd9a76ee8c0b3fa91c54b94cc924f60026/ojd_daps_skills-1.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
