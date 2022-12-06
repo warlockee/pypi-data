@@ -49,7 +49,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14154799,
+        "last_serial": 16003517,
         "urls": [
             {
                 "comment_text": "",
@@ -144,7 +144,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14154799,
+        "last_serial": 16003517,
         "urls": [
             {
                 "comment_text": "",
@@ -240,7 +240,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14154799,
+        "last_serial": 16003517,
         "urls": [
             {
                 "comment_text": "",
@@ -322,7 +322,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14154799,
+        "last_serial": 16003517,
         "urls": [
             {
                 "comment_text": "",
@@ -418,7 +418,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14154799,
+        "last_serial": 16003517,
         "urls": [
             {
                 "comment_text": "",
@@ -472,7 +472,6 @@
                 "Development Status :: 4 - Beta",
                 "Programming Language :: Python"
             ],
-            "description": ".. image:: /ONT_logo.png\n  :width: 800\n  :alt: [Oxford Nanopore Technologies]\n  :target: https://nanoporetech.com/\n\nRemora\n\"\"\"\"\"\"\n\nMethylation/modified base calling separated from basecalling.\nRemora primarily provides an API to call modified bases for basecaller programs such as Bonito.\nRemora also provides the tools to prepare datasets, train modified base models and run simple inference.\n\nInstallation\n------------\n\nInstall from pypi:\n\n::\n\n   pip install ont-remora\n\nInstall from github source for development:\n\n::\n\n   git clone git@github.com:nanoporetech/remora.git\n   pip install -e remora/[tests]\n\nIt is recommended that Remora be installed in a virtual environment.\nFor example ``python3.8 -m venv --prompt remora --copies venv; source venv/bin/activate``.\n\nSee help for any Remora sub-command with the ``-h`` flag.\n\nGetting Started\n---------------\n\nRemora models are trained to perform binary or categorical prediction of modified base content of a nanopore read.\nModels may also be trained to perform canonical base prediction, but this feature may be removed at a later time.\nThe rest of the documentation will focus on the modified base detection task.\n\nThe Remora training/prediction input unit (refered to as a chunk) consists of:\n\n1. Section of normalized signal\n2. Canonical bases attributed to the section of signal\n3. Mapping between these two\n\nChunks have a fixed signal length defined at data preparation time and saved as a model attribute.\nA fixed position within the chunk is defined as the \"focus position\".\nThis position is the center of the base of interest.\n\nPre-trained Models\n------------------\n\nPre-trained models are included in the Remora repository.\nTo see the selection of models included in the current installation run ``remora model list_pretrained``.\n\nModels my be run from `Bonito <https://github.com/nanoporetech/bonito>`_ or `Megalodon <https://github.com/nanoporetech/megalodon>`_.\nSee documentation in these repositories for applying Remora models.\n\nMore advanced research models may be supplied via `Rerio <https://github.com/nanoporetech/rerio>`_.\n\nPython API\n----------\n\nThe Remora API can be applied to make modified base calls given a basecalled read via a ``RemoraRead`` object.\n``sig`` should be a float32 numpy array.\n``seq`` is a string derived from ``sig`` (can be either basecalls or other downstream derived sequence; e.g. mapped reference positions).\n``seq_to_sig_map`` should be an int32 numpy array of length ``len(seq) + 1`` and elements should be indices within ``sig`` array assigned to each base in ``seq``.\n\n.. code-block:: python\n\n  from remora.model_util import load_model\n  from remora.data_chunks import RemoraRead\n  from remora.inference import call_read_mods\n\n  model, model_metadata = load_model(\"remora_train_results/model_best.onnx\")\n  read = RemoraRead(sig, seq_to_sig_map, str_seq=seq)\n  mod_probs, _, pos = call_read_mods(\n    read,\n    model,\n    model_metadata,\n    return_mod_probs=True,\n  )\n\n``mod_probs`` will contain the probability of each modeled modified base as found in model_metadata[\"mod_long_names\"].\nFor example, run ``mod_probs.argmax(axis=1)`` to obtain the prediction for each input unit.\n``pos`` contains the position (index in input sequence) for each prediction within ``mod_probs``.\n\nData Preparation\n----------------\n\nRemora data preparation begins from Taiyaki mapped signal files generally produced from Megalodon containing modified base annotations.\nThis requires installation of Taiyaki via\n\n.. code-block:: bash\n\n  git clone https://github.com/nanoporetech/taiyaki\n  pip install taiyaki/\n\nAn example dataset might be pre-processed with the following commands.\n\n.. code-block:: bash\n\n  megalodon \\\n    pcr_fast5s/ \\\n    --reference ref.mmi \\\n    --output-directory mega_res_pcr \\\n    --outputs mappings signal_mappings \\\n    --num-reads 10000 \\\n    --guppy-config dna_r9.4.1_450bps_fast.cfg \\\n    --devices 0 \\\n    --processes 20\n  # Note the --ref-mods-all-motifs option defines the modified base characteristics\n  megalodon \\\n    sssI_fast5s/ \\\n    --ref-mods-all-motifs m 5mC CG 0 \\\n    --reference ref.mmi \\\n    --output-directory mega_res_sssI \\\n    --outputs mappings signal_mappings \\\n    --num-reads 10000 \\\n    --guppy-config dna_r9.4.1_450bps_fast.cfg \\\n    --devices 0 \\\n    --processes 20\n\n  python \\\n    taiyaki/misc/merge_mappedsignalfiles.py \\\n    mapped_signal_train_data.hdf5 \\\n    --input mega_res_pcr/signal_mappings.hdf5 None \\\n    --input mega_res_sssI/signal_mappings.hdf5 None \\\n    --allow_mod_merge \\\n    --batch_format\n\nAfter the construction of a training dataset, chunks must be extracted and saved in a Remora-friendly format.\nThe following command performs this task in Remora.\n\n.. code-block:: bash\n\n  remora \\\n    dataset prepare \\\n    mapped_signal_train_data.hdf5 \\\n    --output-remora-training-file remora_train_chunks.npz \\\n    --log-filename remora_train_chunks.log \\\n    --motif CG 0 \\\n    --chunk-context 50 50 \\\n    --kmer-context-bases 4 4 \\\n    --max-chunks-per-read 15 \\\n    --log-filename log.txt\n\nThe resulting ``remora_train_chunks.npz`` file can then be used to train a Remora model.\n\nAdditionally, ``remora dataset prepare`` can now accpet a pickle containing ``RemoraRead`` objects.\nThis allows users more flexibility to prepare reads for custom data preparation.\nNote that ``RemoraRead`` pickle files can grow quite large.\n\nModel Training\n--------------\n\nModels are trained with the ``remora model train`` command.\nFor example a model can be trained with the following command.\n\n.. code-block:: bash\n\n  remora \\\n    model train \\\n    remora_train_chunks.npz \\\n    --model remora/models/ConvLSTM_w_ref.py \\\n    --device 0 \\\n    --size 96 \\\n    --epochs 100 \\\n    --early-stopping 10 \\\n    --scheduler StepLR \\\n    --lr-sched-kwargs step_size 10 int \\\n    --lr-sched-kwargs gamma 0.5 float \\\n    --output-path remora_train_results\n\nThis command will produce a final model in ONNX format for use in Bonito, Megalodon or ``remora infer`` commands.\n\nModel Inference\n---------------\n\nFor testing purposes inference within Remora is provided given Taiyaki mapped signal files as input.\nThe below command will call the held out validation dataset from the data preparation section above.\n\n.. code-block:: bash\n\n  remora \\\n    infer from_taiyaki_mapped_signal \\\n    mega_res_pcr/split_signal_mappings.split_a.hdf5 \\\n    remora_train_results/model_best.onnx \\\n    --output-path remora_infer_results_pcr.txt \\\n    --device 0\n  remora \\\n    infer from_taiyaki_mapped_signal \\\n    mega_res_sssI/split_signal_mappings.split_a.hdf5 \\\n    remora_train_results/model_best.onnx \\\n    --output-path remora_infer_results_sssI.txt \\\n    --device 0\n\nNote that in order to perfrom inference on a GPU device the ``onnxruntime-gpu`` package must be installed.\n\nGPU Troubleshooting\n-------------------\n\nNote that standard Remora models are small enough to run quite quickly on CPU resources and this is the primary recommandation.\nRunning Remora models on GPU compute resources is considered experimental with minimal support.\n\nDeployment of Remora models is facilitated by the Open Neural Network Exchange (ONNX) format.\nThe ``onnxruntime`` python package is used to run the models.\nIn order to support running models on GPU resources the GPU compatible package must be installed (``pip install onnxruntime-gpu``).\n\nOnce installed the ``remora infer`` command takes a ``--device`` argument.\nSimilarly, the API ``remora.model_util.load_model`` function takes a ``device`` argument.\nThese arguments specify the GPU device ID to use for inference.\n\nOnce the ``device`` option is specified, Remora will attempt to load the model on the GPU resources.\nIf this fails a ``RemoraError`` will be raised.\nThe likely cause of this is the required CUDA and cuDNN dependency versions.\nSee the requirements on the `onnxruntime documentation page here <https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html#requirements>`_.\n\nTo check the versions of the various dependencies see the following commands.\n\n.. code-block:: bash\n\n   # check cuda version\n   nvcc --version\n   # check cuDNN version\n   grep -A 2 \"define CUDNN_MAJOR\" `whereis cudnn | cut -f2 -d\" \"`\n   # check onnxruntime version\n   python -c \"import onnxruntime as ort; print(ort.__version__)\"\n\nThese versions should match a row in the table linked above.\nCUDA and cuDNN versions can be downloaded from the NVIDIA website (`cuDNN link <https://developer.nvidia.com/rdp/cudnn-archive>`_; `CUDA link <https://developer.nvidia.com/cuda-toolkit-archive>`_).\nThe cuDNN download can be specified at runtime as in the following example.\n\n.. code-block:: bash\n\n   CUDA_PATH=/path/to/cuda/include/cuda.h \\\n     CUDNN_H_PATH=/path/to/cuda/include/cudnn.h \\\n     remora \\\n     infer [arguments]\n\nThe ``onnxruntime`` dependency can be set via the python package install command.\nFor example `pip install \"onnxruntime-gpu<1.7\"`.\n\nTerms and Licence\n-----------------\n\nThis is a research release provided under the terms of the Oxford Nanopore Technologies' Public Licence.\nResearch releases are provided as technology demonstrators to provide early access to features or stimulate Community development of tools.\nSupport for this software will be minimal and is only provided directly by the developers. Feature requests, improvements, and discussions are welcome and can be implemented by forking and pull requests.\nMuch as we would like to rectify every issue, the developers may have limited resource for support of this software.\nResearch releases may be unstable and subject to rapid change by Oxford Nanopore Technologies.\n\n\u00a9 2021 Oxford Nanopore Technologies Ltd.\nRemora is distributed under the terms of the Oxford Nanopore Technologies' Public Licence.\n\nResearch Release\n----------------\n\nResearch releases are provided as technology demonstrators to provide early access to features or stimulate Community development of tools. Support for this software will be minimal and is only provided directly by the developers. Feature requests, improvements, and discussions are welcome and can be implemented by forking and pull requests. However much as we would like to rectify every issue and piece of feedback users may have, the developers may have limited resource for support of this software. Research releases may be unstable and subject to rapid iteration by Oxford Nanopore Technologies.\n",
             "description_content_type": "text/x-rst; charset=UTF-8; variant=GFM",
             "docs_url": null,
             "download_url": "",
@@ -516,7 +515,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14154799,
+        "last_serial": 16003517,
         "urls": [
             {
                 "comment_text": "",
@@ -555,6 +554,107 @@
                 "upload_time": "2022-06-16T19:21:45",
                 "upload_time_iso_8601": "2022-06-16T19:21:45.706436Z",
                 "url": "https://files.pythonhosted.org/packages/c9/04/71e201ef20f2a263d880072e5d6e29dd1573df3ea9afada6a63d3b209006/ont-remora-1.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.0.0": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Programming Language :: Python"
+            ],
+            "description": ".. image:: /ONT_logo.png\n  :width: 800\n  :alt: [Oxford Nanopore Technologies]\n  :target: https://nanoporetech.com/\n\nRemora\n\"\"\"\"\"\"\n\nMethylation/modified base calling separated from basecalling.\nRemora primarily provides an API to call modified bases for basecaller programs such as Bonito.\nRemora also provides the tools to prepare datasets, train modified base models and run simple inference.\n\nInstallation\n------------\n\nInstall from pypi:\n\n::\n\n   pip install ont-remora\n\nInstall from github source for development:\n\n::\n\n   git clone git@github.com:nanoporetech/remora.git\n   pip install -e remora/[tests]\n\nIt is recommended that Remora be installed in a virtual environment.\nFor example ``python3.8 -m venv --prompt remora --copies venv; source venv/bin/activate``.\n\nSee help for any Remora sub-command with the ``-h`` flag.\n\nGetting Started\n---------------\n\nRemora models are trained to perform binary or categorical prediction of modified base content of a nanopore read.\nModels may also be trained to perform canonical base prediction, but this feature may be removed at a later time.\nThe rest of the documentation will focus on the modified base detection task.\n\nThe Remora training/prediction input unit (referred to as a chunk) consists of:\n\n1. Section of normalized signal\n2. Canonical bases attributed to the section of signal\n3. Mapping between these two\n\nChunks have a fixed signal length defined at data preparation time and saved as a model attribute.\nA fixed position within the chunk is defined as the \"focus position\".\nBy default, this position is the center of the \"focus base\" being interrogated by the model.\n\nPre-trained Models\n------------------\n\nSee the selection of current released models with ``remora model list_pretrained``.\nPre-trained models are stored remotely and can be downloaded using the ``remora model download`` command or will be downloaded on demand when needed.\n\nModels may be run from `Bonito <https://github.com/nanoporetech/bonito>`_.\nSee Bonito documentation to apply Remora models.\n\nMore advanced research models may be supplied via `Rerio <https://github.com/nanoporetech/rerio>`_.\nNote that older ONNX format models require Remora version < 2.0.\n\nPython API\n----------\n\nThe Remora API can be applied to make modified base calls given a basecalled read via a ``RemoraRead`` object.\n\n* ``dacs`` (Data acquisition values) should be an int16 numpy array.\n* ``shift`` and ``scale`` are float values to convert dacs to mean=0 SD=1 scaling (or similar) for input to the Remora neural network.\n* ``str_seq`` is a string derived from ``sig`` (can be either basecalls or other downstream derived sequence; e.g. mapped reference positions).\n* ``seq_to_sig_map`` should be an int32 numpy array of length ``len(seq) + 1`` and elements should be indices within ``sig`` array assigned to each base in ``seq``.\n\n.. code-block:: python\n\n  from remora.model_util import load_model\n  from remora.data_chunks import RemoraRead\n  from remora.inference import call_read_mods\n\n  model, model_metadata = load_model(\"remora_train_results/model_best.pt\")\n  read = RemoraRead(dacs, shift, scale, seq_to_sig_map, str_seq=seq)\n  mod_probs, _, pos = call_read_mods(\n    read,\n    model,\n    model_metadata,\n    return_mod_probs=True,\n  )\n\n``mod_probs`` will contain the probability of each modeled modified base as found in model_metadata[\"mod_long_names\"].\nFor example, run ``mod_probs.argmax(axis=1)`` to obtain the prediction for each input unit.\n``pos`` contains the position (index in input sequence) for each prediction within ``mod_probs``.\n\nData Preparation\n----------------\n\nRemora data preparation begins from a POD5 file (containing signal data) and a BAM file containing basecalls from the POD5 file.\nNote that the BAM file must contain the move table (default in Bonito and ``--moves_out`` in Guppy).\n\nThe following example generates training data from canonical (PCR) and modified (M.SssI treatment) samples in the same fashion as the releasd 5mC CG-context models.\n\n.. code-block:: bash\n\n  remora \\\n    dataset prepare \\\n    can_signal.pod5 \\\n    can_basecalls.bam \\\n    --output-remora-training-file can_chunks.npz \\\n    --motif CG 0 \\\n   --mod-base-control\n  remora \\\n    dataset prepare \\\n    mod_signal.pod5 \\\n    mod_basecalls.bam \\\n    --output-remora-training-file mod_chunks.npz \\\n    --motif CG 0 \\\n    --mod-base m 5mC\n  remora \\\n    dataset merge \\\n    --input-dataset can_chunks.npz 10_000_000 \\\n    --input-dataset mod_chunks.npz 10_000_000 \\\n    --output-dataset chunks.npz\n\nThe resulting ``chunks.npz`` file can then be used to train a Remora model.\n\nModel Training\n--------------\n\nModels are trained with the ``remora model train`` command.\nFor example a model can be trained with the following command.\n\n.. code-block:: bash\n\n  remora \\\n    model train \\\n    chunks.npz \\\n    --model remora/models/ConvLSTM_w_ref.py \\\n    --device 0 \\\n    --output-path train_results\n\nThis command will produce a \"best\" model in torchscript format for use in Bonito, or ``remora infer`` commands.\n\nModel Inference\n---------------\n\nFor testing purposes inference within Remora is provided.\n\n.. code-block:: bash\n\n  remora \\\n    infer from_pod5_and_bam \\\n    can_signal.pod5 \\\n    can_basecalls.bam \\\n    --model train_results/model_best.pt \\\n    --out-file can_infer.bam \\\n    --device 0\n  remora \\\n    infer from_pod5_and_bam \\\n    mod_signal.pod5 \\\n    mod_basecalls.bam \\\n    --model train_results/model_best.pt \\\n    --out-file mod_infer.bam \\\n    --device 0\n\nFinally, ``Remora`` provides tools to validate these results.\nGround truth BED files references positions where each read should be called as the modified or canonical base listed in the BED name field.\n\n.. code-block:: bash\n\n  remora \\\n    validate from_modbams \\\n    --bam-and-bed can_infer.bam can_ground_truth.bed \\\n    --bam-and-bed mod_infer.bam mod_ground_truth.bed \\\n    --full-output-filename validation_results.txt\n\nTerms and Licence\n-----------------\n\nThis is a research release provided under the terms of the Oxford Nanopore Technologies' Public Licence.\nResearch releases are provided as technology demonstrators to provide early access to features or stimulate Community development of tools.\nSupport for this software will be minimal and is only provided directly by the developers. Feature requests, improvements, and discussions are welcome and can be implemented by forking and pull requests.\nMuch as we would like to rectify every issue, the developers may have limited resource for support of this software.\nResearch releases may be unstable and subject to rapid change by Oxford Nanopore Technologies.\n\n\u00a9 2021 Oxford Nanopore Technologies Ltd.\nRemora is distributed under the terms of the Oxford Nanopore Technologies' Public Licence.\n\nResearch Release\n----------------\n\nResearch releases are provided as technology demonstrators to provide early access to features or stimulate Community development of tools. Support for this software will be minimal and is only provided directly by the developers. Feature requests, improvements, and discussions are welcome and can be implemented by forking and pull requests. However much as we would like to rectify every issue and piece of feedback users may have, the developers may have limited resource for support of this software. Research releases may be unstable and subject to rapid iteration by Oxford Nanopore Technologies.\n",
+            "description_content_type": "text/x-rst; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/nanoporetech/remora",
+            "keywords": "",
+            "license": "ont_public_licence",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "ont-remora",
+            "package_url": "https://pypi.org/project/ont-remora/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/ont-remora/",
+            "project_urls": {
+                "Homepage": "https://github.com/nanoporetech/remora"
+            },
+            "release_url": "https://pypi.org/project/ont-remora/2.0.0/",
+            "requires_dist": [
+                "tqdm",
+                "toml",
+                "torch",
+                "numpy",
+                "scikit-learn",
+                "tabulate",
+                "thop",
+                "pandas",
+                "pod5 (>=0.0.43)",
+                "pysam (>=0.20.0)",
+                "parasail",
+                "requests",
+                "pytest ; extra == 'tests'",
+                "pytest-cov ; extra == 'tests'",
+                "black (==22.8.0) ; extra == 'tests'",
+                "flake8 ; extra == 'tests'",
+                "sphinx ; extra == 'tests'"
+            ],
+            "requires_python": "",
+            "summary": "Nanopore methylation/modified base calling detached from basecalling",
+            "version": "2.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16003517,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ff103c72313f9db40dd81e8514c1d59e",
+                    "sha256": "758905a99198e779fcf220b19b67739b95e8957fad556b76388e218704d5c84e"
+                },
+                "downloads": -1,
+                "filename": "ont_remora-2.0.0-cp38-cp38-macosx_12_0_arm64.whl",
+                "has_sig": false,
+                "md5_digest": "ff103c72313f9db40dd81e8514c1d59e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 216749,
+                "upload_time": "2022-12-06T03:13:13",
+                "upload_time_iso_8601": "2022-12-06T03:13:13.433647Z",
+                "url": "https://files.pythonhosted.org/packages/f0/7a/84044200789a95965846ee92cd20fe366b5632e07f19610d7f876e8ee26a/ont_remora-2.0.0-cp38-cp38-macosx_12_0_arm64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9bc809a9c0a1f48b3734e5412f62cffd",
+                    "sha256": "7840aeadf2514b287b487aeea7e2bb28c2c9bd854fb0ad407c9556c820845cbd"
+                },
+                "downloads": -1,
+                "filename": "ont-remora-2.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "9bc809a9c0a1f48b3734e5412f62cffd",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 76107,
+                "upload_time": "2022-12-06T03:13:16",
+                "upload_time_iso_8601": "2022-12-06T03:13:16.126374Z",
+                "url": "https://files.pythonhosted.org/packages/9d/bb/16ad3582f73eca22c5f893270d968659ff29dd740ef7301552b77c6586de/ont-remora-2.0.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

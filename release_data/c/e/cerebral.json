@@ -45,7 +45,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15972638,
+        "last_serial": 16006352,
         "urls": [
             {
                 "comment_text": "",
@@ -136,7 +136,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15972638,
+        "last_serial": 16006352,
         "urls": [
             {
                 "comment_text": "",
@@ -227,7 +227,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15972638,
+        "last_serial": 16006352,
         "urls": [
             {
                 "comment_text": "",
@@ -332,7 +332,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15972638,
+        "last_serial": 16006352,
         "urls": [
             {
                 "comment_text": "",
@@ -438,7 +438,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15972638,
+        "last_serial": 16006352,
         "urls": [
             {
                 "comment_text": "",
@@ -544,7 +544,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15972638,
+        "last_serial": 16006352,
         "urls": [
             {
                 "comment_text": "",
@@ -600,7 +600,6 @@
                 "Programming Language :: Python :: 3",
                 "Programming Language :: Python :: 3 :: Only"
             ],
-            "description": "# cerebral\n\n![Tests](https://github.com/Robert-Forrest/cerebral/actions/workflows/tests.yml/badge.svg)\n\nTool for creating multi-output deep ensemble neural-networks for alloy property modelling.\n\nSee our paper [Machine-learning improves understanding of glass formation in\nmetallic\nsystems](https://pubs.rsc.org/en/content/articlelanding/2022/dd/d2dd00026a) for\ndiscussion of the model, it's architecture, and performance.\n\n## Installation\n\nThe cerebral package can be installed from\n[pypi](https://pypi.org/project/cerebral/) using pip:\n\n``pip install cerebral``\n\nCerebral makes heavy use of the\n[metallurgy](https://github.com/Robert-Forrest/metallurgy) package to manipulate\nand approximate properties of alloys. Cerebral can be used with the\n[evomatic](https://github.com/Robert-Forrest/evomatic) package to perform alloy\nsearching.\n\n## Usage\n\nCerebral can be used to create multi-input mult-output deep neural networks for\nthe modelling of arbitrary alloy properties.\n\nThe following example shows configuration of cerebral to predict the \"price\"\nproperty of an alloy, based on atomic percentages alone. Cerebral is configured\nto load data for this problem from the tests directory - this data is for\ndemonstration and testing only, it is synthetically created by the\n[metallurgy](https://github.com/Robert-Forrest/metallurgy) package for the Cu-Zr\nbinary alloy system.\n\n```python\nimport cerebral as cb\n\ncb.setup(\n    {\n        \"targets\": [{\"name\": \"price\"}],\n        \"input_features\": [\n            \"percentages\"\n        ],\n        \"data\": {\"files\": [\"tests/CuZr_prices.csv\"]},\n    }\n)\n\ndata = cb.features.load_data()\n```\n\n```\n>>> data\n     composition      price  Cu_percentage  Zr_percentage\n0          Cu100   6.000000          1.000          0.000\n1    Cu99.9Zr0.1   6.044626          0.999          0.001\n2    Cu99.7Zr0.3   6.133763          0.997          0.003\n3    Cu99.6Zr0.4   6.178273          0.996          0.004\n4    Cu99.4Zr0.6   6.267177          0.994          0.006\n..           ...        ...            ...            ...\n662  Zr99.4Cu0.6  36.969779          0.006          0.994\n663  Zr99.5Cu0.5  36.991515          0.005          0.995\n664  Zr99.7Cu0.3  37.034949          0.003          0.997\n665  Zr99.8Cu0.2  37.056646          0.002          0.998\n666        Zr100  37.100000          0.000          1.000\n```\n\nOnce a DataFrame of alloy compositions, input features, and prediction targets\nis available, it can be used to train a model. The following example takes the\nDataFrame created above, and trains a neural network to reproduce the target\nfeatures (for a maximum of 200 training epochs). The neural network model\nproduced is a standard Keras / TensorFlow model.\n\n```python\nmodel, history, train_data, test_data = cb.models.train_model(\n    data, max_epochs=200\n)\n\n>>> model\n<keras.engine.functional.Functional object at 0x7f1810feac80>\n\n>>> history.history[\"loss\"]\n[22.522766767894105, 21.966949822959215, ...] \n\n```\n\nOnce a model has been created, cerebral provides automation for evaluating its\nperformance by comparison against the training and test datasets. Since the\npricing data is based on a very simple linear mixture, the model is able to\nlearn quite well the relationship between percentages of Cu and Zr and the\nprice.\n\n```python   \n(\n    train_predictions,\n    train_errors,\n    test_predictions,\n    test_errors,\n    metrics,\n) = cb.models.evaluate_model(\n    model,\n    train_data[\"dataset\"],\n    train_data[\"labels\"],\n    test_ds=test_data[\"dataset\"],\n    test_labels=test_data[\"labels\"],\n    train_compositions=train_data[\"compositions\"],\n    test_compositions=test_data[\"compositions\"],\n)\n\n>>> metrics\n{\n  'price': {\n    'train': {\n      'R_sq': 0.9994298579318788, \n      'RMSE': 0.21407108083268242, \n      'MAE': 0.16591635524599488\n    }, \n    'test': {\n      'R_sq': 0.9994089218056131,\n      'RMSE': 0.21349478924250365, \n      'MAE': 0.1721696906690461\n    }\n  }\n}\n\n```\n\nFuther, the model can be used to generate predictions for arbitrary alloys, as\nlong as the required input features are supplied. Here, we see that the simple\nexample model predicts price value for pure copper which is in the vicinity of\nthe value originally calculated by linear mixture: \n\n```python\n>>> cb.models.predict(model, \"Cu100\")[\"price\"]\n{'price': array([6.60157898])}\n\n>>> mg.calculate(\"Cu100\", \"price\")\n6.0\n```\n\n## Documentation\n\nDocumentation is available [here.](https://cerebral.readthedocs.io/en/latest/api.html)\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -651,7 +650,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15972638,
+        "last_serial": 16006352,
         "urls": [
             {
                 "comment_text": "",
@@ -690,6 +689,113 @@
                 "upload_time": "2022-12-02T17:37:00",
                 "upload_time_iso_8601": "2022-12-02T17:37:00.080892Z",
                 "url": "https://files.pythonhosted.org/packages/76/c1/212d1d0c55d41df605888ee74ebe47b718b0a3d5e1ed9a602d34b7fa1a77/cerebral-0.0.7.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.8": {
+        "info": {
+            "author": "Robert Forrest",
+            "author_email": "robertforrest@live.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only"
+            ],
+            "description": "# cerebral\n\n![Tests](https://github.com/Robert-Forrest/cerebral/actions/workflows/tests.yml/badge.svg)\n\nTool for creating multi-output deep ensemble neural-networks for alloy property modelling.\n\nSee our paper [Machine-learning improves understanding of glass formation in\nmetallic\nsystems](https://pubs.rsc.org/en/content/articlelanding/2022/dd/d2dd00026a) for\ndiscussion of the model, it's architecture, and performance.\n\n## Installation\n\nThe cerebral package can be installed from\n[pypi](https://pypi.org/project/cerebral/) using pip:\n\n``pip install cerebral``\n\nCerebral makes heavy use of the\n[metallurgy](https://github.com/Robert-Forrest/metallurgy) package to manipulate\nand approximate properties of alloys. Cerebral can be used with the\n[evomatic](https://github.com/Robert-Forrest/evomatic) package to perform alloy\nsearching.\n\n## Usage\n\nCerebral can be used to create multi-input mult-output deep neural networks for\nthe modelling of arbitrary alloy properties.\n\nThe following example shows configuration of cerebral to predict the \"price\"\nproperty of an alloy, based on atomic percentages alone. Cerebral is configured\nto load data for this problem from the tests directory - this data is for\ndemonstration and testing only, it is synthetically created by the\n[metallurgy](https://github.com/Robert-Forrest/metallurgy) package for the Cu-Zr\nbinary alloy system.\n\n```python\nimport cerebral as cb\n\ncb.setup(\n    {\n        \"targets\": [{\"name\": \"price\"}],\n        \"input_features\": [\n            \"percentages\"\n        ],\n        \"data\": {\"files\": [\"tests/CuZr_prices.csv\"]},\n    }\n)\n\ndata = cb.features.load_data()\n```\n\n```\n>>> data\n     composition      price  Cu_percentage  Zr_percentage\n0          Cu100   6.000000          1.000          0.000\n1    Cu99.9Zr0.1   6.044626          0.999          0.001\n2    Cu99.7Zr0.3   6.133763          0.997          0.003\n3    Cu99.6Zr0.4   6.178273          0.996          0.004\n4    Cu99.4Zr0.6   6.267177          0.994          0.006\n..           ...        ...            ...            ...\n662  Zr99.4Cu0.6  36.969779          0.006          0.994\n663  Zr99.5Cu0.5  36.991515          0.005          0.995\n664  Zr99.7Cu0.3  37.034949          0.003          0.997\n665  Zr99.8Cu0.2  37.056646          0.002          0.998\n666        Zr100  37.100000          0.000          1.000\n```\n\nOnce a DataFrame of alloy compositions, input features, and prediction targets\nis available, it can be used to train a model. The following example takes the\nDataFrame created above, and trains a neural network to reproduce the target\nfeatures (for a maximum of 200 training epochs). The neural network model\nproduced is a standard Keras / TensorFlow model.\n\n```python\nmodel, history, train_data, test_data = cb.models.train_model(\n    data, max_epochs=200\n)\n\n>>> model\n<keras.engine.functional.Functional object at 0x7f1810feac80>\n\n>>> history.history[\"loss\"]\n[22.522766767894105, 21.966949822959215, ...] \n\n```\n\nOnce a model has been created, cerebral provides automation for evaluating its\nperformance by comparison against the training and test datasets. Since the\npricing data is based on a very simple linear mixture, the model is able to\nlearn quite well the relationship between percentages of Cu and Zr and the\nprice.\n\n```python   \n(\n    train_predictions,\n    train_errors,\n    test_predictions,\n    test_errors,\n    metrics,\n) = cb.models.evaluate_model(\n    model,\n    train_data[\"dataset\"],\n    train_data[\"labels\"],\n    test_ds=test_data[\"dataset\"],\n    test_labels=test_data[\"labels\"],\n    train_compositions=train_data[\"compositions\"],\n    test_compositions=test_data[\"compositions\"],\n)\n\n>>> metrics\n{\n  'price': {\n    'train': {\n      'R_sq': 0.9994298579318788, \n      'RMSE': 0.21407108083268242, \n      'MAE': 0.16591635524599488\n    }, \n    'test': {\n      'R_sq': 0.9994089218056131,\n      'RMSE': 0.21349478924250365, \n      'MAE': 0.1721696906690461\n    }\n  }\n}\n\n```\n\nFuther, the model can be used to generate predictions for arbitrary alloys, as\nlong as the required input features are supplied. Here, we see that the simple\nexample model predicts price value for pure copper which is in the vicinity of\nthe value originally calculated by linear mixture: \n\n```python\n>>> cb.models.predict(model, \"Cu100\")[\"price\"]\n{'price': array([6.60157898])}\n\n>>> mg.calculate(\"Cu100\", \"price\")\n6.0\n```\n\n## Documentation\n\nDocumentation is available [here.](https://cerebral.readthedocs.io/en/latest/api.html)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/Robert-Forrest/cerebral",
+            "keywords": "",
+            "license": "BSD 3-Clause License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "cerebral",
+            "package_url": "https://pypi.org/project/cerebral/",
+            "platform": "unix",
+            "project_url": "https://pypi.org/project/cerebral/",
+            "project_urls": {
+                "Homepage": "https://github.com/Robert-Forrest/cerebral"
+            },
+            "release_url": "https://pypi.org/project/cerebral/0.0.8/",
+            "requires_dist": [
+                "click",
+                "adjustText",
+                "elementy",
+                "kt-legacy",
+                "matplotlib",
+                "metallurgy (>=0.0.13)",
+                "numpy",
+                "omegaconf",
+                "pandas",
+                "scikit-learn (>=1.1.3)",
+                "scipy",
+                "seaborn",
+                "setuptools",
+                "tensorflow",
+                "pydot",
+                "keras-tuner",
+                "pre-commit ; extra == 'dev'",
+                "black ; extra == 'dev'",
+                "tox (==3.24.3) ; extra == 'dev'",
+                "pytest (==6.2.5) ; extra == 'dev'",
+                "pytest-cov (==2.12.1) ; extra == 'dev'"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "Tool for creating multi-output deep ensemble neural-networks",
+            "version": "0.0.8",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16006352,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0f9b2e07d8ea6b10d52b9d0399e9db98",
+                    "sha256": "9cd9abc8f297ef0b190f8708627d47263ccd08440b59c595de9f9fba331f23b6"
+                },
+                "downloads": -1,
+                "filename": "cerebral-0.0.8-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "0f9b2e07d8ea6b10d52b9d0399e9db98",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 33618,
+                "upload_time": "2022-12-06T10:15:35",
+                "upload_time_iso_8601": "2022-12-06T10:15:35.674172Z",
+                "url": "https://files.pythonhosted.org/packages/f5/a5/5b9eb9d6ff94e88512e70a810e1c7a8e3a86ab9736caa57b5410eadba4af/cerebral-0.0.8-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "978c4bcf8164616eba9b0e1f5f72bc57",
+                    "sha256": "1abfab334bd6332b20517312ea5211fe96545e4e93e48ba75a32ecce5d843c32"
+                },
+                "downloads": -1,
+                "filename": "cerebral-0.0.8.tar.gz",
+                "has_sig": false,
+                "md5_digest": "978c4bcf8164616eba9b0e1f5f72bc57",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 89033,
+                "upload_time": "2022-12-06T10:15:37",
+                "upload_time_iso_8601": "2022-12-06T10:15:37.564138Z",
+                "url": "https://files.pythonhosted.org/packages/9c/6c/f2b783283d864b95d49c6aecb87fee4d698bd02493bbac430875eb21f2c5/cerebral-0.0.8.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

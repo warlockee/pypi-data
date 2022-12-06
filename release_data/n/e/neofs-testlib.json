@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15994014,
+        "last_serial": 16006085,
         "urls": [
             {
                 "comment_text": "",
@@ -140,7 +140,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15994014,
+        "last_serial": 16006085,
         "urls": [
             {
                 "comment_text": "",
@@ -234,7 +234,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15994014,
+        "last_serial": 16006085,
         "urls": [
             {
                 "comment_text": "",
@@ -329,7 +329,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15994014,
+        "last_serial": 16006085,
         "urls": [
             {
                 "comment_text": "",
@@ -424,7 +424,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15994014,
+        "last_serial": 16006085,
         "urls": [
             {
                 "comment_text": "",
@@ -519,7 +519,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15994014,
+        "last_serial": 16006085,
         "urls": [
             {
                 "comment_text": "",
@@ -614,7 +614,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15994014,
+        "last_serial": 16006085,
         "urls": [
             {
                 "comment_text": "",
@@ -709,7 +709,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15994014,
+        "last_serial": 16006085,
         "urls": [
             {
                 "comment_text": "",
@@ -804,7 +804,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15994014,
+        "last_serial": 16006085,
         "urls": [
             {
                 "comment_text": "",
@@ -859,7 +859,6 @@
                 "Programming Language :: Python",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# neofs-testlib\nThis library provides building blocks and utilities to facilitate development of automated tests for NeoFS system.\n\n## Installation\nLibrary can be installed via pip:\n```shell\n$ pip install neofs-testlib\n```\n\n## Configuration\nSome library components support configuration that allows dynamic loading of extensions via plugins. Configuration of such components is described in this section.\n\n### Reporter Configuration\nReporter is a singleton component that is used by the library to store test artifacts.\n\nReporter sends artifacts to handlers that are responsible for actual storing in particular system. By default reporter is initialized without any handlers and won't take any actions to store the artifacts. To add handlers directly via code you can use method `register_handler`:\n\n```python\nfrom neofs_testlib.reporter import AllureHandler, get_reporter\n\nget_reporter().register_handler(AllureHandler())\n```\n\nThis registration should happen early at the test session, because any artifacts produced before handler is registered won't be stored anywhere.\n\nAlternative approach for registering handlers is to use method `configure`. It is similar to method [dictConfig](https://docs.python.org/3/library/logging.config.html#logging.config.dictConfig) in a sense that it receives a config structure that describes handlers that should be registered in the reporter. Each handler is defined by it's plugin name; for example, to register the built-in Allure handler, we can use the following config:\n\n```python\nget_reporter().configure({ \"handlers\": [{\"plugin_name\": \"allure\"}] })\n```\n\n### Hosting Configuration\nHosting component is a class that represents infrastructure (machines/containers/services) where neoFS is hosted. Interaction with specific infrastructure instance (host) is encapsulated in classes that implement interface `neofs_testlib.hosting.Host`. To pass information about hosts to the `Hosting` class in runtime we use method `configure`:\n\n```python\nfrom neofs_testlib.hosting import Hosting\n\nhosting = Hosting()\nhosting.configure({ \"hosts\": [{ \"address\": \"localhost\", \"plugin_name\": \"docker\" ... }]})\n```\n\n## Plugins\nTestlib uses [entrypoint specification](https://docs.python.org/3/library/importlib.metadata.html) for plugins. Testlib supports the following entrypoint groups for plugins:\n - `neofs.testlib.reporter` - group for reporter handler plugins. Plugin should be a class that implements interface `neofs_testlib.reporter.interfaces.ReporterHandler`.\n\n### Example reporter plugin\nIn this example we will consider two Python projects:\n - Project \"my_neofs_plugins\" where we will build a plugin that extends testlib functionality.\n - Project \"my_neofs_tests\" that uses \"neofs_testlib\" and \"my_neofs_plugins\" to build some tests.\n\nLet's say we want to implement some custom reporter handler that can be used as a plugin for testlib. Pseudo-code of implementation can look like that:\n```python\n# File my_neofs_plugins/src/foo/bar/custom_handler.py\nfrom contextlib import AbstractContextManager\nfrom neofs_testlib.reporter import ReporterHandler\n\n\nclass CustomHandler(ReporterHandler):\n    def step(self, name: str) -> AbstractContextManager:\n        ... some implementation ...\n\n    def attach(self, content: Any, file_name: str) -> None:\n        ... some implementation ...\n```\n\nThen in the file `pyproject.toml` of \"my_neofs_plugins\" we should register entrypoint for this plugin. Entrypoint must belong to the group `neofs.testlib.reporter`:\n```yaml\n# File my_neofs_plugins/pyproject.toml\n[project.entry-points.\"neofs.testlib.reporter\"]\nmy_custom_handler = \"foo.bar.custom_handler:CustomHandler\"\n```\n\nFinally, to use this handler in our test project \"my_neofs_tests\", we should configure reporter with name of the handler plugin:\n\n```python\n# File my_neofs_tests/src/conftest.py\nfrom neofs_testlib.reporter import get_reporter\n\nget_reporter().configure({ \"handlers\": [{\"plugin_name\": \"my_custom_handler\"}] })\n```\n\nDetailed information about registering entrypoints can be found at [setuptools docs](https://setuptools.pypa.io/en/latest/userguide/entry_point.html).\n\n## Library structure\nThe library provides the following primary components:\n * `blockchain` - Contains helpers that allow to interact with neo blockchain, smart contracts, gas transfers, etc.\n * `cli` - wrappers on top of neoFS command-line tools. These wrappers execute on a shell and provide type-safe interface for interacting with the tools.\n * `hosting` - management of infrastructure (docker, virtual machines, services where neoFS is hosted). The library provides host implementation for docker environment (when neoFS services are running as docker containers). Support for other hosts is provided via plugins.\n * `reporter` - abstraction on top of test reporting tool like Allure. Components of the library will report their steps and attach artifacts to the configured reporter instance.\n * `shell` - shells that can be used to execute commands. Currently library provides local shell (on machine that runs the code) or SSH shell that connects to a remote machine via SSH.\n * `utils` - Support functions.\n \n\n## Contributing\nAny contributions to the library should conform to the [contribution guideline](https://github.com/nspcc-dev/neofs-testlib/blob/master/CONTRIBUTING.md).\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -900,7 +899,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15994014,
+        "last_serial": 16006085,
         "urls": [
             {
                 "comment_text": "",
@@ -939,6 +938,102 @@
                 "upload_time": "2022-12-05T11:13:44",
                 "upload_time_iso_8601": "2022-12-05T11:13:44.829970Z",
                 "url": "https://files.pythonhosted.org/packages/d5/bf/e3dfdacf314f126745d84bccc5eee02bd85632ba721afb2e18de81708774/neofs-testlib-0.7.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.8.0": {
+        "info": {
+            "author": "",
+            "author_email": "NSPCC <info@nspcc.ru>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# neofs-testlib\nThis library provides building blocks and utilities to facilitate development of automated tests for NeoFS system.\n\n## Installation\nLibrary can be installed via pip:\n```shell\n$ pip install neofs-testlib\n```\n\n## Configuration\nSome library components support configuration that allows dynamic loading of extensions via plugins. Configuration of such components is described in this section.\n\n### Reporter Configuration\nReporter is a singleton component that is used by the library to store test artifacts.\n\nReporter sends artifacts to handlers that are responsible for actual storing in particular system. By default reporter is initialized without any handlers and won't take any actions to store the artifacts. To add handlers directly via code you can use method `register_handler`:\n\n```python\nfrom neofs_testlib.reporter import AllureHandler, get_reporter\n\nget_reporter().register_handler(AllureHandler())\n```\n\nThis registration should happen early at the test session, because any artifacts produced before handler is registered won't be stored anywhere.\n\nAlternative approach for registering handlers is to use method `configure`. It is similar to method [dictConfig](https://docs.python.org/3/library/logging.config.html#logging.config.dictConfig) in a sense that it receives a config structure that describes handlers that should be registered in the reporter. Each handler is defined by it's plugin name; for example, to register the built-in Allure handler, we can use the following config:\n\n```python\nget_reporter().configure({ \"handlers\": [{\"plugin_name\": \"allure\"}] })\n```\n\n### Hosting Configuration\nHosting component is a class that represents infrastructure (machines/containers/services) where neoFS is hosted. Interaction with specific infrastructure instance (host) is encapsulated in classes that implement interface `neofs_testlib.hosting.Host`. To pass information about hosts to the `Hosting` class in runtime we use method `configure`:\n\n```python\nfrom neofs_testlib.hosting import Hosting\n\nhosting = Hosting()\nhosting.configure({ \"hosts\": [{ \"address\": \"localhost\", \"plugin_name\": \"docker\" ... }]})\n```\n\n## Plugins\nTestlib uses [entrypoint specification](https://docs.python.org/3/library/importlib.metadata.html) for plugins. Testlib supports the following entrypoint groups for plugins:\n - `neofs.testlib.reporter` - group for reporter handler plugins. Plugin should be a class that implements interface `neofs_testlib.reporter.interfaces.ReporterHandler`.\n\n### Example reporter plugin\nIn this example we will consider two Python projects:\n - Project \"my_neofs_plugins\" where we will build a plugin that extends testlib functionality.\n - Project \"my_neofs_tests\" that uses \"neofs_testlib\" and \"my_neofs_plugins\" to build some tests.\n\nLet's say we want to implement some custom reporter handler that can be used as a plugin for testlib. Pseudo-code of implementation can look like that:\n```python\n# File my_neofs_plugins/src/foo/bar/custom_handler.py\nfrom contextlib import AbstractContextManager\nfrom neofs_testlib.reporter import ReporterHandler\n\n\nclass CustomHandler(ReporterHandler):\n    def step(self, name: str) -> AbstractContextManager:\n        ... some implementation ...\n\n    def attach(self, content: Any, file_name: str) -> None:\n        ... some implementation ...\n```\n\nThen in the file `pyproject.toml` of \"my_neofs_plugins\" we should register entrypoint for this plugin. Entrypoint must belong to the group `neofs.testlib.reporter`:\n```yaml\n# File my_neofs_plugins/pyproject.toml\n[project.entry-points.\"neofs.testlib.reporter\"]\nmy_custom_handler = \"foo.bar.custom_handler:CustomHandler\"\n```\n\nFinally, to use this handler in our test project \"my_neofs_tests\", we should configure reporter with name of the handler plugin:\n\n```python\n# File my_neofs_tests/src/conftest.py\nfrom neofs_testlib.reporter import get_reporter\n\nget_reporter().configure({ \"handlers\": [{\"plugin_name\": \"my_custom_handler\"}] })\n```\n\nDetailed information about registering entrypoints can be found at [setuptools docs](https://setuptools.pypa.io/en/latest/userguide/entry_point.html).\n\n## Library structure\nThe library provides the following primary components:\n * `blockchain` - Contains helpers that allow to interact with neo blockchain, smart contracts, gas transfers, etc.\n * `cli` - wrappers on top of neoFS command-line tools. These wrappers execute on a shell and provide type-safe interface for interacting with the tools.\n * `hosting` - management of infrastructure (docker, virtual machines, services where neoFS is hosted). The library provides host implementation for docker environment (when neoFS services are running as docker containers). Support for other hosts is provided via plugins.\n * `reporter` - abstraction on top of test reporting tool like Allure. Components of the library will report their steps and attach artifacts to the configured reporter instance.\n * `shell` - shells that can be used to execute commands. Currently library provides local shell (on machine that runs the code) or SSH shell that connects to a remote machine via SSH.\n * `utils` - Support functions.\n \n\n## Contributing\nAny contributions to the library should conform to the [contribution guideline](https://github.com/nspcc-dev/neofs-testlib/blob/master/CONTRIBUTING.md).\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "neofs,test",
+            "license": "GNU General Public License v3 (GPLv3)",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "neofs-testlib",
+            "package_url": "https://pypi.org/project/neofs-testlib/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/neofs-testlib/",
+            "project_urls": {
+                "Homepage": "https://github.com/nspcc-dev/neofs-testlib"
+            },
+            "release_url": "https://pypi.org/project/neofs-testlib/0.8.0/",
+            "requires_dist": [
+                "allure-python-commons (>=2.9.45)",
+                "docker (>=4.4.0)",
+                "neo-mamba (==0.10.0)",
+                "paramiko (>=2.10.3)",
+                "pexpect (>=4.8.0)",
+                "requests (>=2.28.0)",
+                "importlib-metadata (>=5.0) ; python_version < \"3.10\"",
+                "black ; extra == 'dev'",
+                "bumpver ; extra == 'dev'",
+                "isort ; extra == 'dev'",
+                "pre-commit ; extra == 'dev'"
+            ],
+            "requires_python": ">=3.9",
+            "summary": "Building blocks and utilities to facilitate development of automated tests for NeoFS system",
+            "version": "0.8.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16006085,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d05409d242efb9f133f21e40eb5eed63",
+                    "sha256": "811706dbde66ad0fdba8a33a65602fee8a044e507db6eb18d64f1dce20dbd4ef"
+                },
+                "downloads": -1,
+                "filename": "neofs_testlib-0.8.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "d05409d242efb9f133f21e40eb5eed63",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.9",
+                "size": 66682,
+                "upload_time": "2022-12-06T09:46:30",
+                "upload_time_iso_8601": "2022-12-06T09:46:30.454639Z",
+                "url": "https://files.pythonhosted.org/packages/ee/f0/16500cff97958bd4209a87cb8ae28ad6e2109294584e9b3ea8623b4c94bd/neofs_testlib-0.8.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "09892d86f3a0b91f45ed18e24fe60bf9",
+                    "sha256": "af221edf60679274a2b7f14fdabb8c4921c57e2623c736b3024fb01f75630b37"
+                },
+                "downloads": -1,
+                "filename": "neofs-testlib-0.8.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "09892d86f3a0b91f45ed18e24fe60bf9",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9",
+                "size": 47464,
+                "upload_time": "2022-12-06T09:46:32",
+                "upload_time_iso_8601": "2022-12-06T09:46:32.721636Z",
+                "url": "https://files.pythonhosted.org/packages/b8/78/552e46ac55347214be90d5b78626dc08df4f0a6b35f19e1afdd9d77a155c/neofs-testlib-0.8.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
