@@ -47,7 +47,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13541633,
+        "last_serial": 16000411,
         "urls": [
             {
                 "comment_text": "",
@@ -138,7 +138,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13541633,
+        "last_serial": 16000411,
         "urls": [
             {
                 "comment_text": "",
@@ -232,7 +232,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13541633,
+        "last_serial": 16000411,
         "urls": [
             {
                 "comment_text": "",
@@ -325,7 +325,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13541633,
+        "last_serial": 16000411,
         "urls": [
             {
                 "comment_text": "",
@@ -419,7 +419,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13541633,
+        "last_serial": 16000411,
         "urls": [
             {
                 "comment_text": "",
@@ -480,7 +480,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Utilities"
             ],
-            "description": "# Item Synchronizer\n\n<img src=\"https://github.com/bergercookie/item_synchronizer/raw/master/res/logo.png\" alt=\"logo\" style=\"zoom:50%;\" />\n\n<a href=\"https://github.com/bergercookie/item_synchronizer/actions\" alt=\"CI\">\n<img src=\"https://github.com/bergercookie/item_synchronizer/actions/workflows/ci.yml/badge.svg\"/></a>\n<a href=\"https://github.com/pre-commit/pre-commit\">\n<img src=\"https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white\" alt=\"pre-commit\"></a>\n\n<a href='https://coveralls.io/github/bergercookie/item_synchronizer'>\n<img src='https://coveralls.io/repos/github/bergercookie/item_synchronizer/badge.svg' alt='Coverage Status' /></a>\n<a href=\"https://github.com/bergercookie/item_synchronizer/blob/master/LICENSE.md\" alt=\"LICENCE\">\n<img src=\"https://img.shields.io/github/license/bergercookie/item_synchronizer.svg\" /></a>\n<a href=\"https://pypi.org/project/item_synchronizer/\" alt=\"pypi\">\n<img src=\"https://img.shields.io/pypi/pyversions/item-synchronizer.svg\" /></a>\n<a href=\"https://badge.fury.io/py/item-synchronizer\">\n<img src=\"https://badge.fury.io/py/item-synchronizer.svg\" alt=\"PyPI version\" height=\"18\"></a>\n<a href=\"https://pepy.tech/project/item-synchronizer\">\n<img alt=\"Downloads\" src=\"https://pepy.tech/badge/item-synchronizer\"></a>\n<a href=\"https://github.com/psf/black\">\n<img alt=\"Code style: black\" src=\"https://img.shields.io/badge/code%20style-black-000000.svg\"></a>\n\n## Description\n\nSynchronize items from two different sources in a bidirectional manner.\n\nThis library aims to offer an abstract and versatile way to _create_, _update_\nand/or _delete_ items to keep two \"sources\" in sync.\n\nThese \"items\" may range from Calendar entries, TODO task lists, or whatever else\nyou want as long as the user registers the appropriate functions/methods to\nconvert from one said item to another.\n\n## Usage\n\nThe `Synchronizer` class requires the following `Callable`s to be given, for each\none of the sides. See the most up-to-date python types\n[here](https://github.com/bergercookie/item_synchronizer/blob/master/item_synchronizer/types.py)\n\n- Insertion callable: when called with the contents of an item it should create\n  and return the ID of the newly added item on the other source\n- Update callable: update an item given by the item ID, using the (possibly\n  partial) new contents specified by Item\n- Deletion callable: Delete the item given by the specified ID\n- Conversion callable: convert an item from the format of one source to the\n  format of another.\n- `Item Getter` callable: Given the ID of an Item of one source return the\n  corresponding item on the other source.\n- `A_to_B` [bidict](https://github.com/jab/bidict)\n\n  - This should be a bidict mapping IDs of A to the corresponding IDs of B and\n    vice-versa. Given this the `item_synchronizer` is responsible for keeping\n    it up to date on insertion, update and deletion events. The contents of this\n    bidict should be persistent across the various runs, thus, consider\n    pickle-ing and unpickling its contents to disk\n\nAdditionally `item_synchronizer` needs to know what items (their IDs) were\ninserted, updated and deleted during the call to its main method, `sync()`. This\nis dependent on your application at hand. You could either cache the items and\ntheir content after each run and compare them with the latest state in the\ncurrent run. Or, the API of the calendar/task manager, etc. that you are using\nmay allow you to query the items that were modified/inserted/deleted since the\nlast run.\n\n## Examples\n\nLet's say you want to bi-directionally synchronize your calendar events with\nyour TODO Task Manager tasks. This way, when you remove calendar event, the\ncorrespoding task will be deleted, when you add a new task in your task manager,\na new calendar event will be created and when you update the task (e.g., change\nits description or start time) the changes will reflect in the corresponding\ncalendar entry.\n\nThus, you have the following and you want to sync the `A` and `B` items.\n\n![sync0](res/drawio/sync0.drawio.svg)\n\nAs described in the previous section, `item_synchronizer` requires a set of\nfunctions which it will call when it needs to insert, update or delete an item\nfrom the corresponding side. It also requires an `A_to_B` bidict persistent\nacross its runs with the item mappings between the two sides before the very\nlatest changes. Notice that, `item_synchonizer` will be responsible for updating\nentries in this `A_to_B` bidict, you do not need to do that manually. You only\nneed to make it persist across the different runs of the `Synchronizer.sync()`\ncall (e.g., by pickle-ing and unpickle-ing it every time your application exits\nand starts again.)\n\nThus, this is the situation that `item_synchronizer` expects at its first\nrun.\n\n![sync1](res/drawio/sync1.drawio.svg)\n\nAfter the first call to `sync()` here's the expected results. After this call\neach event of one side will have a counterpart on the other side and that's also\ngoing to be reflected in the provided `A_to_B` bidict.\n\n![sync2](res/drawio/sync2.drawio.svg)\n\nSubsequent calls to `sync()` will pick up the changes and will insert any new\nitems from each side to the other side accordingly.\n\nNow let's say that item 2 was modified from side A, item 3 from side B and\nitem 21 was deleted from side A.\n\n![update-n-delete0](res/drawio/update-n-delete0.drawio.svg)\n\nIn the subsequent call to `sync()`, `item_synchronizer` will forward these\nchanges to the other side appropriately.\n\n![update-n-delete1](res/drawio/update-n-delete1.drawio.svg)\n\nIf there was a conflict, e.g., an item removed from one side and updated from\nthe other, then `item_synchronizer` supports a series of resolution strategies\nfor handling such conflicts.\n\n![resolution-strategy](res/drawio/resolution-strategy.drawio.svg)\n\n## Installation\n\nAdd it as a dependency to either your `requirements.txt` or to `pyproject.toml`\n\n```console\n[tool.poetry.dependencies]\n...\nitem_synchronizer = \"^1.0\"\n...\n```\n\nOr simply install it with `pip` if you want to use it locally:\n\n```sh\npip3 install item_synchronizer\n```\n\n## Projects using it\n\nProjects using this:\n\n- [Taskwarrior <-> Google Calendar Bidirectonal Synchronisation](https://github.com/bergercookie/taskw_gcal_sync/blob/master/taskw_gcal_sync/TWGCalAggregator.py)\n\n## Notes\n\n- Currently IDs of items on either side should be of `str` type.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -513,7 +512,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13541633,
+        "last_serial": 16000411,
         "urls": [
             {
                 "comment_text": "",
@@ -552,6 +551,101 @@
                 "upload_time": "2022-04-18T01:10:18",
                 "upload_time_iso_8601": "2022-04-18T01:10:18.480010Z",
                 "url": "https://files.pythonhosted.org/packages/ba/ee/e19a0ab559a0d72f2ec42ec79ad5afcc613b8e296864b11950e29d7fa11d/item_synchronizer-1.1.3b0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.1.4": {
+        "info": {
+            "author": "Nikos Koukis",
+            "author_email": "nickkouk@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Framework :: Pytest",
+                "License :: OSI Approved :: MIT License",
+                "Natural Language :: English",
+                "Operating System :: Unix",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Utilities"
+            ],
+            "description": "# Item Synchronizer\n\n<img src=\"https://github.com/bergercookie/item_synchronizer/raw/master/res/logo.png\" alt=\"logo\" style=\"zoom:50%;\" />\n\n<a href=\"https://github.com/bergercookie/item_synchronizer/actions\" alt=\"CI\">\n<img src=\"https://github.com/bergercookie/item_synchronizer/actions/workflows/ci.yml/badge.svg\"/></a>\n<a href=\"https://github.com/pre-commit/pre-commit\">\n<img src=\"https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white\" alt=\"pre-commit\"></a>\n\n<a href='https://coveralls.io/github/bergercookie/item_synchronizer'>\n<img src='https://coveralls.io/repos/github/bergercookie/item_synchronizer/badge.svg' alt='Coverage Status' /></a>\n<a href=\"https://github.com/bergercookie/item_synchronizer/blob/master/LICENSE.md\" alt=\"LICENCE\">\n<img src=\"https://img.shields.io/github/license/bergercookie/item_synchronizer.svg\" /></a>\n<a href=\"https://pypi.org/project/item_synchronizer/\" alt=\"pypi\">\n<img src=\"https://img.shields.io/pypi/pyversions/item-synchronizer.svg\" /></a>\n<a href=\"https://badge.fury.io/py/item-synchronizer\">\n<img src=\"https://badge.fury.io/py/item-synchronizer.svg\" alt=\"PyPI version\" height=\"18\"></a>\n<a href=\"https://pepy.tech/project/item-synchronizer\">\n<img alt=\"Downloads\" src=\"https://pepy.tech/badge/item-synchronizer\"></a>\n<a href=\"https://github.com/psf/black\">\n<img alt=\"Code style: black\" src=\"https://img.shields.io/badge/code%20style-black-000000.svg\"></a>\n\n## Description\n\nSynchronize items from two different sources in a bidirectional manner.\n\nThis library aims to offer an abstract and versatile way to _create_, _update_\nand/or _delete_ items to keep two \"sources\" in sync.\n\nThese \"items\" may range from Calendar entries, TODO task lists, or whatever else\nyou want as long as the user registers the appropriate functions/methods to\nconvert from one said item to another.\n\n## Usage\n\nThe `Synchronizer` class requires the following `Callable`s to be given, for each\none of the sides. See the most up-to-date python types\n[here](https://github.com/bergercookie/item_synchronizer/blob/master/item_synchronizer/types.py)\n\n- Insertion callable: when called with the contents of an item it should create\n  and return the ID of the newly added item on the other source\n- Update callable: update an item given by the item ID, using the (possibly\n  partial) new contents specified by Item\n- Deletion callable: Delete the item given by the specified ID\n- Conversion callable: convert an item from the format of one source to the\n  format of another.\n- `Item Getter` callable: Given the ID of an Item of one source return the\n  corresponding item on the other source.\n- `A_to_B` [bidict](https://github.com/jab/bidict)\n\n  - This should be a bidict mapping IDs of A to the corresponding IDs of B and\n    vice-versa. Given this the `item_synchronizer` is responsible for keeping\n    it up to date on insertion, update and deletion events. The contents of this\n    bidict should be persistent across the various runs, thus, consider\n    pickle-ing and unpickling its contents to disk\n\nAdditionally `item_synchronizer` needs to know what items (their IDs) were\ninserted, updated and deleted during the call to its main method, `sync()`. This\nis dependent on your application at hand. You could either cache the items and\ntheir content after each run and compare them with the latest state in the\ncurrent run. Or, the API of the calendar/task manager, etc. that you are using\nmay allow you to query the items that were modified/inserted/deleted since the\nlast run.\n\n## Examples\n\nLet's say you want to bi-directionally synchronize your calendar events with\nyour TODO Task Manager tasks. This way, when you remove calendar event, the\ncorrespoding task will be deleted, when you add a new task in your task manager,\na new calendar event will be created and when you update the task (e.g., change\nits description or start time) the changes will reflect in the corresponding\ncalendar entry.\n\nThus, you have the following and you want to sync the `A` and `B` items.\n\n![sync0](res/drawio/sync0.drawio.svg)\n\nAs described in the previous section, `item_synchronizer` requires a set of\nfunctions which it will call when it needs to insert, update or delete an item\nfrom the corresponding side. It also requires an `A_to_B` bidict persistent\nacross its runs with the item mappings between the two sides before the very\nlatest changes. Notice that, `item_synchonizer` will be responsible for updating\nentries in this `A_to_B` bidict, you do not need to do that manually. You only\nneed to make it persist across the different runs of the `Synchronizer.sync()`\ncall (e.g., by pickle-ing and unpickle-ing it every time your application exits\nand starts again.)\n\nThus, this is the situation that `item_synchronizer` expects at its first\nrun.\n\n![sync1](res/drawio/sync1.drawio.svg)\n\nAfter the first call to `sync()` here's the expected results. After this call\neach event of one side will have a counterpart on the other side and that's also\ngoing to be reflected in the provided `A_to_B` bidict.\n\n![sync2](res/drawio/sync2.drawio.svg)\n\nSubsequent calls to `sync()` will pick up the changes and will insert any new\nitems from each side to the other side accordingly.\n\nNow let's say that item 2 was modified from side A, item 3 from side B and\nitem 21 was deleted from side A.\n\n![update-n-delete0](res/drawio/update-n-delete0.drawio.svg)\n\nIn the subsequent call to `sync()`, `item_synchronizer` will forward these\nchanges to the other side appropriately.\n\n![update-n-delete1](res/drawio/update-n-delete1.drawio.svg)\n\nIf there was a conflict, e.g., an item removed from one side and updated from\nthe other, then `item_synchronizer` supports a series of resolution strategies\nfor handling such conflicts.\n\n![resolution-strategy](res/drawio/resolution-strategy.drawio.svg)\n\n## Installation\n\nAdd it as a dependency to either your `requirements.txt` or to `pyproject.toml`\n\n```console\n[tool.poetry.dependencies]\n...\nitem_synchronizer = \"^1.0\"\n...\n```\n\nOr simply install it with `pip` if you want to use it locally:\n\n```sh\npip3 install item_synchronizer\n```\n\n## Projects using it\n\nProjects using this:\n\n- [Taskwarrior <-> Google Calendar Bidirectonal Synchronisation](https://github.com/bergercookie/taskw_gcal_sync/blob/master/taskw_gcal_sync/TWGCalAggregator.py)\n\n## Notes\n\n- Currently IDs of items on either side should be of `str` type.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/bergercookie/item_synchronizer",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "item-synchronizer",
+            "package_url": "https://pypi.org/project/item-synchronizer/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/item-synchronizer/",
+            "project_urls": {
+                "Homepage": "https://github.com/bergercookie/item_synchronizer",
+                "Repository": "https://github.com/bergercookie/item_synchronizer"
+            },
+            "release_url": "https://pypi.org/project/item-synchronizer/1.1.4/",
+            "requires_dist": [
+                "bidict (>=0.21.4,<0.22.0)",
+                "bubop (>=0.1.8,<0.2)"
+            ],
+            "requires_python": ">=3.8,<4.0",
+            "summary": "Synchronize items bi-directionally between two different sources",
+            "version": "1.1.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16000411,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d6a156d05cc3bec2836514cee3aa4e99",
+                    "sha256": "9e47d793bf2453ee5efd6a41c7aa3b1b6cdb3d9717c2be0c050b2e6baf5fa72b"
+                },
+                "downloads": -1,
+                "filename": "item_synchronizer-1.1.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "d6a156d05cc3bec2836514cee3aa4e99",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<4.0",
+                "size": 11125,
+                "upload_time": "2022-12-05T21:53:39",
+                "upload_time_iso_8601": "2022-12-05T21:53:39.645157Z",
+                "url": "https://files.pythonhosted.org/packages/23/1a/5c691430da02b09aa061e17c409b5f46d32b69d15b6294b6c1cfd43706cc/item_synchronizer-1.1.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9f0e6584331da01c2a431703294a5953",
+                    "sha256": "0c5b84c79ab743571d7b2171483835901933789e8deecce57f6395bf4fbe7df2"
+                },
+                "downloads": -1,
+                "filename": "item_synchronizer-1.1.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "9f0e6584331da01c2a431703294a5953",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<4.0",
+                "size": 12612,
+                "upload_time": "2022-12-05T21:53:40",
+                "upload_time_iso_8601": "2022-12-05T21:53:40.941358Z",
+                "url": "https://files.pythonhosted.org/packages/dc/61/2f69a1087d8f00df0bb68d4d3ca7eec6ec87481485dc0dde4775bae12644/item_synchronizer-1.1.4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

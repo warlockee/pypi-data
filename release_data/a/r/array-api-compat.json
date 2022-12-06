@@ -1,0 +1,89 @@
+{
+    "1.0": {
+        "info": {
+            "author": "Consortium for Python Data API Standards",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# Array API compatibility library\n\nThis is a small wrapper around NumPy and CuPy that is compatible with the\n[Array API standard](https://data-apis.org/array-api/latest/). See also [NEP\n47](https://numpy.org/neps/nep-0047-array-api-standard.html).\n\nUnlike `numpy.array_api`, this is not a strict minimal implementation of the\nArray API, but rather just an extension of the main NumPy and CuPy namespaces\nwith changes needed to be compliant with the Array API.\n\nLibrary authors using the Array API may wish to test against `numpy.array_api`\nto ensure they are not using functionality outside of the standard, but prefer\nthis implementation for the default when working with NumPy or CuPy arrays.\n\nSee https://numpy.org/doc/stable/reference/array_api.html for a full list of\nchanges. In particular, unlike `numpy.array_api`, this package does not use a\nseparate Array object, but rather just uses `numpy.ndarray` directly.\n\nNote that some of the functionality in this library is backwards incompatible\nwith NumPy.\n\nThis library also supports CuPy in addition to NumPy. If you want support for\nother array libraries, please [open an\nissue](https://github.com/data-apis/array-api-compat/issues).\n\nLibrary authors using the Array API may wish to test against `numpy.array_api`\nto ensure they are not using functionality outside of the standard, but prefer\nthis implementation for end users who use NumPy arrays.\n\n## Usage\n\nTo use this library replace\n\n```py\nimport numpy as np\n```\n\nwith\n\n```py\nimport array_api_compat.numpy as np\n```\n\nand replace\n\n```py\nimport cupy as cp\n```\n\nwith\n\n```py\nimport array_api_compat.cupy as cp\n```\n\nEach will include all the functions from the normal NumPy/CuPy namespace,\nexcept that functions that are part of the array API are wrapped so that they\nhave the correct array API behavior. In each case, the array object used will\nbe thew same array object from the wrapped library.\n\n\n## Helper Functions\n\nIn addition to the default NumPy/CuPy namespace and functions in the array API\nspecification, there are several helper functions\nincluded that aren't part of the specification but which are useful for using\nthe array API:\n\n- `is_array_api_obj(x)`: Return `True` if `x` is an array API compatible array\n  object.\n\n- `get_namespace(*xs)`: Get the corresponding array API namespace for the\n  arrays `xs`. If the arrays are NumPy or CuPy arrays, the returned namespace\n  will be `array_api_compat.numpy` or `array_api_compat.cupy` so that it is\n  array API compatible.\n\n- `device(x)`: Equivalent to\n  [`x.device`](https://data-apis.org/array-api/latest/API_specification/generated/signatures.array_object.array.device.html)\n  in the array API specification. Included because `numpy.ndarray` does not\n  include the `device` attribute and this library does not wrap or extend the\n  array object. Note that for NumPy, `device` is always `\"cpu\"`.\n\n- `to_device(x, device, /, *, stream=None)`: Equivalent to\n  [`x.to_device`](https://data-apis.org/array-api/latest/API_specification/generated/signatures.array_object.array.to_device.html).\n  Included because neither NumPy's nor CuPy's ndarray objects include this\n  method. For NumPy, this function effectively does nothing since the only\n  supported device is the CPU, but for CuPy, this method supports CuPy CUDA\n  [Device](https://docs.cupy.dev/en/stable/reference/generated/cupy.cuda.Device.html)\n  and\n  [Stream](https://docs.cupy.dev/en/stable/reference/generated/cupy.cuda.Stream.html)\n  objects.\n\n## Known Differences from the Array API Specification\n\nThere are some known differences between this library and the array API\nspecification:\n\n- The array methods `__array_namespace__`, `device` (for NumPy), `to_device`,\n  and `mT` are not defined. This reuses `np.ndarray` and `cp.ndarray` and we\n  don't want to monkeypatch or wrap it. The helper functions `device()` and\n  `to_device()` are provided to work around these missing methods (see above).\n  `x.mT` can be replaced with `xp.linalg.matrix_transpose(x)`.\n  `get_namespace(x)` should be used instead of `x.__array_namespace__`.\n\n- NumPy value-based casting for scalars will be in effect unless explicitly\n  disabled with the environment variable NPY_PROMOTION_STATE=weak or\n  np._set_promotion_state('weak') (requires NumPy 1.24 or newer, see NEP 50\n  and https://github.com/numpy/numpy/issues/22341)\n\n- Functions which are not wrapped may not have the same type annotations\n  as the spec.\n\n- Functions which are not wrapped may not use positional-only arguments.\n\n## Vendoring\n\nThis library supports vendoring as an installation method. To vendor the\nlibrary, simply copy `array_api_compat` into the appropriate place in the\nlibrary, like\n\n```\ncp -R array_api_compat/ mylib/vendored/array_api_compat\n```\n\nYou may also rename it to something else if you like (nowhere in the code\nreferences the name \"array_api_compat\").\n\nAlternatively, the library may be installed as dependency on PyPI.\n\n## Implementation\n\nAs noted before, the goal of this library is to reuse the NumPy and CuPy array\nobjects, rather than wrapping or extending them. This means that the functions\nneed to accept and return `np.ndarray` for NumPy and `cp.ndarray` for CuPy.\n\nEach namespace (`array_api_compat.numpy` and `array_api_compat.cupy`) is\npopulated with the normal library namespace (like `from numpy import *`). Then\nspecific functions are replaced with wrapped variants. Wrapped functions that\nhave the same logic between NumPy and CuPy (which is most functions) are in\n`array_api_compat/common/`. These functions are defined like\n\n```py\n# In array_api_compat/common/_aliases.py\n\ndef acos(x, /, xp):\n    return xp.arccos(x)\n```\n\nThe `xp` argument refers to the original array namespace (either `numpy` or\n`cupy`). Then in the specific `array_api_compat/numpy` and\n`array_api_compat/cupy` namespace, the `get_xp` decorator is applied to these\nfunctions, which automatically removes the `xp` argument from the function\nsignature and replaces it with the corresponding array library, like\n\n```py\n# In array_api_compat/numpy/_aliases.py\n\nfrom ..common import _aliases\n\nimport numpy as np\n\nacos = get_xp(np)(_aliases.acos)\n```\n\nThis `acos` now has the signature `acos(x, /)` and calls `numpy.arccos`.\n\nSimilarly, for CuPy:\n\n```py\n# In array_api_compat/cupy/_aliases.py\n\nfrom ..common import _aliases\n\nimport cupy as cp\n\nacos = get_xp(cp)(_aliases.acos)\n```\n\nSince NumPy and CuPy are nearly identical in their behaviors, this allows\nwriting the wrapping logic for both libraries only once. If support is added\nfor other libraries which differ significantly from NumPy, their wrapper code\nshould go in their specific sub-namespace instead of `common/`.\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://data-apis.org/array-api-compat/",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "array-api-compat",
+            "package_url": "https://pypi.org/project/array-api-compat/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/array-api-compat/",
+            "project_urls": {
+                "Homepage": "https://data-apis.org/array-api-compat/"
+            },
+            "release_url": "https://pypi.org/project/array-api-compat/1.0/",
+            "requires_dist": [
+                "cupy ; extra == 'cupy'",
+                "numpy ; extra == 'numpy'"
+            ],
+            "requires_python": "",
+            "summary": "A wrapper around NumPy and other array libraries to make them compatible with the Array API standard",
+            "version": "1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16001416,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a57c98a7a3dc50378148a699290f2827",
+                    "sha256": "b6df6f5645a0122683efb803cf0e4c9cc260b708b19054a4fadeabd9b9543734"
+                },
+                "downloads": -1,
+                "filename": "array_api_compat-1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "a57c98a7a3dc50378148a699290f2827",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 18744,
+                "upload_time": "2022-12-05T23:28:58",
+                "upload_time_iso_8601": "2022-12-05T23:28:58.004342Z",
+                "url": "https://files.pythonhosted.org/packages/51/2b/7d5620da7ab863ac10639056301ed2f2e2bdd6c6050f82650ca02282d827/array_api_compat-1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6860827a278213817b0a0f7ec106aacf",
+                    "sha256": "2c9db4b14fc9297f4a48cbcc5024db7ae24296e6ae95243b3077f2ce274be31d"
+                },
+                "downloads": -1,
+                "filename": "array_api_compat-1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6860827a278213817b0a0f7ec106aacf",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 16259,
+                "upload_time": "2022-12-05T23:28:59",
+                "upload_time_iso_8601": "2022-12-05T23:28:59.906254Z",
+                "url": "https://files.pythonhosted.org/packages/28/e7/7114aa4a91bddd6684c970a19ac8c3059a36e7036c39478aefcefc445e83/array_api_compat-1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

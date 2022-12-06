@@ -1,0 +1,87 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# netzeus-cli\nA plugin based CLI application that is targeted towards Network Engineers and System Administrators. The idea of this application is that you have a centralized CLI application with autocompletion and can develop your own CLI plugins with a very easy and structured approach using the click python module which uses the concept of command groups, commands and options along with auto-documenting the CLI using the --help functionality.\n\n# Plugins\n\nNetzeus CLI plugins are separate python packages which utilizes the Entry Points feature within setup tools (setup.py). Plugins can be developed simply be creating a brand new python package and can be maintained directly by the plugin developer while utilizing the CLI wrapper of NetZeus CLI. This is easily achievable by using the [click-plugins](https://github.com/click-contrib/click-plugins) module and registering an entry point in the main CLI, any developed plugins which have errors will be caught and not affect other NetZeus CLI plugins.\n\nWhile there isn't any enforcing of code style or specific practices to writing a NetZeus plugin, you should always follow the Google styleguide, [PEP-484](https://peps.python.org/pep-0484/) for type annotation and docstrings as per [PEP-257](https://peps.python.org/pep-0257/). Environment variable functions are available via `netzeus_cli.common.modules.envloader`. If there is a generic class/function which would benefit to be available to all NetZeus CLI plugins, open a PR to add this functionality into the main NetZeus CLI python package via GitHub.\n\n## Project Structure and Command Tree\n\n![NetZeus CLI Plugins](./docs/img/netzeus_cli_plugins.png)\n\nThe project structure of a NetZeus CLI plugin should follow of each command group being a separate folder with a relevant `__init__.py` that initiates the command group, and the sub-commands within that folder using the command group and essentially importing at the top level (`core.py`) for all your relevant command groups and sub-commands, take a look at the below command tree as an example.\n\n### CLI Tree Structure example\n\nBelow is an example of 2 root command groups (access and authenticate) with nested sub-command groups, each command is located in their respective sub-command group python file. You could go one step further and separate each create/read(get)/update/delete command when working with REST APIs to follow the CRUD concept in the file layout of your commands, however this seems to be the best balance of lines of code to file ratio that I've personally found.\n\n```\ncli - CLI Application with plugin based architecture to perform network related functions\n\u251c\u2500\u2500 proxmox-ve - Interact with Proxmox VE API                                                   core.py                 -       CLI Plugin Entrypoint\n\u2502   \u251c\u2500\u2500 access - /access API endpoints for Promox VE                                            /access                 -       Command Group \"proxmox-ve access\"\n\u2502   \u2502   \u251c\u2500\u2500 domains - Create/Get/Update/Delete domains/realms                                   /access/domains.py      -       Sub-Command Group \"proxmox-ve access domains\"\n\u2502   \u2502   \u2502   \u251c\u2500\u2500 create - Create an authentication server/domain                                 /access/domains.py      -       Create command \"proxmox-ve access domains create\"\n\u2502   \u2502   \u2502   \u251c\u2500\u2500 delete - Delete a specific auth server/domain                                   /access/domains.py      -       Delete command \"proxmox-ve access domains delete\"\n\u2502   \u2502   \u2502   \u251c\u2500\u2500 get - Get details for a specific domain                                         /access/domains.py      -       Get command \"proxmox-ve access domains get\"\n\u2502   \u2502   \u2502   \u251c\u2500\u2500 get-all - Get all domains                                                       /access/domains.py      -       Get All command \"proxmox-ve access domains get-all\"\n\u2502   \u2502   \u2502   \u2514\u2500\u2500 update - Update a specific auth server/domain                                   /access/domains.py      -       Update command \"proxmox-ve access domains update\"\n\u2502   \u2502   \u251c\u2500\u2500 ticket - Create or verify authentication tickets/cookies                            /access/ticket.py       -       Sub-Command Group \"proxmox-ve access ticket\"       \n\u2502   \u2502   \u2502   \u251c\u2500\u2500 create - Create an authentication ticket                                        /access/ticket.py       -       Create command \"proxmox-ve access ticket create\"\n\u2502   \u2502   \u2502   \u2514\u2500\u2500 verify - Verify an authentication ticket                                        /access/ticket.py       -       Verify command  \"proxmox-ve access ticket verify\"\n\u2502   \u2502   \u2514\u2500\u2500 users - Create/Get/Update/Delete Users                                              /access/users.py        -       Sub-Command Group \"proxmox-ve access users\"\n            \u251c\u2500\u2500 create - Create a User                                                          /access/users.py        -       Create command \"proxmox-ve access users create\"\n            \u251c\u2500\u2500 delete - Delete a specific user                                                 /access/users.py        -       Delete command \"proxmox-ve access users delete\"\n            \u251c\u2500\u2500 get - Get details for a specific user                                           /access/users.py        -       Get command \"proxmox-ve access users get\"\n            \u251c\u2500\u2500 get-all - Get details about all users                                           /access/users.py        -       Get All command \"proxmox-ve access users get-all\"\n            \u2514\u2500\u2500 update - Update a specific user                                                 /access/users.py        -       Update command \"proxmox-ve access users update\"\n\u2502   \u2514\u2500\u2500 authenticate - Authenticate against a Proxmox VE server                                 /authenticate           -       Command Group \"proxmox-ve authenticate\"\n        \u251c\u2500\u2500 cookie - Cookie Authentication related commands                                     /authenticate/cookie.py -       Sub-Command Group \"proxmox-ve authenticate cookie\"\n\u2502   \u2502   \u2502   \u2514\u2500\u2500 get - Get a Proxmox VE Ticket Cookie for authentication purposes                /authenticate/cookie.py -       Get command \"proxmox-ve authenticate cookie get\"\n        \u2514\u2500\u2500 token - Token Authentication related commands                                       /authenticate/token.py  -       Sub-Command Group \"proxmox-ve authenticate token\"\n            \u2514\u2500\u2500 test - Test your Proxmox VE API token to ensure it is valid                     /authenticate/token.py  -       Test Token command \"proxmox-ve authenticate token test\"\n```\n\n### Developing a NetZeus CLI Plugin\n\nFirstly, you need to create the initial entrypoint of your root command group which includes a `setup.py` with something similar to this:\n\n```\nfrom setuptools import setup, find_packages\n\nsetup(\n    name='netzeus_cli_plugin_cool_plugin',\n    version='0.1',\n    packages=find_packages(),\n    include_package_data=True,\n    install_requires=[\n        'click',\n    ],\n    entry_points='''\n        [netzeus_cli.plugins]\n        cool-plugin=netzeus_cli_plugin_cool_plugin.core:cool_plugin\n    ''',\n)\n```\n\nThe entrypoint within the `setup.py` should follow the format of:\n\n`<cli-command>=<python-package-name>.core:<command_group_function_name>`\n\nso if your `core.py` looks like this:\n\n```\nimport click\n\nfrom netzeus_cli.common.modules.decorators import require_envs\n\n\n@click.group(\"ding-dong\")\n@require_envs(SOME_PLUGIN_SPECIFIC_VARIABLE=str)\ndef ding_dong_root() -> None:\n    \"\"\"Interact with the DingDong API\"\"\"\n```\n\nthen your root command group is called \"ding_dong_root\" and the `setup.py` entrypoint should look like:\n\n```\n    entry_points='''\n        [netzeus_cli.plugins]\n        ding-dong=netzeus_cli_plugin_ding_dong.core:ding_dong_root\n    '''\n```\n\n### Documenting NetZeus CLI Plugins\n\nBecause NetZeus CLI encourages other people to develop their own plugins, they are also responsible for the documentation and also a good point to make is that because each plugin is a separate repository, this allows each plugin to have its own CI/CD workflow whether it be just linting code and packaging it or running fully fledge tests to ensure each command works before pushing to production. I can not enforce developers to follow a specific documentation standard however examples are provided of plugins developed by the creator of NetZeus CLI and you should try your best to follow the same style practices (or at least provide feedback if you think certain documentation should be amended).\n\n[Click](https://click.palletsprojects.com/en/8.1.x/) should inspire the developer to document on the fly while writing code as efficiently as possible, since the command line interface auto generates the command documentation based on docstrings for command groups, commands and command options (also using the `help` keyword for click options) and therefore you should document your code as much as possible to utilize the self documenting feature that click provides when a user provides the `--help` flag to your command groups/commands. When possible, try to follow the [click documentation practices](https://click.palletsprojects.com/en/8.1.x/documentation/)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "netzeus-cli",
+            "package_url": "https://pypi.org/project/netzeus-cli/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/netzeus-cli/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/netzeus-cli/0.0.1/",
+            "requires_dist": [
+                "click (==8.0.4)",
+                "click-plugins (==1.1.1)",
+                "python-dotenv (==0.19.2)",
+                "loguru (==0.6.0)",
+                "requests (==2.28.1)",
+                "pydantic (==1.10.2)"
+            ],
+            "requires_python": "",
+            "summary": "CLI Tool built by Network Engineers for Network Engineers",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16001203,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "810a5abec0a51c2b056523964f854a17",
+                    "sha256": "08ef03e0368c10c51982399316a89156df31bc45d23e92c64f38c53ed5f8bdd6"
+                },
+                "downloads": -1,
+                "filename": "netzeus_cli-0.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "810a5abec0a51c2b056523964f854a17",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 5335,
+                "upload_time": "2022-12-05T23:05:29",
+                "upload_time_iso_8601": "2022-12-05T23:05:29.417171Z",
+                "url": "https://files.pythonhosted.org/packages/f3/b2/dfe2d59250cd1ba961d2fa36bc0d8501603799d44726767494402e5d2f02/netzeus_cli-0.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9586fcc9bb92d1fdfcd5c23507ff8e59",
+                    "sha256": "c23e224dc5226b421d6ec7dc23e46cd86151bcadb75ab169ca4229d6f043c0b9"
+                },
+                "downloads": -1,
+                "filename": "netzeus_cli-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "9586fcc9bb92d1fdfcd5c23507ff8e59",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 4832,
+                "upload_time": "2022-12-05T23:05:31",
+                "upload_time_iso_8601": "2022-12-05T23:05:31.321560Z",
+                "url": "https://files.pythonhosted.org/packages/6f/69/73970094ccc7ac035334e2bc186640297e154388b7b26abdd922cdf494dd/netzeus_cli-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
