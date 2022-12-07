@@ -40,7 +40,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12629556,
+        "last_serial": 16019632,
         "urls": [
             {
                 "comment_text": "",
@@ -126,7 +126,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12629556,
+        "last_serial": 16019632,
         "urls": [
             {
                 "comment_text": "",
@@ -212,7 +212,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12629556,
+        "last_serial": 16019632,
         "urls": [
             {
                 "comment_text": "",
@@ -298,7 +298,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12629556,
+        "last_serial": 16019632,
         "urls": [
             {
                 "comment_text": "",
@@ -384,7 +384,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12629556,
+        "last_serial": 16019632,
         "urls": [
             {
                 "comment_text": "",
@@ -470,7 +470,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12629556,
+        "last_serial": 16019632,
         "urls": [
             {
                 "comment_text": "",
@@ -556,7 +556,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12629556,
+        "last_serial": 16019632,
         "urls": [
             {
                 "comment_text": "",
@@ -642,7 +642,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12629556,
+        "last_serial": 16019632,
         "urls": [
             {
                 "comment_text": "",
@@ -728,7 +728,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12629556,
+        "last_serial": 16019632,
         "urls": [
             {
                 "comment_text": "",
@@ -783,7 +783,6 @@
                 "License :: OSI Approved :: Apache Software License",
                 "Programming Language :: Python"
             ],
-            "description": "#########\nEiffellib\n#########\n\n.. image:: https://img.shields.io/badge/Stage-Sandbox-yellow.svg\n  :target: https://github.com/eiffel-community/community/blob/master/PROJECT_LIFECYCLE.md#stage-sandbox\n\nEiffellib is a python library for subscribing to and publishing Eiffel events to a message-broker.\n\nDescription\n===========\n\nEiffellib solves the problem of publishing Eiffel events and subscribing to events, removing the need of knowing how to connect to a message-broker or how to utilize the protocol it supplies.\n\nWith Eiffellib you can start subscribing to and publish valid Eiffel messages quickly and to get a feel for the event protocol.\n\nIt is designed to be fast and easy to start using while still being production quality.\n\nDocumentation: https://eiffellib.readthedocs.io/en/latest/\n\nFeatures\n========\n\n- Simple subscription and publishing of Eiffel events.\n- Event building assistance with event validation on receive and publish.\n- Following a context link.\n\nInstallation\n============\n\nInstall the project by running:\n\n    pip install eiffellib[rabbitmq]\n\nIf you only want to use the Eiffel message definitions leave out the optional dependency:\n    pip install eiffellib\n\nExamples\n========\n\nStart RabbitMQ\n--------------\n\nIn order for these examples to work you need a RabbitMQ server:\n\n.. code-block::\n\n   # From https://hub.docker.com/_/rabbitmq\n   docker run -d --hostname my-rabbit --name some-rabbit -p 8080:15672 -p 5672:5672 rabbitmq:3-management\n\nSubscribing to an event\n-----------------------\n\n.. code-block:: python\n\n    import time\n    from eiffellib.subscribers import RabbitMQSubscriber\n\n\n    def callback(event, context):\n        print(event.pretty)\n\n    SUBSCRIBER = RabbitMQSubscriber(host=\"127.0.0.1\", port=5672, ssl=False,\n                                    queue=\"eiffel\", exchange=\"amq.fanout\")\n    SUBSCRIBER.subscribe(\"EiffelActivityTriggeredEvent\", callback)\n    SUBSCRIBER.start()\n    while True:\n        time.sleep(0.1)\n\nPublishing an event\n-------------------\n\n.. code-block:: python\n\n    from eiffellib.publishers import RabbitMQPublisher\n    from eiffellib.events import EiffelActivityTriggeredEvent\n\n    PUBLISHER = RabbitMQPublisher(host=\"127.0.0.1\", exchange=\"amq.fanout\", ssl=False,\n                                  port=5672, routing_key=None)\n    PUBLISHER.start()\n    ACTIVITY_TRIGGERED = EiffelActivityTriggeredEvent()\n    ACTIVITY_TRIGGERED.data.add(\"name\", \"Test activity\")\n    PUBLISHER.send_event(ACTIVITY_TRIGGERED)\n    PUBLISHER.wait_for_unpublished_events()\n\nDeprecation of routing key\n--------------------------\n\nThe \"routing_key\" argument in the RabbitMQPublisher class has been deprecated.\n\nThis deprecation also affects the default value of the \"routing_key\" argument and you will be getting warnings while running.\n\n\nThe reason for this change is due to a misunderstanding of how routing keys are supposed to be used when eiffellib was first created.\n\nEach event will now be able to generate their own routing key every time the event is sent.\n\nThis routing key is by default \"eiffel._.$event_type._._\" where the different values are \"eiffel.$family.$event_type.$tag.$domainid\".\n\nPlease refer to https://eiffel-community.github.io/eiffel-sepia/rabbitmq-message-broker.html for more information about routing keys.\n\n\nTo change to the new routing key behavior (and thus removing the warning), please set \"routing_key\" to \"None\" when initializing a new RabbitMQPublisher.\n\n.. code-block:: python\n\n    PUBLISHER = RabbitMQPublisher(host=\"127.0.0.1\", exchange=\"amq.fanout\", ssl=False,\n                                  port=5672, routing_key=None)\n\nIn order to change \"$family\", \"$tag\" or \"$domainid\" in the routing key, they have to be set on the events.\n\n.. code-block:: python\n\n    PUBLISHER = RabbitMQPublisher(host=\"127.0.0.1\", exchange=\"amq.fanout\", ssl=False,\n                                  port=5672, routing_key=None)\n    EVENT = EiffelActivityTriggeredEvent(family=\"myfamily\", tag=\"mytag\", domain_id=\"mydomain\")\n    PUBLISHER.send_event(EVENT)\n\nContribute\n==========\n\n- Issue Tracker: https://github.com/eiffel-community/eiffel-pythonlib/issues\n- Source Code: https://github.com/eiffel-community/eiffel-pythonlib\n\nSupport\n=======\n\nIf you are having issues, please let us know.\nThere is a mailing list at: eiffel-pythonlib-maintainers@google-groups.com\nor just write an Issue.\n\n\n\n",
             "description_content_type": "",
             "docs_url": null,
             "download_url": "",
@@ -815,7 +814,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12629556,
+        "last_serial": 16019632,
         "urls": [
             {
                 "comment_text": "",
@@ -854,6 +853,185 @@
                 "upload_time": "2022-01-20T06:28:30",
                 "upload_time_iso_8601": "2022-01-20T06:28:30.372425Z",
                 "url": "https://files.pythonhosted.org/packages/b8/84/893d88db2a05ef6c85ba4ab92f848d092f49a80003a4dd5e4ace5eee6275/eiffellib-2.3.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.4.0": {
+        "info": {
+            "author": "Tobias Persson",
+            "author_email": "tobiaspn@axis.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "License :: OSI Approved :: Apache Software License",
+                "Programming Language :: Python"
+            ],
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/eiffel-community/eiffel-pythonlib",
+            "keywords": "",
+            "license": "Apache License, Version 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "eiffellib",
+            "package_url": "https://pypi.org/project/eiffellib/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/eiffellib/",
+            "project_urls": {
+                "Homepage": "https://github.com/eiffel-community/eiffel-pythonlib"
+            },
+            "release_url": "https://pypi.org/project/eiffellib/2.4.0/",
+            "requires_dist": [
+                "jsonschema (<4,>=3.0.0)",
+                "importlib-metadata ; python_version < \"3.8\"",
+                "pika (<2,>=1.0.1) ; extra == 'rabbitmq'",
+                "pytest ; extra == 'testing'",
+                "pytest-cov ; extra == 'testing'"
+            ],
+            "requires_python": "",
+            "summary": "Python library for sending and receiving Eiffel events",
+            "version": "2.4.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16019632,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6f50ae84b8600f70a773462fc9542bd1",
+                    "sha256": "7d140b598aa83bd4293049ae7878adf450a2de37ba065c29c1038d0877a6a072"
+                },
+                "downloads": -1,
+                "filename": "eiffellib-2.4.0-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "6f50ae84b8600f70a773462fc9542bd1",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": null,
+                "size": 210161,
+                "upload_time": "2022-12-07T11:27:19",
+                "upload_time_iso_8601": "2022-12-07T11:27:19.964039Z",
+                "url": "https://files.pythonhosted.org/packages/b0/84/7316d9f503be97abc863578733c8502ee6de965e5d57b6b817055bf70961/eiffellib-2.4.0-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ccc50d83a48a27fd72f27eee9721a76f",
+                    "sha256": "d5c6264865294047e38c105928ddbd76b2c1f72defc8e4204efee2d4867714e4"
+                },
+                "downloads": -1,
+                "filename": "eiffellib-2.4.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ccc50d83a48a27fd72f27eee9721a76f",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 53594,
+                "upload_time": "2022-12-07T11:27:21",
+                "upload_time_iso_8601": "2022-12-07T11:27:21.930038Z",
+                "url": "https://files.pythonhosted.org/packages/74/3e/a340e61eab9789b9425272a7a93b1014438c2a3052cd90af98c800a41f31/eiffellib-2.4.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.4.1": {
+        "info": {
+            "author": "Tobias Persson",
+            "author_email": "tobiaspn@axis.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "License :: OSI Approved :: Apache Software License",
+                "Programming Language :: Python"
+            ],
+            "description": "#########\nEiffellib\n#########\n\n.. image:: https://img.shields.io/badge/Stage-Sandbox-yellow.svg\n  :target: https://github.com/eiffel-community/community/blob/master/PROJECT_LIFECYCLE.md#stage-sandbox\n\nEiffellib is a python library for subscribing to and publishing Eiffel events to a message-broker.\n\nDescription\n===========\n\nEiffellib solves the problem of publishing Eiffel events and subscribing to events, removing the need of knowing how to connect to a message-broker or how to utilize the protocol it supplies.\n\nWith Eiffellib you can start subscribing to and publish valid Eiffel messages quickly and to get a feel for the event protocol.\n\nIt is designed to be fast and easy to start using while still being production quality.\n\nDocumentation: https://eiffellib.readthedocs.io/en/latest/\n\nFeatures\n========\n\n- Simple subscription and publishing of Eiffel events.\n- Event building assistance with event validation on receive and publish.\n- Following a context link.\n\nInstallation\n============\n\nInstall the project by running:\n\n    pip install eiffellib[rabbitmq]\n\nIf you only want to use the Eiffel message definitions leave out the optional dependency:\n    pip install eiffellib\n\nExamples\n========\n\nStart RabbitMQ\n--------------\n\nIn order for these examples to work you need a RabbitMQ server:\n\n.. code-block::\n\n   # From https://hub.docker.com/_/rabbitmq\n   docker run -d --hostname my-rabbit --name some-rabbit -p 8080:15672 -p 5672:5672 rabbitmq:3-management\n\nSubscribing to an event\n-----------------------\n\n.. code-block:: python\n\n    import time\n    from eiffellib.subscribers import RabbitMQSubscriber\n\n\n    def callback(event, context):\n        print(event.pretty)\n\n    SUBSCRIBER = RabbitMQSubscriber(host=\"127.0.0.1\", port=5672, ssl=False,\n                                    queue=\"eiffel\", exchange=\"amq.fanout\")\n    SUBSCRIBER.subscribe(\"EiffelActivityTriggeredEvent\", callback)\n    SUBSCRIBER.start()\n    while True:\n        time.sleep(0.1)\n\nPublishing an event\n-------------------\n\n.. code-block:: python\n\n    from eiffellib.publishers import RabbitMQPublisher\n    from eiffellib.events import EiffelActivityTriggeredEvent\n\n    PUBLISHER = RabbitMQPublisher(host=\"127.0.0.1\", exchange=\"amq.fanout\", ssl=False,\n                                  port=5672, routing_key=None)\n    PUBLISHER.start()\n    ACTIVITY_TRIGGERED = EiffelActivityTriggeredEvent()\n    ACTIVITY_TRIGGERED.data.add(\"name\", \"Test activity\")\n    PUBLISHER.send_event(ACTIVITY_TRIGGERED)\n    PUBLISHER.wait_for_unpublished_events()\n\nDeprecation of routing key\n--------------------------\n\nThe \"routing_key\" argument in the RabbitMQPublisher class has been deprecated.\n\nThis deprecation also affects the default value of the \"routing_key\" argument and you will be getting warnings while running.\n\n\nThe reason for this change is due to a misunderstanding of how routing keys are supposed to be used when eiffellib was first created.\n\nEach event will now be able to generate their own routing key every time the event is sent.\n\nThis routing key is by default \"eiffel._.$event_type._._\" where the different values are \"eiffel.$family.$event_type.$tag.$domainid\".\n\nPlease refer to https://eiffel-community.github.io/eiffel-sepia/rabbitmq-message-broker.html for more information about routing keys.\n\n\nTo change to the new routing key behavior (and thus removing the warning), please set \"routing_key\" to \"None\" when initializing a new RabbitMQPublisher.\n\n.. code-block:: python\n\n    PUBLISHER = RabbitMQPublisher(host=\"127.0.0.1\", exchange=\"amq.fanout\", ssl=False,\n                                  port=5672, routing_key=None)\n\nIn order to change \"$family\", \"$tag\" or \"$domainid\" in the routing key, they have to be set on the events.\n\n.. code-block:: python\n\n    PUBLISHER = RabbitMQPublisher(host=\"127.0.0.1\", exchange=\"amq.fanout\", ssl=False,\n                                  port=5672, routing_key=None)\n    EVENT = EiffelActivityTriggeredEvent(family=\"myfamily\", tag=\"mytag\", domain_id=\"mydomain\")\n    PUBLISHER.send_event(EVENT)\n\nContribute\n==========\n\n- Issue Tracker: https://github.com/eiffel-community/eiffel-pythonlib/issues\n- Source Code: https://github.com/eiffel-community/eiffel-pythonlib\n\nSupport\n=======\n\nIf you are having issues, please let us know.\nThere is a mailing list at: eiffel-pythonlib-maintainers@google-groups.com\nor just write an Issue.\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/eiffel-community/eiffel-pythonlib",
+            "keywords": "",
+            "license": "Apache License, Version 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "eiffellib",
+            "package_url": "https://pypi.org/project/eiffellib/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/eiffellib/",
+            "project_urls": {
+                "Homepage": "https://github.com/eiffel-community/eiffel-pythonlib"
+            },
+            "release_url": "https://pypi.org/project/eiffellib/2.4.1/",
+            "requires_dist": [
+                "jsonschema (<4,>=3.0.0)",
+                "importlib-metadata ; python_version < \"3.8\"",
+                "pika (<2,>=1.0.1) ; extra == 'rabbitmq'",
+                "pytest ; extra == 'testing'",
+                "pytest-cov ; extra == 'testing'"
+            ],
+            "requires_python": "",
+            "summary": "Python library for sending and receiving Eiffel events",
+            "version": "2.4.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16019632,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e4011c95e49a8fb4daba340c1709b994",
+                    "sha256": "93de49229eae7a56d637f53e1eb16f8dce1837eed525537914b75eda000aab54"
+                },
+                "downloads": -1,
+                "filename": "eiffellib-2.4.1-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e4011c95e49a8fb4daba340c1709b994",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": null,
+                "size": 211747,
+                "upload_time": "2022-12-07T11:39:58",
+                "upload_time_iso_8601": "2022-12-07T11:39:58.787296Z",
+                "url": "https://files.pythonhosted.org/packages/6c/4e/0635be9bd91ce58a05f543c93f7a59d539b5930b98a0035bcaf842a2c47b/eiffellib-2.4.1-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e77afe56458f6bc6e335019c877f9ef9",
+                    "sha256": "569b13170affd7c32729120933b863f71d0e1993f8b65fa9865cda728e77b241"
+                },
+                "downloads": -1,
+                "filename": "eiffellib-2.4.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e77afe56458f6bc6e335019c877f9ef9",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 55188,
+                "upload_time": "2022-12-07T11:40:02",
+                "upload_time_iso_8601": "2022-12-07T11:40:02.314368Z",
+                "url": "https://files.pythonhosted.org/packages/48/19/9bbc915faa85e6b575617fa086d66ebb318df9a0e8204a4abfd4631c280e/eiffellib-2.4.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

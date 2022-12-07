@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995693,
+        "last_serial": 16020075,
         "urls": [
             {
                 "comment_text": "",
@@ -133,7 +133,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995693,
+        "last_serial": 16020075,
         "urls": [
             {
                 "comment_text": "",
@@ -224,7 +224,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995693,
+        "last_serial": 16020075,
         "urls": [
             {
                 "comment_text": "",
@@ -315,7 +315,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995693,
+        "last_serial": 16020075,
         "urls": [
             {
                 "comment_text": "",
@@ -406,7 +406,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995693,
+        "last_serial": 16020075,
         "urls": [
             {
                 "comment_text": "",
@@ -497,7 +497,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995693,
+        "last_serial": 16020075,
         "urls": [
             {
                 "comment_text": "",
@@ -588,7 +588,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995693,
+        "last_serial": 16020075,
         "urls": [
             {
                 "comment_text": "",
@@ -679,7 +679,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995693,
+        "last_serial": 16020075,
         "urls": [
             {
                 "comment_text": "",
@@ -738,7 +738,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# Tensor Theorem Prover\n[![ci](https://img.shields.io/github/workflow/status/chanind/tensor-theorem-prover/CI/main)](https://github.com/chanind/tensor-theorem-prover)\n[![Codecov](https://img.shields.io/codecov/c/github/chanind/tensor-theorem-prover/main)](https://codecov.io/gh/chanind/tensor-theorem-prover)\n[![PyPI](https://img.shields.io/pypi/v/tensor-theorem-prover?color=blue)](https://pypi.org/project/tensor-theorem-prover/)\n\nFirst-order logic theorem prover supporting unification with approximate vector similarity\n\n## Installation\n\n```\npip install tensor-theorem-prover\n```\n\n## Usage\n\ntensor-theorem-prover can be used either as a standard symbolic first-order theorem prover, or it can be used with vector embeddings and fuzzy unification.\n\nThe basic setup requires listing out first-order formulae, and using the `ResolutionProver` class to generate proofs.\n\n```python\nimport numpy as np\nfrom vector_theorem_prover import ResolutionProver, Constant, Predicate, Variable, Implies\n\nX = Variable(\"X\")\nY = Variable(\"Y\")\nZ = Variable(\"Z\")\n# predicates and constants can be given an embedding array for fuzzy unification\ngrandpa_of = Predicate(\"grandpa_of\", np.array([1.0, 1.0, 0.0, 0.3, ...]))\ngrandfather_of = Predicate(\"grandfather_of\", np.array([1.01, 0.95, 0.05, 0.33, ...]))\nparent_of = Predicate(\"parent_of\", np.array([ ... ]))\nfather_of = Predicate(\"father_of\", np.array([ ... ]))\nbart = Constant(\"bart\", np.array([ ... ]))\nhomer = Constant(\"homer\", np.array([ ... ]))\nabe = Constant(\"abe\", np.array([ ... ]))\n\nknowledge = [\n    parent_of(homer, bart),\n    father_of(abe, homer),\n    # father_of(X, Z) ^ parent_of(Z, Y) -> grandpa_of(X, Y)\n    Implies(And(father_of(X, Z), parent_of(Z, Y)), grandpa_of(X, Y))\n]\n\nprover = ResolutionProver(knowledge=knowledge)\n\n# query the prover to find who is bart's grandfather\nproof = prover.prove(grandfather_of(X, bart))\n\n# even though `grandpa_of` and `grandfather_of` are not identical symbols,\n# their embedding is close enough that the prover can still find the answer\nprint(proof.substitutions[X]) # abe\n\n# the prover will return `None` if a proof could not be found\nfailed_proof = prover.prove(grandfather_of(bart, homer))\nprint(failed_proof) # None\n\n```\n\n### Working with proof results\n\nThe `prover.prove()` method will return a `Proof` object if a successful proof is found. This object contains a list of all the resolutions, substitutions, and similarity calculations that went into proving the goal.\n\n```python\nproof = prover.prove(goal)\n\nproof.substitutions # a map of all variables in the goal to their bound values\nproof.similarity # the min similarity of all `unify` operations in this proof\nproof.depth # the number of steps in this proof\nproof.proof_steps # all the proof steps involved, including all resolutions and unifications along the way\n```\n\nThe `Proof` object can be printed as a string to get a visual overview of the steps involved in the proof.\n\n```python\nX = Variable(\"X\")\nY = Variable(\"Y\")\nfather_of = Predicate(\"father_of\")\nparent_of = Predicate(\"parent_of\")\nis_male = Predicate(\"is_male\")\nbart = Constant(\"bart\")\nhomer = Constant(\"homer\")\n\nknowledge = [\n    parent_of(homer, bart),\n    is_male(homer),\n    Implies(And(parent_of(X, Y), is_male(X)), father_of(X, Y)),\n]\n\nprover = ResolutionProver(knowledge=knowledge)\n\ngoal = father_of(homer, X)\nproof = prover.prove(goal)\n\nprint(proof)\n# Goal: [\u00acfather_of(homer,X)]\n# Subsitutions: {X -> bart}\n# Similarity: 1.0\n# Depth: 3\n# Steps:\n#   Similarity: 1.0\n#   Source: [\u00acfather_of(homer,X)]\n#   Target: [father_of(X,Y) \u2228 \u00acis_male(X) \u2228 \u00acparent_of(X,Y)]\n#   Unify: father_of(homer,X) = father_of(X,Y)\n#   Subsitutions: {}, {X -> homer, Y -> X}\n#   Resolvent: [\u00acis_male(homer) \u2228 \u00acparent_of(homer,X)]\n#   ---\n#   Similarity: 1.0\n#   Source: [\u00acis_male(homer) \u2228 \u00acparent_of(homer,X)]\n#   Target: [parent_of(homer,bart)]\n#   Unify: parent_of(homer,X) = parent_of(homer,bart)\n#   Subsitutions: {X -> bart}, {}\n#   Resolvent: [\u00acis_male(homer)]\n#   ---\n#   Similarity: 1.0\n#   Source: [\u00acis_male(homer)]\n#   Target: [is_male(homer)]\n#   Unify: is_male(homer) = is_male(homer)\n#   Subsitutions: {}, {}\n#   Resolvent: []\n```\n\n### Finding all possible proofs\n\nThe `prover.prove()` method will return the proof with the highest similarity score among all possible proofs, if one exists. If you want to get a list of all the possible proofs in descending order of similarity score, you can call `prover.prove_all()` to return a list of all proofs.\n\n### Custom matching functions and similarity thresholds\n\nBy default, the prover will use cosine similarity for unification. If you'd like to use a different similarity function, you can pass in a function to the prover to perform the similarity calculation however you wish.\n\n```python\ndef fancy_similarity(item1, item2):\n    norm = np.linalg.norm(item1.embedding) + np.linalg.norm(item2.embedding)\n    return np.linalg.norm(item1.embedding - item2.embedding) / norm\n\nprover = ResolutionProver(knowledge=knowledge, similarity_func=fancy_similarity)\n```\n\nBy default, there is a minimum similarity threshold of `0.5` for a unification to success. You can customize this as well when creating a `ResolutionProver` instance\n\n```python\nprover = ResolutionProver(knowledge=knowledge, min_similarity_threshold=0.9)\n```\n\n### Working with Tensors (Pytorch, Tensorflow, etc...)\n\nBy default, the similarity calculation assumes that the embeddings supplied for constants and predicates are numpy arrays. If you want to use tensors instead, this will work as long as you provide a `similarity_func` which can work with the tensor types you're using and return a float.\n\nFor example, if you're using Pytorch, it might look like the following:\n\n```python\nimport torch\n\ndef torch_cosine_similarity(item1, item2):\n    similarity = torch.nn.functional.cosine_similarity(\n        item1.embedding,\n        item2.embedding,\n        0\n    )\n    return similarity.item()\n\nprover = ResolutionProver(knowledge=knowledge, similarity_func=torch_cosine_similarity)\n\n# for pytorch you may want to wrap the proving in torch.no_grad()\nwith torch.no_grad():\n    proof = prover.prove(goal)\n```\n\n### Max proof depth\n\nBy default, the ResolutionProver will abort proofs after a depth of 10. You can customize this behavior by passing `max_proof_depth` when creating the prover\n\n```python\nprover = ResolutionProver(knowledge=knowledge, max_proof_depth=10)\n```\n\n## Acknowledgements\n\nThis library borrows code and ideas from the earier library [fuzzy-reasoner](https://github.com/fuzzy-reasoner/fuzzy-reasoner). The main difference between these libraries is that tensor-theorem-prover supports full first-order logic using Resolution, whereas fuzzy-reasoner is restricting to Horn clauses and uses backwards chaining.\n\nLike fuzzy-reasoner, this library also takes inspiration from the following papers for the idea of using vector similarity in theorem proving:\n\n- [End-to-End Differentiable Proving](https://arxiv.org/abs/1705.11040) by Rockt\u00e4schel et al.\n- [Braid - Weaving Symbolic and Neural Knowledge into Coherent Logical Explanations](https://arxiv.org/abs/2011.13354) by Kalyanpur et al.\n\n## Contributing\n\nContributions are welcome! Please leave an issue in the Github repo if you find any bugs, and open a pull request with and fixes or improvements that you'd like to contribute.\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -771,7 +770,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995693,
+        "last_serial": 16020075,
         "urls": [
             {
                 "comment_text": "",
@@ -810,6 +809,189 @@
                 "upload_time": "2022-12-05T13:42:09",
                 "upload_time_iso_8601": "2022-12-05T13:42:09.152532Z",
                 "url": "https://files.pythonhosted.org/packages/5e/d3/5a4cd0fde1618bac792301ceb0ea97244149803abc66398ff72e249ae416/tensor_theorem_prover-0.6.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.6.1": {
+        "info": {
+            "author": "David Chanin",
+            "author_email": "chanindav@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/chanind/tensor-theorem-prover",
+            "keywords": "theorem-proving,logic,first-order,unification,reasoning",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "tensor-theorem-prover",
+            "package_url": "https://pypi.org/project/tensor-theorem-prover/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/tensor-theorem-prover/",
+            "project_urls": {
+                "Homepage": "https://github.com/chanind/tensor-theorem-prover",
+                "Repository": "https://github.com/chanind/tensor-theorem-prover"
+            },
+            "release_url": "https://pypi.org/project/tensor-theorem-prover/0.6.1/",
+            "requires_dist": [
+                "numpy (>=1.20.0,<2.0.0)",
+                "typing-extensions (>=3.7.4)"
+            ],
+            "requires_python": ">=3.7,<4.0",
+            "summary": "Customizable first-order logic theorem prover supporting approximate vector similarity in unification",
+            "version": "0.6.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16020075,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f9f5d52833e8f7c336afc8ae9ae7c0d4",
+                    "sha256": "9e059cb45be9595c78c1b26fe96bf43a08234fd03b8627222b53117c1222f6ea"
+                },
+                "downloads": -1,
+                "filename": "tensor_theorem_prover-0.6.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f9f5d52833e8f7c336afc8ae9ae7c0d4",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7,<4.0",
+                "size": 24264,
+                "upload_time": "2022-12-07T12:15:12",
+                "upload_time_iso_8601": "2022-12-07T12:15:12.481165Z",
+                "url": "https://files.pythonhosted.org/packages/7a/65/b9bfb6e6356ec7d1d3643572c7d75e7f961cb6cf6b6c6b06541f07a82b06/tensor_theorem_prover-0.6.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "872bcdd3ef21eb1a15e745186be70593",
+                    "sha256": "d3686b1afdc3aa2f18010c0e06fd2d5c02332a2827ff61973ad02bde0f52cc96"
+                },
+                "downloads": -1,
+                "filename": "tensor_theorem_prover-0.6.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "872bcdd3ef21eb1a15e745186be70593",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<4.0",
+                "size": 18588,
+                "upload_time": "2022-12-07T12:15:14",
+                "upload_time_iso_8601": "2022-12-07T12:15:14.260355Z",
+                "url": "https://files.pythonhosted.org/packages/18/89/08f4edbf1a6a395fafd20a10315824f1c273d214bf017c67f8ea1ec14657/tensor_theorem_prover-0.6.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.6.2": {
+        "info": {
+            "author": "David Chanin",
+            "author_email": "chanindav@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# Tensor Theorem Prover\n[![ci](https://img.shields.io/github/workflow/status/chanind/tensor-theorem-prover/CI/main)](https://github.com/chanind/tensor-theorem-prover)\n[![Codecov](https://img.shields.io/codecov/c/github/chanind/tensor-theorem-prover/main)](https://codecov.io/gh/chanind/tensor-theorem-prover)\n[![PyPI](https://img.shields.io/pypi/v/tensor-theorem-prover?color=blue)](https://pypi.org/project/tensor-theorem-prover/)\n\nFirst-order logic theorem prover supporting unification with approximate vector similarity\n\n## Installation\n\n```\npip install tensor-theorem-prover\n```\n\n## Usage\n\ntensor-theorem-prover can be used either as a standard symbolic first-order theorem prover, or it can be used with vector embeddings and fuzzy unification.\n\nThe basic setup requires listing out first-order formulae, and using the `ResolutionProver` class to generate proofs.\n\n```python\nimport numpy as np\nfrom vector_theorem_prover import ResolutionProver, Constant, Predicate, Variable, Implies\n\nX = Variable(\"X\")\nY = Variable(\"Y\")\nZ = Variable(\"Z\")\n# predicates and constants can be given an embedding array for fuzzy unification\ngrandpa_of = Predicate(\"grandpa_of\", np.array([1.0, 1.0, 0.0, 0.3, ...]))\ngrandfather_of = Predicate(\"grandfather_of\", np.array([1.01, 0.95, 0.05, 0.33, ...]))\nparent_of = Predicate(\"parent_of\", np.array([ ... ]))\nfather_of = Predicate(\"father_of\", np.array([ ... ]))\nbart = Constant(\"bart\", np.array([ ... ]))\nhomer = Constant(\"homer\", np.array([ ... ]))\nabe = Constant(\"abe\", np.array([ ... ]))\n\nknowledge = [\n    parent_of(homer, bart),\n    father_of(abe, homer),\n    # father_of(X, Z) ^ parent_of(Z, Y) -> grandpa_of(X, Y)\n    Implies(And(father_of(X, Z), parent_of(Z, Y)), grandpa_of(X, Y))\n]\n\nprover = ResolutionProver(knowledge=knowledge)\n\n# query the prover to find who is bart's grandfather\nproof = prover.prove(grandfather_of(X, bart))\n\n# even though `grandpa_of` and `grandfather_of` are not identical symbols,\n# their embedding is close enough that the prover can still find the answer\nprint(proof.substitutions[X]) # abe\n\n# the prover will return `None` if a proof could not be found\nfailed_proof = prover.prove(grandfather_of(bart, homer))\nprint(failed_proof) # None\n\n```\n\n### Working with proof results\n\nThe `prover.prove()` method will return a `Proof` object if a successful proof is found. This object contains a list of all the resolutions, substitutions, and similarity calculations that went into proving the goal.\n\n```python\nproof = prover.prove(goal)\n\nproof.substitutions # a map of all variables in the goal to their bound values\nproof.similarity # the min similarity of all `unify` operations in this proof\nproof.depth # the number of steps in this proof\nproof.proof_steps # all the proof steps involved, including all resolutions and unifications along the way\n```\n\nThe `Proof` object can be printed as a string to get a visual overview of the steps involved in the proof.\n\n```python\nX = Variable(\"X\")\nY = Variable(\"Y\")\nfather_of = Predicate(\"father_of\")\nparent_of = Predicate(\"parent_of\")\nis_male = Predicate(\"is_male\")\nbart = Constant(\"bart\")\nhomer = Constant(\"homer\")\n\nknowledge = [\n    parent_of(homer, bart),\n    is_male(homer),\n    Implies(And(parent_of(X, Y), is_male(X)), father_of(X, Y)),\n]\n\nprover = ResolutionProver(knowledge=knowledge)\n\ngoal = father_of(homer, X)\nproof = prover.prove(goal)\n\nprint(proof)\n# Goal: [\u00acfather_of(homer,X)]\n# Subsitutions: {X -> bart}\n# Similarity: 1.0\n# Depth: 3\n# Steps:\n#   Similarity: 1.0\n#   Source: [\u00acfather_of(homer,X)]\n#   Target: [father_of(X,Y) \u2228 \u00acis_male(X) \u2228 \u00acparent_of(X,Y)]\n#   Unify: father_of(homer,X) = father_of(X,Y)\n#   Subsitutions: {}, {X -> homer, Y -> X}\n#   Resolvent: [\u00acis_male(homer) \u2228 \u00acparent_of(homer,X)]\n#   ---\n#   Similarity: 1.0\n#   Source: [\u00acis_male(homer) \u2228 \u00acparent_of(homer,X)]\n#   Target: [parent_of(homer,bart)]\n#   Unify: parent_of(homer,X) = parent_of(homer,bart)\n#   Subsitutions: {X -> bart}, {}\n#   Resolvent: [\u00acis_male(homer)]\n#   ---\n#   Similarity: 1.0\n#   Source: [\u00acis_male(homer)]\n#   Target: [is_male(homer)]\n#   Unify: is_male(homer) = is_male(homer)\n#   Subsitutions: {}, {}\n#   Resolvent: []\n```\n\n### Finding all possible proofs\n\nThe `prover.prove()` method will return the proof with the highest similarity score among all possible proofs, if one exists. If you want to get a list of all the possible proofs in descending order of similarity score, you can call `prover.prove_all()` to return a list of all proofs.\n\n### Custom matching functions and similarity thresholds\n\nBy default, the prover will use cosine similarity for unification. If you'd like to use a different similarity function, you can pass in a function to the prover to perform the similarity calculation however you wish.\n\n```python\ndef fancy_similarity(item1, item2):\n    norm = np.linalg.norm(item1.embedding) + np.linalg.norm(item2.embedding)\n    return np.linalg.norm(item1.embedding - item2.embedding) / norm\n\nprover = ResolutionProver(knowledge=knowledge, similarity_func=fancy_similarity)\n```\n\nBy default, there is a minimum similarity threshold of `0.5` for a unification to success. You can customize this as well when creating a `ResolutionProver` instance\n\n```python\nprover = ResolutionProver(knowledge=knowledge, min_similarity_threshold=0.9)\n```\n\n### Working with Tensors (Pytorch, Tensorflow, etc...)\n\nBy default, the similarity calculation assumes that the embeddings supplied for constants and predicates are numpy arrays. If you want to use tensors instead, this will work as long as you provide a `similarity_func` which can work with the tensor types you're using and return a float.\n\nFor example, if you're using Pytorch, it might look like the following:\n\n```python\nimport torch\n\ndef torch_cosine_similarity(item1, item2):\n    similarity = torch.nn.functional.cosine_similarity(\n        item1.embedding,\n        item2.embedding,\n        0\n    )\n    return similarity.item()\n\nprover = ResolutionProver(knowledge=knowledge, similarity_func=torch_cosine_similarity)\n\n# for pytorch you may want to wrap the proving in torch.no_grad()\nwith torch.no_grad():\n    proof = prover.prove(goal)\n```\n\n### Max proof depth\n\nBy default, the ResolutionProver will abort proofs after a depth of 10. You can customize this behavior by passing `max_proof_depth` when creating the prover\n\n```python\nprover = ResolutionProver(knowledge=knowledge, max_proof_depth=10)\n```\n\n## Acknowledgements\n\nThis library borrows code and ideas from the earier library [fuzzy-reasoner](https://github.com/fuzzy-reasoner/fuzzy-reasoner). The main difference between these libraries is that tensor-theorem-prover supports full first-order logic using Resolution, whereas fuzzy-reasoner is restricting to Horn clauses and uses backwards chaining.\n\nLike fuzzy-reasoner, this library also takes inspiration from the following papers for the idea of using vector similarity in theorem proving:\n\n- [End-to-End Differentiable Proving](https://arxiv.org/abs/1705.11040) by Rockt\u00e4schel et al.\n- [Braid - Weaving Symbolic and Neural Knowledge into Coherent Logical Explanations](https://arxiv.org/abs/2011.13354) by Kalyanpur et al.\n\n## Contributing\n\nContributions are welcome! Please leave an issue in the Github repo if you find any bugs, and open a pull request with and fixes or improvements that you'd like to contribute.\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/chanind/tensor-theorem-prover",
+            "keywords": "theorem-proving,logic,first-order,unification,reasoning",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "tensor-theorem-prover",
+            "package_url": "https://pypi.org/project/tensor-theorem-prover/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/tensor-theorem-prover/",
+            "project_urls": {
+                "Homepage": "https://github.com/chanind/tensor-theorem-prover",
+                "Repository": "https://github.com/chanind/tensor-theorem-prover"
+            },
+            "release_url": "https://pypi.org/project/tensor-theorem-prover/0.6.2/",
+            "requires_dist": [
+                "numpy (>=1.20.0,<2.0.0)",
+                "typing-extensions (>=3.7.4)"
+            ],
+            "requires_python": ">=3.7,<4.0",
+            "summary": "Customizable first-order logic theorem prover supporting approximate vector similarity in unification",
+            "version": "0.6.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16020075,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e0841f490c0e578f1e956ac70bd9be02",
+                    "sha256": "dc9c7238fcd7810745eddddf77dccd3ed33f393bfc8e5753c6cad9b153d15129"
+                },
+                "downloads": -1,
+                "filename": "tensor_theorem_prover-0.6.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e0841f490c0e578f1e956ac70bd9be02",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7,<4.0",
+                "size": 24272,
+                "upload_time": "2022-12-07T12:24:59",
+                "upload_time_iso_8601": "2022-12-07T12:24:59.374413Z",
+                "url": "https://files.pythonhosted.org/packages/99/6c/ef22507a4430ea1e36b53d5d329cf9fa3d59b86454ca600691377509a94d/tensor_theorem_prover-0.6.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "746659bee1bde82260cbee469c123de0",
+                    "sha256": "2c2f6a41907b85cdc8a0272151bf4ce712aec89f76aea5f0e34310b6a5a15c7f"
+                },
+                "downloads": -1,
+                "filename": "tensor_theorem_prover-0.6.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "746659bee1bde82260cbee469c123de0",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<4.0",
+                "size": 18592,
+                "upload_time": "2022-12-07T12:25:01",
+                "upload_time_iso_8601": "2022-12-07T12:25:01.042235Z",
+                "url": "https://files.pythonhosted.org/packages/d0/d2/c50337936782c6c2c74944f351f515f1181eb6bb3661d0fe14733016a6e5/tensor_theorem_prover-0.6.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
