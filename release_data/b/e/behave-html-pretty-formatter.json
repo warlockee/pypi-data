@@ -1,0 +1,100 @@
+{
+    "1.1": {
+        "info": {
+            "author": "Michal Odehnal",
+            "author_email": "modehnal@redhat.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Python :: Implementation :: PyPy",
+                "Topic :: Software Development :: Testing",
+                "Topic :: Software Development :: Testing :: BDD"
+            ],
+            "description": "# HTML Pretty formatter for Behave\n\n- Inspired by [jest-html-reporter](https://github.com/Hargne/jest-html-reporter)\n- Using project [dominate](https://github.com/Knio/dominate) to generate the page\n\n## Installation\n\n```shell\nsudo python3 -m pip install behave-html-pretty-formatter\n```\n\n\n## Usage\n\nTo use it with behave create `behave.ini` file in project folder (or in home) with\nfollowing content:\n\n```ini\n# -- FILE: behave.ini\n# Define ALIAS for PrettyHTMLFormatter.\n[behave.formatters]\nhtml-pretty = behave_html_pretty_formatter:PrettyHTMLFormatter\n\n# Optional configuration of PrettyHTMLFormmater\n# also possible to use \"behave ... -D behave.formatter.html-pretty.{setting}={value}\".\n[behave.userdata]\nbehave.formatter.html-pretty.title_string = Test Suite Reporter\n# Example usecase, print {before/after}_scenarios as steps with attached data.\nbehave.formatter.html-pretty.pseudo_steps = false\n# Structure of the result html page readable(pretty) or condensed.\nbehave.formatter.html-pretty.pretty_output = true\n# The '%' must be escaped in ini format.\nbehave.formatter.html-pretty.date_format = %%d-%%m-%%Y %%H:%%M:%%S\n# Defines if the summary is expanded upon start.\nbehave.formatter.html-pretty.show_summary = false\n# Defines if the user is interested in what steps are not executed.\nbehave.formatter.html-pretty.show_unexecuted_steps = true\n```\n\nand then use it by running behave with `-f`/`--format` parameter, e.g.\n\n```console\nbehave -f help\nbehave -f html-pretty\nbehave -f html-pretty -o behave-report.html\n```\n\nYou can find information about behave and user-defined formatters in the\n[behave docs](https://behave.readthedocs.io/en/latest/formatters.html).\n\n## HTML Pretty has High contrast option\n\n- [Default Static Example](#pretty-html-formatter):\n- [High contrast Static Example](#pretty-html-formatter-high-contrast):\n  - Started as High contrast with Dark Mode TODO\n  - Colours adjusted.\n  - Extra information is added before every decorator about the status of the step.\n  - Text is bigger.\n\nYou can switch between the different contrasts with the toggle button.\n\n\n## Summary is hidden by default\n\n- [Pretty HTML Formatter With Summary Expanded and Collapsed Steps](#pretty-html-formatter-with-summary-expanded-and-collapsed-steps):\n- [Pretty HTML Formatter High contrast With Summary Expanded and Collapsed Steps](#pretty-html-formatter-high-contrast-with-summary-expanded-and-collapsed-steps):\n\nTo change the setting use the .ini file.\n```summary\nbehave.formatter.html-pretty.show_summary = true\n```\n\n## HACKING\n\n### MIME Types\n\nTake a look at the  [Common MIME types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types), few of them are useful for us.\n\n### Encoding to base64\n\n```python\ndata_base64 = base64.b64encode(open(\"/path/to/image\", \"rb\").read())\ndata_encoded = data_base64.decode(\"utf-8\").replace(\"\\n\", \"\")\n```\n\n### Format in which the data is inserted to the html\n\n```python\n# Format\n\"data:<mime_type>;<encoding>,<data_encoded>\"\n# Example\nf\"data:image/png;base64,{data_encoded}\"\n```\n\n## Defined functions you can use\n\n### Basic setup for using formatter functions\n\n```python\nfor formatter in context._runner.formatters:\n    if formatter.name == \"html-pretty\":\n        context.formatter = formatter\n```\n\n### Set Icon\n\n```python\nicon_data = f\"data:image/svg+xml;base64,{data_encoded}\"\ncontext.formatter.set_icon(icon=icon_data)\n```\n\nExample use case - an indicator if the test is running under X11 or Wayland:\n\n![Examples](src/set_icon_examples.png)\n\n### Set Title for the HTML page\n\n```python\ncontext.formatter.set_title(title=\"Test Suite Reporter\")\n```\n\n - This is configurable also from the behave.ini file `behave.formatter.html-pretty.title_string = Test Suite Reporter`\n\n\n### Commentary step in HTML report\n\nUsed as an information panel to describe or provide infomation about the page contents.\nYou will need to define your own step where you will set flag for commentary step.\n\n```python\n@step('Commentary')\ndef commentary_step(context):\n    # Get the correct step to override.\n    scenario = context.formatter.current_scenario\n    step = scenario.current_step\n    # Override the step, this will prevent the decorator to be generated and only the text will show.\n    step.commentary_override = True\n```\n\nFeature file example usage:\n\n```gherkin\n  @commentary\n  Scenario: Example of commentary usage.\n    * Start application \"zenity\" via command \"zenity --about\"\n    * Commentary\n      \"\"\"\n      This field is generated from decorator 'Commentary'\n      Where you insert text and override step to not print its decorator.\n      The text will get printed and will be seen, as you can see, haha.\n      \"\"\"\n    * Left click \"About\" \"radio button\"\n\n```\n\nResult can be seen in the image examples.\n\n\n## Embedding data to the report\n\n### Basic embedding setup - save embedding function to context\n\n```python\nfor formatter in context._runner.formatters:\n    if formatter.name == \"html-pretty\":\n        context.embed = formatter.embed\n# Not required if you already have the Basic setup.\n# You would than use: 'context.formatter.embed' instead of 'context.embed'\n```\n\n### Embed image\n\n```python\ncontext.embed(mime_type=\"image/png\", data=\"/path/to/image.png\", caption=\"Screenshot\")\n```\n\n### Embed video\n\n```python\ncontext.embed(mime_type=\"video/webm\", data=\"/path/to/video.webm\", caption=\"Video\")\n```\n\n### Image and Video examples:\n\n![Pretty HTML Formatter](src/image_and_video_examples.gif)\n\n\n### Defined MIME types and corresponding accepted data\n\nThese are examples we use on daily basis, we can define more if required.\n\n```python\nmime_type=\"video/webm\", data=\"/path/to/video.webm\" or data=\"<base64_encoded_video>\"\nmime_type=\"image/png\", data=\"/path/to/image.png\" or data=\"<base64_encoded_image>\"\nmime_type=\"text/plain\", data=\"<string>\"\nmime_type=\"link\", data=\"list(<link>, <label>)\"\n```\n\nYou can simply set `data=data_encoded` generated as described in [Encoding to base64](#encoding-to-base64) section and the formatter will generate the proper [Format](#format-in-which-the-data-is-inserted-to-the-html) based on MIME type or you can just use the `data=\"/path/to/file\"` and formatter will attempt to convert it.\n\nFunction `embed()` returns object, which can be saved and modified later via `set_data()` and `set_fail_only()` methods. This is if you want to embed some data which are still being processes (output of a backgroud process started in a step, etc.).\n\n### Pseudo steps\n\nIf the testsuite uses `before_scenario()` and `after_scenario()` and you would like to see them as steps in HTML report (for example to have embeds separated from the standard steps), configuration switch in behave.ini file `behave.formatter.html-pretty.pseudo_steps = true` will do the trick, together with calling `context.html_formatter.before_scenario_finish(status)` at the end of `before_scenario()` (analogously for `after_scenario()`). The status is one of `\"passed\", \"failed\", \"skipped\"`. Function will set color class of the pseudo step and also record pseudo step duration.\n\n```python\n# Example use in features.environment.py\n\ndef before_scenario(context, scenario):\n  ...\n  # This requires to have html_formatter set by code above.\n  if error_found:\n    context.embed(\"text\", str(error_found), \"Error Message\")\n    context.html_formatter.before_scenario_finish(\"failed\")\n    raise error_found\n  else:\n    context.html_formatter.before_scenario_finish(\"passed\")\n\ndef after_scenario(context, scenario):\n  ...\n  if error_found:\n    context.embed(\"text\", str(error_found), \"Error Message\")\n    context.html_formatter.after_scenario_finish(\"failed\")\n    raise error_found\n  else:\n    context.html_formatter.after_scenario_finish(\"passed\")\n```\n\n## Contributing\n\nYou want to help with improving this software? Please create an issue in our open bug tracker, or open a pull request directly.\n\nWe use [tox](https://pypi.org/project/tox/) for running linting and tests, e.g.\n\n```console\ntox\ntox -l\ntox -e flake8\n```\n\nFor code formatting we use [black](https://pypi.org/project/black/), which you can run using our Tox setup, e.g.\n\n```console\ntox -e black\n```\n\nIf you need to change CSS or JavaScript code: First edit the regular files, then generate the minified versions like so:\n\n```console\ntox -e minify\n```\n\n\n## Image Examples\n\n### Pretty HTML Formatter\n\n![Pretty HTML Formatter](src/full_page_example.png)\n\n### Pretty HTML Formatter High Contrast\n\n![Pretty HTML Formatter Summary High Contrast](src/full_page_high_contrast_example.png)\n\n### Pretty HTML Formatter With Summary Expanded and Collapsed Steps\n\n![Pretty HTML Formatter](src/summary_collapsed_example.png)\n\n### Pretty HTML Formatter High Contrast with Summary Expanded and Collapsed Steps\n\n![Pretty HTML Formatter Summary High Contrast](src/summary_collapsed_high_contrast_example.png)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/behave-contrib/behave-html-pretty-formatter",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "behave-html-pretty-formatter",
+            "package_url": "https://pypi.org/project/behave-html-pretty-formatter/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/behave-html-pretty-formatter/",
+            "project_urls": {
+                "Homepage": "https://github.com/behave-contrib/behave-html-pretty-formatter"
+            },
+            "release_url": "https://pypi.org/project/behave-html-pretty-formatter/1.1/",
+            "requires_dist": [
+                "behave",
+                "dominate"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "Pretty HTML Formatter for Behave",
+            "version": "1.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16007524,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2d32ac71f128d0e02dcd1bc39a2a3200",
+                    "sha256": "87deeb2e05836cbefcc2c29eddbbfec8b291dab6e9db461d83ee76bdf6f08f76"
+                },
+                "downloads": -1,
+                "filename": "behave_html_pretty_formatter-1.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "2d32ac71f128d0e02dcd1bc39a2a3200",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 31443,
+                "upload_time": "2022-12-06T12:34:34",
+                "upload_time_iso_8601": "2022-12-06T12:34:34.763345Z",
+                "url": "https://files.pythonhosted.org/packages/cd/06/29948ddf09b167ff1ccc5d6918838a7af567e1b25f3b340cca46877868f9/behave_html_pretty_formatter-1.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4eba343a5bd8ba12d1200a660170a407",
+                    "sha256": "046a2dd4aab36a3fecdefc8854ac70e666e362804790b6654f5e57cc7267a5d6"
+                },
+                "downloads": -1,
+                "filename": "behave-html-pretty-formatter-1.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "4eba343a5bd8ba12d1200a660170a407",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 32703,
+                "upload_time": "2022-12-06T12:34:36",
+                "upload_time_iso_8601": "2022-12-06T12:34:36.431849Z",
+                "url": "https://files.pythonhosted.org/packages/06/fa/cc237b78d904b188aa66b4aad30870ed44c34e6bbf19f075371f3ab97e7e/behave-html-pretty-formatter-1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

@@ -33,7 +33,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15179392,
+        "last_serial": 16011463,
         "urls": [
             {
                 "comment_text": "",
@@ -92,7 +92,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15179392,
+        "last_serial": 16011463,
         "urls": [
             {
                 "comment_text": "",
@@ -176,7 +176,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15179392,
+        "last_serial": 16011463,
         "urls": [
             {
                 "comment_text": "",
@@ -356,7 +356,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15179392,
+        "last_serial": 16011463,
         "urls": [
             {
                 "comment_text": "",
@@ -535,7 +535,7 @@
             "yanked": true,
             "yanked_reason": "fixed by later revision"
         },
-        "last_serial": 15179392,
+        "last_serial": 16011463,
         "urls": [
             {
                 "comment_text": "",
@@ -714,7 +714,7 @@
             "yanked": true,
             "yanked_reason": "fixed by later revision"
         },
-        "last_serial": 15179392,
+        "last_serial": 16011463,
         "urls": [
             {
                 "comment_text": "",
@@ -893,7 +893,7 @@
             "yanked": true,
             "yanked_reason": "fixed by later revision"
         },
-        "last_serial": 15179392,
+        "last_serial": 16011463,
         "urls": [
             {
                 "comment_text": "",
@@ -1075,7 +1075,7 @@
             "yanked": true,
             "yanked_reason": "fixed by later revision"
         },
-        "last_serial": 15179392,
+        "last_serial": 16011463,
         "urls": [
             {
                 "comment_text": "",
@@ -1202,7 +1202,6 @@
                 "Topic :: Scientific/Engineering",
                 "Topic :: Scientific/Engineering :: Artificial Intelligence"
             ],
-            "description": "<!-- markdownlint-disable first-line-h1 -->\n<!-- markdownlint-disable html -->\n\n<div align=\"center\">\n  <img src=\"https://github.com/metaopt/torchopt/raw/HEAD/image/logo-large.png\" width=\"75%\" />\n</div>\n\n![Python 3.7+](https://img.shields.io/badge/Python-3.7%2B-brightgreen.svg)\n[![PyPI](https://img.shields.io/pypi/v/torchopt?label=PyPI)](https://pypi.org/project/torchopt)\n![Status](https://img.shields.io/pypi/status/torchopt?label=Status)\n![GitHub Workflow Status](https://img.shields.io/github/workflow/status/metaopt/torchopt/Tests?label=tests&logo=github)\n[![Documentation Status](https://readthedocs.org/projects/torchopt/badge/?version=latest)](https://torchopt.readthedocs.io/en/latest/?badge=latest)\n[![Downloads](https://static.pepy.tech/personalized-badge/torchopt?period=month&left_color=grey&right_color=blue&left_text=Downloads/month)](https://pepy.tech/project/torchopt)\n[![GitHub Repo Stars](https://img.shields.io/github/stars/metaopt/torchopt?label=Stars&logo=github&color=brightgreen)](https://github.com/metaopt/torchopt/stargazers)\n[![License](https://img.shields.io/github/license/metaopt/torchopt?label=License)](#license)\n\n**TorchOpt** is a high-performance optimizer library built upon [PyTorch](https://pytorch.org/) for easy implementation of functional optimization and gradient-based meta-learning. It consists of two main features:\n\n- TorchOpt provides functional optimizer which enables [JAX-like](https://github.com/google/jax) composable functional optimizer for PyTorch. With TorchOpt, one can easily conduct neural network optimization in PyTorch with functional style optimizer, similar to  [Optax](https://github.com/deepmind/optax) in JAX.\n- With the design of functional programing, TorchOpt provides efficient, flexible, and easy-to-implement differentiable optimizer for gradient-based meta-learning research. It largely reduces the efforts required to implement sophisticated meta-learning algorithms.\n\n--------------------------------------------------------------------------------\n\nThe README is organized as follows:\n\n- [TorchOpt as Functional Optimizer](#torchopt-as-functional-optimizer)\n  - [Optax-Like API](#optax-like-api)\n  - [PyTorch-Like API](#pytorch-like-api)\n  - [Differentiable](#differentiable)\n- [TorchOpt as Differentiable Optimizer for Meta-Learning](#torchopt-as-differentiable-optimizer-for-meta-learning)\n  - [Meta-Learning API](#meta-learning-api)\n- [Examples](#examples)\n- [High-Performance](#high-performance)\n- [Visualization](#visualization)\n- [Installation](#installation)\n- [Future Plan](#future-plan)\n- [Changelog](#changelog)\n- [The Team](#the-team)\n- [Citing TorchOpt](#citing-torchopt)\n\n--------------------------------------------------------------------------------\n\n## TorchOpt as Functional Optimizer\n\nThe design of TorchOpt follows the philosophy of functional programming. Aligned with [`functorch`](https://github.com/pytorch/functorch), users can conduct functional style programing with models, optimizers and training in PyTorch. We use the Adam optimizer as an example in the following illustration. You can also check out the tutorial notebook [Functional Optimizer](tutorials/1_Functional_Optimizer.ipynb) for more details.\n\n### Optax-Like API\n\nFor those users who prefer fully functional programing, we offer Optax-Like API by passing gradients and optimizers states to the optimizer function. We design base class `torchopt.Optimizer` that has the same interface as `torch.optim.Optimizer`. Here is an example coupled with `functorch`:\n\n```python\nimport functorch\nimport torch\nimport torch.nn as nn\nimport torch.nn.functional as F\nfrom torch.utils.data import DataLoader\n\nimport torchopt\n\nclass Net(nn.Module): ...\n\nclass Loader(DataLoader): ...\n\nnet = Net()  # init\nloader = Loader()\noptimizer = torchopt.adam()\n\nmodel, params = functorch.make_functional(net)           # use functorch extract network parameters\nopt_state = optimizer.init(params)                       # init optimizer\n\nxs, ys = next(loader)                                    # get data\npred = model(params, xs)                                 # forward\nloss = F.cross_entropy(pred, ys)                         # compute loss\n\ngrads = torch.autograd.grad(loss, params)                # compute gradients\nupdates, opt_state = optimizer.update(grads, opt_state)  # get updates\nparams = torchopt.apply_updates(params, updates)         # update network parameters\n```\n\nWe also provide a wrapper `torchopt.FuncOptimizer` to make maintaining the optimizer state easier:\n\n```python\nnet = Net()  # init\nloader = Loader()\noptimizer = torchopt.FuncOptimizer(torchopt.adam())      # wrap with `torchopt.FuncOptimizer`\n\nmodel, params = functorch.make_functional(net)           # use functorch extract network parameters\n\nfor xs, ys in loader:                                    # get data\n    pred = model(params, xs)                             # forward\n    loss = F.cross_entropy(pred, ys)                     # compute loss\n\n    params = optimizer.step(loss, params)                # update network parameters\n```\n\n### PyTorch-Like API\n\nWe also offer origin PyTorch APIs (e.g. `zero_grad()` or `step()`) by wrapping our Optax-Like API for traditional PyTorch user:\n\n```python\nnet = Net()  # init\nloader = Loader()\noptimizer = torchopt.Adam(net.parameters())\n\nxs, ys = next(loader)             # get data\npred = net(xs)                    # forward\nloss = F.cross_entropy(pred, ys)  # compute loss\n\noptimizer.zero_grad()             # zero gradients\nloss.backward()                   # backward\noptimizer.step()                  # step updates\n```\n\n### Differentiable\n\nOn top of the same optimization function as `torch.optim`, an important benefit of functional optimizer is that one can implement differentiable optimization easily. This is particularly helpful when the algorithm requires to differentiate through optimization update (such as meta learning practices). We take as the inputs the gradients and optimizer states, use non-in-place operators to compute and output the updates. The processes can be automatically implemented, with the only need from users being to pass the argument `inplace=False` to the functions:\n\n```python\n# Get updates\nupdates, opt_state = optimizer.update(grad, opt_state, inplace=False)\n# Update network parameters\nparams = torchopt.apply_updates(params, updates, inplace=False)\n```\n\n--------------------------------------------------------------------------------\n\n## TorchOpt as Differentiable Optimizer for Meta-Learning\n\nMeta-Learning has gained enormous attention in both Supervised Learning and Reinforcement Learning. Meta-Learning algorithms often contain a bi-level optimization process with *inner loop* updating the network parameters and *outer loop* updating meta parameters. The figure below illustrates the basic formulation for meta-optimization in Meta-Learning. The main feature is that the gradients of *outer loss* will back-propagate through all `inner.step` operations.\n\n<div align=\"center\">\n  <img src=\"https://github.com/metaopt/torchopt/raw/HEAD/image/TorchOpt.png\" width=\"85%\" />\n</div>\n\nSince network parameters become a node of computation graph, a flexible Meta-Learning library should enable users manually control the gradient graph connection which means that users should have access to the network parameters and optimizer states for manually detaching or connecting the computation graph. In PyTorch designing, the network parameters or optimizer states are members of network (a.k.a. `torch.nn.Module`) or optimizer (a.k.a. `torch.optim.Optimizer`), this design significantly introducing difficulty for user control network parameters or optimizer states. Previous differentiable optimizer Repo [`higher`](https://github.com/facebookresearch/higher), [`learn2learn`](https://github.com/learnables/learn2learn) follows the PyTorch designing which leads to inflexible API.\n\nIn contrast to them, TorchOpt realizes differentiable optimizer with functional programing, where Meta-Learning researchers could control the network parameters or optimizer states as normal variables (a.k.a. `torch.Tensor`). This functional optimizer design of TorchOpt is beneficial for implementing complex gradient flow Meta-Learning algorithms and allow us to improve computational efficiency by using techniques like operator fusion.\n\n### Meta-Learning API\n\n- We design a base class `torchopt.MetaOptimizer` for managing network updates in Meta-Learning. The constructor of `MetaOptimizer` takes as input the network rather than network parameters. `MetaOptimizer` exposed interface `step(loss)` takes as input the loss for step the network parameter. Refer to the tutorial notebook [Meta Optimizer](tutorials/3_Meta_Optimizer.ipynb) for more details.\n- We offer `torchopt.chain` which can apply a list of chainable update transformations. Combined with `MetaOptimizer`, it can help you conduct gradient transformation such as gradient clip before the Meta optimizer steps. Refer to the tutorial notebook [Meta Optimizer](tutorials/3_Meta_Optimizer.ipynb) for more details.\n- We observe that different Meta-Learning algorithms vary in inner-loop parameter recovery. TorchOpt provides basic functions for users to extract or recover network parameters and optimizer states anytime anywhere they want.\n- Some algorithms such as MGRL ([arXiv:1805.09801](https://arxiv.org/abs/1805.09801)) initialize the inner-loop parameters inherited from previous inner-loop process when conducting a new bi-level process. TorchOpt also provides a finer function `stop_gradient` for manipulating the gradient graph, which is helpful for this kind of algorithms. Refer to the notebook [Stop Gradient](tutorials/4_Stop_Gradient.ipynb) for more details.\n\nWe give an example of MAML ([arXiv:1703.03400](https://arxiv.org/abs/1703.03400)) with inner-loop Adam optimizer to illustrate TorchOpt APIs:\n\n```python\nnet = Net()  # init\n\n# The constructor `MetaOptimizer` takes as input the network\ninner_optim = torchopt.MetaAdam(net)\nouter_optim = torchopt.Adam(net.parameters())\n\nfor train_iter in range(train_iters):\n    outer_loss = 0\n    for task in range(tasks):\n        loader = Loader(tasks)\n\n        # Store states at the initial points\n        net_state = torchopt.extract_state_dict(net)  # extract state\n        optim_state = torchopt.extract_state_dict(inner_optim)\n        for inner_iter in range(inner_iters):\n            # Compute inner loss and perform inner update\n            xs, ys = next(loader)\n            pred = net(xs)\n            inner_loss = F.cross_entropy(pred, ys)\n            inner_optim.step(inner_loss)\n\n        # Compute outer loss and back-propagate\n        xs, ys = next(loader)\n        pred = net(xs)\n        outer_loss = outer_loss + F.cross_entropy(pred, ys)\n\n        # Recover network and optimizer states at the initial point for the next task\n        torchopt.recover_state_dict(inner_optim, optim_state)\n        torchopt.recover_state_dict(net, net_state)\n\n    outer_loss = outer_loss / len(tasks)  # task average\n    outer_optim.zero_grad()\n    outer_loss.backward()\n    outer_optim.step()\n\n    # Stop gradient if necessary\n    torchopt.stop_gradient(net)\n    torchopt.stop_gradient(inner_optim)\n```\n\n--------------------------------------------------------------------------------\n\n## Examples\n\nIn [`examples`](examples), we offer several examples of functional optimizer and 5 light-weight meta-learning examples with TorchOpt. The meta-learning examples covers 2 Supervised Learning and 3 Reinforcement Learning algorithms.\n\n- [Model Agnostic Meta Learning (MAML) - Supervised Learning](https://arxiv.org/abs/1703.03400) (ICML 2017)\n- [Learning to Reweight Examples for Robust Deep Learning](https://arxiv.org/abs/1803.09050) (ICML 2018)\n- [Model Agnostic Meta Learning (MAML) - Reinforcement Learning](https://arxiv.org/abs/1703.03400) (ICML 2017)\n- [Meta Gradient Reinforcement Learning (MGRL)](https://arxiv.org/abs/1805.09801) (NeurIPS 2018)\n- [Learning through opponent learning process (LOLA)](https://arxiv.org/abs/1709.04326) (AAMAS 2018)\n\n--------------------------------------------------------------------------------\n\n## High-Performance\n\nOne can think of the scale procedures on gradients of optimizer algorithms as a combination of several operations. For example, the implementation of the Adam algorithm often includes addition, multiplication, power and square operations, one can fuse these operations into several compound functions. The operator fusion could greatly simplify the computation graph and reduce the GPU function launching stall. In addition, one can also implement the optimizer backward function and manually reuse some intermediate tensors to improve the backward performance. Users can pass argument `use_accelerated_op=True` to `adam`, `Adam` and `MetaAdam` to enable the fused accelerated operator. The arguments are the same between the two kinds of implementations.\n\nHere we evaluate the performance using the MAML-Omniglot code with the inner-loop Adam optimizer on GPU. We comparable the run time of the overall algorithm and the meta-optimization (outer-loop optimization) under different network architecture/inner-step numbers. We choose [`higher`](https://github.com/facebookresearch/higher) as our baseline. The figure below illustrate that our accelerated Adam can achieve at least $1/3$ efficiency improvement over the baseline.\n\n<div align=\"center\">\n  <img src=\"https://github.com/metaopt/torchopt/raw/HEAD/image/time.png\" width=\"80%\" />\n</div>\n\nNotably, the operator fusion not only increases performance but also help simplify the computation graph, which will be discussed in the next section.\n\n--------------------------------------------------------------------------------\n\n## Visualization\n\nComplex gradient flow in meta-learning brings in a great challenge for managing the gradient flow and verifying the correctness of it. TorchOpt provides a visualization tool that draw variable (e.g. network parameters or meta parameters) names on the gradient graph for better analyzing. The visualization tool is modified from [`torchviz`](https://github.com/szagoruyko/pytorchviz). We provide an example using the [visualization code](examples/visualize.py). Also refer to the notebook [Visualization](tutorials/2_Visualization.ipynb) for more details.\n\nThe figure below show the visualization result. Compared with [`torchviz`](https://github.com/szagoruyko/pytorchviz), TorchOpt fuses the operations within the `Adam` together (orange) to reduce the complexity and provide simpler visualization.\n\n<div align=\"center\">\n  <img src=\"https://github.com/metaopt/torchopt/raw/HEAD/image/torchviz_torchopt.jpg\" width=\"80%\" />\n</div>\n\n--------------------------------------------------------------------------------\n\n## Installation\n\nRequirements\n\n- PyTorch\n- (Optional) For visualizing computation graphs\n  - [Graphviz](https://graphviz.org/download/) (for Linux users use `apt/yum install graphviz` or `conda install -c anaconda python-graphviz`)\n\n**Please follow the instructions at <https://pytorch.org> to install PyTorch in your Python environment first.** Then run the following command to install TorchOpt from PyPI ([![PyPI](https://img.shields.io/pypi/v/torchopt?label=PyPI)](https://pypi.org/project/torchopt) / ![Status](https://img.shields.io/pypi/status/torchopt?label=Status)):\n\n```bash\npip3 install torchopt\n```\n\nIf the minimum version of PyTorch is not satisfied, `pip` will install/upgrade it for you. Please be careful about the `torch` build for CPU / CUDA support (e.g. `cpu`, `cu102`, `cu113`). You may need to specify the extra index URL for the `torch` package:\n\n```bash\npip3 install torchopt --extra-index-url https://download.pytorch.org/whl/cu116\n```\n\nSee <https://pytorch.org> for more information about installing PyTorch.\n\nYou can also build shared libraries from source, use:\n\n```bash\ngit clone https://github.com/metaopt/torchopt.git\ncd torchopt\npip3 install .\n```\n\nWe provide a [conda](https://github.com/conda/conda) environment recipe to install the build toolchain such as `cmake`, `g++`, and `nvcc`:\n\n```bash\ngit clone https://github.com/metaopt/torchopt.git\ncd torchopt\n\n# You may need `CONDA_OVERRIDE_CUDA` if conda fails to detect the NVIDIA driver (e.g. in docker or WSL2)\nCONDA_OVERRIDE_CUDA=11.7 conda env create --file conda-recipe.yaml\n\nconda activate torchopt\nmake install-editable  # or run `pip3 install --no-build-isolation --editable .`\n```\n\n--------------------------------------------------------------------------------\n\n## Future Plan\n\n- [x] CPU-accelerated optimizer\n- [ ] Support general implicit differentiation with functional programing\n- [X] Support more optimizers such as AdamW, RMSProp\n- [ ] Zero order optimization\n- [ ] Distributed optimizers\n- [ ] Support `complex` data type\n\n## Changelog\n\nSee [CHANGELOG.md](CHANGELOG.md).\n\n--------------------------------------------------------------------------------\n\n## The Team\n\nTorchOpt is a work by Jie Ren, Xidong Feng, [Bo Liu](https://github.com/Benjamin-eecs), [Xuehai Pan](https://github.com/XuehaiPan), [Luo Mai](https://luomai.github.io/) and [Yaodong Yang](https://www.yangyaodong.com/).\n\n## Citing TorchOpt\n\nIf you find TorchOpt useful, please cite it in your publications.\n\n```bibtex\n@software{TorchOpt,\n  author = {Jie Ren and Xidong Feng and Bo Liu and Xuehai Pan and Luo Mai and Yaodong Yang},\n  title = {TorchOpt},\n  year = {2022},\n  publisher = {GitHub},\n  journal = {GitHub repository},\n  howpublished = {\\url{https://github.com/metaopt/torchopt}},\n}\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -1258,7 +1257,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15179392,
+        "last_serial": 16011463,
         "urls": [
             {
                 "comment_text": "",
@@ -1357,6 +1356,212 @@
                 "upload_time": "2022-09-22T13:27:00",
                 "upload_time_iso_8601": "2022-09-22T13:27:00.753776Z",
                 "url": "https://files.pythonhosted.org/packages/bb/44/d43d39cf6de16acceb25348fea8cfe56e5a3b42f13a37cc5bcf557a659de/torchopt-0.5.0.post4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.6.0": {
+        "info": {
+            "author": "TorchOpt Contributors",
+            "author_email": "Jie Ren <jieren9806@gmail.com>, Xidong Feng <xidong.feng.20@ucl.ac.uk>, Bo Liu <benjaminliu.eecs@gmail.com>, Xuehai Pan <XuehaiPan@pku.edu.cn>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: GPU",
+                "Environment :: GPU :: NVIDIA CUDA",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Education",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence"
+            ],
+            "description": "<!-- markdownlint-disable first-line-h1 -->\n<!-- markdownlint-disable html -->\n<!-- markdownlint-disable no-duplicate-header -->\n\n<div align=\"center\">\n  <img src=\"https://github.com/metaopt/torchopt/raw/HEAD/image/logo-large.png\" width=\"75%\" />\n</div>\n\n<div align=\"center\">\n\n  <a>![Python 3.7+](https://img.shields.io/badge/Python-3.7%2B-brightgreen.svg)</a>\n  <a href=\"https://pypi.org/project/torchopt\">![PyPI](https://img.shields.io/pypi/v/torchopt?logo=pypi)</a>\n  <a href=\"https://github.com/metaopt/torchopt/tree/HEAD/tests\">![GitHub Workflow Status](https://img.shields.io/github/workflow/status/metaopt/torchopt/Tests?label=tests&logo=github)</a>\n  <a href=\"https://torchopt.readthedocs.io\">![Documentation Status](https://img.shields.io/readthedocs/torchopt?logo=readthedocs)</a>\n  <a href=\"https://pepy.tech/project/torchopt\">![Downloads](https://static.pepy.tech/personalized-badge/torchopt?period=total&left_color=grey&right_color=blue&left_text=downloads)</a>\n  <a href=\"https://github.com/metaopt/torchopt/stargazers\">![GitHub Repo Stars](https://img.shields.io/github/stars/metaopt/torchopt?color=brightgreen&logo=github)</a>\n  <a href=\"https://github.com/metaopt/torchopt/blob/HEAD/LICENSE\">![License](https://img.shields.io/github/license/metaopt/torchopt?label=license&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjZmZmZmZmIj48cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xMi43NSAyLjc1YS43NS43NSAwIDAwLTEuNSAwVjQuNUg5LjI3NmExLjc1IDEuNzUgMCAwMC0uOTg1LjMwM0w2LjU5NiA1Ljk1N0EuMjUuMjUgMCAwMTYuNDU1IDZIMi4zNTNhLjc1Ljc1IDAgMTAwIDEuNUgzLjkzTC41NjMgMTUuMThhLjc2Mi43NjIgMCAwMC4yMS44OGMuMDguMDY0LjE2MS4xMjUuMzA5LjIyMS4xODYuMTIxLjQ1Mi4yNzguNzkyLjQzMy42OC4zMTEgMS42NjIuNjIgMi44NzYuNjJhNi45MTkgNi45MTkgMCAwMDIuODc2LS42MmMuMzQtLjE1NS42MDYtLjMxMi43OTItLjQzMy4xNS0uMDk3LjIzLS4xNTguMzEtLjIyM2EuNzUuNzUgMCAwMC4yMDktLjg3OEw1LjU2OSA3LjVoLjg4NmMuMzUxIDAgLjY5NC0uMTA2Ljk4NC0uMzAzbDEuNjk2LTEuMTU0QS4yNS4yNSAwIDAxOS4yNzUgNmgxLjk3NXYxNC41SDYuNzYzYS43NS43NSAwIDAwMCAxLjVoMTAuNDc0YS43NS43NSAwIDAwMC0xLjVIMTIuNzVWNmgxLjk3NGMuMDUgMCAuMS4wMTUuMTQuMDQzbDEuNjk3IDEuMTU0Yy4yOS4xOTcuNjMzLjMwMy45ODQuMzAzaC44ODZsLTMuMzY4IDcuNjhhLjc1Ljc1IDAgMDAuMjMuODk2Yy4wMTIuMDA5IDAgMCAuMDAyIDBhMy4xNTQgMy4xNTQgMCAwMC4zMS4yMDZjLjE4NS4xMTIuNDUuMjU2Ljc5LjRhNy4zNDMgNy4zNDMgMCAwMDIuODU1LjU2OCA3LjM0MyA3LjM0MyAwIDAwMi44NTYtLjU2OWMuMzM4LS4xNDMuNjA0LS4yODcuNzktLjM5OWEzLjUgMy41IDAgMDAuMzEtLjIwNi43NS43NSAwIDAwLjIzLS44OTZMMjAuMDcgNy41aDEuNTc4YS43NS43NSAwIDAwMC0xLjVoLTQuMTAyYS4yNS4yNSAwIDAxLS4xNC0uMDQzbC0xLjY5Ny0xLjE1NGExLjc1IDEuNzUgMCAwMC0uOTg0LS4zMDNIMTIuNzVWMi43NXpNMi4xOTMgMTUuMTk4YTUuNDE4IDUuNDE4IDAgMDAyLjU1Ny42MzUgNS40MTggNS40MTggMCAwMDIuNTU3LS42MzVMNC43NSA5LjM2OGwtMi41NTcgNS44M3ptMTQuNTEtLjAyNGMuMDgyLjA0LjE3NC4wODMuMjc1LjEyNi41My4yMjMgMS4zMDUuNDUgMi4yNzIuNDVhNS44NDYgNS44NDYgMCAwMDIuNTQ3LS41NzZMMTkuMjUgOS4zNjdsLTIuNTQ3IDUuODA3eiI+PC9wYXRoPjwvc3ZnPgo=)</a>\n\n</div>\n\n<p align=\"center\">\n  <a href=\"https://github.com/metaopt/torchopt#installation\">Installation</a> |\n  <a href=\"https://torchopt.readthedocs.io\">Documentation</a> |\n  <a href=\"https://github.com/metaopt/torchopt/tree/HEAD/tutorials\">Tutorials</a> |\n  <a href=\"https://github.com/metaopt/torchopt/tree/HEAD/examples\">Examples</a> |\n  <a href=\"https://arxiv.org/abs/2211.06934\">Paper</a> |\n  <a href=\"https://github.com/metaopt/torchopt#citing-torchopt\">Citation</a>\n</p>\n\n**TorchOpt** is an efficient library for differentiable optimization built upon [PyTorch](https://pytorch.org).\nTorchOpt is:\n\n- **Comprehensive**: TorchOpt provides three differentiation mode - explicit differentiation, implicit differentiation and zero-order differentiation for handling different differentiable optimization situations.\n- **Flexible**: TorchOpt provides both functional and objective-oriented API for user different preferences. Users can implement differentiable optimization in JAX-like or PyTorch-like style.\n- **Efficient**: TorchOpt provides (1) CPU/GPU acceleration differentiable optimizer (2) RPC-based distributed training framework (3) Fast Tree Operations, to largely increase the training efficiency for bi-level optimization problem.\n\nBeyond differentiable optimization, TorchOpt can also be regarded as a functional optimizer which enables [JAX-like](https://github.com/google/jax) composable functional optimizer for PyTorch.\nWith TorchOpt, users can easily conduct neural network optimization in PyTorch with functional style optimizer, similar to [Optax](https://github.com/deepmind/optax) in JAX.\n\n--------------------------------------------------------------------------------\n\nThe README is organized as follows:\n\n- [TorchOpt as Functional Optimizer](#torchopt-as-functional-optimizer)\n  - [Optax-Like API](#optax-like-api)\n  - [PyTorch-Like API](#pytorch-like-api)\n  - [Differentiable](#differentiable)\n- [TorchOpt for Differentiable Optimization](#torchopt-for-differentiable-optimization)\n  - [Explicit Gradient (EG)](#explicit-gradient-eg)\n  - [Implicit Gradient (IG)](#implicit-gradient-ig)\n  - [Zero-order Differentiation (ZD)](#zero-order-differentiation-zd)\n- [High-Performance and Distributed Training](#high-performance-and-distributed-training)\n  - [CPU/GPU accelerated differentiable optimizer](#cpugpu-accelerated-differentiable-optimizer)\n  - [Distributed Training](#distributed-training)\n  - [OpTree](#optree)\n- [Visualization](#visualization)\n- [Examples](#examples)\n- [Installation](#installation)\n- [Changelog](#changelog)\n- [Citing TorchOpt](#citing-torchopt)\n- [The Team](#the-team)\n- [License](#license)\n\n--------------------------------------------------------------------------------\n\n## TorchOpt as Functional Optimizer\n\nThe design of TorchOpt follows the philosophy of functional programming.\nAligned with [`functorch`](https://github.com/pytorch/functorch), users can conduct functional style programing with models, optimizers and training in PyTorch.\nWe use the Adam optimizer as an example in the following illustration.\nYou can also check out the tutorial notebook [Functional Optimizer](tutorials/1_Functional_Optimizer.ipynb) for more details.\n\n### Optax-Like API\n\nFor those users who prefer fully functional programing, we offer Optax-Like API by passing gradients and optimizers states to the optimizer function.\nHere is an example coupled with `functorch`:\n\n```python\nclass Net(nn.Module): ...\n\nclass Loader(DataLoader): ...\n\nnet = Net()  # init\nloader = Loader()\noptimizer = torchopt.adam()\n\nmodel, params = functorch.make_functional(net)           # use functorch extract network parameters\nopt_state = optimizer.init(params)                       # init optimizer\n\nxs, ys = next(loader)                                    # get data\npred = model(params, xs)                                 # forward\nloss = F.cross_entropy(pred, ys)                         # compute loss\n\ngrads = torch.autograd.grad(loss, params)                # compute gradients\nupdates, opt_state = optimizer.update(grads, opt_state)  # get updates\nparams = torchopt.apply_updates(params, updates)         # update network parameters\n```\n\nWe also provide a wrapper `torchopt.FuncOptimizer` to make maintaining the optimizer state easier:\n\n```python\nnet = Net()  # init\nloader = Loader()\noptimizer = torchopt.FuncOptimizer(torchopt.adam())      # wrap with `torchopt.FuncOptimizer`\n\nmodel, params = functorch.make_functional(net)           # use functorch extract network parameters\n\nfor xs, ys in loader:                                    # get data\n    pred = model(params, xs)                             # forward\n    loss = F.cross_entropy(pred, ys)                     # compute loss\n\n    params = optimizer.step(loss, params)                # update network parameters\n```\n\n### PyTorch-Like API\n\nWe also design base class `torchopt.Optimizer` that has the same interface as `torch.optim.Optimizer`.\nWe offer origin PyTorch APIs (e.g. `zero_grad()` or `step()`) by wrapping our Optax-Like API for traditional PyTorch users.\n\n```python\nnet = Net()  # init\nloader = Loader()\noptimizer = torchopt.Adam(net.parameters())\n\nxs, ys = next(loader)             # get data\npred = net(xs)                    # forward\nloss = F.cross_entropy(pred, ys)  # compute loss\n\noptimizer.zero_grad()             # zero gradients\nloss.backward()                   # backward\noptimizer.step()                  # step updates\n```\n\n### Differentiable\n\nOn top of the same optimization function as `torch.optim`, an important benefit of functional optimizer is that one can implement differentiable optimization easily.\nThis is particularly helpful when the algorithm requires to differentiate through optimization update (such as meta-learning practices).\nWe take as the inputs the gradients and optimizer states, use non-in-place operators to compute and output the updates.\nThe processes can be automatically implemented, with the only need from users being to pass the argument `inplace=False` to the functions.\nCheck out section [Explicit Gradient (EG)](#explicit-gradient-eg) functional API for example.\n\n--------------------------------------------------------------------------------\n\n## TorchOpt for Differentiable Optimization\n\nWe design a bilevel-optimization updating scheme, which can be easily extended to realize various differentiable optimization processes.\n\n<div align=\"center\">\n  <img src=\"image/diffmode.png\" width=\"90%\" />\n</div>\n\nAs shown above, the scheme contains an outer level that has parameters $\\phi$ that can be learned end-to-end through the inner level parameters solution $\\theta^{\\prime}(\\phi)$ by using the best-response derivatives $\\partial \\theta^{\\prime}(\\phi) / \\partial \\phi$.\nTorchOpt supports three differentiation modes.\nIt can be seen that the key component of this algorithm is to calculate the best-response (BR) Jacobian.\nFrom the BR-based perspective, existing gradient methods can be categorized into three groups: explicit gradient over unrolled optimization, implicit differentiation, and zero-order gradient differentiation.\n\n### Explicit Gradient (EG)\n\nThe idea of explicit gradient is to treat the gradient step as a differentiable function and try to backpropagate through the unrolled optimization path.\nThis differentiation mode is suitable for algorithms when the inner-level optimization solution is obtained by a few gradient steps, such as [MAML](https://arxiv.org/abs/1703.03400) and [MGRL](https://arxiv.org/abs/1805.09801).\nTorchOpt offers both functional and object-oriented API for EG to fit different user applications.\n\n#### Functional API  <!-- omit in toc -->\n\nThe functional API is to conduct optimization in a functional programming style.\nNote that we pass the argument `inplace=False` to the functions to make the optimization differentiable.\nRefer to the tutorial notebook [Functional Optimizer](tutorials/1_Functional_Optimizer.ipynb) for more guidances.\n\n```python\n# Define functional optimizer\noptimizer = torchopt.adam()\n# Define meta and inner parameters\nmeta_params = ...\nfmodel, params = make_functional(model)\n# Initial state\nstate = optimizer.init(params)\n\nfor iter in range(iter_times):\n    loss = inner_loss(fmodel, params, meta_params)\n    grads = torch.autograd.grad(loss, params)\n    # Apply non-inplace parameter update\n    updates, state = optimizer.update(grads, state, inplace=False)\n    params = torchopt.apply_updates(params, updates)\n\nloss = outer_loss(fmodel, params, meta_params)\nmeta_grads = torch.autograd.grad(loss, meta_params)\n```\n\n#### OOP API  <!-- omit in toc -->\n\nTorchOpt also provides OOP API compatible with PyTorch programming style.\nRefer to the example and the tutorial notebook [Meta-Optimizer](tutorials/3_Meta_Optimizer.ipynb), [Stop Gradient](tutorials/4_Stop_Gradient.ipynb) for more guidances.\n\n```python\n# Define meta and inner parameters\nmeta_params = ...\nmodel = ...\n# Define differentiable optimizer\noptimizer = torchopt.MetaAdam(model)  # a model instance as argument instead of model.parameters()\n\nfor iter in range(iter_times):\n    # Perform inner update\n    loss = inner_loss(model, meta_params)\n    optimizer.step(loss)\n\nloss = outer_loss(model, meta_params)\nloss.backward()\n```\n\n### Implicit Gradient (IG)\n\nBy treating the solution $\\theta^{\\prime}$ as an implicit function of $\\phi$, the idea of IG is to directly get analytical best-response derivatives $\\partial \\theta^{\\prime} (\\phi) / \\partial \\phi$ by [implicit function theorem](https://en.wikipedia.org/wiki/Implicit_function_theorem).\nThis is suitable for algorithms when the inner-level optimal solution is achieved ${\\left. \\frac{\\partial F (\\theta, \\phi)}{\\partial \\theta} \\right\\rvert}_{\\theta=\\theta^{\\prime}} = 0$ or reaches some stationary conditions $F (\\theta^{\\prime}, \\phi) = 0$, such as [iMAML](https://arxiv.org/abs/1909.04630) and [DEQ](https://arxiv.org/abs/1909.01377).\nTorchOpt offers both functional and OOP APIs for supporting both [conjugate gradient-based](https://arxiv.org/abs/1909.04630) and [Neumann series-based](https://arxiv.org/abs/1911.02590) IG methods.\nRefer to the example [iMAML](https://github.com/waterhorse1/torchopt/tree/readme/examples/iMAML) and the notebook [Implicit Gradient](tutorials/5_Implicit_Differentiation.ipynb) for more guidances.\n\n#### Functional API  <!-- omit in toc -->\n\nFor implicit gradient, users need to define the stationary condition and TorchOpt provides the decorator to wrap the solve function for enabling implicit gradient computation.\n\n```python\n# The stationary condition for the inner-loop\ndef stationary(params, meta_params, data):\n    # Stationary condition construction\n    return stationary condition\n\n# Decorator for wrapping the function\n# Optionally specify the linear solver (conjugate gradient or Neumann series)\n@torchopt.diff.implicit.custom_root(stationary, solve=linear_solver)\ndef solve(params, meta_params, data):\n    # Forward optimization process for params\n    return output\n\n# Define params, meta_params and get data\nparams, meta_prams, data = ..., ..., ...\noptimal_params = solve(params, meta_params, data)\nloss = outer_loss(optimal_params)\n\nmeta_grads = torch.autograd.grad(loss, meta_params)\n```\n\n#### OOP API  <!-- omit in toc -->\n\nTorchOpt also offer an OOP API, users need to inherit from the class `torchopt.nn.ImplicitMetaGradientModule` to construct the inner-loop network.\nUsers need to define the stationary condition/objective function and the inner-loop solve function to enable implicit gradient computation.\n\n```python\n# Inherited from the class ImplicitMetaGradientModule\n# Optionally specify the linear solver (conjugate gradient or Neumann series)\nclass InnerNet(ImplicitMetaGradientModule, linear_solver):\n    def __init__(self, meta_param):\n        super().__init__()\n        self.meta_param = meta_param\n        ...\n\n    def forward(self, batch):\n        # Forward process\n        ...\n\n    def optimality(self, batch, labels):\n        # Stationary condition construction for calculating implicit gradient\n        # NOTE: If this method is not implemented, it will be automatically\n        # derived from the gradient of the `objective` function.\n        ...\n\n    def objective(self, batch, labels):\n        # Define the inner-loop optimization objective\n        ...\n\n    def solve(self, batch, labels):\n        # Conduct the inner-loop optimization\n        ...\n\n# Get meta_params and data\nmeta_params, data = ..., ...\ninner_net = InnerNet(meta_params)\n\n# Solve for inner-loop process related with the meta-parameters\noptimal_inner_net = inner_net.solve(data)\n\n# Get outer loss and solve for meta-gradient\nloss = outer_loss(optimal_inner_net)\nmeta_grads = torch.autograd.grad(loss, meta_params)\n```\n\n### Zero-order Differentiation (ZD)\n\nWhen the inner-loop process is non-differentiable or one wants to eliminate the heavy computation burdens in the previous two modes (brought by Hessian), one can choose Zero-order Differentiation (ZD).\nZD typically gets gradients based on zero-order estimation, such as finite-difference, or [Evolutionary Strategy](https://arxiv.org/abs/1703.03864).\nInstead of optimizing the objective $F$, ES optimizes a smoothed objective.\nTorchOpt provides both functional and OOP APIs for the ES method.\nRefer to the tutorial notebook [Zero-order Differentiation](tutorials/6_Zero_Order_Differentiation.ipynb) for more guidances.\n\n#### Functional API  <!-- omit in toc -->\n\n```python\n# Customize the noise sampling function in ES\ndef sample(sample_shape):\n    ...\n    return sample_noise\n\n# Specify method and hyper-parameter of ES\n@torchopt.diff.zero_order(sample, method)\ndef forward(params, batch, labels):\n    # forward process\n    return output\n```\n\n--------------------------------------------------------------------------------\n\n## High-Performance and Distributed Training\n\n### CPU/GPU accelerated differentiable optimizer\n\nWe take the optimizer as a whole instead of separating it into several basic operators (e.g., `sqrt` and `div`).\nTherefore, by manually writing the forward and backward functions, we can perform the symbolic reduction.\nIn addition, we can store some intermediate data that can be reused during the backpropagation.\nWe write the accelerated functions in C++ OpenMP and CUDA, bind them by [`pybind11`](https://github.com/pybind/pybind11) to allow they can be called by Python, and then we define the forward and backward behavior using `torch.autograd.Function`.\nUsers can use by simply setting the `use_accelerated_op` flag as `True`.\nRefer to the corresponding sections in tutorials [Functional Optimizer](tutorials/1_Functional_Optimizer.ipynb) and [Meta-Optimizer](tutorials/3_Meta_Optimizer.ipynb)\n\n```python\noptimizer = torchopt.MetaAdam(model, lr, use_accelerated_op=True)\n```\n\n### Distributed Training\n\n`TorchOpt` provides distributed training features based on the PyTorch RPC module for better training speed and multi-node multi-GPU support.\nDifferent from the MPI-like parallelization paradigm, which uses multiple homogenous workers and requires carefully designed communication hooks, the RPC APIs allow users to build their optimization pipeline more flexibly.\nExperimental results show that we achieve approximately linear relationship between the speed-up ratio and the number of workers.\nCheck out the [distributed MAML example](https://github.com/metaopt/torchopt/tree/main/examples/distributed/few-shot) for more specific guidance.\n\n### OpTree\n\nWe implement the *PyTree* to enable fast nested structure flatten using C++.\nThe tree operations (e.g., flatten and unflatten) are very important in enabling functional and Just-In-Time (JIT) features of deep learning frameworks.\nBy implementing it in C++, we can use some cache/memory friendly structures (e.g., `absl::InlinedVector`) to improve the performance.\nFor more guidance and comparison results, please refer to our open source project [`OpTree`](https://github.com/metaopt/optree).\n\n--------------------------------------------------------------------------------\n\n## Visualization\n\nComplex gradient flow in meta-learning brings in a great challenge for managing the gradient flow and verifying the correctness of it.\nTorchOpt provides a visualization tool that draw variable (e.g., network parameters or meta-parameters) names on the gradient graph for better analyzing.\nThe visualization tool is modified from [`torchviz`](https://github.com/szagoruyko/pytorchviz).\nRefer to the example [visualization code](examples/visualize.py) and the tutorial notebook [Visualization](tutorials/2_Visualization.ipynb) for more details.\n\nThe figure below show the visualization result.\nCompared with [`torchviz`](https://github.com/szagoruyko/pytorchviz), TorchOpt fuses the operations within the `Adam` together (orange) to reduce the complexity and provide simpler visualization.\n\n<div align=\"center\">\n  <img src=\"https://github.com/metaopt/torchopt/raw/HEAD/image/torchviz-vs-torchopt.jpg\" width=\"80%\" />\n</div>\n\n--------------------------------------------------------------------------------\n\n## Examples\n\nIn the [`examples`](examples) directory, we offer several examples of functional optimizer and light-weight meta-learning examples with TorchOpt.\n\n- [Model-Agnostic Meta-Learning (MAML) - Supervised Learning](https://arxiv.org/abs/1703.03400) (ICML 2017)\n- [Learning to Reweight Examples for Robust Deep Learning](https://arxiv.org/abs/1803.09050) (ICML 2018)\n- [Model-Agnostic Meta-Learning (MAML) - Reinforcement Learning](https://arxiv.org/abs/1703.03400) (ICML 2017)\n- [Meta-Gradient Reinforcement Learning (MGRL)](https://arxiv.org/abs/1805.09801) (NeurIPS 2018)\n- [Learning through opponent learning process (LOLA)](https://arxiv.org/abs/1709.04326) (AAMAS 2018)\n- [Meta-Learning with Implicit Gradients](https://arxiv.org/abs/1909.04630) (NeurIPS 2019)\n\nAlso check [`examples`](examples) for more distributed/visualization/functorch-compatible examples.\n\n--------------------------------------------------------------------------------\n\n## Installation\n\nRequirements\n\n- PyTorch\n- (Optional) For visualizing computation graphs\n  - [Graphviz](https://graphviz.org/download) (for Linux users use `apt/yum install graphviz` or `conda install -c anaconda python-graphviz`)\n\n**Please follow the instructions at <https://pytorch.org> to install PyTorch in your Python environment first.** Then run the following command to install TorchOpt from PyPI ([![PyPI](https://img.shields.io/pypi/v/torchopt?label=pypi&logo=pypi)](https://pypi.org/project/torchopt) / ![Status](https://img.shields.io/pypi/status/torchopt?label=status)):\n\n```bash\npip3 install torchopt\n```\n\nIf the minimum version of PyTorch is not satisfied, `pip` will install/upgrade it for you. Please be careful about the `torch` build for CPU / CUDA support (e.g. `cpu`, `cu116`, `cu117`). You may need to specify the extra index URL for the `torch` package:\n\n```bash\npip3 install torchopt --extra-index-url https://download.pytorch.org/whl/cu117\n```\n\nSee <https://pytorch.org> for more information about installing PyTorch.\n\nYou can also build shared libraries from source, use:\n\n```bash\ngit clone https://github.com/metaopt/torchopt.git\ncd torchopt\npip3 install .\n```\n\nWe provide a [conda](https://github.com/conda/conda) environment recipe to install the build toolchain such as `cmake`, `g++`, and `nvcc`:\n\n```bash\ngit clone https://github.com/metaopt/torchopt.git\ncd torchopt\n\n# You may need `CONDA_OVERRIDE_CUDA` if conda fails to detect the NVIDIA driver (e.g. in docker or WSL2)\nCONDA_OVERRIDE_CUDA=11.7 conda env create --file conda-recipe-minimal.yaml\n\nconda activate torchopt\nmake install-editable  # or run `pip3 install --no-build-isolation --editable .`\n```\n\n--------------------------------------------------------------------------------\n\n## Changelog\n\nSee [CHANGELOG.md](CHANGELOG.md).\n\n--------------------------------------------------------------------------------\n\n## Citing TorchOpt\n\nIf you find TorchOpt useful, please cite it in your publications.\n\n```bibtex\n@article{torchopt,\n  title   = {TorchOpt: An Efficient Library for Differentiable Optimization},\n  author  = {Ren, Jie and Feng, Xidong and Liu, Bo and Pan, Xuehai and Fu, Yao and Mai, Luo and Yang, Yaodong},\n  journal = {arXiv preprint arXiv:2211.06934},\n  year    = {2022}\n}\n```\n\n## The Team\n\nTorchOpt is a work by [Jie Ren](https://github.com/JieRen98), [Xidong Feng](https://github.com/waterhorse1), [Bo Liu](https://github.com/Benjamin-eecs), [Xuehai Pan](https://github.com/XuehaiPan), [Luo Mai](https://luomai.github.io), and [Yaodong Yang](https://www.yangyaodong.com).\n\n## License\n\nTorchOpt is released under the Apache License, Version 2.0.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "PyTorch,functorch,JAX,Meta-Learning,Optimizer,Differentiable Optimizer,Functional Programming",
+            "license": "Apache License, Version 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "torchopt",
+            "package_url": "https://pypi.org/project/torchopt/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/torchopt/",
+            "project_urls": {
+                "Bug Report": "https://github.com/metaopt/torchopt/issues",
+                "Documentation": "https://torchopt.readthedocs.io",
+                "Homepage": "https://github.com/metaopt/torchopt",
+                "Repository": "https://github.com/metaopt/torchopt"
+            },
+            "release_url": "https://pypi.org/project/torchopt/0.6.0/",
+            "requires_dist": [
+                "torch (>=1.13)",
+                "optree (>=0.4.1)",
+                "numpy",
+                "graphviz",
+                "typing-extensions (>=4.0.0)",
+                "isort ; extra == 'lint'",
+                "black[jupyter] (>=22.6.0) ; extra == 'lint'",
+                "pylint[spelling] (>=2.15.0) ; extra == 'lint'",
+                "mypy (>=0.990) ; extra == 'lint'",
+                "types-setuptools ; extra == 'lint'",
+                "flake8 ; extra == 'lint'",
+                "flake8-bugbear ; extra == 'lint'",
+                "doc8 (<1.0.0a0) ; extra == 'lint'",
+                "pydocstyle ; extra == 'lint'",
+                "pyenchant ; extra == 'lint'",
+                "cpplint ; extra == 'lint'",
+                "pre-commit ; extra == 'lint'",
+                "pytest ; extra == 'test'",
+                "pytest-cov ; extra == 'test'",
+                "pytest-xdist ; extra == 'test'",
+                "jax[cpu] (>=0.3) ; extra == 'test'",
+                "jaxopt ; extra == 'test'",
+                "optax ; extra == 'test'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "An efficient library for differentiable optimization for PyTorch.",
+            "version": "0.6.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16011463,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6f5fd15ee72873f95582adfdcbde7580",
+                    "sha256": "c4851ec9873fef619ec21452581ca3eb49415daf7bee9304cb98f79cdf900c09"
+                },
+                "downloads": -1,
+                "filename": "torchopt-0.6.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "6f5fd15ee72873f95582adfdcbde7580",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 653476,
+                "upload_time": "2022-12-06T18:51:19",
+                "upload_time_iso_8601": "2022-12-06T18:51:19.937386Z",
+                "url": "https://files.pythonhosted.org/packages/27/71/734ef157438df3c0e17eed252f98930f210fe6b87102dfc69b48d43c5e5c/torchopt-0.6.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c3a8a23a22c218fbf0dd443ae80c74ec",
+                    "sha256": "a69513511ee22f1d7497964958f95e50dd1c4bbdbceb3d8dcabecc237aa6e315"
+                },
+                "downloads": -1,
+                "filename": "torchopt-0.6.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "c3a8a23a22c218fbf0dd443ae80c74ec",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 652061,
+                "upload_time": "2022-12-06T18:51:21",
+                "upload_time_iso_8601": "2022-12-06T18:51:21.650494Z",
+                "url": "https://files.pythonhosted.org/packages/bf/95/8b5d52cf4da5d9f69569739b2dbabf14b0a4a24672b7b709659e2e075944/torchopt-0.6.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e659dfc351298c4fb04d717c3b766a7f",
+                    "sha256": "0d2a73772e20d5f8e3192e0698573863714337503e4dee117c219bf1148ca3c3"
+                },
+                "downloads": -1,
+                "filename": "torchopt-0.6.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "e659dfc351298c4fb04d717c3b766a7f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 653504,
+                "upload_time": "2022-12-06T18:51:23",
+                "upload_time_iso_8601": "2022-12-06T18:51:23.142528Z",
+                "url": "https://files.pythonhosted.org/packages/7a/83/6a944a0fc063c52a601457b924bd9bd9bb101d6be23b74d4f62f34bdda99/torchopt-0.6.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d5d3e523e81c1fdf37e0895e1866f249",
+                    "sha256": "16d18a254620287c386621c560ba13b7c0ed7a7b0293c1e0adaf3637de280847"
+                },
+                "downloads": -1,
+                "filename": "torchopt-0.6.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d5d3e523e81c1fdf37e0895e1866f249",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 653735,
+                "upload_time": "2022-12-06T18:51:24",
+                "upload_time_iso_8601": "2022-12-06T18:51:24.962505Z",
+                "url": "https://files.pythonhosted.org/packages/ad/ce/c725b07dcd40feb230497bd79fd88a275cc6c644e0a1fdb2419c60525b32/torchopt-0.6.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "42851d2c32345a4aa83991d3cc1c2ace",
+                    "sha256": "0c4dbf21d2700f062db7baff32c994e6ffb645c2429d732c645ee86cc93e53a1"
+                },
+                "downloads": -1,
+                "filename": "torchopt-0.6.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "42851d2c32345a4aa83991d3cc1c2ace",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 130532,
+                "upload_time": "2022-12-06T18:51:26",
+                "upload_time_iso_8601": "2022-12-06T18:51:26.960726Z",
+                "url": "https://files.pythonhosted.org/packages/02/8d/728b2d9bc94676823cf71abb92f95b448885d136d2df58faf329ec9d738e/torchopt-0.6.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fa2fb245aab7dc9550694530f32e1f6f",
+                    "sha256": "87bb59c73749d6dc3a89b8410008dd3f3d655cf731f955beda3f160031afb53e"
+                },
+                "downloads": -1,
+                "filename": "torchopt-0.6.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "fa2fb245aab7dc9550694530f32e1f6f",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 91280,
+                "upload_time": "2022-12-06T18:51:28",
+                "upload_time_iso_8601": "2022-12-06T18:51:28.639629Z",
+                "url": "https://files.pythonhosted.org/packages/3a/be/e4cdfc212c8adf57e87c3e6849b5df83a486343439bd000635b0ccc60921/torchopt-0.6.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
