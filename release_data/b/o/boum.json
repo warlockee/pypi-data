@@ -36,7 +36,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16017637,
+        "last_serial": 16034101,
         "urls": [
             {
                 "comment_text": "",
@@ -120,7 +120,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16017637,
+        "last_serial": 16034324,
         "urls": [
             {
                 "comment_text": "",
@@ -204,7 +204,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16017637,
+        "last_serial": 16034324,
         "urls": [
             {
                 "comment_text": "",
@@ -288,7 +288,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16017637,
+        "last_serial": 16034324,
         "urls": [
             {
                 "comment_text": "",
@@ -344,7 +344,6 @@
                 "Programming Language :: Python :: 3.10",
                 "Programming Language :: Python :: 3.11"
             ],
-            "description": "# Boum Python SDK\nStatus: ![GitHub Actions](https://github.com/boum-garden/sdk/actions/workflows/main.yml/badge.svg)\n\n## Overview\nThis project provides an api client to interact with the [Boum API](https://api.boum.us/swagger) and abstractions to \nsimplify interactions with the underlying resources.\n\n\n## Installation\nThe package is available on PyPI, and can be installed with pip or similar tools:\n\n```bash\n    python -m pip install boum\n    poetry add boum\n    pipenv install boum\n    ...\n```\n\n## Usage\n\n### API Client\nThe API client models the topology of the API and provides a class hierarchy that is organized in the same way as the \nendpoint paths. Email and password or a token are required to use it.\n\n```python\n>>> from boum.api_client.v1.client import ApiClient\n>>> from boum.api_client.v1.models import DeviceModel\n>>> \n>>> client = ApiClient(email, password, base_url=base_url)\n>>> # or ApiClient(refresh_token='token', base_url=base_url)\n>>>\n>>> with client:\n...     # Get call to the devices collection\n...     device_ids = client.root.devices.get()\n...     # Get call to a specific device \n...     device_states = client.root.devices(device_id).get()\n...     # Patch call to a specific device\n...     client.root.devices(device_id).patch(DeviceModel())\n...     # Get call to a devices data\n...     data = client.root.devices(device_id).data.get()\n\n```\n\nNote that using multiple instances of the client is not intended and will result in unexpected behavior.\n\n\n### Resource Abstractions\nThe resource abstractions provide a more intuitive interface to interact with the underlying resources.\n\n```python\n>>> from datetime import time, datetime, timedelta\n>>> import pandas as pd\n>>> from boum.api_client.v1.client import ApiClient\n>>> from boum.resources.device import Device\n>>> from boum.api_client.v1.models import DeviceStateModel\n>>>\n>>> client = ApiClient(email, password, base_url=base_url)\n>>> # or ApiClient(refresh_token='token', base_url=base_url)\n>>>\n>>> with client:\n...    # Get available device ids\n...    device_ids = Device.get_device_ids(client)\n...    # Create a device instance\n...    device = Device(device_id, client)\n...    # Remove device claim\n...    # device.unclaim()\n...    # Claim a device\n...    # device.claim()\n...    # Set desired device state\n...    desired_device_State = DeviceStateModel(\n...        pump_state=True,\n...        refill_time=time(3, 32),\n...        refill_interval_days=3,\n...        max_pump_duration_minutes=5\n...    )\n...    device.set_desired_device_state(desired_device_State)\n...    # Get reported and desired device state\n...    reported, desired = device.get_device_states()\n...    # Get device telemetry data\n...    data = device.get_telemetry_data(start=datetime.now() - timedelta(days=1),\n...        end=datetime.now())\n...    # Convert telemetry data to pandas dataframe\n...    df = pd.DataFrame(data)\n\n```\n\n### Jupyter Notebook Demo\nA Jupyter notebook demo is available here [here](doc/boum-sdk-demo.ipynb).\n\n### Loging\nThe SDK uses the standard python logging module.\n\n## Development\n\n### Dependecy management\n[Poetry](https://python-poetry.org/) is used for depency management and publishing.\n\n### Versioning\nVersioning is done using [bumpver](https://pypi.org/project/bumpver/) \nwith [semantic versioning](https://semver.org/)\nWhen the version is updated, a new tag is created and pushed to the remote repository.\n\n\n### Testing\n\n#### Unit tests\nThese are completely self-contained and have no external dependencies.\n\nIMPORTANT: There are fixtures that model the API responses and expected calls. These mnust be kept up to date with\nthe API, otherwise the unit tests will not test the correct behavior.\n\n#### End-to-end tests\nThese test the entire flow from user facing python classes to the underlying api calls. They require an instance \n(fake or real) of the API to run against. They also require a registered user with a clamied device.\nAPI Base URL, email and password are required as environmental variables.\n\n```bash\n    BOUM_SDK_TEST_BASE_URL\n    BOUM_SDK_TEST_EMAIL\n    BOUM_SDK_TEST_PASSWORD\n    BOUM_SDK_TEST_DEVICE_ID\n    BOUM_SDK_TEST_USER_ID\n```\n\n#### Doctests\n\nPart of the end-to-end tests are document tests executed using \n[doctest](https://docs.python.org/3/library/doctest.html). \nThese tests ensure that all the examples in this README and in the docstrings are up-to-date and working.\n\n\n## CI/CD\n\n### Integration\n\nThe GitHub action workflow `.github/workflows/checks_on_push_to_branch.yml` is triggered on every push on a branch\nexcept main. It provides the following checks:\n\n- Unit and end-to-end/contract tests with pytest\n- Linting with pylint\n- Security checks with bandit\n\nThe repository settings require that all checks pass before a pull request can be merged.\n\n### Deployment\n\nThe GitHub action workflow `.github/workflows/deploy_on_push_to_main.yml` is triggered on every push to main. It runs a\ntest deployment to the test PyPI repository.\n\nThe GitHub action workflow `.github/workflows/deploy_on_release.yml` is triggered on a tag with the format `v*.*.*` and\nruns a deployment to the production PyPI. It is recommended to set these tags using the GitHub release feature. \n\n\n## Technical debt\n\n- Creating multiple instances of the API client is not intended and will result in unexpected behavior. This should be \n  addressed by making the client a singleton.\n\n- Doctest requires a specific format to make examples in documentation executable. This makes the examples in this\n  README harder to copy and paste. There exist other packages and add-ons that could be used to make the examples easier \n  to manage.\n\n\n\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -373,7 +372,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16017637,
+        "last_serial": 16034324,
         "urls": [
             {
                 "comment_text": "",
@@ -412,6 +411,526 @@
                 "upload_time": "2022-12-07T07:55:51",
                 "upload_time_iso_8601": "2022-12-07T07:55:51.755516Z",
                 "url": "https://files.pythonhosted.org/packages/19/63/38c18e5ba6e4e6e72d9598107bea76ace246dfa2fc264a123158ec9234a0/boum-0.7.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.8.1": {
+        "info": {
+            "author": "Marc Pfander",
+            "author_email": "marc.pfander@boum.garden",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "boum",
+            "package_url": "https://pypi.org/project/boum/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/boum/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/boum/0.8.1/",
+            "requires_dist": [
+                "requests (>=2.28.1,<3.0.0)"
+            ],
+            "requires_python": ">=3.10,<4.0",
+            "summary": "SDK to interact with the boum API",
+            "version": "0.8.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16034101,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "37923ff5e755a1976ed49c81e175501b",
+                    "sha256": "3502b912ee5c97aa6e6b043a3b4c54bab7f5f0c8a677a61f14ae314346962904"
+                },
+                "downloads": -1,
+                "filename": "boum-0.8.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "37923ff5e755a1976ed49c81e175501b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10,<4.0",
+                "size": 11953,
+                "upload_time": "2022-12-08T04:10:05",
+                "upload_time_iso_8601": "2022-12-08T04:10:05.202930Z",
+                "url": "https://files.pythonhosted.org/packages/a6/79/655ce4baa1c1927f79a278de5a6de2a0fd9f3089cb3151c8e333e4aecef5/boum-0.8.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "98d3521c4b834e4505d0e80dd83f3db6",
+                    "sha256": "8e4363a36da8b74d7c5cc1bc01e44147a0e0b5b469cc4a6a90ab195d2d727e28"
+                },
+                "downloads": -1,
+                "filename": "boum-0.8.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "98d3521c4b834e4505d0e80dd83f3db6",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12429,
+                "upload_time": "2022-12-08T04:10:07",
+                "upload_time_iso_8601": "2022-12-08T04:10:07.092390Z",
+                "url": "https://files.pythonhosted.org/packages/cb/c1/dda00ee0c6484e22d92070b765027dabe1b2c8a56f75b41f1c7be79e6538/boum-0.8.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.9.0": {
+        "info": {
+            "author": "Marc Pfander",
+            "author_email": "marc.pfander@boum.garden",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/boum-garden/sdk",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "boum",
+            "package_url": "https://pypi.org/project/boum/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/boum/",
+            "project_urls": {
+                "Homepage": "https://github.com/boum-garden/sdk",
+                "Repository": "https://github.com/boum-garden/sdk"
+            },
+            "release_url": "https://pypi.org/project/boum/0.9.0/",
+            "requires_dist": [
+                "requests (>=2.28.1,<3.0.0)"
+            ],
+            "requires_python": ">=3.10,<4.0",
+            "summary": "SDK to interact with the boum API",
+            "version": "0.9.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16034101,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ff6a5e32ca6631a6a81df3f1952cfa96",
+                    "sha256": "cf46d12d246ec376fe3b735e7f30338b71aafa9624c9ded8c42d90b787ae78f7"
+                },
+                "downloads": -1,
+                "filename": "boum-0.9.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "ff6a5e32ca6631a6a81df3f1952cfa96",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12190,
+                "upload_time": "2022-12-08T10:40:07",
+                "upload_time_iso_8601": "2022-12-08T10:40:07.961795Z",
+                "url": "https://files.pythonhosted.org/packages/db/27/6bce9c91929c081c86b6eddb4136b8b3724f40ced0c56d985431428f8e8a/boum-0.9.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6424d940c07fcc110f07c94b77b1229e",
+                    "sha256": "aad685ee69ec85895dfd251c9fd0b00c642b5a55a616049692f5d4661e7703f0"
+                },
+                "downloads": -1,
+                "filename": "boum-0.9.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6424d940c07fcc110f07c94b77b1229e",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12837,
+                "upload_time": "2022-12-08T10:40:09",
+                "upload_time_iso_8601": "2022-12-08T10:40:09.349800Z",
+                "url": "https://files.pythonhosted.org/packages/1d/94/ed5b1fa3b205f879211b88e55e3c5e721c5e7d105eb827eaeeadcdb3e52e/boum-0.9.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.9.1": {
+        "info": {
+            "author": "Marc Pfander",
+            "author_email": "marc.pfander@boum.garden",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/boum-garden/sdk",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "boum",
+            "package_url": "https://pypi.org/project/boum/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/boum/",
+            "project_urls": {
+                "Homepage": "https://github.com/boum-garden/sdk",
+                "Repository": "https://github.com/boum-garden/sdk"
+            },
+            "release_url": "https://pypi.org/project/boum/0.9.1/",
+            "requires_dist": [
+                "requests (>=2.28.1,<3.0.0)"
+            ],
+            "requires_python": ">=3.10,<4.0",
+            "summary": "SDK to interact with the boum API",
+            "version": "0.9.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16034101,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6f13e1daa3776928b9109f32f100a301",
+                    "sha256": "dcdeba7bb7a07ed8ddabcd51fb7ad79f8eaf96c78f6c3e0ddb148fc92fd8dd9a"
+                },
+                "downloads": -1,
+                "filename": "boum-0.9.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "6f13e1daa3776928b9109f32f100a301",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12177,
+                "upload_time": "2022-12-08T10:47:10",
+                "upload_time_iso_8601": "2022-12-08T10:47:10.639959Z",
+                "url": "https://files.pythonhosted.org/packages/31/fd/337bb5354332ca82acad51f081a796802377fc379195f4ab06fd09665f70/boum-0.9.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5f93109a78d65ef7af4ea9dff1f9e908",
+                    "sha256": "207e569da3241f0d9335b0166fbe3feb18253faf240ebb544730aad101dea74a"
+                },
+                "downloads": -1,
+                "filename": "boum-0.9.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5f93109a78d65ef7af4ea9dff1f9e908",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12843,
+                "upload_time": "2022-12-08T10:47:12",
+                "upload_time_iso_8601": "2022-12-08T10:47:12.586694Z",
+                "url": "https://files.pythonhosted.org/packages/81/bf/77d8da1b807678e42501bf62205e7bae042774766fdc1bd024f1c7a18268/boum-0.9.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.9.2": {
+        "info": {
+            "author": "Marc Pfander",
+            "author_email": "marc.pfander@boum.garden",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/boum-garden/sdk",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "boum",
+            "package_url": "https://pypi.org/project/boum/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/boum/",
+            "project_urls": {
+                "Homepage": "https://github.com/boum-garden/sdk",
+                "Repository": "https://github.com/boum-garden/sdk"
+            },
+            "release_url": "https://pypi.org/project/boum/0.9.2/",
+            "requires_dist": [
+                "requests (>=2.28.1,<3.0.0)"
+            ],
+            "requires_python": ">=3.10,<4.0",
+            "summary": "SDK to interact with the boum API",
+            "version": "0.9.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16034101,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e2cb45aebbb9995c1601a3bf0d6939c4",
+                    "sha256": "d7fc969de2a43bac2d775b38ddb7e7c8ef6a1c2456e77575b3b41080d26f8cc5"
+                },
+                "downloads": -1,
+                "filename": "boum-0.9.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e2cb45aebbb9995c1601a3bf0d6939c4",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12177,
+                "upload_time": "2022-12-08T11:04:13",
+                "upload_time_iso_8601": "2022-12-08T11:04:13.580654Z",
+                "url": "https://files.pythonhosted.org/packages/9a/82/1f653db71ea9ae455107ecbcbc1477e35ad1d049c0a14556d43b52d2f68e/boum-0.9.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "44d60ffa68006eb8e0bcd2465fdba0ab",
+                    "sha256": "07606a03e156fad8c87e897f3582bfdb8e84860248831f46d7765e6c64214c98"
+                },
+                "downloads": -1,
+                "filename": "boum-0.9.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "44d60ffa68006eb8e0bcd2465fdba0ab",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12824,
+                "upload_time": "2022-12-08T11:04:14",
+                "upload_time_iso_8601": "2022-12-08T11:04:14.753394Z",
+                "url": "https://files.pythonhosted.org/packages/61/d2/ac10bdaaa31e48414b045f8e39d8245d2089f19c9f406b6a8f002b8cdc5b/boum-0.9.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.9.3": {
+        "info": {
+            "author": "Marc Pfander",
+            "author_email": "marc.pfander@boum.garden",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/boum-garden/sdk",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "boum",
+            "package_url": "https://pypi.org/project/boum/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/boum/",
+            "project_urls": {
+                "Homepage": "https://github.com/boum-garden/sdk",
+                "Repository": "https://github.com/boum-garden/sdk"
+            },
+            "release_url": "https://pypi.org/project/boum/0.9.3/",
+            "requires_dist": [
+                "requests (>=2.28.1,<3.0.0)"
+            ],
+            "requires_python": ">=3.10,<4.0",
+            "summary": "SDK to interact with the boum API",
+            "version": "0.9.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16034101,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "daebdd8c597df7874e1bbf5e6cd79e40",
+                    "sha256": "6354331aa1c809d73171a343a169d1066e6f95393be68436e57750bfc3b60222"
+                },
+                "downloads": -1,
+                "filename": "boum-0.9.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "daebdd8c597df7874e1bbf5e6cd79e40",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12164,
+                "upload_time": "2022-12-08T11:58:26",
+                "upload_time_iso_8601": "2022-12-08T11:58:26.695226Z",
+                "url": "https://files.pythonhosted.org/packages/ff/57/89f5519c2fa4fdf0a94ce44ad5dac25efdc10a0d2d3ba229614930d8e9e7/boum-0.9.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "497d940b52b0c21d0227aa606643a412",
+                    "sha256": "418c500bc07ee3fec127dadf131d26d1fad95cc239e2ca49c7b6a72f026c6b3b"
+                },
+                "downloads": -1,
+                "filename": "boum-0.9.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "497d940b52b0c21d0227aa606643a412",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12834,
+                "upload_time": "2022-12-08T11:58:28",
+                "upload_time_iso_8601": "2022-12-08T11:58:28.058652Z",
+                "url": "https://files.pythonhosted.org/packages/70/fc/3d7020afd0741a8210d185c9aa3e0caf61eaf4588167306626ec79741b0e/boum-0.9.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.9.4": {
+        "info": {
+            "author": "Marc Pfander",
+            "author_email": "marc.pfander@boum.garden",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11"
+            ],
+            "description": "# Boum Python SDK\nStatus: ![GitHub Actions](https://github.com/boum-garden/sdk/actions/workflows/main.yml/badge.svg)\n\n## Overview\nThis project provides an api client to interact with the [Boum API](https://api.boum.us/swagger) and abstractions to \nsimplify interactions with the underlying resources.\n\n\n## Installation\nThe package is available on PyPI, and can be installed with pip or similar tools:\n\n```bash\n    python -m pip install boum\n    poetry add boum\n    pipenv install boum\n    ...\n```\n\n## Usage\n\n### API Client\nThe API client models the topology of the API and provides a class hierarchy that is organized in the same way as the \nendpoint paths. Email and password or a token are required to use it.\n\nThe client can either connect to the API with `client.connect()` and `client.disconnect()`methods or it can be used \nas a context manager as `with client: ...` In the former case the disconnect method should be called explicitly in the\nend.\n\n```python\n>>> from boum.api_client.v1.client import ApiClient\n>>> from boum.api_client.v1.models import DeviceModel\n>>> \n>>> client = ApiClient(email, password, base_url=base_url)\n>>> # or ApiClient(refresh_token='token', base_url=base_url)\n>>>\n>>> with client:\n...     # Get call to the devices collection\n...     device_ids = client.root.devices.get()\n...     # Get call to a specific device \n...     device_states = client.root.devices(device_id).get()\n...     # Patch call to a specific device\n...     client.root.devices(device_id).patch(DeviceModel())\n...     # Get call to a devices data\n...     data = client.root.devices(device_id).data.get()\n\n```\n\n\n### Resource Abstractions\nThe resource abstractions provide a more intuitive interface to interact with the underlying resources.\n\n```python\n>>> from datetime import time, datetime, timedelta\n>>> import pandas as pd\n>>> from boum.api_client.v1.client import ApiClient\n>>> from boum.resources.device import Device\n>>> from boum.api_client.v1.models import DeviceStateModel\n>>>\n>>> client = ApiClient(email, password, base_url=base_url)\n>>> # or ApiClient(refresh_token='token', base_url=base_url)\n>>>\n>>> with client:\n...    # Get available device ids\n...    device_ids = Device.get_device_ids(client)\n...    # Create a device instance\n...    device = Device(device_id, client)\n...    # Remove device claim\n...    # device.unclaim()\n...    # Claim a device\n...    # device.claim()\n...    # Set desired device state\n...    desired_device_State = DeviceStateModel(\n...        pump_state=True,\n...        refill_time=time(3, 32),\n...        refill_interval_days=3,\n...        max_pump_duration_minutes=5\n...    )\n...    device.set_desired_device_state(desired_device_State)\n...    # Get reported and desired device state\n...    reported, desired = device.get_device_states()\n...    # Get device telemetry data\n...    data = device.get_telemetry_data(start=datetime.now() - timedelta(days=1),\n...        end=datetime.now())\n...    # Convert telemetry data to pandas dataframe\n...    df = pd.DataFrame(data)\n\n```\n\n### Jupyter Notebook Demo\nA Jupyter notebook demo is available [here](https://github.com/boum-garden/sdk/blob/638d62836f5b8b2f169d186170c679d6a813867a/doc/boum-sdk-demo.ipynb).\n\n### Loging\nThe SDK uses the standard python logging module.\n\n## Development\n\n### Dependecy management\n[Poetry](https://python-poetry.org/) is used for depency management and publishing.\n\n### Versioning\nVersioning is done using [bumpver](https://pypi.org/project/bumpver/) \nwith [semantic versioning](https://semver.org/)\nWhen the version is updated, a new tag is created and pushed to the remote repository.\n\n\n### Testing\n\n#### Unit tests\nThese are completely self-contained and have no external dependencies.\n\nIMPORTANT: There are fixtures that model the API responses and expected calls. These mnust be kept up to date with\nthe API, otherwise the unit tests will not test the correct behavior.\n\n#### End-to-end tests\nThese test the entire flow from user facing python classes to the underlying api calls. They require an instance \n(fake or real) of the API to run against. They also require a registered user with a clamied device.\nAPI Base URL, email and password are required as environmental variables.\n\n```bash\n    BOUM_SDK_TEST_BASE_URL\n    BOUM_SDK_TEST_EMAIL\n    BOUM_SDK_TEST_PASSWORD\n    BOUM_SDK_TEST_DEVICE_ID\n    BOUM_SDK_TEST_USER_ID\n```\n\n#### Doctests\n\nPart of the end-to-end tests are document tests executed using \n[doctest](https://docs.python.org/3/library/doctest.html). \nThese tests ensure that all the examples in this README and in the docstrings are up-to-date and working.\n\n\n## CI/CD\n\n### Integration\n\nThe GitHub action workflow `.github/workflows/checks_on_push_to_branch.yml` is triggered on every push on a branch\nexcept main. It provides the following checks:\n\n- Unit and end-to-end/contract tests with pytest\n- Linting with pylint\n- Security checks with bandit\n\nThe repository settings require that all checks pass before a pull request can be merged.\n\n### Deployment\n\nThe GitHub action workflow `.github/workflows/deploy_on_push_to_main.yml` is triggered on every push to main. It runs a\ntest deployment to the test PyPI repository.\n\nThe GitHub action workflow `.github/workflows/deploy_on_release.yml` is triggered on a tag with the format `v*.*.*` and\nruns a deployment to the production PyPI. It is recommended to set these tags using the GitHub release feature. \n\n\n## Technical debt\n\n- Doctest requires a specific format to make examples in documentation executable. This makes the examples in this\n  README harder to copy and paste. There exist other packages and add-ons that could be used to make the examples easier \n  to manage.\n\n\n\n\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/boum-garden/sdk",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "boum",
+            "package_url": "https://pypi.org/project/boum/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/boum/",
+            "project_urls": {
+                "Homepage": "https://github.com/boum-garden/sdk",
+                "Repository": "https://github.com/boum-garden/sdk"
+            },
+            "release_url": "https://pypi.org/project/boum/0.9.4/",
+            "requires_dist": [
+                "requests (>=2.28.1,<3.0.0)"
+            ],
+            "requires_python": ">=3.10,<4.0",
+            "summary": "SDK to interact with the boum API",
+            "version": "0.9.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16034324,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6c9ad829e3a5f8cb4b6e71600b6146e6",
+                    "sha256": "54d57d9768993c833098717a3657d1a221ef431e2ae08c1ba31bb57cde3efd6b"
+                },
+                "downloads": -1,
+                "filename": "boum-0.9.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "6c9ad829e3a5f8cb4b6e71600b6146e6",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12215,
+                "upload_time": "2022-12-08T12:24:43",
+                "upload_time_iso_8601": "2022-12-08T12:24:43.163981Z",
+                "url": "https://files.pythonhosted.org/packages/9b/c6/9d2347e6f87db684cf35b2b0a6c02fc50c68650358ac1b627c940c687055/boum-0.9.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6ba04c4e30714b4f0b01ae4f4073ad21",
+                    "sha256": "5f78ee42dd74b5bed030b853f6c85dd911647a0aa0906620345b27f6fa34d848"
+                },
+                "downloads": -1,
+                "filename": "boum-0.9.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6ba04c4e30714b4f0b01ae4f4073ad21",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10,<4.0",
+                "size": 12878,
+                "upload_time": "2022-12-08T12:24:44",
+                "upload_time_iso_8601": "2022-12-08T12:24:44.858209Z",
+                "url": "https://files.pythonhosted.org/packages/51/9d/33a13068fc24bc630e97beddcbf316cf958e6262be020d073e3fb7a29362/boum-0.9.4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
