@@ -45,7 +45,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -136,7 +136,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -227,7 +227,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -318,7 +318,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -409,7 +409,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -500,7 +500,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -591,7 +591,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -682,7 +682,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -773,7 +773,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -864,7 +864,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -955,7 +955,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -1016,7 +1016,6 @@
                 "Topic :: Internet :: WWW/HTTP",
                 "Topic :: Security"
             ],
-            "description": "# Django Blacklist\n\nBlacklist users and hosts in Django. Automatically blacklist rate-limited clients.\n\n\n## Overview\n\nDjango Blacklist allows you to block specific users and IP addresses/networks from accessing your application.\nClients can be blocked manually from the admin interface, or automatically after exceeding a request rate limit.\nThe blacklist rules are applied for a specific duration.\nThe blacklist is very scalable and is applied without noticeable overhead for large numbers of rules.\n\n\n## Installation\n\nTo install the package, run:\n```\n$ pip install django-blacklist\n```\n\nAdd the `blacklist` application to `INSTALLED_APPS`:\n```\nINSTALLED_APPS = [\n    ...\n    'blacklist'\n]\n```\n\nAdd the `BlacklistMiddleware` middleware after `AuthenticationMiddleware`:\n```\nMIDDLEWARE = [\n    ...\n    'django.contrib.auth.middleware.AuthenticationMiddleware',\n    'blacklist.middleware.BlacklistMiddleware',\n    ...\n]\n```\n\nApply the blacklist database migrations:\n```\n$ python manage.py migrate blacklist\n```\n\n\n## Usage\n\nYou can manage the blacklist rules from the admin.\nChanges take effect after a configurable time, or when the server is restarted.\nA rule can target a user or an IP address.\nYou can also target IP networks (ranges) by specifying the optional prefixlen field (number of network prefix bits).\nEach rule has a specific duration. After that duration passes, rules expire automatically.\nWhen a request is blocked due to a matching rule:\n* Status 400 (bad request) is returned.\n* An error template is rendered.\n  You can specify a custom one (see below), or use the one for status 400.\n* A message is logged\n  (warning from logger `blacklist.middleware` for custom templates, or error from logger `django.security` otherwise).\n\n### Removing Expired Rules\n\nExpired rules are not automatically removed from the database.\nThey can be cleaned up with the included management command `trim_blacklist`:\n```\n$ python manage.py trim_blacklist [-c <created_days>] [-e <expired_days>]\n```\nThe options `-c` and `-e` specify the minimum ages of creation and expiry, respectively.\n\n\n## Automatic Blacklisting\n\nClients can be blacklisted automatically, after exceeding a specified request rate limit.\nThis feature requires [django-ratelimit](https://github.com/jsocol/django-ratelimit).\n\nFirst, rate-limit a view by applying the `@ratelimit` decorator. Make sure to set `block=False`.\nThen, blacklist rate-limited clients by adding the `@blacklist_ratelimited` decorator. Specify the blacklist duration.\nFor example:\n```\nfrom datetime import timedelta\nfrom ratelimit.decorators import ratelimit\nfrom blacklist.ratelimit import blacklist_ratelimited\n\n@ratelimit(key='user_or_ip', rate='50/m', block=False)\n@blacklist_ratelimited(timedelta(minutes=30))\ndef index(request):\n    ...\n```\n\nAutomatic rules take effect immediately.\nIf the request comes from an authenticated user, the rule will target that user.\nOtherwise, it will target their IP address.\n***\nNote: The client IP address is taken from the `REMOTE_ADDR` value of `request.META`.\nIf your application is behind one or more reverse proxies, this will, by default,\nalways be the address of the nearest proxy.\nTo avoid blacklisting all clients, you can set `REMOTE_ADDR` from the `X-Forwarded-For` header in middleware.\nHowever, keep in mind that this header can be forged to bypass the rate limits.\nTo counter that, you can use the last address in that header.\nIf you are behind two proxies, use the second to last, etc.\n***\n\n`@blacklist_ratelimited` accepts two arguments: `(duration, block=True)`.\n* `duration` can be a `timedelta` object, or a tuple of two separate durations\n(for user-based and IP-based rules).\n* `block` specifies if the request should be blocked immediately, or passed to the view.\n\nAutomatic rules will have a comment that contains the ID of the request, which triggered the creation of the rule,\nand the \"request line\".\nThe request ID is added only if available. Django does not generate request IDs.\nFor that purpose, you can install [django-log-request-id](https://github.com/dabapps/django-log-request-id).\n\n\n## Settings\n\n* `BLACKLIST_ENABLE` - whether blacklisted clients should be blocked,\n  and rate-limited clients should be blacklisted; default: `True`\n* `BLACKLIST_RELOAD_PERIOD` - how often to reload the blacklist, in seconds; default: `60`\n* `BLACKLIST_RATELIMITED_ENABLE` - whether rate-limited clients should be automatically blacklisted;\n  requires `BLACKLIST_ENABLE`; default: `True`\n* `BLACKLIST_TEMPLATE` - name of a custom error template to render to blocked clients;\n  its context will contain `request` and `exception`;\n  set to `None` to use the template for status 400; default: `None`\n* `BLACKLIST_LOGGING_ENABLE` - whether blocked requests should be logged\n  (honored only if a custom error template is configured); default: `True`\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -1047,7 +1046,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 10115916,
+        "last_serial": 16026810,
         "urls": [
             {
                 "comment_text": "",
@@ -1086,6 +1085,98 @@
                 "upload_time": "2021-04-20T07:38:37",
                 "upload_time_iso_8601": "2021-04-20T07:38:37.945484Z",
                 "url": "https://files.pythonhosted.org/packages/c2/4b/06065f63c9807c98bc4f6a54b6a46d128148ca877073298f7fdb1b4ee47a/django-blacklist-0.6.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.7.0": {
+        "info": {
+            "author": "Victor Semionov",
+            "author_email": "vsemionov@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Web Environment",
+                "Framework :: Django",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Internet :: WWW/HTTP",
+                "Topic :: Security"
+            ],
+            "description": "# Django Blacklist\n\nBlacklist users and hosts in Django. Automatically blacklist rate-limited clients.\n\n\n## Overview\n\n`Django Blacklist` allows you to block specific users and IP addresses/networks from accessing your application.\nClients can be blocked manually from the admin interface, or automatically after exceeding a request rate limit.\nEach blacklist rule is applied for a specific duration.\nThe blacklist is very scalable and is applied without noticeable overhead for large numbers of rules.\n\n\n## Installation\n\nTo install the package, run:\n```\n$ pip install django-blacklist\n```\n\nAdd the `blacklist` application to `INSTALLED_APPS`:\n```\nINSTALLED_APPS = [\n    ...\n    'blacklist'\n]\n```\n\nAdd the `BlacklistMiddleware` middleware after `AuthenticationMiddleware`:\n```\nMIDDLEWARE = [\n    ...\n    'django.contrib.auth.middleware.AuthenticationMiddleware',\n    'blacklist.middleware.BlacklistMiddleware',\n    ...\n]\n```\n\nApply the blacklist database migrations:\n```\n$ python manage.py migrate blacklist\n```\n\n\n## Usage\n\nYou can manage the blacklist rules from the admin.\nChanges take effect after a configurable time, or when the server is restarted.\nA rule can target a user or an IP address.\nYou can also target IP networks (ranges) by specifying the optional `prefixlen` field (number of network prefix bits).\nEach rule has a specific duration. After that time interval passes, the rule expires.\nWhen a request is blocked due to a matching rule:\n* Status 400 (bad request) is returned.\n* An error template is rendered.\n  You can specify a custom one (see `Settings` below), or use the one for status 400.\n* A message is logged\n  (warning from logger `blacklist.middleware` for custom templates, or error from logger `django.security` otherwise).\n\n### Removing Expired Rules\n\nExpired rules are not automatically removed from the database.\nThey can be cleaned up with the included management command `trim_blacklist`:\n```\n$ python manage.py trim_blacklist [-c <created_days>] [-e <expired_days>]\n```\nThe options `-c` and `-e` specify the minimum ages of creation and expiry, respectively.\n\n\n## Automatic Blacklisting\n\nClients can be blacklisted automatically, after exceeding a specified request rate limit.\nThis feature requires [django-ratelimit](https://github.com/jsocol/django-ratelimit).\n\nFirst, rate-limit a view by applying the `@ratelimit` decorator. Make sure to set `block=False`.\nThen, blacklist rate-limited clients by adding the `@blacklist_ratelimited` decorator. Specify the blacklist duration.\nFor example:\n```\nfrom datetime import timedelta\nfrom django_ratelimit.decorators import ratelimit\nfrom blacklist.ratelimit import blacklist_ratelimited\n\n@ratelimit(key='user_or_ip', rate='50/m', block=False)\n@blacklist_ratelimited(timedelta(minutes=30))\ndef index(request):\n    ...\n```\n\nAutomatic rules take effect immediately.\nIf the request comes from an authenticated user, the rule will target that user.\nOtherwise, it will target their IP address.\n\n`@blacklist_ratelimited` accepts two arguments: `(duration, block=True)`.\n* `duration` can be a `timedelta` object, or a tuple of two separate durations\n(for user-based and IP-based rules).\n* `block` specifies if the request should be blocked immediately, or passed to the view.\n\nAutomatic rules will have a comment that contains the ID of the request, which triggered the creation of the rule,\nand the \"request line\".\nThe request ID is added only if available. Django does not generate request IDs.\nFor that purpose, you can install [django-log-request-id](https://github.com/dabapps/django-log-request-id).\n\n\n## Proxies and Client Addresses\n\nBy default, the client IP address is taken from the `REMOTE_ADDR` value of `request.META`.\nIf your application server is behind one or more reverse proxies,\nthis will usually be the address of the nearest proxy, and not the actual client address.\nTo properly blacklist clients by IP address,\nyou can configure `Django Blacklist` to use addresses from another source (see `Settings` below).\n\nTo actually obtain the proxied client addresses,\nyou can use [django-ipware](https://github.com/un33k/django-ipware).\nIn this case, you can configure `Django Blacklist` to obtain client addresses from your function,\nwhich in turn calls `django-ipware` for the actual logic.\n\nAlternatively, you can set `REMOTE_ADDR` from the `X-Forwarded-For` header in middleware,\ninstalled before `Django Blacklist`.\nHowever, keep in mind that this header can be forged to bypass the rate limits.\nTo counter that, you can use the last address in that header (which should be set by your trusted reverse proxy).\nIf you are behind two proxies, use the second to last address, and so on.\n\n\n## Settings\n\n* `BLACKLIST_ENABLE` - whether blacklisted clients should be blocked,\n  and rate-limited clients should be blacklisted; default: `True`\n* `BLACKLIST_RELOAD_PERIOD` - how often to reload the blacklist, in seconds; default: `60`\n* `BLACKLIST_RATELIMITED_ENABLE` - whether rate-limited clients should be automatically blacklisted;\n  requires `BLACKLIST_ENABLE`; default: `True`\n* `BLACKLIST_TEMPLATE` - name of a custom error template to render to blocked clients;\n  its context will contain `request` and `exception`;\n  set to `None` to use the template for status 400; default: `None`\n* `BLACKLIST_LOGGING_ENABLE` - whether blocked requests should be logged\n  (honored only if a custom error template is configured); default: `True`\n* `BLACKLIST_ADDRESS_SOURCE` - the source of client addresses; can be a key in `request.META`,\n  a callable that receives the request object, or the dotted string path to such a callable;\n  default: `'REMOTE_ADDR'`\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/vsemionov/django-blacklist",
+            "keywords": "django blacklist ratelimit firewall",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "django-blacklist",
+            "package_url": "https://pypi.org/project/django-blacklist/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/django-blacklist/",
+            "project_urls": {
+                "Homepage": "https://github.com/vsemionov/django-blacklist"
+            },
+            "release_url": "https://pypi.org/project/django-blacklist/0.7.0/",
+            "requires_dist": [
+                "Django"
+            ],
+            "requires_python": "",
+            "summary": "Blacklist users and hosts in Django. Automatically blacklist rate-limited clients.",
+            "version": "0.7.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16026810,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "107761b69ce51f228276081171cf73dc",
+                    "sha256": "70cfc2252510d00e776d14b911c01961e4a45e312d4d7c89083a7d34dffe1ef1"
+                },
+                "downloads": -1,
+                "filename": "django_blacklist-0.7.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "107761b69ce51f228276081171cf73dc",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 9989,
+                "upload_time": "2022-12-07T23:15:11",
+                "upload_time_iso_8601": "2022-12-07T23:15:11.419494Z",
+                "url": "https://files.pythonhosted.org/packages/43/57/fa47ccf06bc4aaf099b17f3d8e77d6365e48a7c800bdbd59c85ea5b93789/django_blacklist-0.7.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a7dffdb85fcc750547ba5767ced10d51",
+                    "sha256": "e62f9e1274abde7c2c3fe22b5cce5e7c17bef436c5c2b74521f763b1dba5ac7a"
+                },
+                "downloads": -1,
+                "filename": "django-blacklist-0.7.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a7dffdb85fcc750547ba5767ced10d51",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 10701,
+                "upload_time": "2022-12-07T23:15:14",
+                "upload_time_iso_8601": "2022-12-07T23:15:14.575931Z",
+                "url": "https://files.pythonhosted.org/packages/69/8b/b290c76547a536897b3a63c80ddba41b1a8544655fe5d37c7468f684edc1/django-blacklist-0.7.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -1,0 +1,86 @@
+{
+    "0.7.2.dev0": {
+        "info": {
+            "author": "Dominik Kellner",
+            "author_email": "dkellner@dkellner.de",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Web Environment",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 2",
+                "Programming Language :: Python :: 2.7",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.4",
+                "Programming Language :: Python :: 3.5",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Python :: Implementation :: PyPy",
+                "Topic :: Internet :: WWW/HTTP :: Dynamic Content"
+            ],
+            "description": "Eve-SQLAlchemy extension\n========================\n\n.. image:: https://travis-ci.org/pyeve/eve-sqlalchemy.svg?branch=master\n   :target: https://travis-ci.org/pyeve/eve-sqlalchemy\n\nPowered by Eve, SQLAlchemy and good intentions this extension allows\nto effortlessly build and deploy highly customizable, fully featured\nRESTful Web Services with SQL-based backends.\n\nEve-SQLAlchemy is simple\n------------------------\n\nThe following code blocks are excerpts of ``examples/one_to_many`` and should\ngive you an idea of how Eve-SQLAlchemy is used. A complete working example can\nbe found there. If you are not familiar with `Eve <https://python-eve.org/>`_\nand `SQLAlchemy <https://www.sqlalchemy.org/>`_, it is recommended to read up\non them first.\n\nFor this example, we declare two SQLAlchemy mappings (from ``domain.py``):\n\n.. code-block:: python\n\n    class Parent(BaseModel):\n        __tablename__ = 'parent'\n        id = Column(Integer, primary_key=True)\n        children = relationship(\"Child\")\n\n    class Child(BaseModel):\n        __tablename__ = 'child'\n        id = Column(Integer, primary_key=True)\n        parent_id = Column(Integer, ForeignKey('parent.id'))\n\nAs for Eve, a ``settings.py`` is used to configure our API. Eve-SQLAlchemy,\nhaving access to a lot of metadata from your models, can automatically generate\na great deal of the `DOMAIN` dictionary for you:\n\n.. code-block:: python\n\n    DEBUG = True\n    SQLALCHEMY_DATABASE_URI = 'sqlite://'\n    SQLALCHEMY_TRACK_MODIFICATIONS = False\n    RESOURCE_METHODS = ['GET', 'POST']\n\n    DOMAIN = DomainConfig({\n        'parents': ResourceConfig(Parent),\n        'children': ResourceConfig(Child)\n    }).render()\n\nFinally, running our application server is easy (from ``app.py``):\n\n.. code-block:: python\n\n    app = Eve(validator=ValidatorSQL, data=SQL)\n\n    db = app.data.driver\n    Base.metadata.bind = db.engine\n    db.Model = Base\n\n    # create database schema on startup and populate some example data\n    db.create_all()\n    db.session.add_all([Parent(children=[Child() for k in range(n)])\n                        for n in range(10)])\n    db.session.commit()\n\n    # using reloader will destroy the in-memory sqlite db\n    app.run(debug=True, use_reloader=False)\n\nThe API is now live, ready to be consumed:\n\n.. code-block:: console\n\n    $ curl -s http://localhost:5000/parents | python -m json.tool\n\n.. code-block:: json\n\n    {\n        \"_items\": [\n            {\n                \"_created\": \"Sun, 22 Oct 2017 07:58:28 GMT\",\n                \"_etag\": \"f56d7cb013bf3d8449e11e8e1f0213f5efd0f07d\",\n                \"_links\": {\n                    \"self\": {\n                        \"href\": \"parents/1\",\n                        \"title\": \"Parent\"\n                    }\n                },\n                \"_updated\": \"Sun, 22 Oct 2017 07:58:28 GMT\",\n                \"children\": [],\n                \"id\": 1\n            },\n            {\n                \"_created\": \"Sun, 22 Oct 2017 07:58:28 GMT\",\n                \"_etag\": \"dd1698161cb6beef04f564b2e18804d4a7c4330d\",\n                \"_links\": {\n                    \"self\": {\n                        \"href\": \"parents/2\",\n                        \"title\": \"Parent\"\n                    }\n                },\n                \"_updated\": \"Sun, 22 Oct 2017 07:58:28 GMT\",\n                \"children\": [\n                    1\n                ],\n                \"id\": 2\n            },\n            \"...\"\n        ],\n        \"_links\": {\n            \"parent\": {\n                \"href\": \"/\",\n                \"title\": \"home\"\n            },\n            \"self\": {\n                \"href\": \"parents\",\n                \"title\": \"parents\"\n            }\n        },\n        \"_meta\": {\n            \"max_results\": 25,\n            \"page\": 1,\n            \"total\": 10\n        }\n    }\n\nAll you need to bring your API online is a database, a configuration\nfile (defaults to ``settings.py``) and a launch script.  Overall, you\nwill find that configuring and fine-tuning your API is a very simple\nprocess.\n\nEve-SQLAlchemy is thoroughly tested under Python 2.7-3.7 and PyPy.\n\nDocumentation\n-------------\n\nThe offical project documentation can be accessed at\n`eve-sqlalchemy.readthedocs.org\n<https://eve-sqlalchemy.readthedocs.org/>`_. For full working examples,\nespecially regarding different relationship types, see the ``examples``\ndirectory in this repository.\n\n\nChangelog\n---------\nremoved python2 compatibility and only tested for 39 310\npublished under different name to pip to avoid confusion\n---------\n\n0.7.2 (unreleased)\n~~~~~~~~~~~~~~~~~~\n\n- Nothing changed yet.\n\n\n0.7.1 (2019-08-10)\n~~~~~~~~~~~~~~~~~~\n\n- Updated Tutorial to use werkzeug.security module (#196) [Mandar Vaze]\n- Require Flask-SQLAlchemy >= 2.4 and SQLAlchemy >= 1.3 due to security issues\n  [Dominik Kellner]\n- Support filtering on embedded document fields / across relations (#186)\n  [Dominik Kellner]\n- Fix sorting across relations [Dominik Kellner]\n- Add Python 3.7 and PyPy3 to supported (and tested) versions [Dominik Kellner]\n- Pin SQLAlchemy version due to warnings in Flask-SQLAlchemy [Dominik Kellner]\n- Improve documentation (#187, #189) [Marc Vila]\n\n\n0.7.0 (2018-10-08)\n~~~~~~~~~~~~~~~~~~\n\n- Eve 0.7 support (#178) [Nicola Iarocci]\n\n\n0.6.0 (2018-08-15)\n~~~~~~~~~~~~~~~~~~\n\n- Fix querying of list relations using `where` [Dominik Kellner]\n- Update Tutorial (#177) [Nicola Iarocci]\n- Return None-values again (#155) [Cuong Manh Le]\n- Allow to supply own Flask-SQLAlchemy driver (#86) [fubu]\n- Support columns with server_default (#160) [Asif Mahmud Shimon]\n\n\n0.5.0 (2017-10-22)\n~~~~~~~~~~~~~~~~~~\n\n- Add DomainConfig and ResourceConfig to ease configuration (#152)\n  [Dominik Kellner]\n- Fixes in documentation (#151) [Alessandro De Angelis]\n- Fix deprecated import warning (#142) [Cuong Manh Le]\n- Configure `zest.releaser` for release management (#137)\n  [Dominik Kellner, \u00d8ystein S. Haaland]\n- Leverage further automated syntax and formatting checks (#138)\n  [Dominik Kellner]\n- Clean up specification of dependencies [Dominik Kellner]\n- Added 'Contributing' section to docs (#129) [Mario Kralj]\n- Fix trivial app output in documentation (#131) [Michal Vlas\u00e1k]\n- Added dialect-specific PostgreSQL JSON type (#133) [Mario Kralj]\n- Fix url field in documentation about additional lookup (#110) [Killian Kemps]\n- Compatibility with Eve 0.6.4 and refactoring of tests (#92) [Dominik Kellner]\n\n\n0.4.1 (2015-12-16)\n~~~~~~~~~~~~~~~~~~\n\n- improve query with null values [amleczko]\n\n\n0.4.0a3 (2015-10-20)\n~~~~~~~~~~~~~~~~~~~~\n\n- `hybrid_properties` are now readonly in Eve schema [amleczko]\n\n\n0.4.0a2 (2015-09-17)\n~~~~~~~~~~~~~~~~~~~~\n\n- PUT drops/recreates item in the same transaction [goneri]\n\n\n0.4.0a1 (2015-06-18)\n~~~~~~~~~~~~~~~~~~~~\n\n- support the Python-Eve generic sorting syntax [Goneri Le Bouder]\n- add support for `and_` and `or_` conjunctions in sqla expressions [toxsick]\n- embedded table: use DOMAIN to look up the resource fields [Goneri Le Bouder]\n\n\n0.3.4 (2015-05-18)\n~~~~~~~~~~~~~~~~~~\n\n- fix setup.py metadata\n- fix how embedded documents are resolved [amleczko]\n\n\n0.3.3 (2015-05-13)\n~~~~~~~~~~~~~~~~~~\n\n- added support of SA association proxy [Kevin Roy]\n- make sure relationships are generated properly [amleczko]\n\n\n0.3.2 (2015-05-01)\n~~~~~~~~~~~~~~~~~~\n\n- add fallback on attr.op if the operator doesn't exists in the\n  `ColumnProperty` [Kevin Roy]\n- add support for PostgreSQL JSON type [Goneri Le Bouder]\n\n\n0.3.1 (2015-04-29)\n~~~~~~~~~~~~~~~~~~\n\n- more flexible handling sqlalchemy operators [amleczko]\n\n\n0.3 (2015-04-17)\n~~~~~~~~~~~~~~~~\n\n- return everything as dicts instead of SQLAResult, remove SQLAResult\n  [Leonidaz0r]\n- fix update function, this closes #22 [David Durieux]\n- fixed replaced method, we are compatible with Eve>=0.5.1 [Kevin Roy]\n- fixed jsonify function [Leonidaz0r]\n- update documentation [Alex Kerney]\n- use id_field column from the config [Goneri Le Bouder]\n- add flake8 in tox [Goneri Le Bouder]\n\n\n0.2.1 (2015-02-25)\n~~~~~~~~~~~~~~~~~~\n\n- always wrap embedded documents [amleczko]\n\n\n0.2 (2015-01-27)\n~~~~~~~~~~~~~~~~\n\n- various bugfixing [Arie Brosztein, toxsick]\n- refactor sorting parser, add sql order by expresssions; please check\n  https://eve-sqlalchemy.readthedocs.org/#sqlalchemy-sorting for more details\n  [amleczko]\n\n\n0.1 (2015-01-13)\n~~~~~~~~~~~~~~~~\n\n- First public preview release. [amleczko]\n\n\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/pyeve/eve-sqlalchemy",
+            "keywords": "flask sqlalchemy rest",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "eve-sqlalchemy-3.10",
+            "package_url": "https://pypi.org/project/eve-sqlalchemy-3.10/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/eve-sqlalchemy-3.10/",
+            "project_urls": {
+                "Homepage": "https://github.com/pyeve/eve-sqlalchemy"
+            },
+            "release_url": "https://pypi.org/project/eve-sqlalchemy-3.10/0.7.2.dev0/",
+            "requires_dist": [
+                "Eve (~=2.0.4)",
+                "Flask-SQLAlchemy (~=2.5.1)",
+                "SQLAlchemy (>=1.4.44)",
+                "flask (~=2.1.3)",
+                "mock ; extra == 'test'",
+                "pytest ; extra == 'test'"
+            ],
+            "requires_python": "",
+            "summary": "REST API framework powered by Eve, SQLAlchemy and good intentions.",
+            "version": "0.7.2.dev0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16022020,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "69b12f3e05ccf3b7c56b95601ed86f7a",
+                    "sha256": "83cbb72772e0c4b13cc378f0905d25084377a2ff4839434a812c817063507105"
+                },
+                "downloads": -1,
+                "filename": "eve_sqlalchemy_3.10-0.7.2.dev0-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "69b12f3e05ccf3b7c56b95601ed86f7a",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": null,
+                "size": 82187,
+                "upload_time": "2022-12-07T15:59:01",
+                "upload_time_iso_8601": "2022-12-07T15:59:01.280201Z",
+                "url": "https://files.pythonhosted.org/packages/f6/7b/b0fb59ec0108deb1033c64eda276ad2b31c48d17773065e8d158ff32ef2f/eve_sqlalchemy_3.10-0.7.2.dev0-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

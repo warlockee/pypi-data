@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -134,7 +134,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -225,7 +225,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -316,7 +316,7 @@
             "yanked": true,
             "yanked_reason": "The MPIShared __array__ method was broken"
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -407,7 +407,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -496,7 +496,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -585,7 +585,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -674,7 +674,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -763,7 +763,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -852,7 +852,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -941,7 +941,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -1030,7 +1030,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -1119,7 +1119,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -1210,7 +1210,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -1273,7 +1273,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Utilities"
             ],
-            "description": "# MPI design patterns with shared memory\n\nThis is a small package that implements parallel design patterns using MPI one-sided and\nshared memory constructs.\n\n## Installation and Requirements\n\nThis package needs a recent version of the `mpi4py` package in order to be useful.\nHowever, the classes also accept a value of `None` for the communicator, in which case a\ntrivial local implementation is used.  The code uses other widely available packages\n(like numpy) and requires a recent Python3 installation.  You can install the code from\na git checkout with:\n\n    pip install .\n\nOr:\n\n    python3 setup.py install\n\nOr directly from github.\n\n## MPIShared Class\n\nThis class implements a pattern where a shared array is allocated on each node.\nProcesses can update pieces of the shared array with the synchronous \"set()\" method.\nDuring this call, the data from the desired process is first replicated to all nodes,\nand then one process on each node copies that piece into the shared array.\n\nAll processes on all nodes can freely read data from the node-local copy of the shared\narray.\n\n### Example\n\nYou can use `MPIShared` as a context manager or by explicitly creating and freeing\nmemory.  Here is an example of creating a shared memory object that is replicated across\nnodes:\n\n```python\nimport numpy as np\nfrom mpi4py import MPI\n\nfrom pshmem import MPIShared\n\ncomm = MPI.COMM_WORLD\n\nwith MPIShared((3, 5), np.float64, comm) as shm:\n    # A copy of the data exists on every node and is initialized to zero.\n    # There is a numpy array \"view\" of that memory available with slice notation\n    # or by accessing the \"data\" member:\n    if comm.rank == 0:\n        # You can get a summary of the data by printing it:\n        print(\"String representation:\\n\")\n        print(shm)\n        print(\"\\n===== Initialized Data =====\")\n    for p in range(comm.size):\n        if p == comm.rank:\n            print(\"rank {}:\\n\".format(p), shm.data, flush=True)\n        comm.barrier()\n\n    set_data = None\n    set_offset = None\n    if comm.rank == 0:\n        set_data = np.arange(6, dtype=np.float64).reshape((2, 3))\n        set_offset = (1, 1)\n\n    # The set() method is collective, but the inputs only matter on one rank\n    shm.set(set_data, offset=set_offset, fromrank=0)\n\n    # You can also use the usual '[]' notation.  However, this call must do an\n    # additional pre-communication to detect which process the data is coming from.\n    # And this line is still collective and must be called on all processes:\n    shm[set_offset] = set_data\n\n    # This updated data has now been replicated to the shared memory on all nodes.\n    if comm.rank == 0:\n        print(\"======= Updated Data =======\")\n    for p in range(comm.size):\n        if p == comm.rank:\n            print(\"rank {}:\\n\".format(p), shm.data, flush=True)\n        comm.barrier()\n\n    # You can read from the node-local copy of the data from all processes,\n    # using either the \"data\" member or slice access:\n    if comm.rank == comm.size - 1:\n        print(\"==== Read-only access ======\")\n        print(\"rank {}: shm[2, 3] = {}\".format(comm.rank, shm[2, 3]), flush=True)\n        print(\"rank {}: shm.data = \\n{}\".format(comm.rank, shm.data), flush=True)\n\n```\n\nPutting the above code into a file `test.py` and running this on 4 processes gives:\n\n```\nmpirun -np 4 python3 test.py\n\nString representation:\n\n<MPIShared\n  replicated on 1 nodes, each with 4 processes (4 total)\n  shape = (3, 5), dtype = float64\n  [ [0. 0. 0. 0. 0.] [0. 0. 0. 0. 0.] [0. 0. 0. 0. 0.] ]\n>\n\n===== Initialized Data =====\nrank 0:\n [[0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]]\nrank 1:\n [[0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]]\nrank 2:\n [[0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]]\nrank 3:\n [[0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]]\n======= Updated Data =======\nrank 0:\n [[0. 0. 0. 0. 0.]\n [0. 0. 1. 2. 0.]\n [0. 3. 4. 5. 0.]]\nrank 1:\n [[0. 0. 0. 0. 0.]\n [0. 0. 1. 2. 0.]\n [0. 3. 4. 5. 0.]]\nrank 2:\n [[0. 0. 0. 0. 0.]\n [0. 0. 1. 2. 0.]\n [0. 3. 4. 5. 0.]]\nrank 3:\n [[0. 0. 0. 0. 0.]\n [0. 0. 1. 2. 0.]\n [0. 3. 4. 5. 0.]]\n==== Read-only access ======\nrank 3: shm[2, 3] = 5.0\nrank 3: shm.data =\n[[0. 0. 0. 0. 0.]\n [0. 0. 1. 2. 0.]\n [0. 3. 4. 5. 0.]]\n ```\n\nNote that if you are not using a context manager, then you should be careful to close\nand delete the object like this:\n\n```python\nshm = MPIShared((3, 5), np.float64, comm=comm)\n# Do stuff\nshm.close()\ndel shm\n```\n\n## MPILock Class\n\nThis implements a MUTEX lock across an arbitrary communicator.  A memory buffer on a\nsingle process acts as a waiting list where processes can add themselves (using\none-sided calls).  The processes pass a token to transfer ownership of the lock.  The\ntoken is passed in order of request.\n\n### Example\n\nA typical use case is where we want to serialize some operation across a large number of\nprocesses that reside on different nodes.  For example, perhaps we are making requests\nto the external network from a computing center and we do not want to saturate that with\nall processes simultaneously.  Or perhaps we are writing to a shared data file which\ndoes not support parallel writes and we have a sub-communicator of writing processes\nwhich take turns updating the filesystem.  We can instantiate a lock on any\ncommunicator, so it is possible to split the world communicator into groups and have\nsome operation serialized just within that group:\n\n```python\nwith MPILock(MPI.COMM_WORLD) as mpilock:\n    mpilock.lock()\n    # Do something here.  Only one process at a time will do this.\n    mpilock.unlock()\n```\n\n## Tests\n\nAfter installation, you can run some tests with:\n\n    mpirun -np 4 python3 -c 'import pshmem.test; pshmem.test.run()'\n\nIf you have mpi4py available but would like to explicitly disable the use of MPI in the\ntests, you can set an environment variable:\n\n    MPI_DISABLE=1 python3 -c 'import pshmem.test; pshmem.test.run()'",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -1302,7 +1301,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15668313,
+        "last_serial": 16023439,
         "urls": [
             {
                 "comment_text": "",
@@ -1341,6 +1340,98 @@
                 "upload_time": "2022-11-05T19:06:19",
                 "upload_time_iso_8601": "2022-11-05T19:06:19.781460Z",
                 "url": "https://files.pythonhosted.org/packages/90/34/a50c0223a9c444f5f572b7e303c999f9bc0921ac895a4cdbc7217246498c/pshmem-1.0.0a2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.0a3": {
+        "info": {
+            "author": "Theodore Kisner",
+            "author_email": "work@theodorekisner.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Console",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: POSIX",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Utilities"
+            ],
+            "description": "# MPI design patterns with shared memory\n\nThis is a small package that implements parallel design patterns using MPI one-sided and\nshared memory constructs.\n\n## Installation and Requirements\n\nThis package needs a recent version of the `mpi4py` package in order to be useful.\nHowever, the classes also accept a value of `None` for the communicator, in which case a\ntrivial local implementation is used.  The code uses other widely available packages\n(like numpy) and requires a recent Python3 installation.  You can install the code from\na git checkout with:\n\n    pip install .\n\nOr:\n\n    python3 setup.py install\n\nOr directly from github.\n\n## MPIShared Class\n\nThis class implements a pattern where a shared array is allocated on each node.\nProcesses can update pieces of the shared array with the synchronous \"set()\" method.\nDuring this call, the data from the desired process is first replicated to all nodes,\nand then one process on each node copies that piece into the shared array.\n\nAll processes on all nodes can freely read data from the node-local copy of the shared\narray.\n\n### Example\n\nYou can use `MPIShared` as a context manager or by explicitly creating and freeing\nmemory.  Here is an example of creating a shared memory object that is replicated across\nnodes:\n\n```python\nimport numpy as np\nfrom mpi4py import MPI\n\nfrom pshmem import MPIShared\n\ncomm = MPI.COMM_WORLD\n\nwith MPIShared((3, 5), np.float64, comm) as shm:\n    # A copy of the data exists on every node and is initialized to zero.\n    # There is a numpy array \"view\" of that memory available with slice notation\n    # or by accessing the \"data\" member:\n    if comm.rank == 0:\n        # You can get a summary of the data by printing it:\n        print(\"String representation:\\n\")\n        print(shm)\n        print(\"\\n===== Initialized Data =====\")\n    for p in range(comm.size):\n        if p == comm.rank:\n            print(\"rank {}:\\n\".format(p), shm.data, flush=True)\n        comm.barrier()\n\n    set_data = None\n    set_offset = None\n    if comm.rank == 0:\n        set_data = np.arange(6, dtype=np.float64).reshape((2, 3))\n        set_offset = (1, 1)\n\n    # The set() method is collective, but the inputs only matter on one rank\n    shm.set(set_data, offset=set_offset, fromrank=0)\n\n    # You can also use the usual '[]' notation.  However, this call must do an\n    # additional pre-communication to detect which process the data is coming from.\n    # And this line is still collective and must be called on all processes:\n    shm[set_offset] = set_data\n\n    # This updated data has now been replicated to the shared memory on all nodes.\n    if comm.rank == 0:\n        print(\"======= Updated Data =======\")\n    for p in range(comm.size):\n        if p == comm.rank:\n            print(\"rank {}:\\n\".format(p), shm.data, flush=True)\n        comm.barrier()\n\n    # You can read from the node-local copy of the data from all processes,\n    # using either the \"data\" member or slice access:\n    if comm.rank == comm.size - 1:\n        print(\"==== Read-only access ======\")\n        print(\"rank {}: shm[2, 3] = {}\".format(comm.rank, shm[2, 3]), flush=True)\n        print(\"rank {}: shm.data = \\n{}\".format(comm.rank, shm.data), flush=True)\n\n```\n\nPutting the above code into a file `test.py` and running this on 4 processes gives:\n\n```\nmpirun -np 4 python3 test.py\n\nString representation:\n\n<MPIShared\n  replicated on 1 nodes, each with 4 processes (4 total)\n  shape = (3, 5), dtype = float64\n  [ [0. 0. 0. 0. 0.] [0. 0. 0. 0. 0.] [0. 0. 0. 0. 0.] ]\n>\n\n===== Initialized Data =====\nrank 0:\n [[0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]]\nrank 1:\n [[0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]]\nrank 2:\n [[0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]]\nrank 3:\n [[0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]\n [0. 0. 0. 0. 0.]]\n======= Updated Data =======\nrank 0:\n [[0. 0. 0. 0. 0.]\n [0. 0. 1. 2. 0.]\n [0. 3. 4. 5. 0.]]\nrank 1:\n [[0. 0. 0. 0. 0.]\n [0. 0. 1. 2. 0.]\n [0. 3. 4. 5. 0.]]\nrank 2:\n [[0. 0. 0. 0. 0.]\n [0. 0. 1. 2. 0.]\n [0. 3. 4. 5. 0.]]\nrank 3:\n [[0. 0. 0. 0. 0.]\n [0. 0. 1. 2. 0.]\n [0. 3. 4. 5. 0.]]\n==== Read-only access ======\nrank 3: shm[2, 3] = 5.0\nrank 3: shm.data =\n[[0. 0. 0. 0. 0.]\n [0. 0. 1. 2. 0.]\n [0. 3. 4. 5. 0.]]\n ```\n\nNote that if you are not using a context manager, then you should be careful to close\nand delete the object like this:\n\n```python\nshm = MPIShared((3, 5), np.float64, comm=comm)\n# Do stuff\nshm.close()\ndel shm\n```\n\n## MPILock Class\n\nThis implements a MUTEX lock across an arbitrary communicator.  A memory buffer on a\nsingle process acts as a waiting list where processes can add themselves (using\none-sided calls).  The processes pass a token to transfer ownership of the lock.  The\ntoken is passed in order of request.\n\n### Example\n\nA typical use case is where we want to serialize some operation across a large number of\nprocesses that reside on different nodes.  For example, perhaps we are making requests\nto the external network from a computing center and we do not want to saturate that with\nall processes simultaneously.  Or perhaps we are writing to a shared data file which\ndoes not support parallel writes and we have a sub-communicator of writing processes\nwhich take turns updating the filesystem.  We can instantiate a lock on any\ncommunicator, so it is possible to split the world communicator into groups and have\nsome operation serialized just within that group:\n\n```python\nwith MPILock(MPI.COMM_WORLD) as mpilock:\n    mpilock.lock()\n    # Do something here.  Only one process at a time will do this.\n    mpilock.unlock()\n```\n\n## Tests\n\nAfter installation, you can run some tests with:\n\n    mpirun -np 4 python3 -c 'import pshmem.test; pshmem.test.run()'\n\nIf you have mpi4py available but would like to explicitly disable the use of MPI in the\ntests, you can set an environment variable:\n\n    MPI_DISABLE=1 python3 -c 'import pshmem.test; pshmem.test.run()'\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/tskisner/pshmem",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pshmem",
+            "package_url": "https://pypi.org/project/pshmem/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pshmem/",
+            "project_urls": {
+                "Homepage": "https://github.com/tskisner/pshmem"
+            },
+            "release_url": "https://pypi.org/project/pshmem/1.0.0a3/",
+            "requires_dist": null,
+            "requires_python": ">=3.6.0",
+            "summary": "Parallel shared memory and locking with MPI",
+            "version": "1.0.0a3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16023439,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c470edaa695f0b79c630dcad4f772936",
+                    "sha256": "24bcbfeb34f0673dfcefaffbc3f875708d3a8bf4e408248d64bb148a1f6c80ca"
+                },
+                "downloads": -1,
+                "filename": "pshmem-1.0.0a3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c470edaa695f0b79c630dcad4f772936",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6.0",
+                "size": 18629,
+                "upload_time": "2022-12-07T18:08:14",
+                "upload_time_iso_8601": "2022-12-07T18:08:14.063519Z",
+                "url": "https://files.pythonhosted.org/packages/b6/e8/1275154626ea93bf21213ef321cc2bf59c16a7d97481be3a6a52c082e06c/pshmem-1.0.0a3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ab650b1ca92e1f3c6428e02400f85037",
+                    "sha256": "f7f081cb5f89b74184af578352a1dcf04d387d6095f77fcfaef2a1c55a793650"
+                },
+                "downloads": -1,
+                "filename": "pshmem-1.0.0a3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ab650b1ca92e1f3c6428e02400f85037",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6.0",
+                "size": 33923,
+                "upload_time": "2022-12-07T18:08:11",
+                "upload_time_iso_8601": "2022-12-07T18:08:11.293730Z",
+                "url": "https://files.pythonhosted.org/packages/86/d9/269babfb9ca3432b48551223888cff5442d479daf4dd5ca0a050872f5385/pshmem-1.0.0a3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

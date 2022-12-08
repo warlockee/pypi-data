@@ -37,7 +37,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14573439,
+        "last_serial": 16026174,
         "urls": [
             {
                 "comment_text": "",
@@ -100,7 +100,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14573439,
+        "last_serial": 16026174,
         "urls": [
             {
                 "comment_text": "",
@@ -163,7 +163,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14573439,
+        "last_serial": 16026174,
         "urls": [
             {
                 "comment_text": "",
@@ -226,7 +226,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14573439,
+        "last_serial": 16026174,
         "urls": [
             {
                 "comment_text": "",
@@ -289,7 +289,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14573439,
+        "last_serial": 16026174,
         "urls": [
             {
                 "comment_text": "",
@@ -352,7 +352,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14573439,
+        "last_serial": 16026174,
         "urls": [
             {
                 "comment_text": "",
@@ -387,7 +387,6 @@
                 "Programming Language :: Python :: 3.6",
                 "Programming Language :: Python :: 3.7"
             ],
-            "description": "## coinstac-sparse-dinunet\n#### Distributed Sparse Neural Network implementation  on COINSTAC.\n\n![PyPi version](https://img.shields.io/pypi/v/coinstac-sparse-dinunet)\n![versions](https://img.shields.io/pypi/pyversions/pybadges.svg)\n\n```\npip install coinstac-sparse-dinunet\n```\n#### Specify supported packages like pytorch & torchvision in a requirements.txt file\n#### Highlights:\n```\n1. Creates sparse network based on single shot pruning SNIP algorithm (https://arxiv.org/abs/1810.02340). \n2. Performs distributed training and optimization with reduced bandwidth.\n3. Automatic data splitting/k-fold cross validation.\n4. Automatic model checkpointing.\n5. GPU enabled local sites.\n6. Customizable metrics(w/Auto serialization between nodes) to work with any schemes.\n7. We can integrate any custom reduction and learning mechanism by extending coinstac_sparse_dinunet.distrib.reducer/learner.\n...\n```\n\n\n<hr />\n\n\n### [Running an analysis](https://github.com/trendscenter/coinstac-instructions/blob/master/coinstac-how-to-run-analysis.md) in the coinstac App.\n### Add a new NN computation to COINSTAC (Development guide):\n#### imports\n\n```python\nfrom coinstac_sparse_dinunet import COINNDataset, COINNTrainer, COINNLocal\nfrom coinstac_sparse_dinunet.metrics import COINNAverages, Prf1a\n```\n\n#### 1. Define Data Loader\n```python\nclass MyDataset(COINNDataset):\n    def __init__(self, **kw):\n        super().__init__(**kw)\n        self.labels = None\n\n    def load_index(self, id, file):\n        data_dir = self.path(id, 'data_dir') # data_dir comes from inputspecs.json\n        ...\n        self.indices.append([id, file])\n\n    def __getitem__(self, ix):\n        id, file = self.indices[ix]\n        data_dir = self.path(id, 'data_dir') # data_dir comes from inputspecs.json\n        label_dir = self.path(id, 'label_dir') # label_dir comes from inputspecs.json\n        ...\n        # Logic to load, transform single data item.\n        ...\n        return {'inputs':.., 'labels': ...}\n```\n\n#### 2. Define Trainer\n```python\nclass MyTrainer(COINNTrainer):\n    def __init__(self, **kw):\n        super().__init__(**kw)\n\n    def _init_nn_model(self):\n        self.nn['model'] = MYModel(in_size=self.cache['input_size'], out_size=self.cache['num_class'])\n    \n    \n   def single_iteration_for_masking(self, model, batch):\n    \n        #Defines sparsity level, loss function and other parameters to perform masking using SNIP\n        \n        sparsity_level = 0.85\n        inputs, labels = batch['inputs'].to(self.device['gpu']).float(), batch['labels'].to(self.device['gpu']).long()\n        indices = batch['ix'].to(self.device['gpu']).long()\n        model.zero_grad()\n        out = F.log_softmax(model.forward(inputs), 1)\n        loss = F.nll_loss(out, labels)\n        return {'out': out, 'loss': loss, 'indices': indices, 'sparsity_level': sparsity_level}\n\n\n\n    def iteration(self, batch):\n        inputs, labels = batch['inputs'].to(self.device['gpu']).float(), batch['labels'].to(self.device['gpu']).long()\n\n        out = F.log_softmax(self.nn['model'](inputs), 1)\n        loss = F.nll_loss(out, labels)\n        _, predicted = torch.max(out, 1)\n        score = self.new_metrics()\n        score.add(predicted, labels)\n        val = self.new_averages()\n        val.add(loss.item(), len(inputs))\n        return {'out': out, 'loss': loss, 'averages': val,\n                'metrics': score, 'prediction': predicted}\n```\n\n<hr />\n\n#### Advanced use cases:\n\n* **Define custom metrics:**\n  - Extend [coinstac_sparse_dinunet.metrics.COINNMetrics](https://github.com/bishalth01/coinstac_sparse_dinunet/blob/master/coinstac_sparse_dinunet/metrics/metrics.py)\n  - Example: [coinstac_sparse_dinunet.metrics.Prf1a](https://github.com/bishalth01/coinstac_sparse_dinunet/blob/master/coinstac_sparse_dinunet/metrics/metrics.py) for Precision, Recall, F1, and Accuracy\n  \n* **Define [Custom Learner](https://github.com/bishalth01/coinstac_sparse_dinunet/blob/master/coinstac_sparse_dinunet/distrib/learner.py) / [custom Aggregator]/ [custom Aggregator](https://github.com/bishalth01/coinstac_sparse_dinunet/blob/master/coinstac_sparse_dinunet/distrib/reducer.py)  (Default is Distributed SGD)**\n\n\n\n#### Referenced from Trends Center coinstac-dinunet repository (https://github.com/trendscenter/coinstac-dinunet)",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -416,7 +415,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14573439,
+        "last_serial": 16026174,
         "urls": [
             {
                 "comment_text": "",
@@ -435,6 +434,70 @@
                 "upload_time": "2022-07-28T06:18:10",
                 "upload_time_iso_8601": "2022-07-28T06:18:10.187986Z",
                 "url": "https://files.pythonhosted.org/packages/37/6d/938be7e8d644ad66f105e21ce89c7e34fc2b234913c3306ec72b230b22be/coinstac-sparse-dinunet-2.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.0.2": {
+        "info": {
+            "author": "Bishal Thapaliya",
+            "author_email": "bishalthapaliya16@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7"
+            ],
+            "description": "## coinstac-sparse-dinunet\n#### Distributed Sparse Neural Network implementation  on COINSTAC.\n\n![PyPi version](https://img.shields.io/pypi/v/coinstac-sparse-dinunet)\n![versions](https://img.shields.io/pypi/pyversions/pybadges.svg)\n\n```\npip install coinstac-sparse-dinunet\n```\n#### Specify supported packages like pytorch & torchvision in a requirements.txt file\n#### Highlights:\n```\n1. Creates sparse network based on single shot pruning SNIP algorithm (https://arxiv.org/abs/1810.02340). \n2. Performs distributed training and optimization with reduced bandwidth.\n3. Automatic data splitting/k-fold cross validation.\n4. Automatic model checkpointing.\n5. GPU enabled local sites.\n6. Customizable metrics(w/Auto serialization between nodes) to work with any schemes.\n7. We can integrate any custom reduction and learning mechanism by extending coinstac_sparse_dinunet.distrib.reducer/learner.\n...\n```\n\n\n<hr />\n\n\n### [Running an analysis](https://github.com/trendscenter/coinstac-instructions/blob/master/coinstac-how-to-run-analysis.md) in the coinstac App.\n### Add a new NN computation to COINSTAC (Development guide):\n#### imports\n\n```python\nfrom coinstac_sparse_dinunet import COINNDataset, COINNTrainer, COINNLocal\nfrom coinstac_sparse_dinunet.metrics import COINNAverages, Prf1a\n```\n\n#### 1. Define Data Loader\n```python\nclass MyDataset(COINNDataset):\n    def __init__(self, **kw):\n        super().__init__(**kw)\n        self.labels = None\n\n    def load_index(self, id, file):\n        data_dir = self.path(id, 'data_dir') # data_dir comes from inputspecs.json\n        ...\n        self.indices.append([id, file])\n\n    def __getitem__(self, ix):\n        id, file = self.indices[ix]\n        data_dir = self.path(id, 'data_dir') # data_dir comes from inputspecs.json\n        label_dir = self.path(id, 'label_dir') # label_dir comes from inputspecs.json\n        ...\n        # Logic to load, transform single data item.\n        ...\n        return {'inputs':.., 'labels': ...}\n```\n\n#### 2. Define Trainer\n```python\nclass MyTrainer(COINNTrainer):\n    def __init__(self, **kw):\n        super().__init__(**kw)\n\n    def _init_nn_model(self):\n        self.nn['model'] = MYModel(in_size=self.cache['input_size'], out_size=self.cache['num_class'])\n    \n    \n   def single_iteration_for_masking(self, model, batch):\n    \n        #Defines sparsity level, loss function and other parameters to perform masking using SNIP\n        \n        sparsity_level = 0.85\n        inputs, labels = batch['inputs'].to(self.device['gpu']).float(), batch['labels'].to(self.device['gpu']).long()\n        indices = batch['ix'].to(self.device['gpu']).long()\n        model.zero_grad()\n        out = F.log_softmax(model.forward(inputs), 1)\n        loss = F.nll_loss(out, labels)\n        return {'out': out, 'loss': loss, 'indices': indices, 'sparsity_level': sparsity_level}\n\n\n\n    def iteration(self, batch):\n        inputs, labels = batch['inputs'].to(self.device['gpu']).float(), batch['labels'].to(self.device['gpu']).long()\n\n        out = F.log_softmax(self.nn['model'](inputs), 1)\n        loss = F.nll_loss(out, labels)\n        _, predicted = torch.max(out, 1)\n        score = self.new_metrics()\n        score.add(predicted, labels)\n        val = self.new_averages()\n        val.add(loss.item(), len(inputs))\n        return {'out': out, 'loss': loss, 'averages': val,\n                'metrics': score, 'prediction': predicted}\n```\n\n<hr />\n\n#### Advanced use cases:\n\n* **Define custom metrics:**\n  - Extend [coinstac_sparse_dinunet.metrics.COINNMetrics](https://github.com/bishalth01/coinstac_sparse_dinunet/blob/master/coinstac_sparse_dinunet/metrics/metrics.py)\n  - Example: [coinstac_sparse_dinunet.metrics.Prf1a](https://github.com/bishalth01/coinstac_sparse_dinunet/blob/master/coinstac_sparse_dinunet/metrics/metrics.py) for Precision, Recall, F1, and Accuracy\n  \n* **Define [Custom Learner](https://github.com/bishalth01/coinstac_sparse_dinunet/blob/master/coinstac_sparse_dinunet/distrib/learner.py) / [custom Aggregator]/ [custom Aggregator](https://github.com/bishalth01/coinstac_sparse_dinunet/blob/master/coinstac_sparse_dinunet/distrib/reducer.py)  (Default is Distributed SGD)**\n\n\n\n#### Referenced from Trends Center coinstac-dinunet repository (https://github.com/trendscenter/coinstac-dinunet)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/bishalth01/coinstac-sparse-dinunet",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "coinstac-sparse-dinunet",
+            "package_url": "https://pypi.org/project/coinstac-sparse-dinunet/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/coinstac-sparse-dinunet/",
+            "project_urls": {
+                "Homepage": "https://github.com/bishalth01/coinstac-sparse-dinunet"
+            },
+            "release_url": "https://pypi.org/project/coinstac-sparse-dinunet/2.0.2/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Distributed Sparse Neural Network implementation on COINSTAC.",
+            "version": "2.0.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16026174,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a265227b72c985f004ba1900e0fde3f7",
+                    "sha256": "91c90075eaf60107ea6554a68bf76e8bb8ef7893f20efef33c53ace2abb3b56a"
+                },
+                "downloads": -1,
+                "filename": "coinstac-sparse-dinunet-2.0.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a265227b72c985f004ba1900e0fde3f7",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 31538,
+                "upload_time": "2022-12-07T21:53:11",
+                "upload_time_iso_8601": "2022-12-07T21:53:11.521272Z",
+                "url": "https://files.pythonhosted.org/packages/de/79/1b4170eb18192bd50216ec1d56258ce635d301ed51967a64802f9a4cebae/coinstac-sparse-dinunet-2.0.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

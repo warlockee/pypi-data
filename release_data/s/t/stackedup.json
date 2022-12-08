@@ -39,7 +39,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9810957,
+        "last_serial": 16024118,
         "urls": [
             {
                 "comment_text": "",
@@ -126,7 +126,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9810957,
+        "last_serial": 16024118,
         "urls": [
             {
                 "comment_text": "",
@@ -213,7 +213,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9810957,
+        "last_serial": 16024118,
         "urls": [
             {
                 "comment_text": "",
@@ -300,7 +300,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9810957,
+        "last_serial": 16024118,
         "urls": [
             {
                 "comment_text": "",
@@ -387,7 +387,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9810957,
+        "last_serial": 16024118,
         "urls": [
             {
                 "comment_text": "",
@@ -474,7 +474,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9810957,
+        "last_serial": 16024118,
         "urls": [
             {
                 "comment_text": "",
@@ -561,7 +561,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9810957,
+        "last_serial": 16024118,
         "urls": [
             {
                 "comment_text": "",
@@ -616,7 +616,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# Stackedup\n\n[![Build Status](https://travis-ci.com/ombu/stacks.svg?branch=develop)](https://travis-ci.com/ombu/stacks)\n\nstackedup provides tools to launch and manage micro-service based applications\nin AWS using CloudFormation.\n\nstackedup relies on three core abstractions:\n\n- **account**: An AWS account used by the application\n- **cluster**: A collection of AWS resources where applications run, such as\n  compute capacity, database, networking configuration, etc that allows running\n  one more instances\n- **instance**: An instance of an application, such as testing or production\n- **service**: An application service, such as an API or a web UI\n\nAs much as possible, stackedup aims to get out of  the way between you and your\nCloudFormation Stacks.  Clusters, instances and services are plain\nCloudFormation stacks. stackedup helps you launch and update them, recording\nstate and current parameters in an instance manifest, a YAML file usually named\n`config.yaml.  A common instance  manifest, may look like this:\n\n```yaml\n---\nproject_name: my-project\n\n# The types of stacks supported in this project\nstack_types:\n  - pipeline\n  - application\n\n# The AWS accounts involved\naccounts:\n  my-aws-account:\n    cloudformation_bucket: <my-bucket> # A bucket name used for building and deploying stacks\n    id: my-aws-account\n    provisioner_role_arn: arn:aws:iam::123...:role/my-role # The ARN of the IAM role stacked\n                                                           # should assume to run AWS API call\n                                                           # commands on this account\n\n# The clusters\nclusters:\n  dev:\n    stack_name: my-project-cluster-dev-2005251008         # Once launched, this key stores the\n                                                          # stack name for future updates\n    account: my-aws-account\n    region: us-west-2\n    parameters:                                            # These are the CloudFormation parameters\n      KeyName: my-ssh-key                                  # sent to the stack\n\ninstances:\n\n  # One instance of the application, called testing\n  testing:\n    account: ombu\n    cluster: dev\n    application:\n      stack_name: my-project-testing-2005251108\n      parameters:\n        ClusterStack: my-project-cluster-dev-2005251008\n        DatabaseHost: ...rds.amazonaws.com\n        DatabaseName: my-project-testing\n        DatabaseUser: my-project-testing\n        Domain: my-project.com\n        ECRRepository: ....dkr.ecr.us-east-1.amazonaws.com\n        EnvironmentType: testing\n        ImageTag: '0.1.10'\n        SentryDsn: \"https://...@....ingest.sentry.io/...\"\n\n  # Another instance of the application, called staging\n  staging:\n    account: ombu\n    cluster: dev\n    application:\n      stack_name: my-project-stagomg-2005251208\n      parameters:\n      ...\n```\n\n## Installation\n\nStacked up is distributed in the Python Package Index (PyPI). To install it:\n\n    pip install stackedup\n\nThis will install the current version of stackedup. Older projects may depend on specific versions, so stacked up is\nusually installed as part of the project Python requirements. In a project with a `requirements.txt` file:\n\n    pip install -r requirements.txt\n\n## Usage\n\nTo run any stackedup command, your AWS CLI environment must be configured such that you are able to\nassume the roles included in the accounts section of the instance manifest. When running commands, stacked\nup will attempt to assume these roles.\n\n### Launching stacks\n\nFor a cluster:\n\n    stack-launch cluster <cluster-name>\n\nFor an instance service:\n\n    stack-launch <service> <instance>\n\n### Obtaining details on a running stack\n\nFor a cluster:\n\n    stack-details cluster <cluster-name>\n\n    stack-details <service> <instance>\n\n\n### Updating stacks\n\nAfter updating the parameters for an existing stack in the instance manifest\n(often _config.yaml`), update the instance:\n\n    stack-update <service> <instance>\n\n### Opening a shell session in a service container (==experimental==)\n\nFor service stacks that run [ECS\nServices]([https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html))\nstacked up includes an experimental command to start a shell session in one of\nthe service containers:\n\n    $ container-shell <instance> <service> <service-name> <container>\n    ssh -t -i <ssh-key> ec2-user@ec2-54-218-12-133... docker exec -it 380f02d109d9a038e1e1909e0f31e85a6491312d3c29726b269bde8621ce1212 sh\n\nThe command returns an SSH command, so it's often ran in backticks as command substitution:\n\n    $ `container-shell <instance> <service> <service-name> <container>`\n    #    (\u2190 you are in container bash session)\n\n## AWS accounts\n\nstackedup can manage instances across AWS accounts, through IAM roles. The AWS\naccounts their IAM roles for a project are defined in the `accounts:` section\nof the instance manifest (usually a file named `config.yaml`). stackedup\ncommands automatically switch roles into the right account when performing\nstack operations. One can also use the information in the instance manifest to\nassume a role for a desired account in the AWS console:\n\n1. Log into the AWS console for the master AWS account and open the _Switch\n   Role_ view\n   ([screenshot](https://tickets.ombuweb.com/attachments/download/8875/20200310-1038-aws-switch-role-1.png))\n\n2. Obtain the desired AWS account ID and role name for the target role from the\n   instance manifest and enter it into the _Switch Role_ view:\n   ([screenshot](https://tickets.ombuweb.com/attachments/download/8876/20200310-1038-aws-switch-role.png))\n\n## Developing stacked up\n\n### Running tests\n\n```console\npython -m unittest discover\n```\n\n### Packaged and distribute\n\nEdit `setup.py` with the desired target version. Then:\n\n```console\npip install wheel\npython setup.py sdist bdist_wheel\npython -m twine upload dist/stackedup-<tag>*\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -649,7 +648,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9810957,
+        "last_serial": 16024118,
         "urls": [
             {
                 "comment_text": "",
@@ -688,6 +687,94 @@
                 "upload_time": "2021-03-18T16:59:03",
                 "upload_time_iso_8601": "2021-03-18T16:59:03.507454Z",
                 "url": "https://files.pythonhosted.org/packages/ee/a2/f061a3aabd5550c6911a7f045694041c83f4cf6829ea187aec32c3b75cb4/stackedup-0.0.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.9": {
+        "info": {
+            "author": "OMBU",
+            "author_email": "martin@ombuweb.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# Stackedup\n\n[![Build Status](https://travis-ci.com/ombu/stacks.svg?branch=develop)](https://travis-ci.com/ombu/stacks)\n\nstackedup provides tools to launch and manage micro-service based applications\nin AWS using CloudFormation.\n\nstackedup relies on three core abstractions:\n\n- **account**: An AWS account used by the application\n- **cluster**: A collection of AWS resources where applications run, such as\n  compute capacity, database, networking configuration, etc that allows running\n  one more instances\n- **instance**: An instance of an application, such as testing or production\n- **service**: An application service, such as an API or a web UI\n\nAs much as possible, stackedup aims to get out of the way between you and your\nCloudFormation Stacks. Clusters, instances and services are plain CloudFormation\nstacks. stackedup helps you launch and update them, recording state and current\nparameters in an instance manifest, a YAML file usually named `config.yaml. A\ncommon instance manifest, may look like this:\n\n```yaml\n---\nproject_name: my-project\n\n# The types of stacks supported in this project\nstack_types:\n  - pipeline\n  - application\n\n# The AWS accounts involved\naccounts:\n  my-aws-account:\n    cloudformation_bucket: <my-bucket> # A bucket name used for building and deploying stacks\n    id: my-aws-account\n    provisioner_role_arn: arn:aws:iam::123...:role/my-role # The ARN of the IAM role stacked\n                                                           # should assume to run AWS API call\n                                                           # commands on this account\n\n# The clusters\nclusters:\n  dev:\n    stack_name: my-project-cluster-dev-2005251008         # Once launched, this key stores the\n                                                          # stack name for future updates\n    account: my-aws-account\n    region: us-west-2\n    parameters:                                            # These are the CloudFormation parameters\n      KeyName: my-ssh-key                                  # sent to the stack\n\ninstances:\n\n  # One instance of the application, called testing\n  testing:\n    account: ombu\n    cluster: dev\n    application:\n      stack_name: my-project-testing-2005251108\n      parameters:\n        ClusterStack: my-project-cluster-dev-2005251008\n        DatabaseHost: ...rds.amazonaws.com\n        DatabaseName: my-project-testing\n        DatabaseUser: my-project-testing\n        Domain: my-project.com\n        ECRRepository: ....dkr.ecr.us-east-1.amazonaws.com\n        EnvironmentType: testing\n        ImageTag: '0.1.10'\n        SentryDsn: \"https://...@....ingest.sentry.io/...\"\n\n  # Another instance of the application, called staging\n  staging:\n    account: ombu\n    cluster: dev\n    application:\n      stack_name: my-project-stagomg-2005251208\n      parameters:\n      ...\n```\n\n## Installation\n\nStacked up is distributed in the Python Package Index (PyPI). To install it:\n\n    pip install stackedup\n\nThis will install the current version of stackedup. Older projects may depend on\nspecific versions, so stacked up is usually installed as part of the project\nPython requirements. In a project with a `requirements.txt` file:\n\n    pip install -r requirements.txt\n\n## Usage\n\nTo run any stackedup command, your AWS CLI environment must be configured such\nthat you are able to assume the roles included in the accounts section of the\ninstance manifest. When running commands, stacked up will attempt to assume\nthese roles.\n\n### Launching stacks\n\nFor a cluster:\n\n    stack-launch cluster <cluster-name>\n\nFor an instance service:\n\n    stack-launch <service> <instance>\n\n### Obtaining details on a running stack\n\nFor a cluster:\n\n    stack-details cluster <cluster-name>\n\n    stack-details <service> <instance>\n\n### Updating stacks\n\nAfter updating the parameters for an existing stack in the instance manifest\n(often \\_config.yaml`), update the instance:\n\n    stack-update <service> <instance>\n\n### Opening a shell session in a service container (==experimental==)\n\nFor service stacks that run\n[ECS Services](<[https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html)>)\nstacked up includes an experimental command to start a shell session in one of\nthe service containers:\n\n    $ container-shell <instance> <service> <service-name> <container>\n    ssh -t -i <ssh-key> ec2-user@ec2-54-218-12-133... docker exec -it 380f02d109d9a038e1e1909e0f31e85a6491312d3c29726b269bde8621ce1212 sh\n\nThe command returns an SSH command, so it's often ran in backticks as command\nsubstitution:\n\n    $ `container-shell <instance> <service> <service-name> <container>`\n    #    (\u2190 you are in container bash session)\n\n## AWS accounts\n\nstackedup can manage instances across AWS accounts, through IAM roles. The AWS\naccounts their IAM roles for a project are defined in the `accounts:` section of\nthe instance manifest (usually a file named `config.yaml`). stackedup commands\nautomatically switch roles into the right account when performing stack\noperations. One can also use the information in the instance manifest to assume\na role for a desired account in the AWS console:\n\n1. Log into the AWS console for the master AWS account and open the _Switch\n   Role_ view\n   ([screenshot](https://tickets.ombuweb.com/attachments/download/8875/20200310-1038-aws-switch-role-1.png))\n\n2. Obtain the desired AWS account ID and role name for the target role from the\n   instance manifest and enter it into the _Switch Role_ view:\n   ([screenshot](https://tickets.ombuweb.com/attachments/download/8876/20200310-1038-aws-switch-role.png))\n\n## Developing stacked up\n\n### Running tests\n\n```console\npython -m unittest discover\n```\n\n### Packaged and distribute\n\nEdit `setup.py` with the desired target version. Then:\n\n```console\npip install wheel twine\npython setup.py sdist bdist_wheel\npython -m twine upload dist/stackedup-<tag>*\n\n```\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/ombu/stacks",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "stackedup",
+            "package_url": "https://pypi.org/project/stackedup/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/stackedup/",
+            "project_urls": {
+                "Homepage": "https://github.com/ombu/stacks"
+            },
+            "release_url": "https://pypi.org/project/stackedup/0.0.9/",
+            "requires_dist": [
+                "boto3 (==1.10.20)",
+                "awscli (==1.16.284)",
+                "tabulate (==0.8.5)"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "Tooling to help manage CloudFormation stacks",
+            "version": "0.0.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16024118,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2a914225b2c74d3a61e9ff3e66d2c937",
+                    "sha256": "d8f7d11c28ea9ac4c269c00fb6e7eed3fc5c9f60258295048a252ab3f7261697"
+                },
+                "downloads": -1,
+                "filename": "stackedup-0.0.9-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "2a914225b2c74d3a61e9ff3e66d2c937",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 16070,
+                "upload_time": "2022-12-07T19:23:43",
+                "upload_time_iso_8601": "2022-12-07T19:23:43.682200Z",
+                "url": "https://files.pythonhosted.org/packages/9c/c3/e78d81ebb7ede620bc7355b4d07eb543f3e193b0bdf03d3d6b7137236900/stackedup-0.0.9-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7f3134c28e981f10186101f9ac67cd6e",
+                    "sha256": "93985b387967c47e99fc9a9a0e539018286912d7fe044907bbea6713e0e0947e"
+                },
+                "downloads": -1,
+                "filename": "stackedup-0.0.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7f3134c28e981f10186101f9ac67cd6e",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 10278,
+                "upload_time": "2022-12-07T19:23:46",
+                "upload_time_iso_8601": "2022-12-07T19:23:46.255634Z",
+                "url": "https://files.pythonhosted.org/packages/5f/ee/4e9d11f7d78f0a59074b8415baad9b8afe819e5b9437488f6ff6ac661668/stackedup-0.0.9.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

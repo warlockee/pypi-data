@@ -35,7 +35,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995305,
+        "last_serial": 16021339,
         "urls": [
             {
                 "comment_text": "",
@@ -103,7 +103,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995305,
+        "last_serial": 16021339,
         "urls": [
             {
                 "comment_text": "",
@@ -156,7 +156,6 @@
             "classifiers": [
                 "Programming Language :: Python :: 3"
             ],
-            "description": "<p align=\"center\">\r\n  <font size=6><a href=\"https://github.com/yexiang1992/opstool\">opstool</a></font>\r\n  <p align=\"center\"><font size=4 color=YellowGreen>modelling, visualization, post-processing for OpenSeesPy.</font></p>\r\n</p>\r\n\r\n``opstool`` is a useful toolbox package to help ``OpenSeesPy`` *modelling*, *visualization*, *post-processing of results*, etc. The package is still under development and currently mainly supports *visualization*.\r\n\r\nTo use, install `opstool` from [pypi]([opstool \u8def PyPI](https://pypi.org/project/opstool/)):\r\n\r\n```\r\npip install --upgrade opstool\r\n```\r\n\r\n#### Document\r\n\r\nThis document and the [`tests/`](https://github.com/yexiang1992/opstool/tree/master/tests)\r\ndirectory contain many small examples. See\r\n[here]() for the full documentation.\r\n\r\n#### Vis Module\r\n\r\n```python\r\nimport openseespy.opensees as ops\r\nfrom opstool.preprocessing import gen_grav_load\r\nfrom opstool.vis import GetFEMdata, OpenSeesVis\r\nfrom opstool import load_ops_examples\r\n\r\nload_ops_examples(\"CableStayedBridge\")\r\n```\r\n\r\n```python\r\nModelData = GetFEMdata()\r\nModelData.get_model_data()\r\nModelData.get_eigen_data(mode_tag=15)\r\nopsv = OpenSeesVis(point_size=2, line_width=3, colors_dict=None, theme=\"plotly\",\r\n                   color_map=\"jet\", on_notebook=False, results_dir=\"opstool_output\")\r\nopsv.model_vis(show_node_label=False, show_ele_label=False,\r\n               show_local_crd=True, label_size=8,\r\n               show_outline=True,\r\n               opacity=1.0,\r\n               save_html='ModelVis.html')\r\n```\r\n\r\nYou will get a HTML file geneted by ``plotly``  as fllows:\r\n\r\n![CableBridgeModelVis.png](https://s2.loli.net/2022/12/02/iPhmRDaO83AVkbv.png)\r\n\r\nYou can also display the **eigen analysis**:\r\n\r\n<!--pytest-codeblocks:skip-->\r\n\r\n```python\r\nopsv.eigen_vis(mode_tags=[1, 9], subplots=True,\r\n               alpha=None, show_outline=False,\r\n               show_origin=False, opacity=1.0,\r\n               show_face_line=False, save_html=\"EigenVis\")\r\n```\r\n\r\n![CableBridgeEigenVis.png](https://s2.loli.net/2022/12/02/3UzvQldb8CSIYJw.png)\r\n\r\n**Deformation**\r\n\r\n```python\r\n# apply gravity load\r\ngen_grav_load(ts_tag=10, pattern_tag=10,\r\n              g=9.81, factor=-1.0, direction=\"Z\")\r\n# analysis set\r\nNsteps = 10\r\nops.wipeAnalysis()\r\nops.system('BandGeneral')\r\nops.constraints('Transformation')\r\nops.numberer('RCM')\r\nops.test('NormDispIncr', 1.0e-12, 10, 3)\r\nops.algorithm('Linear')\r\nops.integrator('LoadControl', 1 / Nsteps)\r\nops.analysis('Static')\r\n# save data\r\nModelData.reset_steps_state()\r\nfor i in range(Nsteps):\r\n    a = ops.analyze(1)\r\n    ModelData.get_node_resp_step(analysis_tag=1,\r\n                                 num_steps=Nsteps,\r\n                                 model_update=False)\r\n    ModelData.get_frame_resp_step(analysis_tag=1, num_steps=Nsteps,)\r\n\r\n\r\n# display\r\nopsv.deform_vis(analysis_tag=1, slider=True,\r\n                response=\"disp\", alpha=None,\r\n                show_outline=False, show_origin=True,\r\n                show_face_line=False, opacity=1,\r\n                save_html=\"DefoVis\",\r\n                model_update=False)\r\n```\r\n\r\n![CableBridgeDefoVis.png](https://s2.loli.net/2022/12/02/qV2XzOkiMQTRl5D.png)\r\n\r\n**Frame element forces**\r\n\r\n```python\r\nopsv.frame_resp_vis(analysis_tag=1,\r\n                    ele_tags=None,\r\n                    slider=False,\r\n                    response=\"My\",\r\n                    show_values=False,\r\n                    alpha=None,\r\n                    opacity=1,\r\n                    save_html=\"FrameRespVis\")\r\n```\r\n\r\n![](https://s2.loli.net/2022/12/02/5rWeYB6Uw4Si31d.png)\r\n\r\n#### Fiber section vis\r\n\r\n```python\r\nimport numpy as np\r\nimport openseespy.opensees as ops\r\nfrom opstool import load_ops_examples\r\nfrom opstool.vis import GetFEMdata, FiberSecVis\r\n\r\n\r\nload_ops_examples(\"SDOF\")\r\n\r\nFEMdata = GetFEMdata()\r\nFEMdata.get_fiber_data([(1, 1)])\r\nvis = FiberSecVis(ele_tag=1, sec_tag=1, opacity=1, colormap='viridis')\r\nvis.sec_vis(mat_color={1: 'gray', 2: 'orange', 3: 'black'})\r\n```\r\n\r\n![FiberSecVis.png](https://s2.loli.net/2022/12/03/jwvVecT3GCWbdBI.png)\r\n\r\n```python\r\n# --------------------------------------------------\r\n# dynamic load\r\nops.rayleigh(0.0, 0.0, 0.0, 0.000625)\r\nops.loadConst('-time', 0.0)\r\n\r\n# applying Dynamic Ground motion analysis\r\ndt = 0.02\r\nttot = 5\r\nnpts = int(ttot / dt)\r\nx = np.linspace(0, ttot, npts)\r\ndata = np.sin(2 * np.pi * x)\r\nops.timeSeries('Path', 2, '-dt', dt, '-values', *data, '-factor', 9.81)\r\n# how to give accelseriesTag?\r\nops.pattern('UniformExcitation', 2, 1, '-accel', 2)\r\n# how to give accelseriesTag?\r\nops.pattern('UniformExcitation', 3, 2, '-accel', 2)\r\n\r\nops.wipeAnalysis()\r\nops.system('BandGeneral')\r\n# Create the constraint handler, the transformation method\r\nops.constraints('Transformation')\r\n# Create the DOF numberer, the reverse Cuthill-McKee algorithm\r\nops.numberer('RCM')\r\nops.test('NormDispIncr', 1e-8, 10)\r\nops.algorithm('Linear')\r\nops.integrator('Newmark', 0.5, 0.25)\r\nops.analysis('Transient')\r\n\r\nfor i in range(npts):\r\n    ops.analyze(1, dt)\r\n    FEMdata.get_fiber_resp_step(analysis_tag=1, num_steps=npts)\r\n\r\nvis.resp_vis(analysis_tag=1, step=None,\r\n             show_variable='strain',\r\n             show_mats=[1, 2, 3],)\r\n```\r\n\r\n![FiberSecVis2.png](https://s2.loli.net/2022/12/03/NQ5VOA6iUFtY9af.png)\r\n\r\n#### Section Mesh\r\n\r\n```python\r\nimport numpy as np\r\nfrom opstool.preprocessing import SecMesh, add_material, add_polygon, add_circle, offset, Rebars\r\n```\r\n\r\n```python\r\n# Case 5\r\noutlines = [[0.5, 0], [7.5, 0], [8, 0.5], [8, 4.5],\r\n            [7.5, 5], [0.5, 5], [0, 4.5], [0, 0.5]]\r\ncover_d = 0.08\r\ncoverlines = offset(outlines, d=cover_d)\r\ncover = add_polygon(outlines, holes=[coverlines])\r\nholelines1 = [[1, 1], [3.5, 1], [3.5, 4], [1, 4]]\r\nholelines2 = [[4.5, 1], [7, 1], [7, 4], [4.5, 4]]\r\ncore = add_polygon(coverlines, holes=[holelines1, holelines2])\r\nsec = SecMesh()\r\nsec.assign_group(dict(cover=cover, core=core))\r\nsec.assign_mesh_size(dict(cover=0.2, core=0.4))\r\nsec.assign_group_color(dict(cover=\"gray\", core=\"green\"))\r\nsec.assign_ops_matTag(dict(cover=1, core=2))\r\nsec.mesh()\r\n# add rebars\r\nrebars = Rebars()\r\nrebar_lines1 = offset(outlines, d=cover_d + 0.032 / 2)\r\nrebars.add_rebar_line(\r\n    points=rebar_lines1, dia=0.032, gap=0.15, color=\"red\", matTag=3\r\n)\r\nrebar_lines2 = offset(holelines1, d=-(0.05 + 0.02 / 2))\r\nrebars.add_rebar_line(\r\n    points=rebar_lines2, dia=0.020, gap=0.2, color=\"black\", matTag=3\r\n)\r\nrebar_lines3 = offset(holelines2, d=-(0.05 + 0.02 / 2))\r\nrebars.add_rebar_line(\r\n    points=rebar_lines3, dia=0.020, gap=0.2, color=\"black\", matTag=3\r\n)\r\n# add to the sec\r\nsec.add_rebars(rebars)\r\nsec_props = sec.get_sec_props(display_results=True, plot_centroids=False)\r\nsec.centring()\r\n# sec.rotate(45)\r\nsec.view(fill=True, engine='plotly', save_html=\"SecMesh.html\")\r\nG = 10000\r\nsec.to_file(\"mysec.py\", secTag=1, GJ=G * sec_props['J'])\r\n```\r\n\r\n![SecMesh.png](https://s2.loli.net/2022/12/03/Jla3yTh1QxVZ9pk.png) \r\n\r\n### License\r\n\r\nThis software is published under the [GPLv3 license](https://www.gnu.org/licenses/gpl-3.0.en.html).\r\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -185,7 +184,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15995305,
+        "last_serial": 16021339,
         "urls": [
             {
                 "comment_text": "",
@@ -204,6 +203,95 @@
                 "upload_time": "2022-12-05T13:10:37",
                 "upload_time_iso_8601": "2022-12-05T13:10:37.701141Z",
                 "url": "https://files.pythonhosted.org/packages/0c/81/233c87f256ef9758b7b142547644dceb107bb3d069392e9e41d0aca8b8cb/opstool-0.0.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.6": {
+        "info": {
+            "author": "Yexiang Yan",
+            "author_email": "yexiang_yan@outlook.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "<p align=\"center\">\n  <font size=7><a href=\"https://github.com/yexiang1992/opstool\">opstool</a></font>\n  <p align=\"center\"><font size=5 color=YellowGreen>modelling, visualization, post-processing for OpenSeesPy.</font></p>\n</p>\n\n``opstool`` is a useful toolbox package aims to help [OpenSeesPy](https://openseespydoc.readthedocs.io/en/latest/) *modelling*, *visualization*, *post-processing of results*, etc. \nThe package is still under development.\n\nTo use, install `opstool` from [opstool-PyPI](https://pypi.org/project/opstool/):\n\n```python\npip install --upgrade opstool\n```\n\n### Document\n\nSee [here](https://opstool.readthedocs.io/en/latest/index.html) for the full documentation.\n\n### Vis Module\n\n#### Based on [plotly](https://plotly.com/python/)\n\n![CableBridgeModelVis.png](https://s2.loli.net/2022/12/02/iPhmRDaO83AVkbv.png)\n![CableBridgeEigenVis.png](https://s2.loli.net/2022/12/02/3UzvQldb8CSIYJw.png)\n![CableBridgeDefoVis.png](https://s2.loli.net/2022/12/02/qV2XzOkiMQTRl5D.png)\n\n#### Based on [pyvista](https://docs.pyvista.org/)\n\n![None.png](https://s2.loli.net/2022/12/07/TElXvIoDZFAfysc.png)\n![None.png](https://s2.loli.net/2022/12/07/bMqL2kKHpN4XBeZ.png)\n![EigenAnimation.gif](https://s2.loli.net/2022/12/07/akOEebwrNZCuj2V.gif)\n![DefoAnimation.gif](https://s2.loli.net/2022/12/07/KVEYO6eC8hlWvXg.gif)\n\n### Fiber section vis\n\n![FiberSecVis.png](https://s2.loli.net/2022/12/03/jwvVecT3GCWbdBI.png)\n![FiberSecVis2.png](https://s2.loli.net/2022/12/03/NQ5VOA6iUFtY9af.png)\n\n### Fiber Section Mesh Generation\n![SecMesh.png](https://s2.loli.net/2022/12/03/Jla3yTh1QxVZ9pk.png) \n\n### License\n\nThis software is published under the [GPLv3 license](https://www.gnu.org/licenses/gpl-3.0.en.html).\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/yexiang1992",
+            "keywords": "opensees seismic",
+            "license": "GPL Licence",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "opstool",
+            "package_url": "https://pypi.org/project/opstool/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/opstool/",
+            "project_urls": {
+                "Homepage": "https://github.com/yexiang1992"
+            },
+            "release_url": "https://pypi.org/project/opstool/0.0.6/",
+            "requires_dist": [
+                "matplotlib",
+                "numpy",
+                "openseespy",
+                "plotly",
+                "sectionproperties",
+                "Shapely"
+            ],
+            "requires_python": ">=3.9.*",
+            "summary": "opensees toolbox",
+            "version": "0.0.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16021339,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "806ce8048ad7808806aecc29ec7e07db",
+                    "sha256": "a31b5d9e903ec976a079ba3b69ed4d34748365944c65b2da50deaae7e8314b9a"
+                },
+                "downloads": -1,
+                "filename": "opstool-0.0.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "806ce8048ad7808806aecc29ec7e07db",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.9.*",
+                "size": 344945,
+                "upload_time": "2022-12-07T14:46:38",
+                "upload_time_iso_8601": "2022-12-07T14:46:38.304159Z",
+                "url": "https://files.pythonhosted.org/packages/86/79/00feb8d22e8b97ae26f668e0f8838dcf1c4556142ffbc015e0c32cac5462/opstool-0.0.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9e93635348ae5d218323dcf0837893ca",
+                    "sha256": "5848f76a6fa3b798850326705b67265a5c513c73d2d011e95c65729d99e47473"
+                },
+                "downloads": -1,
+                "filename": "opstool-0.0.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "9e93635348ae5d218323dcf0837893ca",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9.*",
+                "size": 337000,
+                "upload_time": "2022-12-07T14:46:40",
+                "upload_time_iso_8601": "2022-12-07T14:46:40.529560Z",
+                "url": "https://files.pythonhosted.org/packages/2a/df/33978ca38d969f4c32a47b5d12aa201be74016eef2cd9a03b301d8868f58/opstool-0.0.6.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
