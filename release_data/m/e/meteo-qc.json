@@ -40,7 +40,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16020964,
+        "last_serial": 16040026,
         "urls": [
             {
                 "comment_text": "",
@@ -126,7 +126,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16020964,
+        "last_serial": 16040026,
         "urls": [
             {
                 "comment_text": "",
@@ -182,7 +182,6 @@
                 "Programming Language :: Python :: 3 :: Only",
                 "Programming Language :: Python :: Implementation :: CPython"
             ],
-            "description": "[![ci](https://github.com/theendlessriver13/meteo-qc/actions/workflows/ci.yaml/badge.svg)](https://github.com/theendlessriver13/meteo-qc/actions/workflows/ci.yaml)\n[![docs](https://github.com/theendlessriver13/meteo-qc/actions/workflows/docs.yaml/badge.svg)](https://github.com/theendlessriver13/meteo-qc/actions/workflows/docs.yaml)\n[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/theendlessriver13/meteo-qc/main.svg)](https://results.pre-commit.ci/latest/github/theendlessriver13/meteo-qc/main)\n\n# meteo-qc\n\n`meteo_qc` is a customizable framework for applying quality checks to meteorological\ndata. The framework can be easily extended by registering custom functions/plugins.\n\n## Installation\n\nTo install **meteo-qc**, open an interactive shell and run\n\n```console\npip install meteo-qc\n```\n\n## Getting started\n\nCheck out the [Documentation](https://theendlessriver13.github.io/meteo-qc) for\ndetailed information.\n\nApply the quality control to this csv data called `test_data.csv`:\n\n```\ndate,temp,pressure_reduced\n2022-01-01 10:00:00,1,600\n2022-01-01 10:10:00,2,1024\n2022-01-01 10:20:00,3,1024\n2022-01-01 10:30:00,4,1090\n2022-01-01 10:50:00,4,\n2022-01-01 11:00:00,,1024\n2022-01-01 11:10:00,2,1024\n2022-01-01 11:20:00,3,1024\n2022-01-01 11:30:00,4,1090\n2022-01-01 11:40:00,4,1090\n```\n\n1. Read in the data as a `pd.DataFrame`.\n1. Create a [`meteo_qc.ColumnMapping`](https://theendlessriver13.github.io/meteo-qc/meteo_qc.html#meteo_qc.ColumnMapping)\n   object and use the column names as keys to use the method `add_group` to add\n   the column to the group\n   ([`temperature`](https://theendlessriver13.github.io/meteo-qc/groups.html#temperature)\n   or [`pressure`](https://theendlessriver13.github.io/meteo-qc/groups.html#pressure)).\n   This can be an existing group or a new group.\n1. Call [`meteo_qc.apply_qc`](https://theendlessriver13.github.io/meteo-qc/meteo_qc.html#meteo_qc.apply_qc)\n   to apply the control to the DataFrame `data` using the `column_mapping` as a\n   definition for the checks to be applied.\n\n```python\nimport pandas as pd\nimport meteo_qc\n\n# read in the data\ndata = pd.read_csv('test_data.csv', index_col=0, parse_dates=True)\n\n# map the columns to groups\ncolumn_mapping = meteo_qc.ColumnMapping()\ncolumn_mapping['temp'].add_group('temperature')\ncolumn_mapping['pressure_reduced'].add_group('pressure')\n\n# apply the quality control\nresult = meteo_qc.apply_qc(df=data, column_mapping=column_mapping)\nprint(result)\n```\n\nThis will result in this object which can be used to display the result in a\nnice way e.g. using an `html` template to render it.\n\n```python\n{\n    'columns': defaultdict(<function apply_qc.<locals>.<lambda> at 0x7f9b0edd5480>, {\n        'temp': {\n            'results': {\n                'missing_timestamps': Result(\n                    function='missing_timestamps',\n                    passed=False,\n                    msg='missing 1 timestamps (assumed frequency: 10T)',\n                    data=None,\n                ),\n                'null_values': Result(\n                    function='null_values',\n                    passed=False,\n                    msg='found 1 values that are null',\n                    data=[[1641034800000, None, True]],\n                ),\n                'range_check': Result(\n                    function='range_check',\n                    passed=True,\n                    msg=None,\n                    data=None,\n                ),\n                'spike_dip_check': Result(\n                    function='spike_dip_check',\n                    passed=True,\n                    msg=None,\n                    data=None,\n                ),\n                'persistence_check': Result(\n                    function='persistence_check',\n                    passed=True,\n                    msg=None,\n                    data=None,\n                )\n            },\n            'passed': False,\n        },\n        'pressure_reduced': {\n            'results': {\n                'missing_timestamps': Result(\n                    function='missing_timestamps',\n                    passed=False,\n                    msg='missing 1 timestamps (assumed frequency: 10T)',\n                    data=None,\n                ),\n                'null_values': Result(\n                    function='null_values',\n                    passed=False,\n                    msg='found 1 values that are null',\n                    data=[[1641034200000, None, True]],\n                ),\n                'range_check': Result(\n                    function='range_check',\n                    passed=False,\n                    msg='out of allowed range of [860 - 1055]',\n                    data=[[1641031200000, 600.0, True], [1641033000000, 1090.0, True], [1641036600000, 1090.0, True], [1641037200000, 1090.0, True]],\n                ),\n                'spike_dip_check': Result(\n                    function='spike_dip_check',\n                    passed=False,\n                    msg='spikes or dips detected. Exceeded allowed delta of 0.3 / min',\n                    data=[[1641031800000, 1024.0, True], [1641033000000, 1090.0, True], [1641034200000, None, True], [1641036600000, 1090.0, True]],\n                ),\n                'persistence_check': Result(\n                    function='persistence_check',\n                    passed=True,\n                    msg=None,\n                    data=None,\n                )\n            },\n            'passed': False\n        }\n    }),\n    'passed': False,\n    'data_start_date': 1641031200000,\n    'data_end_date': 1641037200000,\n}\n```\n\nIt is also possible to write and register your own functions if they are not\nalready in the predefined [Groups](https://theendlessriver13.github.io/meteo-qc/groups.html).\nPlease check out the [Docs](https://theendlessriver13.github.io/meteo-qc) for\nmore information.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -213,7 +212,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16020964,
+        "last_serial": 16040026,
         "urls": [
             {
                 "comment_text": "",
@@ -252,6 +251,93 @@
                 "upload_time": "2022-12-07T14:04:30",
                 "upload_time_iso_8601": "2022-12-07T14:04:30.936796Z",
                 "url": "https://files.pythonhosted.org/packages/7d/fc/03742ca50276fcd233326f179ea0d8078aaa132047f478a3b757ec040076/meteo_qc-0.2.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.0": {
+        "info": {
+            "author": "Jonas Kittner",
+            "author_email": "theendlessriver13@users.noreply.github.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: Implementation :: CPython"
+            ],
+            "description": "[![ci](https://github.com/theendlessriver13/meteo-qc/actions/workflows/ci.yaml/badge.svg)](https://github.com/theendlessriver13/meteo-qc/actions/workflows/ci.yaml)\n[![docs](https://github.com/theendlessriver13/meteo-qc/actions/workflows/docs.yaml/badge.svg)](https://github.com/theendlessriver13/meteo-qc/actions/workflows/docs.yaml)\n[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/theendlessriver13/meteo-qc/main.svg)](https://results.pre-commit.ci/latest/github/theendlessriver13/meteo-qc/main)\n\n# meteo-qc\n\n`meteo_qc` is a customizable framework for applying quality checks to meteorological\ndata. The framework can be easily extended by registering custom functions/plugins.\n\n## Installation\n\nTo install **meteo-qc**, open an interactive shell and run\n\n```console\npip install meteo-qc\n```\n\n## Getting started\n\nCheck out the [Documentation](https://theendlessriver13.github.io/meteo-qc) for\ndetailed information.\n\nApply the quality control to this csv data called `test_data.csv`:\n\n```\ndate,temp,pressure_reduced\n2022-01-01 10:00:00,1,600\n2022-01-01 10:10:00,2,1024\n2022-01-01 10:20:00,3,1024\n2022-01-01 10:30:00,4,1090\n2022-01-01 10:50:00,4,\n2022-01-01 11:00:00,,1024\n2022-01-01 11:10:00,2,1024\n2022-01-01 11:20:00,3,1024\n2022-01-01 11:30:00,4,1090\n2022-01-01 11:40:00,4,1090\n```\n\n1. Read in the data as a `pd.DataFrame`.\n1. Create a [`meteo_qc.ColumnMapping`](https://theendlessriver13.github.io/meteo-qc/meteo_qc.html#meteo_qc.ColumnMapping)\n   object and use the column names as keys to use the method `add_group` to add\n   the column to the group\n   ([`temperature`](https://theendlessriver13.github.io/meteo-qc/groups.html#temperature)\n   or [`pressure`](https://theendlessriver13.github.io/meteo-qc/groups.html#pressure)).\n   This can be an existing group or a new group.\n1. Call [`meteo_qc.apply_qc`](https://theendlessriver13.github.io/meteo-qc/meteo_qc.html#meteo_qc.apply_qc)\n   to apply the control to the DataFrame `data` using the `column_mapping` as a\n   definition for the checks to be applied.\n\n```python\nimport pandas as pd\nimport meteo_qc\n\n# read in the data\ndata = pd.read_csv('test_data.csv', index_col=0, parse_dates=True)\n\n# map the columns to groups\ncolumn_mapping = meteo_qc.ColumnMapping()\ncolumn_mapping['temp'].add_group('temperature')\ncolumn_mapping['pressure_reduced'].add_group('pressure')\n\n# apply the quality control\nresult = meteo_qc.apply_qc(df=data, column_mapping=column_mapping)\nprint(result)\n```\n\nThis will result in this object which can be used to display the result in a\nnice way e.g. using an `html` template to render it.\n\n```python\n{\n    'columns': defaultdict(<function apply_qc.<locals>.<lambda> at 0x7f9b0edd5480>, {\n        'temp': {\n            'results': {\n                'missing_timestamps': Result(\n                    function='missing_timestamps',\n                    passed=False,\n                    msg='missing 1 timestamps (assumed frequency: 10T)',\n                    data=None,\n                ),\n                'null_values': Result(\n                    function='null_values',\n                    passed=False,\n                    msg='found 1 values that are null',\n                    data=[[1641034800000, None, True]],\n                ),\n                'range_check': Result(\n                    function='range_check',\n                    passed=True,\n                    msg=None,\n                    data=None,\n                ),\n                'spike_dip_check': Result(\n                    function='spike_dip_check',\n                    passed=True,\n                    msg=None,\n                    data=None,\n                ),\n                'persistence_check': Result(\n                    function='persistence_check',\n                    passed=True,\n                    msg=None,\n                    data=None,\n                )\n            },\n            'passed': False,\n        },\n        'pressure_reduced': {\n            'results': {\n                'missing_timestamps': Result(\n                    function='missing_timestamps',\n                    passed=False,\n                    msg='missing 1 timestamps (assumed frequency: 10T)',\n                    data=None,\n                ),\n                'null_values': Result(\n                    function='null_values',\n                    passed=False,\n                    msg='found 1 values that are null',\n                    data=[[1641034200000, None, True]],\n                ),\n                'range_check': Result(\n                    function='range_check',\n                    passed=False,\n                    msg='out of allowed range of [860 - 1055]',\n                    data=[[1641031200000, 600.0, True], [1641033000000, 1090.0, True], [1641036600000, 1090.0, True], [1641037200000, 1090.0, True]],\n                ),\n                'spike_dip_check': Result(\n                    function='spike_dip_check',\n                    passed=False,\n                    msg='spikes or dips detected. Exceeded allowed delta of 0.3 / min',\n                    data=[[1641031800000, 1024.0, True], [1641033000000, 1090.0, True], [1641034200000, None, True], [1641036600000, 1090.0, True]],\n                ),\n                'persistence_check': Result(\n                    function='persistence_check',\n                    passed=True,\n                    msg=None,\n                    data=None,\n                )\n            },\n            'passed': False\n        }\n    }),\n    'passed': False,\n    'data_start_date': 1641031200000,\n    'data_end_date': 1641037200000,\n}\n```\n\nIt is also possible to write and register your own functions if they are not\nalready in the predefined [Groups](https://theendlessriver13.github.io/meteo-qc/groups.html).\nPlease check out the [Docs](https://theendlessriver13.github.io/meteo-qc) for\nmore information.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/theendlessriver13/meteo-qc",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "meteo-qc",
+            "package_url": "https://pypi.org/project/meteo-qc/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/meteo-qc/",
+            "project_urls": {
+                "Homepage": "https://github.com/theendlessriver13/meteo-qc"
+            },
+            "release_url": "https://pypi.org/project/meteo-qc/0.3.0/",
+            "requires_dist": [
+                "pandas"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "quality control meteorological data in a pandas.DataFrame",
+            "version": "0.3.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16040026,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bc4b28aa1805bfa67391e27ce07867fe",
+                    "sha256": "e174c09c2ac4341c91633c4e84a2176d8ffd6af7a338741cad018622385a479d"
+                },
+                "downloads": -1,
+                "filename": "meteo_qc-0.3.0-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "bc4b28aa1805bfa67391e27ce07867fe",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": ">=3.8",
+                "size": 11871,
+                "upload_time": "2022-12-08T21:07:15",
+                "upload_time_iso_8601": "2022-12-08T21:07:15.939855Z",
+                "url": "https://files.pythonhosted.org/packages/28/90/8271b10a5814c210f81c3caf34bfa86ca3fbbd6f3389d1f5d37b636b580b/meteo_qc-0.3.0-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b0d6b7cccc09cad3f875421fa122f3e6",
+                    "sha256": "7e8570a6de44a818c93c74546341babf96b2981a384dbaf800f5d32580c832a0"
+                },
+                "downloads": -1,
+                "filename": "meteo_qc-0.3.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "b0d6b7cccc09cad3f875421fa122f3e6",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 10997,
+                "upload_time": "2022-12-08T21:07:17",
+                "upload_time_iso_8601": "2022-12-08T21:07:17.750360Z",
+                "url": "https://files.pythonhosted.org/packages/ba/e8/20168e286cec0711ec4d13f0583de00e4a4bfb71e41d489c89772f79c225/meteo_qc-0.3.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -37,7 +37,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16022653,
+        "last_serial": 16040361,
         "urls": [
             {
                 "comment_text": "",
@@ -92,7 +92,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# pyguarantees\n\nThis package has two components: \n\n- `test_guarantees`: guarantee unittest-coverage.\n- `functional_guarantees`: guarantee types and other properties for parameters and return values of callables &ndash; \nfunctions and methods. \n\n\n# test_guarantees\n\nUse this package to help you remember what unittests you still have to write, \nin case a short script without unittests suddenly becomes permanent, or you change \nsomething about your `TestCase`s, or you simply want to make sure that any function\nand method that should be tested will have a test written for it, and (optionally) \nthat it will actually be used in that test.\n\n## Example\n\n```python \nimport unittest\nfrom pyguarantees import test_guarantees as tg\nfrom some_package import some_fct_with_test_guarantee\n \n\n@tg.guarantee_test()\ndef foo():\n    pass\n\n\n@tg.guarantee_test()\n@tg.guarantee_usage()\ndef add_one(a):\n  return a + 1\n\n\nclass ExampleTest(unittest.TestCase):\n  @tg.implements_test_for(foo)\n  def test_foo(self):\n      foo()\n\n  @tg.implements_test_for(add_one, some_fct_with_test_guarantee)\n  def test_other(self):\n    val = foo(1)\n    self.assertEqual(val, 2)\n    \n    \nif __name__ == '__main__':\n    tg.main()\n```\n\nAs in the example, `pyguarantees.test_guarantees` will be abbreviated with `tg` from here on out.\n\nFailing to use an [@tg.implements_test_for](#implements_test_for) for a function or method decorated with [@tg.guarantee_test](#guarantee_test)\nleads to a [tg.exceptions.TestsNotImplementedError](#testsnotimplementederror), while failing to use this function or method in the \ncorresponding test will lead to a [tg.exceptions.NotUsedInTestsError](#notusedintestserror) if it is decorated by \n[@tg.guarantee_usage](#guarantee_usage). These exceptions are only raised if the `unittest.TestCase`s are called first \nand then checked by [tg.enforce](#enforce), or [tg.main](#main) is called to do both automatically.\n\nCurrently doesn't work with functions nested inside of methods. This will be fixed at some point.\n\nThe package consists of three decorators and two functions, as well as two `Exception`s.\nAll are explained below.\n\n\n## Decorators\n\nThe three decorators shown below have no effect without the [functions](#functions) \nof this package.\n\n\n### guarantee_test\n\nTakes no arguments.\n\nAny function or method (except, for the moment, functions nested inside of methods) \ndecorated with `@tg.guarantee_test`\nthat is in the scope of unittest will force unittest to throw and exception should \nit not be in an [@tg.implements_test_for](#implements_test_for).\n\nCurrently, it is necessary to include the brackets &ndash; `()` &ndash; so that \nthe function is registered. This executes the decorator once but not the callable that \nit decorates, making it computationally inexpensive.\n\nHaving a function (or method) decorated like follows:\n\n```python\n@tg.guarantee_test()\ndef foo():\n    pass\n```\n\nbut not having a test in your `unittest.TestCase` decorated by `@implements_test_for(foo)` \nwould lead to a [TestsNotImplementedError](#testsnotimplementederror) being raised.\n\n\n### guarantee_usage\n\nTakes no arguments.\n\nMust be used below [@tg.guarantee_test](#guarantee_test), otherwise it is ignored.\n\nJust like with `@tg.guarantee_test`, brackets are not optional, but the execution of \nthe decorator is computationally inexpensive.\n\nA function decorated as follows:\n\n```python \n@tg.guarantee_test()\n@tg.guarantee_usage()\ndef foo():\n    pass\n```\n\nwith a unittest that looks something like this:\n\n```python \nclass TestExample(unittest.TestCase):\n    @tg.implements_test_for(foo)\n    def test_foo(self):\n        ...   # some code that doesn't call foo\n```\n\nwould lead to a [NotUsedInTestsError](#notusedintestserror) being raised. \n\nIn this scenario, if `foo` is an argument in several \n[@tg.implements_test_for](#implements_test_for),\n`@tg.guarantee_usage` makes certain that `foo` is used in every test-function \ndecorated in such a way.\n\n\n### implements_test_for\n\n- `args`: Give any function or method that the corresponding test is meant for.\n- `kwargs`: The value will be used like an `arg`, while the key will be ignored.\n\nFunctions and methods that weren't decorated by [@tg.guarantee_test](#guarantee_test) \nlead to a user-warning but are ignored otherwise.\n\nUsage might look as follows:\n\n```python \nclass TestExample(unittest.TestCase):\n    @implements_test_for(function1, function2, this_key_is_ignored=function3)\n    def test_example(self):\n        ...\n```\n\n## Functions\n\nTwo functions are provided by `pyguarantees.test_guarantees`, both directly under\n`tg`. At least one has to be used for the [decorators](#decorators)\nto have an effect. \n\n### enforce\n\nTakes no arguments.\n\nRun this after running all your unittests. This runs additional unittests that \ncheck which functions violated their guarantees and raise [exceptions](#exceptions) \naccordingly.\n\nIt is recommended to only use this function when using a complicated unittest-setup.\nWhen using `unittest.main()`, it is recommended to use `tg.main()` instead.\n\n### main\n\nTakes no arguments.\n\nCalls `unittest.main()` followed by [tg.enforce](#enforce).\n\n## Exceptions\n\n`Exception`s are located under `tg.exceptions`.\n\nThere are two custom `Exception`s as presented below.\n\n### TestsNotImplementedError\n\nArguments of `tg.exceptions.TestsNotImplementedError`:\n\n- `functions` (type `callable`): The callables that weren't mentioned in a \n[`@tg.implements_test_for`](#implements_test_for).\n\nMembers of `tg.exceptions.TestsNotImplementedError`:\n\n- `functions` (type `callable`): The callables that weren't mentioned in a \n[`@tg.implements_test_for`](#implements_test_for).\n- `description` (type `str`): The error string printed when the exception is raised\nand not caught.\n\nThe output of raising this exception might look something like:\n\n    <Traceback...>\n\n    pyguarantees.test_guarantees.exceptions.TestsNotImplementedError: \n\n        No tests were implemented for the following methods and functions: \n    \n        1. Missing test-case for the following callable: \n            Name: \t\tfoo\n            Module: \t__main__\n        2. Missing test-case for the following callable: \n            Name: \t\tbar\n            Module: \t__main__\n\n### NotUsedInTestsError\nArguments of `tg.exceptions.NotUsedInTestsError`:\n\n- `functions` (type: `callable`): The callables that were mentioned in a \n[`@tg.implements_test_for`](#implements_test_for) but not used in the corresponding\ntest.\n\nMembers of `tg.exceptions.NotUsedInTestsError`:\n\n- `functions` (type: `callable`): The callables that were mentioned in a \n[`@tg.implements_test_for`](#implements_test_for) but not used in the corresponding\ntest.\n- `description` (type: `str`): The error string printed when the exception is raised\nand not caught.\n\nA possible error message might look like the following:\n    \n    <Traceback...>\n\n    pyguarantees.test_guarantees.exceptions.NotUsedInTestsError:\n\n    The following methods and functions were not executed in their assigned tests: \n\n\t1. The following callable was not called in its assigned tests: \n\t\tName: \t\tfoo\n\t\tModule: \t__main__\n\t\tThis callable is tested but not called in the following test-cases: \n\t\t\t\t\t- Name: \tTestFoo.test_foo1\n\t\t\t\t\t   Module: \t__main__\n\t\t\t\t\t- Name: \tTestFoo.test_foo2\n\t\t\t\t\t   Module: \t__main__\n\t2. The following callable was not called in its assigned tests: \n\t\tName: \t\tbar\n\t\tModule: \tsome_module\n\t\tThis callable is tested but not called in the following test-cases: \n\t\t\t\t\t- Name: \tTestBar.test_bar\n\t\t\t\t\t   Module: \ttest_some_module\n\n\n# functional_guarantees\n\nFew things are more useful in programming than the ability to constrain a program's possible behaviors \nand communicate those constraints clearly in code. Statically typed languages do this with types, scope modifiers, \nand lifetime modifiers, among others. These are static constraints&mdash;or static guarantees&mdash;in that \nthey are evaluated statically, before runtime.\n\nOftentimes, a program also has dynamic guarantees, evaluated during runtime. A function dealing with division, for example, has to deal with the \nspecial case of denominator of zero. \n\n`pyguarantees.functional_guarantees`, abbreviated with `fg` from here on out, enables both types of guarantees to be \ndefined in Python where they should happen: function (or method) signatures. This is where statically typed \nlanguages put their static guarantees (a typical function signature looks something like \n`scope-etc-modifiers return-type function-name(parameter-type parameter-name)`) and where in my opinion, dynamic \nguarantees belong as well.\n\nThis might have the following advantages:\n- Make code more readable by having constraints in a predefined place.\n- Make code easier to write by providing important information about and API in a glancable way.\n- Make it possible to include information on dynamic constraints in automatically generated documentation.\n- Encourage programmers to think about these constraints. \n\nThis package is an attempt to open up at least some of these advantages to Python-users at least partially, \ngiven the constraints of the Python-language. \n\n## Example \n\n```python\nimport numpy as np\nfrom pyguarantees import functional_guarantees as fg\n\nfrom your_module import your_custom_error_callback\n\n\n# One of many built-in guarantees using one of many built-in options\n@fg.add_guarantees(param_guarantees=[fg.IsInt(\"num\", minimum=3)])\ndef add_one(num):\n    return num + 1 \n\n\n# Use fg.IsClass to guarantee all types and classes that don't have specific guarantees \n#  in fg. If they do, it is recommended to use those specific guarantees.\n@fg.add_guarantees(\n    param_guarantees=[\n        fg.IsClass(\n            \"X\", \n            class_type=np.ndarray,\n            check_functions=[\n                lambda x: x.min() > 0,\n                lambda x: x.var() < 5,\n                lambda x: x.shape == (3, 80, 80)\n            ],\n            error_callback=your_custom_error_callback \n        ),\n        fg.IsClass(\"mean\", class_type=np.ndarray),\n        fg.IsClass(\"std\", class_type=np.ndarray)\n    ],\n    return_guarantee=fg.IsClass(\"\", class_type=np.ndarray)\n)\ndef normalize(X, mean, std):\n    return (X - mean) / std\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -121,7 +120,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16022653,
+        "last_serial": 16040361,
         "urls": [
             {
                 "comment_text": "",
@@ -160,6 +159,339 @@
                 "upload_time": "2022-12-07T16:43:08",
                 "upload_time_iso_8601": "2022-12-07T16:43:08.498157Z",
                 "url": "https://files.pythonhosted.org/packages/63/04/0ba3aa7539b4995464678a7b74602b020c396cbb9384cb98f820f8edbd78/pyguarantees-0.0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.3": {
+        "info": {
+            "author": "",
+            "author_email": "Sebastian Mueller <sebastian.nicolas.mueller@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pyguarantees",
+            "package_url": "https://pypi.org/project/pyguarantees/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pyguarantees/",
+            "project_urls": {
+                "Homepage": "https://github.com/snimu/guarantees"
+            },
+            "release_url": "https://pypi.org/project/pyguarantees/0.0.3/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "Guarantee tests, guarantee types and their properties",
+            "version": "0.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16040361,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6cc7522ab39a27f493d7a644061b6220",
+                    "sha256": "a11fd2149cdad872cffb8ca2997488095df51a41d3df42cc9002d21e936464cf"
+                },
+                "downloads": -1,
+                "filename": "pyguarantees-0.0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "6cc7522ab39a27f493d7a644061b6220",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 26110,
+                "upload_time": "2022-12-08T16:55:35",
+                "upload_time_iso_8601": "2022-12-08T16:55:35.619595Z",
+                "url": "https://files.pythonhosted.org/packages/3f/b9/09e36b05fcffa21971da5cefa0e50cd39feb95fa4429bc7f1715bc9a3fc0/pyguarantees-0.0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "dc275f3902a8d5e83bacb93cc480237e",
+                    "sha256": "df8d233c188cd3dc723b2def0ba4de7a49b977ba3a254f59ba9ae0f818ca1488"
+                },
+                "downloads": -1,
+                "filename": "pyguarantees-0.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "dc275f3902a8d5e83bacb93cc480237e",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 20690,
+                "upload_time": "2022-12-08T16:55:37",
+                "upload_time_iso_8601": "2022-12-08T16:55:37.397558Z",
+                "url": "https://files.pythonhosted.org/packages/f6/1a/e763aa0cfd1b4bf93b0d69b91a197d1e755d439e0be6c7eb6d77f7f59635/pyguarantees-0.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.4": {
+        "info": {
+            "author": "",
+            "author_email": "Sebastian Mueller <sebastian.nicolas.mueller@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pyguarantees",
+            "package_url": "https://pypi.org/project/pyguarantees/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pyguarantees/",
+            "project_urls": {
+                "Homepage": "https://github.com/snimu/guarantees"
+            },
+            "release_url": "https://pypi.org/project/pyguarantees/0.0.4/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "Guarantee tests, guarantee types and their properties",
+            "version": "0.0.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16040361,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a94fb514999388546f3b06416d363e04",
+                    "sha256": "9f411fb7e30702fc03ce5da822939002ee0e762f945e43953e580f0a5b3b7f67"
+                },
+                "downloads": -1,
+                "filename": "pyguarantees-0.0.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "a94fb514999388546f3b06416d363e04",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 26108,
+                "upload_time": "2022-12-08T17:06:14",
+                "upload_time_iso_8601": "2022-12-08T17:06:14.603479Z",
+                "url": "https://files.pythonhosted.org/packages/c1/cd/c82c9f5a2b9c1e818a62b7391d30004c86bac2999225395596fc40330639/pyguarantees-0.0.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2e52a6523c4a6e2dee2cbf73d3085f39",
+                    "sha256": "7b9dc30197138f25a958287960580a093c3c823a46f1ec24c7de2d8355bca217"
+                },
+                "downloads": -1,
+                "filename": "pyguarantees-0.0.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "2e52a6523c4a6e2dee2cbf73d3085f39",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 20694,
+                "upload_time": "2022-12-08T17:06:17",
+                "upload_time_iso_8601": "2022-12-08T17:06:17.003016Z",
+                "url": "https://files.pythonhosted.org/packages/c3/3f/c77cb985b01c45a6aebcb9abf2b6183fd6c3ec079f68322bbec9b1f9a00d/pyguarantees-0.0.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.5": {
+        "info": {
+            "author": "",
+            "author_email": "Sebastian Mueller <sebastian.nicolas.mueller@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pyguarantees",
+            "package_url": "https://pypi.org/project/pyguarantees/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pyguarantees/",
+            "project_urls": {
+                "Homepage": "https://github.com/snimu/guarantees"
+            },
+            "release_url": "https://pypi.org/project/pyguarantees/0.0.5/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "Guarantee tests, guarantee types and their properties",
+            "version": "0.0.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16040361,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0b6b3fe8bbffd7ba0441732da035a0c5",
+                    "sha256": "d184f3fc4139b2492e6ac97f967a3ee982d6e1a7921b60b941f85af53f508c52"
+                },
+                "downloads": -1,
+                "filename": "pyguarantees-0.0.5-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "0b6b3fe8bbffd7ba0441732da035a0c5",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 26116,
+                "upload_time": "2022-12-08T17:14:39",
+                "upload_time_iso_8601": "2022-12-08T17:14:39.185038Z",
+                "url": "https://files.pythonhosted.org/packages/fb/46/68b07fcde7ee9062a27b7578eebae81ce0ab458d733d59042fbb0fa0448d/pyguarantees-0.0.5-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7f945c4bfdbfcc0b79ffbca20e594b5b",
+                    "sha256": "2ed46fbf9707358c0d400c9785188a2993dbfcadab9434518afa8f592e9e4f3d"
+                },
+                "downloads": -1,
+                "filename": "pyguarantees-0.0.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7f945c4bfdbfcc0b79ffbca20e594b5b",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 20702,
+                "upload_time": "2022-12-08T17:14:40",
+                "upload_time_iso_8601": "2022-12-08T17:14:40.436644Z",
+                "url": "https://files.pythonhosted.org/packages/81/a1/cb2a244b3aad4f30c56ef78f8344b21f9e16933c66a3f7983c7c294509fc/pyguarantees-0.0.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.6": {
+        "info": {
+            "author": "",
+            "author_email": "Sebastian Mueller <sebastian.nicolas.mueller@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# pyguarantees\n\nThis package has two components: \n\n- `test_guarantees`: guarantee unittest-coverage.\n- `functional_guarantees`: guarantee types and other properties for parameters and return values of callables &ndash; \nfunctions and methods. \n\n\n# test_guarantees\n\nUse this package to help you remember what unittests you still have to write, \nin case a short script without unittests suddenly becomes permanent, or you change \nsomething about your `TestCase`s, or you simply want to make sure that any function\nand method that should be tested will have a test written for it, and (optionally) \nthat it will actually be used in that test.\n\n## Example\n\n```python \nimport unittest\nfrom pyguarantees import test_guarantees as tg\nfrom some_package import some_fct_with_test_guarantee\n \n\n@tg.guarantee_test()\ndef foo():\n    pass\n\n\n@tg.guarantee_test()\n@tg.guarantee_usage()\ndef add_one(a):\n  return a + 1\n\n\nclass ExampleTest(unittest.TestCase):\n  @tg.implements_test_for(foo)\n  def test_foo(self):\n      foo()\n\n  @tg.implements_test_for(add_one, some_fct_with_test_guarantee)\n  def test_other(self):\n    val = add_one(1)\n    self.assertEqual(val, 2)   \n    \n    \nif __name__ == '__main__':\n    tg.main()\n```\n\nAs in the example, `pyguarantees.test_guarantees` will be abbreviated with `tg` from here on out.\n\nFailing to use an [@tg.implements_test_for](#implements_test_for) for a function or method decorated with [@tg.guarantee_test](#guarantee_test)\nleads to a [tg.exceptions.TestsNotImplementedError](#testsnotimplementederror), while failing to use this function or method in the \ncorresponding test will lead to a [tg.exceptions.NotUsedInTestsError](#notusedintestserror) if it is decorated by \n[@tg.guarantee_usage](#guarantee_usage). These exceptions are only raised if the `unittest.TestCase`s are called first \nand then checked by [tg.enforce](#enforce), or [tg.main](#main) is called to do both automatically.\n\nCurrently doesn't work with functions nested inside of methods. This will be fixed at some point.\n\nThe package consists of three decorators and two functions, as well as two `Exception`s.\nAll are explained below.\n\n\n## Decorators\n\nThe three decorators shown below have no effect without the [functions](#functions) \nof this package.\n\n\n### guarantee_test\n\nTakes no arguments.\n\nAny function or method (except, for the moment, functions nested inside of methods) \ndecorated with `@tg.guarantee_test`\nthat is in the scope of unittest will force unittest to throw and exception should \nit not be in an [@tg.implements_test_for](#implements_test_for).\n\nCurrently, it is necessary to include the brackets &ndash; `()` &ndash; so that \nthe function is registered. This executes the decorator once but not the callable that \nit decorates, making it computationally inexpensive.\n\nHaving a function (or method) decorated like follows:\n\n```python\n@tg.guarantee_test()\ndef foo():\n    pass\n```\n\nbut not having a test in your `unittest.TestCase` decorated by `@implements_test_for(foo)` \nwould lead to a [TestsNotImplementedError](#testsnotimplementederror) being raised.\n\n\n### guarantee_usage\n\nTakes no arguments.\n\nMust be used below [@tg.guarantee_test](#guarantee_test), otherwise it is ignored.\n\nJust like with `@tg.guarantee_test`, brackets are not optional, but the execution of \nthe decorator is computationally inexpensive.\n\nA function decorated as follows:\n\n```python \n@tg.guarantee_test()\n@tg.guarantee_usage()\ndef foo():\n    pass\n```\n\nwith a unittest that looks something like this:\n\n```python \nclass TestExample(unittest.TestCase):\n    @tg.implements_test_for(foo)\n    def test_foo(self):\n        ...   # some code that doesn't call foo\n```\n\nwould lead to a [NotUsedInTestsError](#notusedintestserror) being raised. \n\nIn this scenario, if `foo` is an argument in several \n[@tg.implements_test_for](#implements_test_for),\n`@tg.guarantee_usage` makes certain that `foo` is used in every test-function \ndecorated in such a way.\n\n\n### implements_test_for\n\n- `args`: Give any function or method that the corresponding test is meant for.\n- `kwargs`: The value will be used like an `arg`, while the key will be ignored.\n\nFunctions and methods that weren't decorated by [@tg.guarantee_test](#guarantee_test) \nlead to a user-warning but are ignored otherwise.\n\nUsage might look as follows:\n\n```python \nclass TestExample(unittest.TestCase):\n    @implements_test_for(function1, function2, this_key_is_ignored=function3)\n    def test_example(self):\n        ...\n```\n\n## Functions\n\nTwo functions are provided by `pyguarantees.test_guarantees`, both directly under\n`tg`. At least one has to be used for the [decorators](#decorators)\nto have an effect. \n\n### enforce\n\nTakes no arguments.\n\nRun this after running all your unittests. This runs additional unittests that \ncheck which functions violated their guarantees and raise [exceptions](#exceptions) \naccordingly.\n\nIt is recommended to only use this function when using a complicated unittest-setup.\nWhen using `unittest.main()`, it is recommended to use `tg.main()` instead.\n\n### main\n\nTakes no arguments.\n\nCalls `unittest.main()` followed by [tg.enforce](#enforce).\n\n## Exceptions\n\n`Exception`s are located under `tg.exceptions`.\n\nThere are two custom `Exception`s as presented below.\n\n### TestsNotImplementedError\n\nArguments of `tg.exceptions.TestsNotImplementedError`:\n\n- `functions` (type `callable`): The callables that weren't mentioned in a \n[`@tg.implements_test_for`](#implements_test_for).\n\nMembers of `tg.exceptions.TestsNotImplementedError`:\n\n- `functions` (type `callable`): The callables that weren't mentioned in a \n[`@tg.implements_test_for`](#implements_test_for).\n- `description` (type `str`): The error string printed when the exception is raised\nand not caught.\n\nThe output of raising this exception might look something like:\n\n    <Traceback...>\n\n    pyguarantees.test_guarantees.exceptions.TestsNotImplementedError: \n\n        No tests were implemented for the following methods and functions: \n    \n        1. Missing test-case for the following callable: \n            Name: \t\tfoo\n            Module: \t__main__\n        2. Missing test-case for the following callable: \n            Name: \t\tbar\n            Module: \t__main__\n\n### NotUsedInTestsError\nArguments of `tg.exceptions.NotUsedInTestsError`:\n\n- `functions` (type: `callable`): The callables that were mentioned in a \n[`@tg.implements_test_for`](#implements_test_for) but not used in the corresponding\ntest.\n\nMembers of `tg.exceptions.NotUsedInTestsError`:\n\n- `functions` (type: `callable`): The callables that were mentioned in a \n[`@tg.implements_test_for`](#implements_test_for) but not used in the corresponding\ntest.\n- `description` (type: `str`): The error string printed when the exception is raised\nand not caught.\n\nA possible error message might look like the following:\n    \n    <Traceback...>\n\n    pyguarantees.test_guarantees.exceptions.NotUsedInTestsError:\n\n    The following methods and functions were not executed in their assigned tests: \n\n\t1. The following callable was not called in its assigned tests: \n\t\tName: \t\tfoo\n\t\tModule: \t__main__\n\t\tThis callable is tested but not called in the following test-cases: \n\t\t\t\t\t- Name: \tTestFoo.test_foo1\n\t\t\t\t\t   Module: \t__main__\n\t\t\t\t\t- Name: \tTestFoo.test_foo2\n\t\t\t\t\t   Module: \t__main__\n\t2. The following callable was not called in its assigned tests: \n\t\tName: \t\tbar\n\t\tModule: \tsome_module\n\t\tThis callable is tested but not called in the following test-cases: \n\t\t\t\t\t- Name: \tTestBar.test_bar\n\t\t\t\t\t   Module: \ttest_some_module\n\n\n# functional_guarantees\n\nFew things are more useful in programming than the ability to constrain a program's possible behaviors \nand communicate those constraints clearly in code. Statically typed languages do this with types, scope modifiers, \nand lifetime modifiers, among others. These are static constraints&mdash;or static guarantees&mdash;in that \nthey are evaluated statically, before runtime.\n\nOftentimes, a program also has dynamic guarantees, evaluated during runtime. A function dealing with division, for example, has to deal with the \nspecial case of denominator of zero. \n\n`pyguarantees.functional_guarantees`, abbreviated with `fg` from here on out, enables both types of guarantees to be \ndefined in Python where they should happen: function (or method) signatures. This is where statically typed \nlanguages put their static guarantees (a typical function signature looks something like \n`scope-etc-modifiers return-type function-name(parameter-type parameter-name)`) and where in my opinion, dynamic \nguarantees belong as well.\n\nThis might have the following advantages:\n- Make code more readable by having constraints in a predefined place.\n- Make code easier to write by providing important information about and API in a glancable way.\n- Make it possible to include information on dynamic constraints in automatically generated documentation.\n- Encourage programmers to think about these constraints. \n\nThis package is an attempt to open up at least some of these advantages to Python-users at least partially, \ngiven the constraints of the Python-language. \n\n## Example \n\n```python\nimport numpy as np\nfrom pyguarantees import functional_guarantees as fg\n\nfrom your_module import your_custom_error_callback\n\n\n# One of many built-in guarantees using one of many built-in options\n@fg.add_guarantees(param_guarantees=[fg.IsInt(\"num\", minimum=3)])\ndef add_one(num):\n    return num + 1 \n\n\n# Use fg.IsClass to guarantee all types and classes that don't have specific guarantees \n#  in fg. If they do, it is recommended to use those specific guarantees.\n@fg.add_guarantees(\n    param_guarantees=[\n        fg.IsClass(\n            \"X\", \n            class_type=np.ndarray,\n            check_functions=[\n                lambda x: x.min() > 0,\n                lambda x: x.var() < 5,\n                lambda x: x.shape == (3, 80, 80)\n            ],\n            error_callback=your_custom_error_callback \n        ),\n        fg.IsClass(\"mean\", class_type=np.ndarray),\n        fg.IsClass(\"std\", class_type=np.ndarray)\n    ],\n    return_guarantee=fg.IsClass(\"\", class_type=np.ndarray)\n)\ndef normalize(X, mean, std):\n    return (X - mean) / std\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pyguarantees",
+            "package_url": "https://pypi.org/project/pyguarantees/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pyguarantees/",
+            "project_urls": {
+                "Homepage": "https://github.com/snimu/guarantees"
+            },
+            "release_url": "https://pypi.org/project/pyguarantees/0.0.6/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "Guarantee tests, guarantee types and their properties",
+            "version": "0.0.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16040361,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "142708b913c13b823d40b1db5593b2ba",
+                    "sha256": "caf783f33be45d0e3d3b83cb2405e17de6c4f97f65ba91606530b6cdf7722ef5"
+                },
+                "downloads": -1,
+                "filename": "pyguarantees-0.0.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "142708b913c13b823d40b1db5593b2ba",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 26069,
+                "upload_time": "2022-12-08T21:50:54",
+                "upload_time_iso_8601": "2022-12-08T21:50:54.888946Z",
+                "url": "https://files.pythonhosted.org/packages/bf/96/27f4cb165d716546f19b29e4649be1c2cd8607d420935b5d86f95e40a888/pyguarantees-0.0.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8ce7c4ad59f7645630a73ce3bea1e500",
+                    "sha256": "dd72a87018b425c0475596c21c6bacdb63ca12d7f2ad2cc0f6c4538f8672ef0b"
+                },
+                "downloads": -1,
+                "filename": "pyguarantees-0.0.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "8ce7c4ad59f7645630a73ce3bea1e500",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 20651,
+                "upload_time": "2022-12-08T21:50:56",
+                "upload_time_iso_8601": "2022-12-08T21:50:56.454084Z",
+                "url": "https://files.pythonhosted.org/packages/53/48/af0ac54b6e6f2e46d35c960ff1860a51e572b1fbb8cb280450898dca3da2/pyguarantees-0.0.6.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

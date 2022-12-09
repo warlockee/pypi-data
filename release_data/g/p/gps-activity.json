@@ -52,7 +52,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15151321,
+        "last_serial": 16037748,
         "urls": [
             {
                 "comment_text": "",
@@ -150,7 +150,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15151321,
+        "last_serial": 16037748,
         "urls": [
             {
                 "comment_text": "",
@@ -248,7 +248,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15151321,
+        "last_serial": 16037748,
         "urls": [
             {
                 "comment_text": "",
@@ -346,7 +346,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15151321,
+        "last_serial": 16037748,
         "urls": [
             {
                 "comment_text": "",
@@ -444,7 +444,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15151321,
+        "last_serial": 16037748,
         "urls": [
             {
                 "comment_text": "",
@@ -507,7 +507,6 @@
                 "Topic :: Scientific/Engineering",
                 "Topic :: Software Development"
             ],
-            "description": "# **GPS activity** \ud83d\ude9b\n\n![Python versions](https://img.shields.io/pypi/pyversions/gps_activity)\n![Latest release](https://img.shields.io/github/v/release/WasteLabs/gps_activity)\n![Latest release date](https://img.shields.io/github/release-date/WasteLabs/gps_activity)\n![License](https://img.shields.io/github/license/WasteLabs/gps_activity)\n[![CI test](https://github.com/WasteLabs/gps_activity/actions/workflows/ci-tests.yaml/badge.svg)](https://github.com/WasteLabs/gps_activity/actions/workflows/ci-tests.yaml)\n\nA light-weight module for analysis of GPS activity. Package is designed to be trade-off solution for both researchers and developers in Waste Labs.\n\nWith `gps_activity` you can:\n\n1. Cluster your time-series gps records to extract activity points\n2. Join activity points with original plan or operation report\n3. Estimate clustering performance\n\n## Install\n\nUsing pip:\n\n```bash\npip install gps_activity\n```\n\n## Extraction modules implementations \ud83d\udd35 \ud83d\udfe3 \u26ab\ufe0f\n\n----\n\n**[Overview extraction module components](https://github.com/WasteLabs/gps_activity/tree/main/docs/extraction/README.md)**\n\n### VHFDBSCAN \ud83d\ude80\n\n* Fragmentation happens by hardlimiting of velocity computed from `lat,lon,datetime` columns\n* Clustering conducted by classical DBSCAN\n\n```python\nfrom gps_activity import ActivityExtractionSession\nfrom gps_activity.extraction.factory.preprocessing import PreprocessingFactory\nfrom gps_activity.extraction.factory.fragmentation import VelocityFragmentationFactory\nfrom gps_activity.extraction.factory.clustering import FDBSCANFactory\n\n\npreprocessing = PreprocessingFactory.factory_pipeline(\n    source_lat_column=\"lat\",\n    source_lon_column=\"lon\",\n    source_datetime=\"datetime\",\n    source_vehicle_id=\"plate_no\",\n    source_crs=\"EPSG:4326\",\n    target_crs=\"EPSG:2326\",\n)\n\nfragmentation = VelocityFragmentationFactory.factory_pipeline(max_velocity_hard_limit=4)\nclustering = FDBSCANFactory.factory_pipeline(eps=30, min_samples=3)\n\nactivity_extraction = ActivityExtractionSession(\n    preprocessing=preprocessing,\n    fragmentation=fragmentation,\n    clustering=clustering,\n)\n\nactivity_extraction.predict(gps)\n```\n\n## Linker module implementation \ud83d\udd35 \ud83d\udfe3 \u26ab\ufe0f\n\n**[Overview linker module components](https://github.com/WasteLabs/gps_activity/tree/main/docs/linker/README.md)**\n\n\n```python\n# Initilize linkage components\nfrom gps_activity import ActivityLinkageSession\nfrom gps_activity.linker.factory import PreprocessingFactory\nfrom gps_activity.linker.factory import ClusterAggregationFactory\nfrom gps_activity.linker.factory import JoinValidatorFactory\nfrom gps_activity.linker.factory import SpatialJoinerFactory\nfrom gps_activity.linker.factory import CoverageStatisticsFactory\n\n\nMAX_DISTANCE = 100\nMAX_DAYS_DISTANCE = 1\n\n\ngps_link_preprocess_pipeline = PreprocessingFactory.factory_pipeline(\n    source_lat_column=\"lat\",\n    source_lon_column=\"lon\",\n    source_datetime=\"datetime\",\n    source_vehicle_id=\"plate_no\",\n    source_crs=WSG_84,\n    target_crs=HK_CRS,\n    generate_primary_key_for=\"gps\",\n    source_composite_keys=[\"plate_no\", \"datetime\", \"lat\", \"lon\"],\n)\n\nplans_link_preprocess_pipeline = PreprocessingFactory.factory_pipeline(\n    source_lat_column=\"lat\",\n    source_lon_column=\"lng\",\n    source_datetime=\"datetime\",\n    source_vehicle_id=\"re-assigned by Ricky\",\n    source_crs=WSG_84,\n    target_crs=HK_CRS,\n    generate_primary_key_for=\"plan\",\n    source_composite_keys=[\"CRN#\"],\n)\n\ncluster_agg_pipeline = ClusterAggregationFactory.factory_pipeline(\n    source_lat_column=\"lat\",\n    source_lon_column=\"lon\",\n    source_datetime=\"datetime\",\n    source_vehicle_id=\"plate_no\",\n    source_crs=WSG_84,\n    target_crs=HK_CRS,\n)\n\nspatial_joiner = SpatialJoinerFactory.factory_pipeline(how=\"inner\", max_distance=MAX_DISTANCE)\nspatial_validator = JoinValidatorFactory.factory_pipeline(max_days_distance=MAX_DAYS_DISTANCE,\n                                                          ensure_vehicle_overlap=True)\ncoverage_stats_extractor = CoverageStatisticsFactory.factory_pipeline()\n\n\ngps_linker_session = ActivityLinkageSession(\n    gps_preprocessor=gps_link_preprocess_pipeline,\n    plan_preprocessor=plans_link_preprocess_pipeline,\n    cluster_aggregator=cluster_agg_pipeline,\n    spatial_joiner=spatial_joiner,\n    spatial_validator=spatial_validator,\n    coverage_stats_extractor=coverage_stats_extractor,\n)\n\n\nlinker_results = gps_linker_session.transform({\n    \"gps\": clustered_gps,\n    \"plan\": plans,\n})\n```\n\n## Metrics module implementation \ud83d\udcca\n\n* **NOTE**: This module is highly experimental\n* **NOTE**: This module depends on `linker` module\n\n```python\nfrom gps_activity.metrics import ActivityMetricsSession\nfrom gps_activity.metrics.models import Metrics\n\n\nmetrics = ActivityMetricsSession(beta=2)\nmetrics = metrics.transform(linker_results)\n```\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -543,7 +542,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15151321,
+        "last_serial": 16037748,
         "urls": [
             {
                 "comment_text": "",
@@ -582,6 +581,106 @@
                 "upload_time": "2022-09-20T07:16:16",
                 "upload_time_iso_8601": "2022-09-20T07:16:16.641618Z",
                 "url": "https://files.pythonhosted.org/packages/9a/c3/90dc28d0d91e4af5929af7599b7bed3024e7dada7dc192ab285c2c286c15/gps_activity-0.6.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.7.0": {
+        "info": {
+            "author": "Adil Rashitov",
+            "author_email": "adil@wastelab.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Developers",
+                "Intended Audience :: Science/Research",
+                "License :: Other/Proprietary License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering",
+                "Topic :: Software Development"
+            ],
+            "description": "# **GPS activity** \ud83d\ude9b\n\n![Python versions](https://img.shields.io/pypi/pyversions/gps_activity)\n![Latest release](https://img.shields.io/github/v/release/WasteLabs/gps_activity)\n![Latest release date](https://img.shields.io/github/release-date/WasteLabs/gps_activity)\n![License](https://img.shields.io/github/license/WasteLabs/gps_activity)\n[![CI test](https://github.com/WasteLabs/gps_activity/actions/workflows/ci-tests.yaml/badge.svg)](https://github.com/WasteLabs/gps_activity/actions/workflows/ci-tests.yaml)\n[![codecov](https://codecov.io/gh/WasteLabs/gps_activity/branch/main/graph/badge.svg?token=58AY7B1YBB)](https://codecov.io/gh/WasteLabs/gps_activity)\n\nA light-weight module for analysis of GPS activity. Package is designed to be trade-off solution for both researchers and developers in Waste Labs. Using `gps_activity` you can:\n\n1. Cluster your time-series gps records to extract activity points\n2. Join activity points with original plan or operation report\n3. Estimate clustering performance\n\n## Installation \u2601\ufe0f -> \ud83d\udda5\ufe0f\n\nUsing pip:\n\n```bash\npip3 install gps_activity\n```\n\n## **Python package modules** \ud83d\udce6\n\n---\n\n- **extraction**: clusters GPS records and extracts cluster activities ([checkout module structure]((https://github.com/WasteLabs/gps_activity/tree/main/docs/extraction/README.md)))\n- **linker**: joins route plan and clustered gps records\n- **metrics**: estimates clustering performance based on:\n    1. internal source: ones that based on inter & intra cluster distances\n    2. external source: joined route plan and clustered gps records (output of **linker** module)\n\n![components](docs/diagrams/gps_activity_components.png)\n\n## **Extraction modules** \ud83d\udd35 \ud83d\udfe3 \u26ab\ufe0f\n\n---\n\nOrganized by preprocessing, fragmentation & clustering steps that ultimately are packed into `ActivityExtractionSession` object and orchestrated.\n\n### \u26a0\ufe0f `ActivityExtractionSession` assumptions and constrains\n\n1. 1 vehicle = 1 session run: to avoid clusters overlap\n1. GPS records must be ordered over datetime: ensures adjacent consistency of gps\n1. No duplicated gps records over vehicle-timstamp: avoids division by zero during computing `velocity`\n\n### \ud83d\ude80 **VHFDBSCAN**: Velocity hardlimit fragmentation Density-based spatial clustering of applications with noise\n\n- Fragmentation is performing by applying hardlimiting on velocity computed from `lat`, `lon` and `datetime` columns\n- Clustering is performed by classical DBSCAN that considers non-cluster candidates as noise\n\n```python\nfrom gps_activity import ActivityExtractionSession\nfrom gps_activity.extraction.factory.preprocessing import PreprocessingFactory\nfrom gps_activity.extraction.factory.fragmentation import VelocityFragmentationFactory\nfrom gps_activity.extraction.factory.clustering import FDBSCANFactory\n\n\npreprocessing = PreprocessingFactory.factory_pipeline(\n    source_lat_column=\"lat\",\n    source_lon_column=\"lon\",\n    source_datetime=\"datetime\",\n    source_vehicle_id=\"plate_no\",\n    source_crs=\"EPSG:4326\",\n    target_crs=\"EPSG:2326\",\n)\n\nfragmentation = VelocityFragmentationFactory.factory_pipeline(max_velocity_hard_limit=4)\nclustering = FDBSCANFactory.factory_pipeline(eps=30, min_samples=3)\n\nactivity_extraction = ActivityExtractionSession(\n    preprocessing=preprocessing,\n    fragmentation=fragmentation,\n    clustering=clustering,\n)\n\nactivity_extraction.predict(gps)\n```\n\n### \ud83d\ude80 **VHFSTCM**: Velocity hardlimit fragmentation spatio-temporal clustering model\n\n- Fragmentation is performing by applying hardlimiting on velocity computed from `lat`, `lon` and `datetime` columns\n- Clustering is performed according steps:\n    1. Generated adjacent proximity mask (if cluster pair distance <= `eps`)\n    2. Clusters ID are generated according: proximity mask and fragmentation flag\n    3. GPS records grouped by `cluster_id` and aggregated cluster time span\n    4. Cluster is validated if time span >= `min_duration_sec`\n    5. Validated cluster ids are set to original GPS records\n\n```python\nfrom gps_activity import ActivityExtractionSession\nfrom gps_activity.extraction.factory.preprocessing import PreprocessingFactory\nfrom gps_activity.extraction.factory.fragmentation import VelocityFragmentationFactory\nfrom gps_activity.extraction.factory.clustering import STCMFactory\n\n\npreprocessing = PreprocessingFactory.factory_pipeline(\n    source_lat_column=\"lat\",\n    source_lon_column=\"lon\",\n    source_datetime=\"datetime\",\n    source_vehicle_id=\"plate_no\",\n    source_crs=\"EPSG:4326\",\n    target_crs=\"EPSG:2326\",\n)\n\nfragmentation = VelocityFragmentationFactory.factory_pipeline(max_velocity_hard_limit=4)\nclustering = STCMFactory.factory_pipeline(\n    source_vehicle_id_column=\"plate_no\",\n    eps=30,\n    min_duration_sec=60\n)\n\nstcm = ActivityExtractionSession(\n    preprocessing=preprocessing,\n    fragmentation=fragmentation,\n    clustering=clustering,\n)\n```\n\n## Linker module implementation \ud83d\udd35 \ud83d\udfe3 \u26ab\ufe0f\n\n**[Overview linker module components](https://github.com/WasteLabs/gps_activity/tree/main/docs/linker/README.md)**\n\n```python\n# Initilize linkage components\nfrom gps_activity import ActivityLinkageSession\nfrom gps_activity.linker.factory import PreprocessingFactory\nfrom gps_activity.linker.factory import ClusterAggregationFactory\nfrom gps_activity.linker.factory import JoinValidatorFactory\nfrom gps_activity.linker.factory import SpatialJoinerFactory\nfrom gps_activity.linker.factory import CoverageStatisticsFactory\n\n\nMAX_DISTANCE = 100\nMAX_DAYS_DISTANCE = 1\n\n\ngps_link_preprocess_pipeline = PreprocessingFactory.factory_pipeline(\n    source_lat_column=\"lat\",\n    source_lon_column=\"lon\",\n    source_datetime=\"datetime\",\n    source_vehicle_id=\"plate_no\",\n    source_crs=WSG_84,\n    target_crs=HK_CRS,\n    generate_primary_key_for=\"gps\",\n    source_composite_keys=[\"plate_no\", \"datetime\", \"lat\", \"lon\"],\n)\n\nplans_link_preprocess_pipeline = PreprocessingFactory.factory_pipeline(\n    source_lat_column=\"lat\",\n    source_lon_column=\"lng\",\n    source_datetime=\"datetime\",\n    source_vehicle_id=\"re-assigned by Ricky\",\n    source_crs=WSG_84,\n    target_crs=HK_CRS,\n    generate_primary_key_for=\"plan\",\n    source_composite_keys=[\"CRN#\"],\n)\n\ncluster_agg_pipeline = ClusterAggregationFactory.factory_pipeline(\n    source_lat_column=\"lat\",\n    source_lon_column=\"lon\",\n    source_datetime=\"datetime\",\n    source_vehicle_id=\"plate_no\",\n    source_crs=WSG_84,\n    target_crs=HK_CRS,\n)\n\nspatial_joiner = SpatialJoinerFactory.factory_pipeline(how=\"inner\", max_distance=MAX_DISTANCE)\nspatial_validator = JoinValidatorFactory.factory_pipeline(max_days_distance=MAX_DAYS_DISTANCE,\n                                                          ensure_vehicle_overlap=True)\ncoverage_stats_extractor = CoverageStatisticsFactory.factory_pipeline()\n\n\ngps_linker_session = ActivityLinkageSession(\n    gps_preprocessor=gps_link_preprocess_pipeline,\n    plan_preprocessor=plans_link_preprocess_pipeline,\n    cluster_aggregator=cluster_agg_pipeline,\n    spatial_joiner=spatial_joiner,\n    spatial_validator=spatial_validator,\n    coverage_stats_extractor=coverage_stats_extractor,\n)\n\n\nlinker_results = gps_linker_session.transform({\n    \"gps\": clustered_gps,\n    \"plan\": plans,\n})\n```\n\n## Metrics module implementation \ud83d\udcca\n\n* **NOTE**: This module is highly experimental\n* **NOTE**: This module depends on `linker` module\n\n```python\nfrom gps_activity.metrics import ActivityMetricsSession\nfrom gps_activity.metrics.models import Metrics\n\n\nmetrics = ActivityMetricsSession(beta=2)\nmetrics = metrics.transform(linker_results)\n```\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "LICENSE.txt",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "gps-activity",
+            "package_url": "https://pypi.org/project/gps-activity/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/gps-activity/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/gps-activity/0.7.0/",
+            "requires_dist": [
+                "Rtree (>=1.0.0,<2.0.0)",
+                "geopandas (>=0.11.1,<0.12.0)",
+                "numpy (>=1.23.1,<2.0.0)",
+                "pandas (>=1.4.3,<2.0.0)",
+                "pandera (>=0.11.0,<0.12.0)",
+                "pygeos (>=0.12.0,<0.13.0)",
+                "scikit-learn (>=1.1.1,<2.0.0)",
+                "scipy (>=1.9.0,<2.0.0)"
+            ],
+            "requires_python": ">=3.8,<3.12",
+            "summary": "A light-weight mobile module for analysis of GPS activity",
+            "version": "0.7.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16037748,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "62082b80d48e6b5370b8baf1a8626f4e",
+                    "sha256": "66f253b0c2249fa73c2c65e9d945993b06c8810c4e718e7436f55dcd4dd0e6cc"
+                },
+                "downloads": -1,
+                "filename": "gps_activity-0.7.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "62082b80d48e6b5370b8baf1a8626f4e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<3.12",
+                "size": 37076,
+                "upload_time": "2022-12-08T17:20:59",
+                "upload_time_iso_8601": "2022-12-08T17:20:59.524599Z",
+                "url": "https://files.pythonhosted.org/packages/c6/24/df2190bd07f1cec56f317dce47fd0d737701ad6626ff48e9ae2e294cf084/gps_activity-0.7.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "eb377d7fbd65953ca737f5cd75fd4621",
+                    "sha256": "5185d9509798e69452fd6fdd21a4e665b956b9eb5ceb27f963c082645c59ca0a"
+                },
+                "downloads": -1,
+                "filename": "gps_activity-0.7.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "eb377d7fbd65953ca737f5cd75fd4621",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<3.12",
+                "size": 22066,
+                "upload_time": "2022-12-08T17:21:01",
+                "upload_time_iso_8601": "2022-12-08T17:21:01.343508Z",
+                "url": "https://files.pythonhosted.org/packages/9b/53/3258f91e7c62a6bf0154da1f7a47bf911e57483caf1c7e6b36ef7b2f73e4/gps_activity-0.7.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

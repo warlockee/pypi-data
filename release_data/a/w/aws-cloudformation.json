@@ -19,7 +19,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "\n.. image:: https://readthedocs.org/projects/aws_cloudformation/badge/?version=latest\n    :target: https://aws_cloudformation.readthedocs.io/index.html\n    :alt: Documentation Status\n\n.. image:: https://github.com/MacHu-GWU/aws_cloudformation-project/workflows/CI/badge.svg\n    :target: https://github.com/MacHu-GWU/aws_cloudformation-project/actions?query=workflow:CI\n\n.. image:: https://codecov.io/gh/MacHu-GWU/aws_cloudformation-project/branch/main/graph/badge.svg\n    :target: https://codecov.io/gh/MacHu-GWU/aws_cloudformation-project\n\n.. image:: https://img.shields.io/pypi/v/aws_cloudformation.svg\n    :target: https://pypi.python.org/pypi/aws_cloudformation\n\n.. image:: https://img.shields.io/pypi/l/aws_cloudformation.svg\n    :target: https://pypi.python.org/pypi/aws_cloudformation\n\n.. image:: https://img.shields.io/pypi/pyversions/aws_cloudformation.svg\n    :target: https://pypi.python.org/pypi/aws_cloudformation\n\n.. image:: https://img.shields.io/badge/STAR_Me_on_GitHub!--None.svg?style=social\n    :target: https://github.com/MacHu-GWU/aws_cloudformation-project\n\n------\n\n\n.. image:: https://img.shields.io/badge/Link-Document-blue.svg\n    :target: https://aws_cloudformation.readthedocs.io/index.html\n\n.. image:: https://img.shields.io/badge/Link-API-blue.svg\n    :target: https://aws_cloudformation.readthedocs.io/py-modindex.html\n\n.. image:: https://img.shields.io/badge/Link-Source_Code-blue.svg\n    :target: https://aws_cloudformation.readthedocs.io/py-modindex.html\n\n.. image:: https://img.shields.io/badge/Link-Install-blue.svg\n    :target: `install`_\n\n.. image:: https://img.shields.io/badge/Link-GitHub-blue.svg\n    :target: https://github.com/MacHu-GWU/aws_cloudformation-project\n\n.. image:: https://img.shields.io/badge/Link-Submit_Issue-blue.svg\n    :target: https://github.com/MacHu-GWU/aws_cloudformation-project/issues\n\n.. image:: https://img.shields.io/badge/Link-Request_Feature-blue.svg\n    :target: https://github.com/MacHu-GWU/aws_cloudformation-project/issues\n\n.. image:: https://img.shields.io/badge/Link-Download-blue.svg\n    :target: https://pypi.org/pypi/aws_cloudformation#files\n\n\nWelcome to ``aws_cloudformation`` Documentation\n==============================================================================\nEnable ``terraform plan``, ``terraform apply`` styled deployment.\n\n**Talk is cheap, show me the code**\n\n\u2b50 CloudFormation declaration, see `cottonformation <https://github.com/MacHu-GWU/cottonformation-project>`_:\n\n.. code-block:: python\n\n    # -*- coding: utf-8 -*-\n\n    import cottonformation as cf\n    from cottonformation.res import secretsmanager\n\n\n    def make_tpl_1() -> cf.Template:\n        \"\"\"\n        Create Secret1\n        \"\"\"\n        tpl = cf.Template()\n\n        secret1 = secretsmanager.Secret(\n            \"Secret1\",\n            p_Name=\"aws_cft_secret1\",\n            p_Description=\"This is Secret 1\",\n            p_Tags=[\n                cf.Tag(p_Key=\"Creator\", p_Value=\"Alice\"),\n                cf.Tag(p_Key=\"Description\", p_Value=\"Hello\"),\n            ]\n        )\n        tpl.add(secret1)\n\n        return tpl\n\n\n    def make_tpl_2() -> cf.Template:\n        \"\"\"\n        Modify Secret1\n        Create Secret222\n        \"\"\"\n        tpl = make_tpl_1()\n\n        secret1: secretsmanager.Secret = tpl.Resources[\"Secret1\"]\n        secret1.p_Description = \"This must be Secret 1\"\n        secret1.p_Tags = [\n            cf.Tag(p_Key=\"Creator\", p_Value=\"Bob\"),\n            cf.Tag(p_Key=\"Env\", p_Value=\"Dev\"),\n        ]\n\n        secret2 = secretsmanager.Secret(\n            \"Secret222\",\n            p_Name=\"aws_cft_secret2\",\n            p_Description=\"This is Secret 2\",\n        )\n        tpl.add(secret2)\n\n        output_secret2_arn = cf.Output(\n            \"Secret222Arn\",\n            Value=secret2.ref(),\n        )\n        tpl.add(output_secret2_arn)\n\n        return tpl\n\n\n    def make_tpl_3() -> cf.Template:\n        \"\"\"\n        Delete Secret1\n        Modify Secret222\n        Create Secret33333\n        \"\"\"\n        tpl = make_tpl_2()\n\n        tpl.remove(tpl.Resources[\"Secret1\"])\n\n        secret2: secretsmanager.Secret = tpl.Resources[\"Secret222\"]\n        secret2.p_Description = \"This definitely be Secret 2\"\n        secret2.p_Tags = [\n            cf.Tag(p_Key=\"Creator\", p_Value=\"Cathy\"),\n            cf.Tag(p_Key=\"Env\", p_Value=\"QA\"),\n        ]\n        secret2.ra_Metadata = {\"email\": \"cathy@email.com\"}\n\n        secret3 = secretsmanager.Secret(\n            \"Secret33333\",\n            p_Name=\"aws_cft_secret3\",\n            p_Description=\"This is Secret 3\",\n        )\n        tpl.add(secret3)\n\n        return tpl\n\n\u2b50 Deployment Script:\n\n.. code-block:: python\n\n    # -*- coding: utf-8 -*-\n\n    from aws_cloudformation.deploy import deploy_stack, remove_stack\n    from aws_cloudformation.tests import bsm\n    from aws_cloudformation.tests.stacks.secretmanager_stack import (\n        make_tpl_1,\n        make_tpl_2,\n        make_tpl_3,\n    )\n\n    stack_name = \"cottonformation-deploy-stack-test\"\n\n    deploy_stack(\n        bsm,\n        stack_name=stack_name,\n        template=make_tpl_1().to_json(),\n        skip_prompt=True,\n    )\n\n    deploy_stack(\n        bsm,\n        stack_name=stack_name,\n        template=make_tpl_2().to_json(),\n        skip_prompt=True,\n    )\n\n    deploy_stack(\n        bsm,\n        stack_name=stack_name,\n        template=make_tpl_3().to_json(),\n        skip_prompt=True,\n    )\n\n    remove_stack(\n        bsm,\n        stack_name=stack_name,\n        skip_prompt=True,\n    )\n\n\u2b50 Console Output:\n\n.. code-block:: bash\n\n    ============== Deploy stack: 'cottonformation-deploy-stack-test' ===============\n      preview stack in AWS CloudFormation console: https://console.aws.amazon.com/cloudformation/home?#/stacks?filteringStatus=active&filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false\n      preview **change set details** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/changesets/changes?stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&changeSetId=arn:aws:cloudformation:us-east-1:111122223333:changeSet/cottonformation-deploy-stack-test-2022-12-08-04-51-58-892/8c88d0c1-d5c7-495b-820e-29e5752a04d4\n      wait for change set creation to finish ...\n        on 1 th attempt, elapsed 5 seconds, remain 55 seconds ...\n        reached status CREATE_COMPLETE\n    +---------------------------- Change Set Statistics -----------------------------\n    | \ud83d\udfe2 Add        1 Resource\n    |\n    +--------------------------------------------------------------------------------\n    +----------------------------------- Changes ------------------------------------\n    | \ud83d\udfe2 \ud83d\udce6 Add Resource:        Secret1    AWS::SecretsManager::Secret\n    |\n    +--------------------------------------------------------------------------------\n        need to execute the change set to apply those changes.\n      preview **create stack progress** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/stackinfo?filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false&stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&filteringStatus=active\n      wait for deploy to finish ...\n        on 2 th attempt, elapsed 10 seconds, remain 50 seconds ...\n        reached status \ud83d\udfe2 'CREATE_COMPLETE'\n      done\n\n\n    ============== Deploy stack: 'cottonformation-deploy-stack-test' ===============\n      preview stack in AWS CloudFormation console: https://console.aws.amazon.com/cloudformation/home?#/stacks?filteringStatus=active&filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false\n      preview **change set details** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/changesets/changes?stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&changeSetId=arn:aws:cloudformation:us-east-1:111122223333:changeSet/cottonformation-deploy-stack-test-2022-12-08-04-52-39-134/8e1fd139-7a37-43dd-9378-40a328970036\n      wait for change set creation to finish ...\n        on 1 th attempt, elapsed 5 seconds, remain 55 seconds ...\n        reached status CREATE_COMPLETE\n    +---------------------------- Change Set Statistics -----------------------------\n    | \ud83d\udfe2 Add        1 Resource\n    | \ud83d\udd35 Modify     1 Resource\n    |\n    +--------------------------------------------------------------------------------\n    +----------------------------------- Changes ------------------------------------\n    | \ud83d\udfe2 \ud83d\udce6 Add Resource:        Secret222    AWS::SecretsManager::Secret\n    | \ud83d\udd35 \ud83d\udce6 Modify Resource:     Secret1      AWS::SecretsManager::Secret\n    |     \ud83d\udd35 \ud83d\udca1 Properties:      Secret1      AWS::SecretsManager::Secret.Description\n    |     \ud83d\udd35 \ud83d\udca1 Tags:            Secret1      AWS::SecretsManager::Secret\n    |\n    +--------------------------------------------------------------------------------\n        need to execute the change set to apply those changes.\n      preview **update stack progress** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/stackinfo?filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false&stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&filteringStatus=active\n      wait for deploy to finish ...\n        on 3 th attempt, elapsed 15 seconds, remain 45 seconds ...\n        reached status \ud83d\udfe2 'UPDATE_COMPLETE'\n      done\n\n\n    ============== Deploy stack: 'cottonformation-deploy-stack-test' ===============\n      preview stack in AWS CloudFormation console: https://console.aws.amazon.com/cloudformation/home?#/stacks?filteringStatus=active&filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false\n      preview **change set details** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/changesets/changes?stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&changeSetId=arn:aws:cloudformation:us-east-1:111122223333:changeSet/cottonformation-deploy-stack-test-2022-12-08-04-53-07-499/6edbcdf2-8e27-463f-bc5f-35587463fceb\n      wait for change set creation to finish ...\n        on 2 th attempt, elapsed 10 seconds, remain 50 seconds ...\n        reached status CREATE_COMPLETE\n    +---------------------------- Change Set Statistics -----------------------------\n    | \ud83d\udfe2 Add        1 Resource\n    | \ud83d\udd35 Modify     1 Resource\n    | \ud83d\udd34 Remove     1 Resource\n    |\n    +--------------------------------------------------------------------------------\n    +----------------------------------- Changes ------------------------------------\n    | \ud83d\udfe2 \ud83d\udce6 Add Resource:        Secret33333    AWS::SecretsManager::Secret\n    | \ud83d\udd35 \ud83d\udce6 Modify Resource:     Secret222      AWS::SecretsManager::Secret\n    |     \ud83d\udd35 \ud83d\udca1 Properties:      Secret222      AWS::SecretsManager::Secret.Description\n    |     \ud83d\udd35 \ud83d\udca1 Metadata:        Secret222      AWS::SecretsManager::Secret\n    |     \ud83d\udd35 \ud83d\udca1 CreationPolicy:  Secret222      AWS::SecretsManager::Secret\n    |     \ud83d\udd35 \ud83d\udca1 UpdatePolicy:    Secret222      AWS::SecretsManager::Secret\n    |     \ud83d\udd35 \ud83d\udca1 Tags:            Secret222      AWS::SecretsManager::Secret\n    | \ud83d\udd34 \ud83d\udce6 Remove Resource:     Secret1        AWS::SecretsManager::Secret\n    |\n    +--------------------------------------------------------------------------------\n        need to execute the change set to apply those changes.\n      preview **update stack progress** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/stackinfo?filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false&stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&filteringStatus=active\n      wait for deploy to finish ...\n        on 3 th attempt, elapsed 15 seconds, remain 45 seconds ...\n        reached status \ud83d\udfe2 'UPDATE_COMPLETE'\n      done\n\n\n    =============== Remove stack 'cottonformation-deploy-stack-test' ===============\n      preview stack in AWS CloudFormation console: https://console.aws.amazon.com/cloudformation/home?#/stacks?filteringStatus=active&filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false\n      wait for delete to finish ...\n        on 1 th attempt, elapsed 5 seconds, remain 55 seconds ...\n        already deleted.\n      done\n\n\n.. _install:\n\nInstall\n------------------------------------------------------------------------------\n\n``aws_cloudformation`` is released on PyPI, so all you need is:\n\n.. code-block:: console\n\n    $ pip install aws_cloudformation\n\nTo upgrade to latest version:\n\n.. code-block:: console\n\n    $ pip install --upgrade aws_cloudformation\n",
             "description_content_type": "",
             "docs_url": null,
             "download_url": "https://pypi.python.org/pypi/aws_cloudformation/0.1.1#downloads",
@@ -61,7 +60,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16029658,
+        "last_serial": 16040178,
         "urls": [
             {
                 "comment_text": "",
@@ -100,6 +99,328 @@
                 "upload_time": "2022-12-08T04:56:13",
                 "upload_time_iso_8601": "2022-12-08T04:56:13.683675Z",
                 "url": "https://files.pythonhosted.org/packages/29/97/30d4f25c45e68c80bc887438a5f980bee9d6124c7f52f79c810aa3d6bc63/aws_cloudformation-0.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.1.1": {
+        "info": {
+            "author": "Sanhe Hu",
+            "author_email": "husanhe@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: Apache Software License",
+                "Natural Language :: English",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: Unix",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "https://pypi.python.org/pypi/aws_cloudformation/1.1.1#downloads",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/MacHu-GWU/aws_cloudformation-project",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Unknown",
+            "maintainer_email": "",
+            "name": "aws-cloudformation",
+            "package_url": "https://pypi.org/project/aws-cloudformation/",
+            "platform": "Windows",
+            "project_url": "https://pypi.org/project/aws-cloudformation/",
+            "project_urls": {
+                "Download": "https://pypi.python.org/pypi/aws_cloudformation/1.1.1#downloads",
+                "Homepage": "https://github.com/MacHu-GWU/aws_cloudformation-project"
+            },
+            "release_url": "https://pypi.org/project/aws-cloudformation/1.1.1/",
+            "requires_dist": [
+                "boto3",
+                "boto-session-manager (>=1.1.1)",
+                "colorama",
+                "sphinx (==4.3.0) ; extra == 'docs'",
+                "sphinx-inline-tabs (==2021.8.17b10) ; extra == 'docs'",
+                "sphinx-jinja (==1.1.1) ; extra == 'docs'",
+                "sphinx-copybutton (==0.4.0) ; extra == 'docs'",
+                "rstobj (==0.0.7) ; extra == 'docs'",
+                "docfly (==1.0.2) ; extra == 'docs'",
+                "furo (==2021.8.31) ; extra == 'docs'",
+                "pytest ; extra == 'tests'",
+                "pytest-cov ; extra == 'tests'"
+            ],
+            "requires_python": "",
+            "summary": "\u2b50 AWS CloudFormation deployment for human, Enable terraform plan, terraform apply styled deployment.",
+            "version": "1.1.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16040178,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cf657453f84a560f42529840b1ec1617",
+                    "sha256": "1ed6cfc5f90bc11d39fa49365fb4c6151ae7911889bd2602d86d8e7d8e219844"
+                },
+                "downloads": -1,
+                "filename": "aws_cloudformation-1.1.1-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "cf657453f84a560f42529840b1ec1617",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": null,
+                "size": 28590,
+                "upload_time": "2022-12-08T15:45:25",
+                "upload_time_iso_8601": "2022-12-08T15:45:25.127321Z",
+                "url": "https://files.pythonhosted.org/packages/54/fa/1c47ac54e67c53d31069c39561007022235deea6439d67f859a92715e220/aws_cloudformation-1.1.1-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "880b0a06e201e7b1220b4941213fe62a",
+                    "sha256": "06fa6b73350ac55fe70e13ebd94a2a5940567ff59e28c96cd4c0eb50ca0471f1"
+                },
+                "downloads": -1,
+                "filename": "aws_cloudformation-1.1.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "880b0a06e201e7b1220b4941213fe62a",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 29515,
+                "upload_time": "2022-12-08T15:45:26",
+                "upload_time_iso_8601": "2022-12-08T15:45:26.930428Z",
+                "url": "https://files.pythonhosted.org/packages/60/ab/5c6649cc4a3a677755607ff37446a67221aa99ab2ef7611b120941f9fcc3/aws_cloudformation-1.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.1.2": {
+        "info": {
+            "author": "Sanhe Hu",
+            "author_email": "husanhe@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: Apache Software License",
+                "Natural Language :: English",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: Unix",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "https://pypi.python.org/pypi/aws_cloudformation/1.1.2#downloads",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/MacHu-GWU/aws_cloudformation-project",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Unknown",
+            "maintainer_email": "",
+            "name": "aws-cloudformation",
+            "package_url": "https://pypi.org/project/aws-cloudformation/",
+            "platform": "Windows",
+            "project_url": "https://pypi.org/project/aws-cloudformation/",
+            "project_urls": {
+                "Download": "https://pypi.python.org/pypi/aws_cloudformation/1.1.2#downloads",
+                "Homepage": "https://github.com/MacHu-GWU/aws_cloudformation-project"
+            },
+            "release_url": "https://pypi.org/project/aws-cloudformation/1.1.2/",
+            "requires_dist": [
+                "boto3",
+                "boto-session-manager (>=1.1.1)",
+                "colorama",
+                "sphinx (==4.3.0) ; extra == 'docs'",
+                "sphinx-inline-tabs (==2021.8.17b10) ; extra == 'docs'",
+                "sphinx-jinja (==1.1.1) ; extra == 'docs'",
+                "sphinx-copybutton (==0.4.0) ; extra == 'docs'",
+                "rstobj (==0.0.7) ; extra == 'docs'",
+                "docfly (==1.0.2) ; extra == 'docs'",
+                "furo (==2021.8.31) ; extra == 'docs'",
+                "pytest ; extra == 'tests'",
+                "pytest-cov ; extra == 'tests'"
+            ],
+            "requires_python": "",
+            "summary": "\u2b50 AWS CloudFormation deployment for human, Enable terraform plan, terraform apply styled deployment.",
+            "version": "1.1.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16040178,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "488d76076123d2eae28b33b008aac79e",
+                    "sha256": "b5fd0ff1ab1d6619fec14ed6b7c7e4506eb98d3885b07b13c04305632b38ee54"
+                },
+                "downloads": -1,
+                "filename": "aws_cloudformation-1.1.2-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "488d76076123d2eae28b33b008aac79e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": null,
+                "size": 29271,
+                "upload_time": "2022-12-08T17:32:31",
+                "upload_time_iso_8601": "2022-12-08T17:32:31.023323Z",
+                "url": "https://files.pythonhosted.org/packages/01/08/42583f4eaa357d4bcc8de801c817a2a4bd01a7bdcb53daae08b6dae6c8b3/aws_cloudformation-1.1.2-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c2b128fcbdf60362dd58a54e58623e66",
+                    "sha256": "6bc1b9b2f7f465d8d6650577b4f71135117122de12f7d7a037c396e32e26ac6c"
+                },
+                "downloads": -1,
+                "filename": "aws_cloudformation-1.1.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c2b128fcbdf60362dd58a54e58623e66",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 30336,
+                "upload_time": "2022-12-08T17:32:33",
+                "upload_time_iso_8601": "2022-12-08T17:32:33.682898Z",
+                "url": "https://files.pythonhosted.org/packages/c1/51/10d3bc9a04c96f5788f3f956bd10b7e7c28e3a96915c1bd50bc68511aab8/aws_cloudformation-1.1.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.2.1": {
+        "info": {
+            "author": "Sanhe Hu",
+            "author_email": "husanhe@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: Apache Software License",
+                "Natural Language :: English",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: Unix",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": ".. .. image:: https://readthedocs.org/projects/aws_cloudformation/badge/?version=latest\n        :target: https://aws_cloudformation.readthedocs.io/index.html\n        :alt: Documentation Status\n\n.. image:: https://github.com/MacHu-GWU/aws_cloudformation-project/workflows/CI/badge.svg\n    :target: https://github.com/MacHu-GWU/aws_cloudformation-project/actions?query=workflow:CI\n\n.. image:: https://codecov.io/gh/MacHu-GWU/aws_cloudformation-project/branch/main/graph/badge.svg\n    :target: https://codecov.io/gh/MacHu-GWU/aws_cloudformation-project\n\n.. image:: https://img.shields.io/pypi/v/aws_cloudformation.svg\n    :target: https://pypi.python.org/pypi/aws_cloudformation\n\n.. image:: https://img.shields.io/pypi/l/aws_cloudformation.svg\n    :target: https://pypi.python.org/pypi/aws_cloudformation\n\n.. image:: https://img.shields.io/pypi/pyversions/aws_cloudformation.svg\n    :target: https://pypi.python.org/pypi/aws_cloudformation\n\n.. image:: https://img.shields.io/badge/STAR_Me_on_GitHub!--None.svg?style=social\n    :target: https://github.com/MacHu-GWU/aws_cloudformation-project\n\n------\n\n.. .. image:: https://img.shields.io/badge/Link-Document-blue.svg\n    :target: https://aws_cloudformation.readthedocs.io/index.html\n\n..  .. image:: https://img.shields.io/badge/Link-API-blue.svg\n    :target: https://aws_cloudformation.readthedocs.io/py-modindex.html\n\n..  .. image:: https://img.shields.io/badge/Link-Source_Code-blue.svg\n    :target: https://aws_cloudformation.readthedocs.io/py-modindex.html\n\n.. image:: https://img.shields.io/badge/Link-Install-blue.svg\n    :target: `install`_\n\n.. image:: https://img.shields.io/badge/Link-GitHub-blue.svg\n    :target: https://github.com/MacHu-GWU/aws_cloudformation-project\n\n.. image:: https://img.shields.io/badge/Link-Submit_Issue-blue.svg\n    :target: https://github.com/MacHu-GWU/aws_cloudformation-project/issues\n\n.. image:: https://img.shields.io/badge/Link-Request_Feature-blue.svg\n    :target: https://github.com/MacHu-GWU/aws_cloudformation-project/issues\n\n.. image:: https://img.shields.io/badge/Link-Download-blue.svg\n    :target: https://pypi.org/pypi/aws_cloudformation#files\n\n\nWelcome to ``aws_cloudformation`` Documentation\n==============================================================================\nAWS CloudFormation deployment for human, Enable ``terraform plan``, ``terraform apply`` styled deployment.\n\nFeatures:\n\n1. Preview the change set details before deployment.\n2. Automatically upload big template to S3 before deployment.\n3. Support SYNC call for deployment and deletion, wait until it success or fail (the original API is ASYNC call).\n4. Allow prompt for user to enter \"YES\" to proceed.\n5. Provide hyperlink for one-click to jump to the Console to preview.\n\n.. contents::\n    :class: this-will-duplicate-information-and-it-is-still-useful-here\n    :depth: 1\n    :local:\n\n\nTalk is cheap, show me the code\n------------------------------------------------------------------------------\n\u2b50 **Console Output**:\n\n.. code-block:: bash\n\n    ============== Deploy stack: 'cottonformation-deploy-stack-test' ===============\n      preview stack in AWS CloudFormation console: https://console.aws.amazon.com/cloudformation/home?#/stacks?filteringStatus=active&filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false\n      preview **change set details** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/changesets/changes?stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&changeSetId=arn:aws:cloudformation:us-east-1:111122223333:changeSet/cottonformation-deploy-stack-test-2022-12-08-04-51-58-892/8c88d0c1-d5c7-495b-820e-29e5752a04d4\n      wait for change set creation to finish ...\n        on 1 th attempt, elapsed 5 seconds, remain 55 seconds ...\n        reached status CREATE_COMPLETE\n    +---------------------------- Change Set Statistics -----------------------------\n    | \ud83d\udfe2 Add        1 Resource\n    |\n    +--------------------------------------------------------------------------------\n    +----------------------------------- Changes ------------------------------------\n    | \ud83d\udfe2 \ud83d\udce6 Add Resource:        Secret1    AWS::SecretsManager::Secret\n    |\n    +--------------------------------------------------------------------------------\n        need to execute the change set to apply those changes.\n      preview **create stack progress** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/stackinfo?filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false&stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&filteringStatus=active\n      wait for deploy to finish ...\n        on 2 th attempt, elapsed 10 seconds, remain 50 seconds ...\n        reached status \ud83d\udfe2 'CREATE_COMPLETE'\n      done\n\n\n    ============== Deploy stack: 'cottonformation-deploy-stack-test' ===============\n      preview stack in AWS CloudFormation console: https://console.aws.amazon.com/cloudformation/home?#/stacks?filteringStatus=active&filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false\n      preview **change set details** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/changesets/changes?stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&changeSetId=arn:aws:cloudformation:us-east-1:111122223333:changeSet/cottonformation-deploy-stack-test-2022-12-08-04-52-39-134/8e1fd139-7a37-43dd-9378-40a328970036\n      wait for change set creation to finish ...\n        on 1 th attempt, elapsed 5 seconds, remain 55 seconds ...\n        reached status CREATE_COMPLETE\n    +---------------------------- Change Set Statistics -----------------------------\n    | \ud83d\udfe2 Add        1 Resource\n    | \ud83d\udd35 Modify     1 Resource\n    |\n    +--------------------------------------------------------------------------------\n    +----------------------------------- Changes ------------------------------------\n    | \ud83d\udfe2 \ud83d\udce6 Add Resource:        Secret222    AWS::SecretsManager::Secret\n    | \ud83d\udd35 \ud83d\udce6 Modify Resource:     Secret1      AWS::SecretsManager::Secret\n    |     \ud83d\udd35 \ud83d\udca1 Properties:      Secret1      AWS::SecretsManager::Secret.Description\n    |     \ud83d\udd35 \ud83d\udca1 Tags:            Secret1      AWS::SecretsManager::Secret\n    |\n    +--------------------------------------------------------------------------------\n        need to execute the change set to apply those changes.\n      preview **update stack progress** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/stackinfo?filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false&stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&filteringStatus=active\n      wait for deploy to finish ...\n        on 3 th attempt, elapsed 15 seconds, remain 45 seconds ...\n        reached status \ud83d\udfe2 'UPDATE_COMPLETE'\n      done\n\n\n    ============== Deploy stack: 'cottonformation-deploy-stack-test' ===============\n      preview stack in AWS CloudFormation console: https://console.aws.amazon.com/cloudformation/home?#/stacks?filteringStatus=active&filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false\n      preview **change set details** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/changesets/changes?stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&changeSetId=arn:aws:cloudformation:us-east-1:111122223333:changeSet/cottonformation-deploy-stack-test-2022-12-08-04-53-07-499/6edbcdf2-8e27-463f-bc5f-35587463fceb\n      wait for change set creation to finish ...\n        on 2 th attempt, elapsed 10 seconds, remain 50 seconds ...\n        reached status CREATE_COMPLETE\n    +---------------------------- Change Set Statistics -----------------------------\n    | \ud83d\udfe2 Add        1 Resource\n    | \ud83d\udd35 Modify     1 Resource\n    | \ud83d\udd34 Remove     1 Resource\n    |\n    +--------------------------------------------------------------------------------\n    +----------------------------------- Changes ------------------------------------\n    | \ud83d\udfe2 \ud83d\udce6 Add Resource:        Secret33333    AWS::SecretsManager::Secret\n    | \ud83d\udd35 \ud83d\udce6 Modify Resource:     Secret222      AWS::SecretsManager::Secret\n    |     \ud83d\udd35 \ud83d\udca1 Properties:      Secret222      AWS::SecretsManager::Secret.Description\n    |     \ud83d\udd35 \ud83d\udca1 Metadata:        Secret222      AWS::SecretsManager::Secret\n    |     \ud83d\udd35 \ud83d\udca1 CreationPolicy:  Secret222      AWS::SecretsManager::Secret\n    |     \ud83d\udd35 \ud83d\udca1 UpdatePolicy:    Secret222      AWS::SecretsManager::Secret\n    |     \ud83d\udd35 \ud83d\udca1 Tags:            Secret222      AWS::SecretsManager::Secret\n    | \ud83d\udd34 \ud83d\udce6 Remove Resource:     Secret1        AWS::SecretsManager::Secret\n    |\n    +--------------------------------------------------------------------------------\n        need to execute the change set to apply those changes.\n      preview **update stack progress** at: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/stackinfo?filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false&stackId=arn:aws:cloudformation:us-east-1:111122223333:stack/cottonformation-deploy-stack-test/0c5596c0-76b4-11ed-92b1-0a0bcad48579&filteringStatus=active\n      wait for deploy to finish ...\n        on 3 th attempt, elapsed 15 seconds, remain 45 seconds ...\n        reached status \ud83d\udfe2 'UPDATE_COMPLETE'\n      done\n\n\n    =============== Remove stack 'cottonformation-deploy-stack-test' ===============\n      preview stack in AWS CloudFormation console: https://console.aws.amazon.com/cloudformation/home?#/stacks?filteringStatus=active&filteringText=cottonformation-deploy-stack-test&viewNested=true&hideStacks=false\n      wait for delete to finish ...\n        on 1 th attempt, elapsed 5 seconds, remain 55 seconds ...\n        already deleted.\n      done\n\n\n\u2b50 **CloudFormation declaration**, see `cottonformation <https://github.com/MacHu-GWU/cottonformation-project>`_:\n\n.. code-block:: python\n\n    # -*- coding: utf-8 -*-\n\n    import cottonformation as cf\n    from cottonformation.res import secretsmanager\n\n\n    def make_tpl_1() -> cf.Template:\n        \"\"\"\n        Create Secret1\n        \"\"\"\n        tpl = cf.Template()\n\n        secret1 = secretsmanager.Secret(\n            \"Secret1\",\n            p_Name=\"aws_cft_secret1\",\n            p_Description=\"This is Secret 1\",\n            p_Tags=[\n                cf.Tag(p_Key=\"Creator\", p_Value=\"Alice\"),\n                cf.Tag(p_Key=\"Description\", p_Value=\"Hello\"),\n            ]\n        )\n        tpl.add(secret1)\n\n        return tpl\n\n\n    def make_tpl_2() -> cf.Template:\n        \"\"\"\n        Modify Secret1\n        Create Secret222\n        \"\"\"\n        tpl = make_tpl_1()\n\n        secret1: secretsmanager.Secret = tpl.Resources[\"Secret1\"]\n        secret1.p_Description = \"This must be Secret 1\"\n        secret1.p_Tags = [\n            cf.Tag(p_Key=\"Creator\", p_Value=\"Bob\"),\n            cf.Tag(p_Key=\"Env\", p_Value=\"Dev\"),\n        ]\n\n        secret2 = secretsmanager.Secret(\n            \"Secret222\",\n            p_Name=\"aws_cft_secret2\",\n            p_Description=\"This is Secret 2\",\n        )\n        tpl.add(secret2)\n\n        output_secret2_arn = cf.Output(\n            \"Secret222Arn\",\n            Value=secret2.ref(),\n        )\n        tpl.add(output_secret2_arn)\n\n        return tpl\n\n\n    def make_tpl_3() -> cf.Template:\n        \"\"\"\n        Delete Secret1\n        Modify Secret222\n        Create Secret33333\n        \"\"\"\n        tpl = make_tpl_2()\n\n        tpl.remove(tpl.Resources[\"Secret1\"])\n\n        secret2: secretsmanager.Secret = tpl.Resources[\"Secret222\"]\n        secret2.p_Description = \"This definitely be Secret 2\"\n        secret2.p_Tags = [\n            cf.Tag(p_Key=\"Creator\", p_Value=\"Cathy\"),\n            cf.Tag(p_Key=\"Env\", p_Value=\"QA\"),\n        ]\n        secret2.ra_Metadata = {\"email\": \"cathy@email.com\"}\n\n        secret3 = secretsmanager.Secret(\n            \"Secret33333\",\n            p_Name=\"aws_cft_secret3\",\n            p_Description=\"This is Secret 3\",\n        )\n        tpl.add(secret3)\n\n        return tpl\n\n\u2b50 **Deployment Script**:\n\n.. code-block:: python\n\n    # -*- coding: utf-8 -*-\n\n    from aws_cloudformation import deploy_stack, remove_stack\n    from aws_cloudformation.tests import bsm\n    from aws_cloudformation.tests.stacks.secretmanager_stack import (\n        make_tpl_1,\n        make_tpl_2,\n        make_tpl_3,\n    )\n\n    stack_name = \"cottonformation-deploy-stack-test\"\n\n    deploy_stack(\n        bsm,\n        stack_name=stack_name,\n        template=make_tpl_1().to_json(),\n        skip_prompt=True, # by default, it prompt user input for YES / NO to proceed\n        # skip_plan=False, # by default, it does plan first\n        # wait=True, # by default, it waits the update to finish\n    )\n\n    deploy_stack(\n        bsm,\n        stack_name=stack_name,\n        template=make_tpl_2().to_json(),\n        skip_prompt=True,\n        # skip_plan=False,\n        # wait=True,\n    )\n\n    deploy_stack(\n        bsm,\n        stack_name=stack_name,\n        template=make_tpl_3().to_json(),\n        skip_prompt=True,\n        # skip_plan=False,\n        # wait=True,\n    )\n\n    remove_stack(\n        bsm,\n        stack_name=stack_name,\n        skip_prompt=True,\n    )\n\n\nAPI Reference\n------------------------------------------------------------------------------\n.. code-block:: python\n\n    def deploy_stack(\n        bsm: \"BotoSesManager\",\n        stack_name: str,\n        template: T.Optional[str],\n        use_previous_template: T.Optional[bool] = None,\n        bucket: T.Optional[str] = None,\n        prefix: T.Optional[str] = DEFAULT_S3_PREFIX_FOR_TEMPLATE,\n        parameters: T.List[Parameter] = None,\n        tags: dict = None,\n        execution_role_arn: T.Optional[str] = None,\n        include_iam: bool = False,\n        include_named_iam: bool = False,\n        include_macro: bool = False,\n        stack_policy: T.Optional[str] = None,\n        prefix_stack_policy: T.Optional[str] = DEFAULT_S3_PREFIX_FOR_STACK_POLICY,\n        resource_types: T.Optional[T.List[str]] = None,\n        client_request_token: T.Optional[str] = None,\n        enable_termination_protection: T.Optional[bool] = None,\n        disable_rollback: T.Optional[bool] = None,\n        wait: bool = True,\n        delays: T.Union[int, float] = DEFAULT_UPDATE_DELAYS,\n        timeout: T.Union[int, float] = DEFAULT_UPDATE_TIMEOUT,\n        skip_plan: bool = False,\n        skip_prompt: bool = False,\n        change_set_delays: T.Union[int, float] = DEFAULT_CHANGE_SET_DELAYS,\n        change_set_timeout: T.Union[int, float] = DEFAULT_CHANGE_SET_TIMEOUT,\n        verbose: bool = True,\n    ):\n        \"\"\"\n        Deploy (create or update) an AWS CloudFormation stack. But way more powerful\n        than the original boto3 API.\n\n        Reference:\n\n        - Create Stack Boto3 API: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.create_stack\n        - Update Stack Boto3 API: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.update_stack\n\n        :param bsm: ``boto_session_manager.BotoSesManager`` object\n        :param stack_name: the stack name or unique stack id\n        :param template: CloudFormation template JSON or Yaml body in text, or the\n            s3 uri pointing to a CloudFormation template file.\n        :param use_previous_template: see \"Update Stack Boto3 API\" link\n        :param bucket: default None; if given, automatically upload template to S3\n            before deployment. see :func:`~aws_cloudformation.better_boto.upload_template_to_s3`\n            for more details.\n        :param prefix: the s3 prefix where you want to upload the template to\n        :param parameters: see \"Update Stack Boto3 API\" link\n        :param tags: see \"Update Stack Boto3 API\" link\n        :param execution_role_arn: see \"Update Stack Boto3 API\" link\n        :param include_iam: see \"Capacities\" part in \"Update Stack Boto3 API\" link\n        :param include_named_iam: see \"Capacities\" part in \"Update Stack Boto3 API\" link\n        :param include_macro: see \"Capacities\" part in \"Update Stack Boto3 API\" link\n        :param stack_policy: Stack Policy JSON or Yaml body in text, or the\n            s3 uri pointing to a Stack Policy JSON template file.\n        :param prefix_stack_policy: see \"Update Stack Boto3 API\" link\n        :param resource_types: see \"Update Stack Boto3 API\" link\n        :param client_request_token: see \"Update Stack Boto3 API\" link\n        :param enable_termination_protection: see \"Create Stack Boto3 API\" link\n        :param disable_rollback: see \"Update Stack Boto3 API\" link\n        :param wait: default True; if True, then wait the create / update action\n            to success or fail; if False, then it is an async call and return immediately;\n            note that if you have skip_plan is False (using change set), you always\n            have to wait the change set creation to finish.\n        :param delays: how long it waits (in seconds) between two\n            \"describe_stacks\" api call to get the stack status\n        :param timeout: how long it will raise timeout error\n        :param skip_plan: default False; if False, force to use change set to\n            create / update; if True, then do create / update without change set.\n        :param skip_prompt: default False; if False, you have to enter \"Yes\"\n            in prompt to do deployment; if True, then execute the deployment directly.\n        :param change_set_delays: how long it waits (in seconds) between two\n            \"describe_change_set\" api call to get the change set status\n        :param change_set_timeout: how long it will raise timeout error\n        :param verbose: whether you want to log information to console\n\n        :return: Nothing\n\n        .. versionadded:: 0.1.1\n        \"\"\"\n\n    def remove_stack(\n        bsm: \"BotoSesManager\",\n        stack_name: T.Optional[str] = None,\n        retain_resources: T.Optional[T.List[str]] = None,\n        role_arn: T.Optional[bool] = None,\n        client_request_token: T.Optional[str] = None,\n        wait: bool = True,\n        delays: T.Union[int, float] = DEFAULT_UPDATE_DELAYS,\n        timeout: T.Union[int, float] = DEFAULT_UPDATE_TIMEOUT,\n        skip_prompt: bool = False,\n        verbose: bool = True,\n    ):\n        \"\"\"\n        Remove an AWS CloudFormation Stack.\n\n        Reference:\n\n        - Delete Stack Boto3 API: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack\n\n        :param bsm: ``boto_session_manager.BotoSesManager`` object\n        :param stack_name: the stack name or unique stack id\n        :param retain_resources: see \"Delete Stack Boto3 API\" link\n        :param role_arn: see \"Delete Stack Boto3 API\" link\n        :param client_request_token: see \"Delete Stack Boto3 API\" link\n        :param wait: default True; if True, then wait the delete action\n            to success or fail; if False, then it is an async call and return immediately.\n        :param delays: how long it waits (in seconds) between two\n            \"describe_stacks\" api call to get the stack status\n        :param timeout: how long it will raise timeout error\n        :param skip_prompt: default False; if False, you have to enter \"Yes\"\n            in prompt to do deletion; if True, then execute the deletion directly.\n        :param verbose: whether you want to log information to console\n\n        :return: Nothing\n\n        .. versionadded:: 0.1.1\n        \"\"\"\n\n\n.. _install:\n\nInstall\n------------------------------------------------------------------------------\n\n``aws_cloudformation`` is released on PyPI, so all you need is:\n\n.. code-block:: console\n\n    $ pip install aws_cloudformation\n\nTo upgrade to latest version:\n\n.. code-block:: console\n\n    $ pip install --upgrade aws_cloudformation\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "https://pypi.python.org/pypi/aws_cloudformation/1.2.1#downloads",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/MacHu-GWU/aws_cloudformation-project",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Unknown",
+            "maintainer_email": "",
+            "name": "aws-cloudformation",
+            "package_url": "https://pypi.org/project/aws-cloudformation/",
+            "platform": "Windows",
+            "project_url": "https://pypi.org/project/aws-cloudformation/",
+            "project_urls": {
+                "Download": "https://pypi.python.org/pypi/aws_cloudformation/1.2.1#downloads",
+                "Homepage": "https://github.com/MacHu-GWU/aws_cloudformation-project"
+            },
+            "release_url": "https://pypi.org/project/aws-cloudformation/1.2.1/",
+            "requires_dist": [
+                "boto3",
+                "boto-session-manager (>=1.1.1)",
+                "colorama",
+                "sphinx (==4.3.0) ; extra == 'docs'",
+                "sphinx-inline-tabs (==2021.8.17b10) ; extra == 'docs'",
+                "sphinx-jinja (==1.1.1) ; extra == 'docs'",
+                "sphinx-copybutton (==0.4.0) ; extra == 'docs'",
+                "rstobj (==0.0.7) ; extra == 'docs'",
+                "docfly (==1.0.2) ; extra == 'docs'",
+                "furo (==2021.8.31) ; extra == 'docs'",
+                "pytest ; extra == 'tests'",
+                "pytest-cov ; extra == 'tests'"
+            ],
+            "requires_python": "",
+            "summary": "\u2b50 AWS CloudFormation deployment for human, Enable terraform plan, terraform apply styled deployment.",
+            "version": "1.2.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16040178,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e3bd119c8bbf31b2a2aa75b6cf36203d",
+                    "sha256": "eab96fcc690cc78b71faa70b7c4d94c5dad144dd18a8560a9264ff0ca4c783a2"
+                },
+                "downloads": -1,
+                "filename": "aws_cloudformation-1.2.1-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e3bd119c8bbf31b2a2aa75b6cf36203d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": null,
+                "size": 30445,
+                "upload_time": "2022-12-08T21:26:57",
+                "upload_time_iso_8601": "2022-12-08T21:26:57.104133Z",
+                "url": "https://files.pythonhosted.org/packages/04/fc/1e388134f579e517c2ffce78b50bcaa4b4b195c0387321fda8a6d8dc80a5/aws_cloudformation-1.2.1-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bf34ad60ead811eca76ab253690ff0c5",
+                    "sha256": "ff40a54c81074f57a9378f95431310c4ad2b28e3f0091b7c4440bb65f8badb0c"
+                },
+                "downloads": -1,
+                "filename": "aws_cloudformation-1.2.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "bf34ad60ead811eca76ab253690ff0c5",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 31374,
+                "upload_time": "2022-12-08T21:26:59",
+                "upload_time_iso_8601": "2022-12-08T21:26:59.857133Z",
+                "url": "https://files.pythonhosted.org/packages/03/db/79dda8981cad63788f0b75e98e3ac7b93259381159fe404f3ad13bee1b6a/aws_cloudformation-1.2.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -9,7 +9,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "<p align=\"center\" width=\"100%\">\n    <img width=\"40%\" src=\"images/neurotorch.svg\">\n</p>\n\n[![Star on GitHub](https://img.shields.io/github/stars/NeuroTorch/NeuroTorch.svg?style=social)](https://github.com/NeuroTorch/NeuroTorch/stargazers)\n[![Python 3.6](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org/downloads/release/python-390/)\n[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)\n\n![Tests Workflow](https://github.com/NeuroTorch/NeuroTorch/actions/workflows/tests.yml/badge.svg)\n![Dist Workflow](https://github.com/NeuroTorch/NeuroTorch/actions/workflows/build_dist.yml/badge.svg)\n![Doc Workflow](https://github.com/NeuroTorch/NeuroTorch/actions/workflows/docs.yml/badge.svg)\n![Publish Workflow](https://github.com/NeuroTorch/NeuroTorch/actions/workflows/publish.yml/badge.svg)\n\n\n# Description\n\nIt's time to bring deep learning and neuroscience together. In this library, we offer machine learning \ntools to neuroscientists and we offer neuroscience tools to computer scientists. These two domains were created \nto be one.\n\n### Current Version (v0.0.1-alpha)\n\nWhat can we do with NeuroTorch in the current version? \n- Image classification with spiking networks.\n- Classification of spiking time series with spiking networks.\n- Time series classification with spiking or Wilson-Cowan.\n- Reconstruction/Prediction of time series with Wilson-Cowan;\n- Reconstruction/Prediction of continuous time series with spiking networks.  \n- Backpropagation Through Time.\n- Anything you are able to do using the modules already created.\n\n\n### Next Version (v0.0.1-beta)\n\n- Learning Algorithm: FullForce.\n- Learning Algorithm: [Eligibility-Propagation](https://doi.org/10.1038/s41467-020-17236-y).\n\n### Upcoming Version (v0.0.1)\n- Reinforcement Learning.\n\n\nNeuroTorch is developed to be easy to use, so that you can do simple things in a few lines of code. \nMoreover NeuroTorch is modular so you can adapt it to your needs relatively quickly. Thanks and stay tuned, \nbecause more is coming!  \n\n\nThis package is part of a postgraduate research project realized by [J\u00e9r\u00e9mie Gince](https://github.com/JeremieGince) and supervised by [Simon Hardy]() and [Patrick Desrosiers](https://github.com/pdesrosiers). Our work was supported by: (1) [UNIQUE](https://www.unique.quebec/home), a FRQNT-funded research center, (2) the [Sentinelle Nord](https://sentinellenord.ulaval.ca/en) program of Universit\u00e9 Laval, funded by the Canada First Research Excellence Fund, and (3) [NSERC](https://www.nserc-crsng.gc.ca).\n\n\n\n\n# Important Links\n\n  - Documentation at [https://NeuroTorch.github.io/NeuroTorch/](https://NeuroTorch.github.io/NeuroTorch/).\n  - Github at [https://github.com/NeuroTorch/NeuroTorch/](https://github.com/NeuroTorch/NeuroTorch/).\n\n\n# Installation\n\n## Using pip\n\n```bash\npip install neurotorch\n```\n\n\n## With wheel:\n\n   1. Download the .whl file [here](https://github.com/NeuroTorch/NeuroTorch/tree/main/dist);\n   2. Copy the path of this file on your computer;\n   3. pip install it with ``` pip install [path].whl ```\n\n## With pip+git:\n\n```bash\npip install git+https://github.com/NeuroTorch/NeuroTorch\n```\n\n# Tutorials / Applications\n\nSee the readme of the tutorials folder [here](tutorials/README.md).\n\n## Image classification with spiking networks (Mnist/Fashion-Mnist)\n\n- Tutorial: [Jupyter Notebook](tutorials/mnist/tutorial.ipynb).\n- Project: [Repository](https://github.com/NeuroTorch/MnistClassification_NeuroTorch).\n\n## Classification of spiking time series (Heidelberg)\n\n- Tutorial: [Jupyter Notebook](tutorials/heidelberg/tutorial.ipynb).\n- Project: [Repository](https://github.com/NeuroTorch/HeidelbergClassification_NeuroTorch).\n\n## Time series classification with spiking networks\n\n**Sorry, it's a work in progress, so it's not publish yet.**\n\n- Tutorial: [Jupyter Notebook](tutorials/time_series_forecasting_spiking/tutorial.ipynb).\n- Project: [Repository](https://github.com/NeuroTorch/SNN_TS_Forecasting_NeuroTorch).\n\n## Time series classification with Wilson-Cowan\n\n- Tutorial: [Jupyter Notebook](tutorials/time_series_forecasting_wilson_cowan/tutorial.ipynb).\n\n\n# Quick usage preview\n\n```python\nimport neurotorch as nt\nimport torch\nimport pprint\n\nn_hidden_neurons = 128\ncheckpoint_folder = \"./checkpoints/checkpoint_000\"\ncheckpoint_manager = nt.CheckpointManager(checkpoint_folder)\ndataloaders = get_dataloaders(\n\tbatch_size=256,\n\ttrain_val_split_ratio=0.95,\n)\n\nnetwork = nt.SequentialModel(\n\tlayers=[\n\t\tnt.LIFLayer(\n\t\t\tinput_size=nt.Size([\n\t\t\t\tnt.Dimension(None, nt.DimensionProperty.TIME),\n\t\t\t\tnt.Dimension(dataloaders[\"test\"].dataset.n_units, nt.DimensionProperty.NONE)\n\t\t\t]),\n\t\t\toutput_size=n_hidden_neurons,\n\t\t\tuse_recurrent_connection=True,\n\t\t),\n\t\tnt.SpyLILayer(output_size=dataloaders[\"test\"].dataset.n_classes),\n\t],\n\tname=f\"Network\",\n\tcheckpoint_folder=checkpoint_folder,\n).build()\n\ntrainer = nt.ClassificationTrainer(\n\tmodel=network,\n\toptimizer=torch.optim.Adam(network.parameters(), lr=1e-3),\n\tcallbacks=[\n        checkpoint_manager,\n    ],\n\tverbose=True,\n)\ntraining_history = trainer.train(\n\tdataloaders[\"train\"],\n\tdataloaders[\"val\"],\n\tn_iterations=100,\n\tload_checkpoint_mode=nt.LoadCheckpointMode.LAST_ITR,\n)\ntraining_history.plot(show=True)\n\nnetwork.load_checkpoint(checkpoint_manager.checkpoints_meta_path, nt.LoadCheckpointMode.BEST_ITR, verbose=True)\npredictions = {\n\tk: nt.metrics.ClassificationMetrics.compute_y_true_y_pred(network, dataloader, verbose=True, desc=f\"{k} predictions\")\n\tfor k, dataloader in dataloaders.items()\n}\naccuracies = {\n\tk: nt.metrics.ClassificationMetrics.accuracy(network, y_true=y_true, y_pred=y_pred)\n\tfor k, (y_true, y_pred) in predictions.items()\n}\npprint.pprint(accuracies)\n```\n\n\n# Found a bug or have a feature request?\n- [Click here to create a new issue.](https://github.com/NeuroTorch/NeuroTorch/issues/new)\n\n\n# Thanks\n- [Anthony Drouin](https://github.com/AnthoDrouin) who helped develop the Wilson-Cowan application during his 2022 summer internship.\n- [Antoine L\u00e9gar\u00e9](https://github.com/AntoineLegare) who made the awesome [logo](images/neurotorch.svg) of NeuroTorch.\n- To my dog Chewy who has been a great help during the whole development.\n\n# License\n[Apache License 2.0](LICENSE)\n\n# Citation\n```\n@misc{Gince2022,\n  title={NeuroTorch: Deep Learning Python Library for Machine Learning and Neuroscience.},\n  author={J\u00e9r\u00e9mie Gince},\n  year={2022},\n  publisher={Universit\u00e9 Laval},\n  url={https://github.com/NeuroTorch},\n}\n```\n\n---------------------------------------------------------------------------\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -52,7 +51,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15339373,
+        "last_serial": 16039614,
         "urls": [
             {
                 "comment_text": "",
@@ -91,6 +90,105 @@
                 "upload_time": "2022-10-07T19:49:37",
                 "upload_time_iso_8601": "2022-10-07T19:49:37.346855Z",
                 "url": "https://files.pythonhosted.org/packages/f0/4c/e8ed20d41ed370993a41b90d116101951df8f8ae44872cfd11fe56ae2f2c/NeuroTorch-0.0.1a0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.1b0": {
+        "info": {
+            "author": "J\u00e9r\u00e9mie Gince",
+            "author_email": "gincejeremie@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "<p align=\"center\" width=\"100%\">\n    <img width=\"40%\" src=\"images/neurotorch.svg\">\n</p>\n\n[![Star on GitHub](https://img.shields.io/github/stars/NeuroTorch/NeuroTorch.svg?style=social)](https://github.com/NeuroTorch/NeuroTorch/stargazers)\n[![Python 3.6](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org/downloads/release/python-390/)\n[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)\n\n![Tests Workflow](https://github.com/NeuroTorch/NeuroTorch/actions/workflows/tests.yml/badge.svg)\n![Dist Workflow](https://github.com/NeuroTorch/NeuroTorch/actions/workflows/build_dist.yml/badge.svg)\n![Doc Workflow](https://github.com/NeuroTorch/NeuroTorch/actions/workflows/docs.yml/badge.svg)\n![Publish Workflow](https://github.com/NeuroTorch/NeuroTorch/actions/workflows/publish.yml/badge.svg)\n\n\n# 1. Description\n\nIt's time to bring deep learning and neuroscience together. With this library, we offer machine learning \ntools to neuroscientists and we offer neuroscience tools to computer scientists. These two domains were created \nto be one!\n\n\nNeuroTorch was developed to be easy to use and you can do simple things with few lines of code. \nMoreover, NeuroTorch is modular so you can adapt it to your needs relatively quickly. Thanks and stay tuned, \nbecause more is coming!\n\n\n### Current Version (v0.0.1-beta0)\n\nWhat can be done with NeuroTorch in the current version? \n- Image classification with spiking networks.\n- Classification of spiking time series with spiking networks.\n- Time series classification with spiking or Wilson-Cowan.\n- Reconstruction/Prediction of time series with Wilson-Cowan;\n- Reconstruction/Prediction of continuous time series with spiking networks.  \n- Backpropagation Through Time (BPTT).\n- Truncated-Backpropagation-Through-Time (TBPTT).\n- Anything you are able to do using the modules already created.\n\n\n### Next Version (v0.0.1-beta)\n- Learning Algorithm: RLS (Recursive Least Squares).\n- Learning Algorithm: [Eligibility-Propagation](https://doi.org/10.1038/s41467-020-17236-y).\n\n### Upcoming Versions (v0.0.1+)\n- Reinforcement Learning.\n\n\n# 2. Installation\n\n| Method     | Commands                                                                                                                                                                       |\n|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n| **PyPi**   | `pip install neurotorch`                                                                                                                                                       |\n| **source** | `pip install git+https://github.com/NeuroTorch/NeuroTorch`                                                                                                                     |\n| **wheel**  | 1.Download the .whl file [here](https://github.com/NeuroTorch/NeuroTorch/tree/main/dist);<br> 2. Copy the path of this file on your computer; <br> 3. `pip install [path].whl` |\n\n### 2.1 Last unstable version\nTo install the last unstable version, you can install it by downloading the last version of the .whl file\nand following the instructions above.\n\n\n# 3. Tutorials / Applications\n\nSee the readme of the tutorials folder [here](tutorials/README.md).\n\n| Tutorial                                                                          | Project                                                                         | Description                                                                                                                         |\n|-----------------------------------------------------------------------------------|---------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|\n| [Jupyter Notebook](tutorials/mnist/tutorial.ipynb)                                | [Repository](https://github.com/NeuroTorch/MnistClassification_NeuroTorch)      | Image classification with spiking networks (Mnist/Fashion-Mnist).                                                                   |\n| [Jupyter Notebook](tutorials/heidelberg/tutorial.ipynb)                           | [Repository](https://github.com/NeuroTorch/HeidelbergClassification_NeuroTorch) | Time series classification with spiking networks (Heidelberg).                                                                      |\n| [Jupyter Notebook](tutorials/time_series_forecasting_spiking/tutorial.ipynb)      | [Repository](https://github.com/NeuroTorch/SNN_TS_Forecasting_NeuroTorch)       | Time series forecasting with spiking networks (Neuronal activity) <br> **Sorry, it's a work in progress, so it's not publish yet.** | \n| [Jupyter Notebook](tutorials/time_series_forecasting_wilson_cowan/tutorial.ipynb) | Null                                                                            | Time series forecasting with Wilson-Cowan (Neuronal activity).                                                                      |\n\n\n# 4. Quick usage preview\n\n```python\nimport neurotorch as nt\nimport torch\nimport pprint\n\nn_hidden_neurons = 128\ncheckpoint_folder = \"./checkpoints/checkpoint_000\"\ncheckpoint_manager = nt.CheckpointManager(checkpoint_folder)\ndataloaders = get_dataloaders(\n\tbatch_size=256,\n\ttrain_val_split_ratio=0.95,\n)\n\nnetwork = nt.SequentialRNN(\n\tlayers=[\n\t\tnt.LIFLayer(\n\t\t\tinput_size=nt.Size(\n\t\t\t\t[\n\t\t\t\t\tnt.Dimension(None, nt.DimensionProperty.TIME),\n\t\t\t\t\tnt.Dimension(dataloaders[\"test\"].dataset.n_units, nt.DimensionProperty.NONE)\n\t\t\t\t]\n\t\t\t),\n\t\t\toutput_size=n_hidden_neurons,\n\t\t\tuse_recurrent_connection=True,\n\t\t),\n\t\tnt.SpyLILayer(output_size=dataloaders[\"test\"].dataset.n_classes),\n\t],\n\tname=f\"Network\",\n\tcheckpoint_folder=checkpoint_folder,\n).build()\n\nlearning_algorithm = nt.BPTT(optimizer=torch.optim.Adam(network.parameters(), lr=1e-3))\ntrainer = nt.ClassificationTrainer(\n\tmodel=network,\n\tcallbacks=[checkpoint_manager, learning_algorithm],\n\tverbose=True,\n)\ntraining_history = trainer.train(\n\tdataloaders[\"train\"],\n\tdataloaders[\"val\"],\n\tn_iterations=100,\n\tload_checkpoint_mode=nt.LoadCheckpointMode.LAST_ITR,\n)\ntraining_history.plot(show=True)\n\nnetwork.load_checkpoint(checkpoint_manager.checkpoints_meta_path, nt.LoadCheckpointMode.BEST_ITR, verbose=True)\npredictions = {\n\tk: nt.metrics.ClassificationMetrics.compute_y_true_y_pred(\n\t\tnetwork, dataloader, verbose=True, desc=f\"{k} predictions\"\n\t\t)\n\tfor k, dataloader in dataloaders.items()\n}\naccuracies = {\n\tk: nt.metrics.ClassificationMetrics.accuracy(network, y_true=y_true, y_pred=y_pred)\n\tfor k, (y_true, y_pred) in predictions.items()\n}\npprint.pprint(accuracies)\n```\n\n# 5. Why NeuroTorch?\nOn the one hand, neuroscientists are increasingly using machine learning (ML) without necessarily having the \nexpertise to create training pipelines. On the other hand, most ML experts lack the neuroscience background to \nimplement biologically inspired models. There is thus a need for a tool providing a complete ML pipeline with \nfeatures originating from neuroscience while using a simple and intuitive interface. \n\nThe goal of this work is to provide a Python package, NeuroTorch, offering a flexible and intuitive training pipeline \ntogether with biologically-constrained neuronal dynamics. This tool will include several learning strategies highly \nused in both ML and neuroscience to ensure that both fields can benefit from the package.\n\n\n# 6. Similar work\n\n* [Norse](https://github.com/norse/norse) is a highly optimized spiking neural network library for PyTorch. In fact, \nthis library seems to be very similar to NeuroTorch at first glance. However, the main difference is that NeuroTorch\nis focused on the development of learning algorithms for spiking neural networks and other bio-inspired dynamics like \nWilson-Cowan, while Norse is focused on the development of spiking neural networks layers itself. In addition,  \nNeuroTorch will soon allow to easily use modules from Norse.\n* [SpyTorch](https://github.com/fzenke/spytorch) presents a set of tutorials for training SNNs with the surrogate \ngradient approach SuperSpike by [F. Zenke, and S. Ganguli (2017)](https://arxiv.org/abs/1705.11146). In fact,\nthe prefix 'Spy' of certain layers in NeuroTorch is a reference to SpyTorch.\n* [PySNN](https://github.com/BasBuller/PySNN/) is a PyTorch extension similar to [Norse](https://github.com/norse/norse).\n\n\n# 7. About\n\nThis package is part of a postgraduate research project realized by [J\u00e9r\u00e9mie Gince](https://github.com/JeremieGince) \nand supervised by [Simon V Hardy]() and [Patrick Desrosiers](https://github.com/pdesrosiers). \nOur work was supported by: (1) [UNIQUE](https://www.unique.quebec/home), a FRQNT-funded research center, (2) \nthe [Sentinelle Nord](https://sentinellenord.ulaval.ca/en) program of Universit\u00e9 Laval, funded by the Canada \nFirst Research Excellence Fund, and (3) [NSERC](https://www.nserc-crsng.gc.ca).\n\n\n# 8. Important Links\n  - Documentation at [https://NeuroTorch.github.io/NeuroTorch/](https://NeuroTorch.github.io/NeuroTorch/).\n  - Github at [https://github.com/NeuroTorch/NeuroTorch/](https://github.com/NeuroTorch/NeuroTorch/).\n\n\n# 9. Found a bug or have a feature request?\n- [Click here to create a new issue.](https://github.com/NeuroTorch/NeuroTorch/issues/new)\n\n\n# 10. Thanks\n- [Anthony Drouin](https://github.com/AnthoDrouin) who helped develop the Wilson-Cowan application during his 2022 summer internship.\n- [Antoine L\u00e9gar\u00e9](https://github.com/AntoineLegare) who made the awesome [logo](images/neurotorch.svg) of NeuroTorch.\n- To my dog Chewy who has been a great help during the whole development.\n\n# 11. License\n[Apache License 2.0](LICENSE)\n\n# 12. Citation\n```\n@misc{Gince2022,\n  title={NeuroTorch: A Python library for machine learning and neuroscience.},\n  author={J\u00e9r\u00e9mie Gince},\n  year={2022},\n  publisher={Universit\u00e9 Laval},\n  url={https://github.com/NeuroTorch},\n}\n```\n\n---------------------------------------------------------------------------\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/NeuroTorch/NeuroTorch",
+            "keywords": "",
+            "license": "Apache 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "NeuroTorch",
+            "package_url": "https://pypi.org/project/NeuroTorch/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/NeuroTorch/",
+            "project_urls": {
+                "Homepage": "https://github.com/NeuroTorch/NeuroTorch"
+            },
+            "release_url": "https://pypi.org/project/NeuroTorch/0.0.1b0/",
+            "requires_dist": [
+                "matplotlib (>=3.5.2)",
+                "numpy (>=1.22.3)",
+                "setuptools (>=57.0.0)",
+                "torch (>=1.11.0)",
+                "torchvision (>=0.12.0)",
+                "tqdm (>=4.64.0)",
+                "scikit-learn (>=1.1.1)",
+                "psutil (>=5.9.1)",
+                "pytest (>=7.1.2)",
+                "docutils (>=0.17.1)",
+                "scipy (>=1.8.0)",
+                "six (>=1.16.0)",
+                "pythonbasictools",
+                "unstable"
+            ],
+            "requires_python": ">=3.9",
+            "summary": "NeuroTorch: A Python library for machine learning and neuroscience.",
+            "version": "0.0.1b0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16039614,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2ddadee06c496027352731518c1fc548",
+                    "sha256": "562762b9c09ce9964a3eb4b3914d738be8ba4913d6eb47212bc40d8ca4cb2e00"
+                },
+                "downloads": -1,
+                "filename": "NeuroTorch-0.0.1b0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "2ddadee06c496027352731518c1fc548",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.9",
+                "size": 133569,
+                "upload_time": "2022-12-08T20:41:17",
+                "upload_time_iso_8601": "2022-12-08T20:41:17.171498Z",
+                "url": "https://files.pythonhosted.org/packages/e4/ed/c589162bf9effa86ad244addadc227e274e9c74eaa0bde0a900d6015067a/NeuroTorch-0.0.1b0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e95d9fe78061b7ff37a5456e32620547",
+                    "sha256": "a56a943125ddd57280de312dd609f882adfdc491025d54f2946826e486c3af45"
+                },
+                "downloads": -1,
+                "filename": "NeuroTorch-0.0.1b0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e95d9fe78061b7ff37a5456e32620547",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9",
+                "size": 106353,
+                "upload_time": "2022-12-08T20:41:19",
+                "upload_time_iso_8601": "2022-12-08T20:41:19.510649Z",
+                "url": "https://files.pythonhosted.org/packages/db/59/e9fdb59b8396c4aea807e5db84f176d79b3ffd1d19c31c8693b955d1907e/NeuroTorch-0.0.1b0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
