@@ -35,7 +35,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16040326,
+        "last_serial": 16042466,
         "urls": [
             {
                 "comment_text": "",
@@ -119,7 +119,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16040326,
+        "last_serial": 16042466,
         "urls": [
             {
                 "comment_text": "",
@@ -203,7 +203,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16040326,
+        "last_serial": 16042466,
         "urls": [
             {
                 "comment_text": "",
@@ -256,7 +256,6 @@
             "classifiers": [
                 "Programming Language :: Python :: 3"
             ],
-            "description": "<img src=\"https://user-images.githubusercontent.com/16627175/185823115-b33905c3-f389-40e1-b830-2197889a936a.png\" height=\"400\">\n\n# pytheus\n\nplaying with metrics\n\n---\n\nExperimenting with a different way of creating prometheus metrics in python:\n- support for default labels value \u2705\n- partial labels value (built in an incremental way) \u2705\n- multiple multiprocess support:\n  - mmap file based (wip \u26a0\ufe0f)\n  - redis backend \u2705\n- customizable registry support \u2705\n- registry prefix support \u2705\n\n---\n\n**Install**\n\n```\npip install pytheus\n```\n\nOptionally if you want to use the Redis backend you will need the redis library:\n```python\npip install redis\n# or\npip install pytheus[redis]\n```\n\n---\n\n**Partial labels support:**\n\n```python\nfrom pytheus.metrics import Counter\n\n# without labels\nmy_metric = Counter('metric_name', 'desc')\nmy_metric.inc()  # example for counter\n\n# with labels\nmy_metric = Counter('metric_name', 'desc', required_labels=['req1', 'req2'])\n\nmy_metric.labels({'req1': '1', 'req2': '2'}).inc()  # you can pass all the labels at once\npartial_my_metric = my_metric.labels({'req1': '1'})  # a cacheable object with one of the required labels already set\nobservable_my_metric = partial_my_metric.labels({'req2': '2'})  # finish setting the remaining values before observing\nobservable_my_metric.inc()\n\n```\n\n---\n\n**Default labels support:**\n\n```python\nfrom pytheus.metrics import Counter\n\n# with default labels\nmy_metric = Counter('metric_name', 'desc', required_labels=['req1', 'req2'], default_labels={'req2': 'me_set!'})\n\nmy_metric.labels({'req1': '1'}).inc()  # as we have req2 as a default label we only need to set the remaining labels for observing\nmy_metric.labels({'req1': '1', 'req2': '2'})  # you can still override default labels!\n\n```\n\n---\n\n**Exposing metrics:**\n\nYou can use the `generate_metrics` function from `pytheus.exposition` to generate the metrics and serve them as an endpoint with your favourite web framework.\n\nAlternatively you can use the `make_wsgi_app` function that creates a simple wsgi app to serve the metrics.\n\n## Metric types\n\n### Counter\n\nThe Counter is a metric that only increases and can resets to 0. (For example if a service restart, it will start again from zero)\n\n```python\nfrom pytheus.metrics import Counter\n\ncounter = Counter(name=\"my_counter\", description=\"My description\")\n\n# increase by 1\ncounter.inc()\n\n# increase by x\ncounter.inc(7)\n\n# it is possible to count exceptions\nwith counter.count_exceptions():\n    raise ValueError  # increases counter by 1\n    \n# you can specify which exceptions to watch for\nwith counter.count_exceptions((IndexError, ValueError)):\n    raise ValueError. # increases counter by 1\n```\n\n---\n\n### Gauge\n\nThe Gauge can increase and decrease its value. It is also possible to set a specific value.\n\n```python\nfrom pytheus.metrics import Gauge\n\ngauge = Gauge(name=\"my_gauge\", description=\"My description\")\n\n# increase by 1\ngauge.inc()\n\n# increase by x\ngauge.inc(7)\n\n# decrease by 1\ngauge.dec()\n\n# set a specific value\ngauge.set(7)\n\n# set to current unix timestamp\ngauge.set_to_current_time()\n\n# it is possible to track progress so that when entered increases the value by 1, and when exited decreases it\nwith gauge.track_inprogress():\n    do_something()\n    \n# you can also time a piece of code, will set the duration in seconds to value when exited\nwith gauge.time():\n    do_something()\n```\n\n---\n\n### Histogram\n\nA histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets. It also provides a sum of all observed values. ([taken from prometheus docs](https://prometheus.io/docs/concepts/metric_types/#histogram))\n\n```python\nfrom pytheus.metrics import Histogram\n\nhistogram = Histogram(name=\"my_histogram\", description=\"My description\")\n# by default it will have the following buckets: (.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10)\n# note: the +Inf bucket will be added automatically, this is float('inf') in python\n\n# create a histogram specifying buckets\nhistogram = Histogram(name=\"my_histogram\", description=\"My description\", buckets=(0.2, 1, 3))\n\n# observe a value\nhistogram.observe(0.4)\n    \n# you can also time a piece of code, will set the duration in seconds to value when exited\nwith histogram.time():\n    do_something()\n```\n\n\n## How to use different backends\n\nThings work out of the box, using the SingleProcessBackend:\n\n```python\nfrom pytheus.metrics import Counter\n\ncounter = Counter(\n    name=\"my_metric\",\n    description=\"My description\",\n    required_labels=[\"label_a\", \"label_b\"],\n)\nprint(counter._metric_value_backend.__class__)\n# <class 'pytheus.backends.SingleProcessBackend'>\nprint(counter._metric_value_backend.config)\n# {}\n```\n\nYou can define environment configuration to have different defaults, using two environment variables:\n\n```bash\nexport PYTHEUS_BACKEND_CLASS=\"pytheus.backends.MultipleProcessFileBackend\"\nexport PYTHEUS_BACKEND_CONFIG=\"./config.json\"\n```\n\nNow, create the config file, `./config.json`:\n\n```json\n{\n  \"pytheus_file_directory\": \"./\"\n}\n```\n\nNow we can try the same snippet as above:\n\n```python\nfrom pytheus.metrics import Counter\n\ncounter = Counter(\n    name=\"my_metric\",\n    description=\"My description\",\n    required_labels=[\"label_a\", \"label_b\"],\n)\nprint(counter._metric_value_backend.__class__)\n# <class 'pytheus.backends.MultipleProcessFileBackend'>\nprint(counter._metric_value_backend.config)\n# {'pytheus_file_directory': \"./\"}\n```\n\nYou can also pass the values directly in Python, which would take precedence over the environment\nsetup we have just described:\n\n```python\n\nfrom pytheus.metrics import Counter\nfrom pytheus.backends import MultipleProcessRedisBackend, load_backend\n\nload_backend(\n    backend_class=MultipleProcessRedisBackend,\n    backend_config={\n      \"host\": \"127.0.0.1\",\n      \"port\":  6379\n    }\n)\n# Notice that if you simply call load_backend(), it would reload config from the environment.\n\n# load_backend() is called automatically at package import, that's why we didn't need to call it\n# directly in the previous example\n\ncounter = Counter(\n    name=\"my_metric\",\n    description=\"My description\",\n    required_labels=[\"label_a\", \"label_b\"],\n)\nprint(counter._metric_value_backend.__class__)\n# <class 'pytheus.backends.MultipleProcessRedisBackend'>\nprint(counter._metric_value_backend.config)\n# {'host': '127.0.0.1', 'port': 6379}\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -288,7 +287,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16040326,
+        "last_serial": 16042466,
         "urls": [
             {
                 "comment_text": "",
@@ -327,6 +326,91 @@
                 "upload_time": "2022-12-08T21:47:55",
                 "upload_time_iso_8601": "2022-12-08T21:47:55.703954Z",
                 "url": "https://files.pythonhosted.org/packages/5f/f8/216454fc1e22fd7bba8e88b45d6fe896a09b25e728ecf4da2c09bdf5aed4/pytheus-0.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.4": {
+        "info": {
+            "author": "",
+            "author_email": "Llandy Riveron Del Risco <llandy3d@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "<img src=\"https://user-images.githubusercontent.com/16627175/185823115-b33905c3-f389-40e1-b830-2197889a936a.png\" height=\"400\">\n\n# pytheus\n\nplaying with metrics\n\n---\n\nExperimenting with a different way of creating prometheus metrics in python:\n- support for default labels value \u2705\n- partial labels value (built in an incremental way) \u2705\n- multiple multiprocess support:\n  - mmap file based (wip \u26a0\ufe0f)\n  - redis backend \u2705\n- customizable registry support \u2705\n- registry prefix support \u2705\n\n---\n\n**Install**\n\n```\npip install pytheus\n```\n\nOptionally if you want to use the Redis backend you will need the redis library:\n```python\npip install redis\n# or\npip install pytheus[redis]\n```\n\n---\n\n**Partial labels support:**\n\n```python\nfrom pytheus.metrics import Counter\n\n# without labels\nmy_metric = Counter('metric_name', 'desc')\nmy_metric.inc()  # example for counter\n\n# with labels\nmy_metric = Counter('metric_name', 'desc', required_labels=['req1', 'req2'])\n\nmy_metric.labels({'req1': '1', 'req2': '2'}).inc()  # you can pass all the labels at once\npartial_my_metric = my_metric.labels({'req1': '1'})  # a cacheable object with one of the required labels already set\nobservable_my_metric = partial_my_metric.labels({'req2': '2'})  # finish setting the remaining values before observing\nobservable_my_metric.inc()\n\n```\n\n---\n\n**Default labels support:**\n\n```python\nfrom pytheus.metrics import Counter\n\n# with default labels\nmy_metric = Counter('metric_name', 'desc', required_labels=['req1', 'req2'], default_labels={'req2': 'me_set!'})\n\nmy_metric.labels({'req1': '1'}).inc()  # as we have req2 as a default label we only need to set the remaining labels for observing\nmy_metric.labels({'req1': '1', 'req2': '2'})  # you can still override default labels!\n\n```\n\n---\n\n**Exposing metrics:**\n\nYou can use the `generate_metrics` function from `pytheus.exposition` to generate the metrics and serve them as an endpoint with your favourite web framework.\n\nAlternatively you can use the `make_wsgi_app` function that creates a simple wsgi app to serve the metrics.\n\n---\n\n## Quickstart / Example\n\nThe `example.py` file starts a flask application with three endpoints:\n  - `/`: just returns a phrase while observing the time taken for the request to complete\n  -  `/slow`: same as before but will sleep so that values will only end up in higher buckets\n  -  `/metrics`: the endpoint used by prometheus to scrape the metrics\n\nIt uses two histograms, one without labels, and one with labels required and a default label that makes it observable.\nTo expose the metrics the `generate_metrics()` function is used.\nnote: the example file is using the redis backend but you can try without and set up prometheus yourself.\n\n### Redis version\n\nFor the redis version you can just clone the repository and run `docker-compose up` to start both redis and prometheus scraping on localhost:8080.\nThen you can start the local server with `python example.py`. (flask is required for it to work)\n\nNow you can visit the described endpoints and by visiting `localhost:9090` you can query prometheus, for example by looking for all the slow requests buckets: `page_visits_latency_seconds_labeled_bucket{speed=\"slow\"}`\n\n<img width=\"1693\" alt=\"image\" src=\"https://user-images.githubusercontent.com/16627175/206577287-06bf89c3-7ab6-4a70-b14c-415be32ea890.png\">\n\n### Default version\n\nFor the default single process version you can create your python server like this:\n\n```python\nimport time\nfrom flask import Flask\nfrom pytheus.metrics import Histogram\nfrom pytheus.exposition import generate_metrics\n\napp = Flask(__name__)\n\nhistogram = Histogram('page_visits_latency_seconds', 'used for testing')\n\n# this is the endpoint that prometheus will use to scrape the metrics\n@app.route('/metrics')\ndef metrics():\n    return generate_metrics()\n\n@app.route('/')\ndef home():\n    with histogram.time():\n        return 'hello world!'\n\n@app.route('/slow')\ndef slow():\n    with histogram.time():\n        time.sleep(3)\n        return 'hello world! from slow!'\n\napp.run(host='0.0.0.0', port=8080)\n```\n\nand if you have prometheus installed configure it to scrape on localhost:8080 or you can still use the included `docker-compose.yml` file.\n\n---\n\n## Metric types\n\n### Counter\n\nThe Counter is a metric that only increases and can resets to 0. (For example if a service restart, it will start again from zero)\n\n```python\nfrom pytheus.metrics import Counter\n\ncounter = Counter(name=\"my_counter\", description=\"My description\")\n\n# increase by 1\ncounter.inc()\n\n# increase by x\ncounter.inc(7)\n\n# it is possible to count exceptions\nwith counter.count_exceptions():\n    raise ValueError  # increases counter by 1\n    \n# you can specify which exceptions to watch for\nwith counter.count_exceptions((IndexError, ValueError)):\n    raise ValueError. # increases counter by 1\n\n# it is possible to use the counter as a decorator as a shortcut to count exceptions\n@counter\ndef test():\n    raise ValueError  # increases counter by 1 when called\n\n# specifying which exceptions to look for also works with the decorator\n@counter(exceptions=(IndexError, ValueError))\ndef test():\n    raise ValueError  # increases counter by 1 when called\n```\n\n---\n\n### Gauge\n\nThe Gauge can increase and decrease its value. It is also possible to set a specific value.\n\n```python\nfrom pytheus.metrics import Gauge\n\ngauge = Gauge(name=\"my_gauge\", description=\"My description\")\n\n# increase by 1\ngauge.inc()\n\n# increase by x\ngauge.inc(7)\n\n# decrease by 1\ngauge.dec()\n\n# set a specific value\ngauge.set(7)\n\n# set to current unix timestamp\ngauge.set_to_current_time()\n\n# it is possible to track progress so that when entered increases the value by 1, and when exited decreases it\nwith gauge.track_inprogress():\n    do_something()\n    \n# you can also time a piece of code, will set the duration in seconds to value when exited\nwith gauge.time():\n    do_something()\n\n# tracking time can also be done as a decorator\n@gauge\ndef do_something():\n    ...\n```\n\n---\n\n### Histogram\n\nA histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets. It also provides a sum of all observed values. ([taken from prometheus docs](https://prometheus.io/docs/concepts/metric_types/#histogram))\n\n```python\nfrom pytheus.metrics import Histogram\n\nhistogram = Histogram(name=\"my_histogram\", description=\"My description\")\n# by default it will have the following buckets: (.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10)\n# note: the +Inf bucket will be added automatically, this is float('inf') in python\n\n# create a histogram specifying buckets\nhistogram = Histogram(name=\"my_histogram\", description=\"My description\", buckets=(0.2, 1, 3))\n\n# observe a value\nhistogram.observe(0.4)\n    \n# you can also time a piece of code, will set the duration in seconds to value when exited\nwith histogram.time():\n    do_something()\n\n# tracking time can also be done as a decorator\n@histogram\ndef do_something():\n    ...\n```\n\n\n## How to use different backends\n\nThings work out of the box, using the SingleProcessBackend:\n\n```python\nfrom pytheus.metrics import Counter\n\ncounter = Counter(\n    name=\"my_metric\",\n    description=\"My description\",\n    required_labels=[\"label_a\", \"label_b\"],\n)\nprint(counter._metric_value_backend.__class__)\n# <class 'pytheus.backends.SingleProcessBackend'>\nprint(counter._metric_value_backend.config)\n# {}\n```\n\nYou can define environment configuration to have different defaults, using two environment variables:\n\n```bash\nexport PYTHEUS_BACKEND_CLASS=\"pytheus.backends.MultipleProcessFileBackend\"\nexport PYTHEUS_BACKEND_CONFIG=\"./config.json\"\n```\n\nNow, create the config file, `./config.json`:\n\n```json\n{\n  \"pytheus_file_directory\": \"./\"\n}\n```\n\nNow we can try the same snippet as above:\n\n```python\nfrom pytheus.metrics import Counter\n\ncounter = Counter(\n    name=\"my_metric\",\n    description=\"My description\",\n    required_labels=[\"label_a\", \"label_b\"],\n)\nprint(counter._metric_value_backend.__class__)\n# <class 'pytheus.backends.MultipleProcessFileBackend'>\nprint(counter._metric_value_backend.config)\n# {'pytheus_file_directory': \"./\"}\n```\n\nYou can also pass the values directly in Python, which would take precedence over the environment\nsetup we have just described:\n\n```python\n\nfrom pytheus.metrics import Counter\nfrom pytheus.backends import MultipleProcessRedisBackend, load_backend\n\nload_backend(\n    backend_class=MultipleProcessRedisBackend,\n    backend_config={\n      \"host\": \"127.0.0.1\",\n      \"port\":  6379\n    }\n)\n# Notice that if you simply call load_backend(), it would reload config from the environment.\n\n# load_backend() is called automatically at package import, that's why we didn't need to call it\n# directly in the previous example\n\ncounter = Counter(\n    name=\"my_metric\",\n    description=\"My description\",\n    required_labels=[\"label_a\", \"label_b\"],\n)\nprint(counter._metric_value_backend.__class__)\n# <class 'pytheus.backends.MultipleProcessRedisBackend'>\nprint(counter._metric_value_backend.config)\n# {'host': '127.0.0.1', 'port': 6379}\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pytheus",
+            "package_url": "https://pypi.org/project/pytheus/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pytheus/",
+            "project_urls": {
+                "repository": "https://github.com/Llandy3d/pytheus"
+            },
+            "release_url": "https://pypi.org/project/pytheus/0.0.4/",
+            "requires_dist": [
+                "redis (>=4.0.0) ; extra == 'redis'",
+                "pytest (>=7.0.0) ; extra == 'test'"
+            ],
+            "requires_python": ">=3.10",
+            "summary": "playing with metrics",
+            "version": "0.0.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16042466,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c2f86b46bb213984462568d1f5f42574",
+                    "sha256": "f7521ba6fe190171b5a31270837a28aade93e35b1901fa274a75ef21ef53e79f"
+                },
+                "downloads": -1,
+                "filename": "pytheus-0.0.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c2f86b46bb213984462568d1f5f42574",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10",
+                "size": 17347,
+                "upload_time": "2022-12-09T01:01:03",
+                "upload_time_iso_8601": "2022-12-09T01:01:03.099363Z",
+                "url": "https://files.pythonhosted.org/packages/0b/d4/a0fdc84e92a343d1d1061453d96450cad0e96e28061e918eb3f54dc2a093/pytheus-0.0.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a851fdcbd918fdcc17a39df6fc6d50ac",
+                    "sha256": "a7fa76c2ec8fc98b33c547d4f146333dd7ea2dfa954b8aebf0f411b9a4c8ec0d"
+                },
+                "downloads": -1,
+                "filename": "pytheus-0.0.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a851fdcbd918fdcc17a39df6fc6d50ac",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10",
+                "size": 18317,
+                "upload_time": "2022-12-09T01:01:05",
+                "upload_time_iso_8601": "2022-12-09T01:01:05.219359Z",
+                "url": "https://files.pythonhosted.org/packages/e7/17/b998d12029dc27675fc8404ce7a1aeed9b6a7c08f87e204a693354b0967b/pytheus-0.0.4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
