@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -152,7 +152,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -261,7 +261,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -370,7 +370,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -479,7 +479,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -588,7 +588,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -697,7 +697,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -806,7 +806,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -915,7 +915,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -1024,7 +1024,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -1133,7 +1133,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -1242,7 +1242,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -1299,7 +1299,6 @@
                 "Programming Language :: Python :: 3.6",
                 "Topic :: Scientific/Engineering :: Artificial Intelligence"
             ],
-            "description": "# TextRL\n\nText generation with reinforcement learning using huggingface's transformer.\n\n## Introduction\n\nThis project is trying to use reinforcement learning to adjust text generation results.\nIt is based on any text-generation model on huggingaface's [transformer](https://github.com/huggingface/transformers) with [PFRL](https://github.com/pfnet/pfrl) and [OpenAI GYM](https://gym.openai.com).\n\n## Example   \n[Controllable generation via RL to let Elon Musk speak ill of DOGE\n](https://voidful.dev/jupyter/2021/07/25/textrl-elon-musk.html)\n\nbefore: `i think dogecoin is a great idea.`    \nafter: `i think dogecoin is a great idea, but I think it is a little overused.`    \n\n## Installation\n### pip install\n```bash\npip install textrl\n```\n\n### Build from source\ngit clone and cd into this project.\n```bash\npip install -e .\n```\n\n## Usage\n### init agent and environment\n```python\nfrom textrl import TextRLEnv,TextRLActor\n\nfrom transformers import AutoTokenizer, AutoModelWithLMHead  \ntokenizer = AutoTokenizer.from_pretrained(\"any models\")  \nmodel = AutoModelWithLMHead.from_pretrained(\"any models\")\nmodel.eval()\n```\n### setup reward function for environment\n* predicted(list[str]): will be the list of predicted token\n* finish(bool): it met the end of sentence or not\n```python\nclass MyRLEnv(TextRLEnv):\n    def get_reward(self, input_text, predicted_list, finish): # predicted will be the list of predicted token\n        if \"[UNK]\" in predicted_list:\n            reward = -1\n        else:\n            reward = 1\n        return reward\n```\n\n### prepare for training\n* observation_input should be a list of all possible input string for model training\n```python\nenv = MyRLEnv(model, tokenizer, observation_input=observaton_list)\nactor = TextRLActor(env,model,tokenizer)\nagent = actor.agent_ppo(update_interval=10, minibatch_size=2000, epochs=20)\n```\n\n### Train\n```python\nn_episodes = 1000\nmax_episode_len = 200 # max sentence length\n\nfor i in range(1, n_episodes + 1):\n    obs = env.reset()\n    R = 0 \n    t = 0 \n    while True:\n        action = agent.act(obs)\n        obs, reward, done, pred = env.step(action)\n        R += reward\n        t += 1\n        reset = t == max_episode_len\n        agent.observe(obs, reward, done, reset)\n        if done or reset:\n            break\n    if i % 10 == 0:\n        print('episode:', i, 'R:', R)\n    if i % 50 == 0:\n        print('statistics:', agent.get_statistics())\nprint('Finished.')\n```\nanother way to train\n```python\nimport logging\nimport sys\nlogging.basicConfig(level=logging.INFO, stream=sys.stdout, format='')\n\npfrl.experiments.train_agent_with_evaluation(\n    agent,\n    env,\n    steps=1000,\n    eval_n_steps=None,\n    eval_n_episodes=1500,       \n    train_max_episode_len=50,  \n    eval_interval=10000,\n    outdir='somewhere', \n)\n```\n\n### prediction\n```python\nagent.load(\"somewhere/best\") # loading the best model\nactor.predict(\"input text\")\n```\n\n## dump trained model to huggingface's model\n```shell\ntextrl-dump --model ./model_path_before_rl --rl ./rl_path --dump ./output_dir\n```\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -1331,7 +1330,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15993046,
+        "last_serial": 16051023,
         "urls": [
             {
                 "comment_text": "",
@@ -1370,6 +1369,183 @@
                 "upload_time": "2022-12-05T09:22:59",
                 "upload_time_iso_8601": "2022-12-05T09:22:59.946059Z",
                 "url": "https://files.pythonhosted.org/packages/fc/72/a667db9484b553f11f8b9e5c88a709dcd7d5deb246fbd031cc8737432a46/textrl-0.1.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.5": {
+        "info": {
+            "author": "Voidful",
+            "author_email": "voidful.stack@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: Apache Software License",
+                "Programming Language :: Python :: 3.6",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/voidful/TextRL",
+            "keywords": "transformer huggingface nlp generation reinforcement learning deep learning",
+            "license": "Apache",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "textrl",
+            "package_url": "https://pypi.org/project/textrl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/textrl/",
+            "project_urls": {
+                "Homepage": "https://github.com/voidful/TextRL"
+            },
+            "release_url": "https://pypi.org/project/textrl/0.1.5/",
+            "requires_dist": [
+                "gym",
+                "transformers"
+            ],
+            "requires_python": ">=3.5.0",
+            "summary": "TextRL - use reinforcement learning to adjust text generation results.",
+            "version": "0.1.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16051023,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f611392b077cd4c1b7a217f43aa0ac98",
+                    "sha256": "79bed6220e65099f1d9a2154774c7290bee6389926b2febb95bf599134c8eb70"
+                },
+                "downloads": -1,
+                "filename": "textrl-0.1.5-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f611392b077cd4c1b7a217f43aa0ac98",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.5.0",
+                "size": 6122,
+                "upload_time": "2022-12-09T17:10:00",
+                "upload_time_iso_8601": "2022-12-09T17:10:00.172812Z",
+                "url": "https://files.pythonhosted.org/packages/70/11/83968de6d1d1d0eacf23f1866f9e737ea7193aec702c187371a21ff54fbe/textrl-0.1.5-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "46752d604c4ab20378dbcaf0df0aa5e8",
+                    "sha256": "1a3725baa5cdab4d60bb8049463eeb9c55fa308541d0f2438a4553a267956966"
+                },
+                "downloads": -1,
+                "filename": "textrl-0.1.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "46752d604c4ab20378dbcaf0df0aa5e8",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.5.0",
+                "size": 7631,
+                "upload_time": "2022-12-09T17:10:02",
+                "upload_time_iso_8601": "2022-12-09T17:10:02.577558Z",
+                "url": "https://files.pythonhosted.org/packages/52/ec/f780e2da25dc7c5a05190ea23dba0ab2774c4102233553d66cd1ea6b246c/textrl-0.1.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.6": {
+        "info": {
+            "author": "Voidful",
+            "author_email": "voidful.stack@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: Apache Software License",
+                "Programming Language :: Python :: 3.6",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence"
+            ],
+            "description": "# TextRL\n\nText generation with reinforcement learning using huggingface's transformer.   \nImplementation of ChatGPT for human interaction to improve generation model with reinforcement learning.\n\n## Introduction\n\nThis project is trying to use reinforcement learning to adjust text generation results. It is based on any\ntext-generation model on huggingaface's [transformer](https://github.com/huggingface/transformers)\nwith [PFRL](https://github.com/pfnet/pfrl) and [OpenAI GYM](https://gym.openai.com).\n\n## Example\n\n[Controllable generation via RL to let Elon Musk speak ill of DOGE\n](https://voidful.dev/jupyter/2021/07/25/textrl-elon-musk.html)\n\nbefore: `i think dogecoin is a great idea.`    \nafter: `i think dogecoin is a great idea, but I think it is a little overused.`\n\n## Installation\n\n### pip install\n\n```bash\npip install pfrl@git+https://github.com/voidful/pfrl.git\npip install textrl\n```\n\n### Build from source\n\ngit clone and cd into this project.\n\n```bash\npip install -e .\n```\n\n## Usage\n\n### init agent and environment\n\n```python\nfrom textrl import TextRLEnv, TextRLActor\n\nfrom transformers import AutoTokenizer, AutoModelWithLMHead\n\ntokenizer = AutoTokenizer.from_pretrained(\"any models\")\nmodel = AutoModelWithLMHead.from_pretrained(\"any models\")\nmodel.eval()\n```\n\n### setup reward function for environment\n\n* predicted(list[str]): will be the list of predicted token\n* finish(bool): it met the end of sentence or not\n\n```python\nclass MyRLEnv(TextRLEnv):\n    def get_reward(self, input_item, predicted_list, finish):  # predicted will be the list of predicted token\n        if \"[UNK]\" in predicted_list:\n            reward = -1\n        else:\n            reward = 1\n        return reward\n```\n\n### prepare for training\n\n* observation_input should be a list of all possible input string for model training\n\n```python\nenv = MyRLEnv(model, tokenizer, observation_input=observaton_list)\nactor = TextRLActor(env, model, tokenizer)\nagent = actor.agent_ppo(update_interval=10, minibatch_size=2000, epochs=20)\n```\n\n### Train\n\n```python\nn_episodes = 1000\nmax_episode_len = 200  # max sentence length\n\nfor i in range(1, n_episodes + 1):\n    obs = env.reset()\n    R = 0\n    t = 0\n    while True:\n        action = agent.act(obs)\n        obs, reward, done, pred = env.step(action)\n        R += reward\n        t += 1\n        reset = t == max_episode_len\n        agent.observe(obs, reward, done, reset)\n        if done or reset:\n            break\n    if i % 10 == 0:\n        print('episode:', i, 'R:', R)\n    if i % 50 == 0:\n        print('statistics:', agent.get_statistics())\nprint('Finished.')\n```\n\nanother way to train\n\n```python\nimport logging\nimport sys\n\nlogging.basicConfig(level=logging.INFO, stream=sys.stdout, format='')\n\npfrl.experiments.train_agent_with_evaluation(\n    agent,\n    env,\n    steps=1000,\n    eval_n_steps=None,\n    eval_n_episodes=1500,\n    train_max_episode_len=50,\n    eval_interval=10000,\n    outdir='somewhere',\n)\n```\n\n### prediction\n\n```python\nagent.load(\"somewhere/best\")  # loading the best model\nactor.predict(\"input text\")\n```\n\n## dump trained model to huggingface's model\n\n```shell\ntextrl-dump --model ./model_path_before_rl --rl ./rl_path --dump ./output_dir\n```\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/voidful/TextRL",
+            "keywords": "transformer huggingface nlp generation reinforcement learning deep learning",
+            "license": "Apache",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "textrl",
+            "package_url": "https://pypi.org/project/textrl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/textrl/",
+            "project_urls": {
+                "Homepage": "https://github.com/voidful/TextRL"
+            },
+            "release_url": "https://pypi.org/project/textrl/0.1.6/",
+            "requires_dist": [
+                "gym",
+                "transformers"
+            ],
+            "requires_python": ">=3.5.0",
+            "summary": "TextRL - use reinforcement learning to adjust text generation results.",
+            "version": "0.1.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16051023,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bb36fa241a2992df8765fcf58b4e4b48",
+                    "sha256": "2d01c722fe7dcfc60acea4a5948952ea6c306957788268b0d115ac81664b73e4"
+                },
+                "downloads": -1,
+                "filename": "textrl-0.1.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "bb36fa241a2992df8765fcf58b4e4b48",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.5.0",
+                "size": 6111,
+                "upload_time": "2022-12-09T17:47:34",
+                "upload_time_iso_8601": "2022-12-09T17:47:34.207854Z",
+                "url": "https://files.pythonhosted.org/packages/61/1f/0333a82a2dad1ab4c807ebfe353bc272c61d517c390a174fec37539a8a7e/textrl-0.1.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2f6e1819ae56318230867d6b5da8ac57",
+                    "sha256": "5e42dec0d6743365d3001a94197ae26e5af546441d95314ea4f16e76026d0859"
+                },
+                "downloads": -1,
+                "filename": "textrl-0.1.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "2f6e1819ae56318230867d6b5da8ac57",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.5.0",
+                "size": 7621,
+                "upload_time": "2022-12-09T17:47:36",
+                "upload_time_iso_8601": "2022-12-09T17:47:36.102781Z",
+                "url": "https://files.pythonhosted.org/packages/8d/8e/101ac70786b82bd0b07af9db3c69ea8b7c1a3574a1d0d544a6f481a147a7/textrl-0.1.6.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
