@@ -42,7 +42,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15071079,
+        "last_serial": 16055052,
         "urls": [
             {
                 "comment_text": "",
@@ -130,7 +130,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15071079,
+        "last_serial": 16055052,
         "urls": [
             {
                 "comment_text": "",
@@ -218,7 +218,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15071079,
+        "last_serial": 16055052,
         "urls": [
             {
                 "comment_text": "",
@@ -306,7 +306,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15071079,
+        "last_serial": 16055052,
         "urls": [
             {
                 "comment_text": "",
@@ -394,7 +394,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15071079,
+        "last_serial": 16055052,
         "urls": [
             {
                 "comment_text": "",
@@ -482,7 +482,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15071079,
+        "last_serial": 16055052,
         "urls": [
             {
                 "comment_text": "",
@@ -570,7 +570,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15071079,
+        "last_serial": 16055052,
         "urls": [
             {
                 "comment_text": "",
@@ -658,7 +658,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15071079,
+        "last_serial": 16055052,
         "urls": [
             {
                 "comment_text": "",
@@ -746,7 +746,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15071079,
+        "last_serial": 16055052,
         "urls": [
             {
                 "comment_text": "",
@@ -802,7 +802,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "=======================================\nSwift RPC - Simple ZeroMQ RPC in Python\n=======================================\n\nOverview\n========\nSwift RPC (szrpc) is a framework for creating remote python servers and and clients able to connect to them.\nIt uses ZeroMQ for socket communications, and MessagePack for serialization. The key features which distinguish it from\nother existing solutions are:\n\n- Simple and clean API for creating clients, servers\n- Servers can support one or more workers running on the same host or many distinct hosts, with transparent load balancing\n- Supports multiple replies per request. Can be used to report progress for long running tasks or simply to send\n  replies in chunks if the application needs it.\n- Reply objects can be transparently integrated into Gtk or Qt graphical frameworks through signals.\n\n\nGetting Started\n===============\nInstalling inside a virtual environment as follows\n\n::\n\n    $ python -m venv myproject\n    $ source myproject/bin/activate\n    (myproject) $ pip3 install szrpc\n\n\nWrite your first RPC Service\n============================\nThe following  example illustrates how simple it is to create one.\n\n.. code-block:: python\n\n    from szrpc.server import Service\n\n    class MyService(Service):\n        def remote__hello_world(self, request, name=None):\n            \"\"\"\n            Single reply after a long duration\n            \"\"\"\n            request.reply(f'Please wait, {name}. This will take a while.')\n            time.sleep(10)\n            return f'Hello, {name}. How is your world today?'\n\n        def remote__date(self, request):\n            \"\"\"\n            Single reply after a short duration\n            \"\"\"           time.sleep(0.1)\n            return f\"Today's date is {datetime.now()}\"\n\n        def remote__progress(self, request):\n            for i in range(10):\n                time.sleep(0.1)\n                request.reply(f'{i*10}% complete')\n            return f\"Progress done\"\n\n\n\nThe above example demonstrates the following key points applicable to Services:\n\n- Sevices must be sub-classes of **szrpc.server.Service**.\n- All methods prefixed with a `remote__` will be exposed remotely.\n- the very first argument to all remote methods is a request instance which contains all the information about the request.\n- The remaining arguments where present, must be keyword arguments. Positional arguments other than the initial `request`\n  are not permitted.\n- Remote methods may block.\n- Multiple replies can be send back before the method completes. The return value will be the final reply sent to the client.\n\nRunning a Server instance\n-------------------------\nOnce a service is defined, it can easily be used to start a server which can listen for incoming connections from multiple clients as follows:\n\n.. code-block:: python\n\n    from szrpc.server import Server\n\n    if __name__ == '__main__':\n       service = MyService()\n       server = Server(service=service, ports=(9990, 9991))\n       server.run()\n\n\nThis says that our server will be available at the TCP address 'tcp://localhost:9990' for clients, and at the address\n'tcp://localhost:9991' for workers. For simple cases, you don't need to worry about workers but by default, one worker\ncreated behind the scenes to provide the service, thus it is mandatory to specify both ports. Additionally,\nyou can change your mind and run additional workers at any point in the future on any host after the server is started.\n\nTo start the server with more than one worker on the local host, modify the `instances` keyword argument as follows:\n\n\n.. code-block:: python\n\n    server = Server(service=service, ports=(9990, 9991), instances=1)\n\nIt is possible to start the server with `instances = 0` however, it will obviously not be able to handle any requests\nuntil at least one worker is started.\n\nStarting External Workers\n-------------------------\nStarting external workers is very similar to starting Servers.\n\n.. code-block:: python\n\n    from szrpc import log\n    from szrpc.server import Server, Service, WorkerManager\n\n    from test_server import MyService\n\n    if __name__ == '__main__':\n\n        service = MyService()\n        log.log_to_console()\n        server = WorkerManager(service=service, backend=\"tcp://localhost:9991\", instances=2)\n        server.run()\n\n\nIn the above example, we are staring two instances of workers on this host which are connected to the backend address\nof the main server.\n\nCreating Clients\n----------------\n\nClients are just as easy, if not easier to create.  Here is a test client for the above service.\n\n.. code-block:: python\n\n    import time\n    from szrpc import log\n    from szrpc.client import Client\n\n    # Define response handlers\n    def on_done(res, data):\n        print(f\"Done: {res} {data!r}\")\n\n    def on_err(res, data):\n        print(f\"Failed: {res} : {data!r}\")\n\n    def on_update(res, data):\n        print(f\"Update: {res} {data!r}\")\n\n    if __name__ == '__main__':\n        log.log_to_console()\n        client = Client('tcp://localhost:9990')\n\n        # wait for client to be ready before sending commands\n        while not client.is_ready():\n            time.sleep(.001)\n\n        res = client.hello_world(name='Joe')\n        res.connect('done', on_done)\n        res.connect('update', on_update)\n        res.connect('failed', on_err)\n\nHere we have defined a few handler functions to get called once the replies are received. A few things are noteworthy in\nthe above client code:\n\n- The client automatically figures out from the server, which methods to generate. For this reason, you will get\n  \"InvalidAttribute\" errors if the  initial handshake has not completed before method calls are made. For most production\n  situations, this is not a problem but in the example above, we wait until the `client.is_ready()` returns `True` before\n  proceeding.\n- The method names at the client end do not nave the `remote__` prefix. This means, overriding remote methods in the client\n  will clobber the name.\n- Only key-worded arguments are allowed for remote methods.\n- Results are delivered asynchronously.  To write synchronous code, you can call the `res.wait()` method on `Result` objects.\n\n\nThere are three signal types corresponding to the three types of replies a server can send:\n\n'done'\n    the server has completed processing the request, no further replies should be expected for this request\n\n'update'\n    partial data is has been received for the request. More replies should be expected.\n\n'failed'\n    The request has failed. No more replies should be expected.\n\nHandler functions take two arguments, the first is always the `result` object, which is an instance of **szrpc.result.Result**,\nand the second is the decoded message from the server.\n\nResult Classes\n--------------\nAll results are instances of **szrpc.result.Result** or sub-classes thereof. The types of result objects produced can be changed to allow better integration with various frameworks.\nPresently, alternatives are available Gtk, Qt as well as a pure Python-based class. The pure Python result class is the default but it can easily be changed as follows.\n\n.. code-block:: python\n\n\n    from szrpc.result.gresult import GResult\n    import szrpc.client\n\n    szrpc.client.use(GResult)\n\n    my_client = szrpc.client.Client('tcp://localhost:9990')\n\nAll subsequent result objects will be proper GObjects usable with the Gtk Main loop.\n\n\n",
             "description_content_type": "text/x-rst",
             "docs_url": null,
             "download_url": "",
@@ -835,7 +834,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15071079,
+        "last_serial": 16055052,
         "urls": [
             {
                 "comment_text": "",
@@ -874,6 +873,96 @@
                 "upload_time": "2022-09-12T19:35:07",
                 "upload_time_iso_8601": "2022-09-12T19:35:07.015290Z",
                 "url": "https://files.pythonhosted.org/packages/a3/94/84716a39385e41aa7ce4d393e14f20fc0ec48160f7809fc8b9ded9f9926b/szrpc-2022.9.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2022.9.6": {
+        "info": {
+            "author": "Michel Fodje",
+            "author_email": "michel4j@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "=======================================\nSwift RPC - Simple ZeroMQ RPC in Python\n=======================================\n\nOverview\n========\nSwift RPC (szrpc) is a framework for creating remote python servers and and clients able to connect to them.\nIt uses ZeroMQ for socket communications, and MessagePack for serialization. The key features which distinguish it from\nother existing solutions are:\n\n- Simple and clean API for creating clients, servers\n- Servers can support one or more workers running on the same host or many distinct hosts, with transparent load balancing\n- Supports multiple replies per request. Can be used to report progress for long running tasks or simply to send\n  replies in chunks if the application needs it.\n- Reply objects can be transparently integrated into Gtk or Qt graphical frameworks through signals.\n\n\nGetting Started\n===============\nInstalling inside a virtual environment as follows\n\n::\n\n    $ python -m venv myproject\n    $ source myproject/bin/activate\n    (myproject) $ pip3 install szrpc\n\n\nWrite your first RPC Service\n============================\nThe following  example illustrates how simple it is to create one.\n\n.. code-block:: python\n\n    from szrpc.server import Service\n\n    class MyService(Service):\n        def remote__hello_world(self, request, name=None):\n            \"\"\"\n            Single reply after a long duration\n            \"\"\"\n            request.reply(f'Please wait, {name}. This will take a while.')\n            time.sleep(10)\n            return f'Hello, {name}. How is your world today?'\n\n        def remote__date(self, request):\n            \"\"\"\n            Single reply after a short duration\n            \"\"\"           time.sleep(0.1)\n            return f\"Today's date is {datetime.now()}\"\n\n        def remote__progress(self, request):\n            for i in range(10):\n                time.sleep(0.1)\n                request.reply(f'{i*10}% complete')\n            return f\"Progress done\"\n\n\n\nThe above example demonstrates the following key points applicable to Services:\n\n- Sevices must be sub-classes of **szrpc.server.Service**.\n- All methods prefixed with a `remote__` will be exposed remotely.\n- the very first argument to all remote methods is a request instance which contains all the information about the request.\n- The remaining arguments where present, must be keyword arguments. Positional arguments other than the initial `request`\n  are not permitted.\n- Remote methods may block.\n- Multiple replies can be send back before the method completes. The return value will be the final reply sent to the client.\n\nRunning a Server instance\n-------------------------\nOnce a service is defined, it can easily be used to start a server which can listen for incoming connections from multiple clients as follows:\n\n.. code-block:: python\n\n    from szrpc.server import Server\n\n    if __name__ == '__main__':\n       service = MyService()\n       server = Server(service=service, ports=(9990, 9991))\n       server.run()\n\n\nThis says that our server will be available at the TCP address 'tcp://localhost:9990' for clients, and at the address\n'tcp://localhost:9991' for workers. For simple cases, you don't need to worry about workers but by default, one worker\ncreated behind the scenes to provide the service, thus it is mandatory to specify both ports. Additionally,\nyou can change your mind and run additional workers at any point in the future on any host after the server is started.\n\nTo start the server with more than one worker on the local host, modify the `instances` keyword argument as follows:\n\n\n.. code-block:: python\n\n    server = Server(service=service, ports=(9990, 9991), instances=1)\n\nIt is possible to start the server with `instances = 0` however, it will obviously not be able to handle any requests\nuntil at least one worker is started.\n\nStarting External Workers\n-------------------------\nStarting external workers is very similar to starting Servers.\n\n.. code-block:: python\n\n    from szrpc import log\n    from szrpc.server import Server, Service, WorkerManager\n\n    from test_server import MyService\n\n    if __name__ == '__main__':\n\n        service = MyService()\n        log.log_to_console()\n        server = WorkerManager(service=service, backend=\"tcp://localhost:9991\", instances=2)\n        server.run()\n\n\nIn the above example, we are staring two instances of workers on this host which are connected to the backend address\nof the main server.\n\nCreating Clients\n----------------\n\nClients are just as easy, if not easier to create.  Here is a test client for the above service.\n\n.. code-block:: python\n\n    import time\n    from szrpc import log\n    from szrpc.client import Client\n\n    # Define response handlers\n    def on_done(res, data):\n        print(f\"Done: {res} {data!r}\")\n\n    def on_err(res, data):\n        print(f\"Failed: {res} : {data!r}\")\n\n    def on_update(res, data):\n        print(f\"Update: {res} {data!r}\")\n\n    if __name__ == '__main__':\n        log.log_to_console()\n        client = Client('tcp://localhost:9990')\n\n        # wait for client to be ready before sending commands\n        while not client.is_ready():\n            time.sleep(.001)\n\n        res = client.hello_world(name='Joe')\n        res.connect('done', on_done)\n        res.connect('update', on_update)\n        res.connect('failed', on_err)\n\nHere we have defined a few handler functions to get called once the replies are received. A few things are noteworthy in\nthe above client code:\n\n- The client automatically figures out from the server, which methods to generate. For this reason, you will get\n  \"InvalidAttribute\" errors if the  initial handshake has not completed before method calls are made. For most production\n  situations, this is not a problem but in the example above, we wait until the `client.is_ready()` returns `True` before\n  proceeding.\n- The method names at the client end do not nave the `remote__` prefix. This means, overriding remote methods in the client\n  will clobber the name.\n- Only key-worded arguments are allowed for remote methods.\n- Results are delivered asynchronously.  To write synchronous code, you can call the `res.wait()` method on `Result` objects.\n\n\nThere are three signal types corresponding to the three types of replies a server can send:\n\n'done'\n    the server has completed processing the request, no further replies should be expected for this request\n\n'update'\n    partial data is has been received for the request. More replies should be expected.\n\n'failed'\n    The request has failed. No more replies should be expected.\n\nHandler functions take two arguments, the first is always the `result` object, which is an instance of **szrpc.result.Result**,\nand the second is the decoded message from the server.\n\nResult Classes\n--------------\nAll results are instances of **szrpc.result.Result** or sub-classes thereof. The types of result objects produced can be changed to allow better integration with various frameworks.\nPresently, alternatives are available Gtk, Qt as well as a pure Python-based class. The pure Python result class is the default but it can easily be changed as follows.\n\n.. code-block:: python\n\n\n    from szrpc.result.gresult import GResult\n    import szrpc.client\n\n    szrpc.client.use(GResult)\n\n    my_client = szrpc.client.Client('tcp://localhost:9990')\n\nAll subsequent result objects will be proper GObjects usable with the Gtk Main loop.\n\n\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/michel4j/swift-rpc",
+            "keywords": "rpc networking development",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "szrpc",
+            "package_url": "https://pypi.org/project/szrpc/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/szrpc/",
+            "project_urls": {
+                "Homepage": "https://github.com/michel4j/swift-rpc"
+            },
+            "release_url": "https://pypi.org/project/szrpc/2022.9.6/",
+            "requires_dist": [
+                "pyzmq",
+                "msgpack",
+                "setuptools-scm",
+                "importlib-metadata (~=1.0) ; python_version < \"3.8\""
+            ],
+            "requires_python": "",
+            "summary": "A simple Python RPC Library using ZeroMQ & MsgPack",
+            "version": "2022.9.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16055052,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "49beb13b1740bd9a6f0672120f233b79",
+                    "sha256": "5d0331b98e905e208e2fd462c4dff24517e177fa854540054058b2620b894785"
+                },
+                "downloads": -1,
+                "filename": "szrpc-2022.9.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "49beb13b1740bd9a6f0672120f233b79",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 13635,
+                "upload_time": "2022-12-10T02:01:21",
+                "upload_time_iso_8601": "2022-12-10T02:01:21.190722Z",
+                "url": "https://files.pythonhosted.org/packages/4e/54/3343f3ca3dc5f4130a71a2000786a2e63ba2c2539bc52dced4835b7035e6/szrpc-2022.9.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f952361477d1040108d20a0da74965dd",
+                    "sha256": "2c187cfc9e2fd16e3376bee2aedb8b373162d33b907edeb2fc756ec4e45083e0"
+                },
+                "downloads": -1,
+                "filename": "szrpc-2022.9.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "f952361477d1040108d20a0da74965dd",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 16818,
+                "upload_time": "2022-12-10T02:01:23",
+                "upload_time_iso_8601": "2022-12-10T02:01:23.734999Z",
+                "url": "https://files.pythonhosted.org/packages/a3/d8/225f7280f6501c04bb9fb3b03bd7ad4d9f134f34cb62a640343678b72702/szrpc-2022.9.6.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
