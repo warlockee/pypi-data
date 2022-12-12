@@ -61,7 +61,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16039497,
+        "last_serial": 16070015,
         "urls": [
             {
                 "comment_text": "",
@@ -128,7 +128,6 @@
                 "Topic :: Software Development",
                 "Topic :: Software Development :: Libraries"
             ],
-            "description": "<p align=\"center\">\n<img alt=\"earthaccess, a python library to search, download or stream NASA Earth science data with just a few lines of code\" src=\"https://user-images.githubusercontent.com/717735/205517116-7a5d0f41-7acc-441e-94ba-2e541bfb7fc8.png\" width=\"70%\" align=\"center\" />\n</p>\n\n<p align=\"center\">\n\n<a href=\"https://twitter.com/allison_horst\" target=\"_blank\">\n    <img src=\"https://img.shields.io/badge/Art%20By-Allison%20Horst-blue\" alt=\"Art Designer: Allison Horst\">\n</a>\n\n<a href=\"https://pypi.org/project/earthdata\" target=\"_blank\">\n    <img src=\"https://img.shields.io/pypi/v/earthaccess?color=%2334D058&label=pypi%20package\" alt=\"Package version\">\n</a>\n\n<a href=\"https://pypi.org/project/earthdata/\" target=\"_blank\">\n    <img src=\"https://img.shields.io/pypi/pyversions/earthaccess.svg\" alt=\"Python Versions\">\n</a>\n\n<a href=\"https://nsidc.github.io/earthdata/\" target=\"_blank\">\n    <img src=\"https://readthedocs.org/projects/earthaccess/badge/?version=latest&style=plastic\" alt=\"Documentation link\">\n</a>\n\n</p>\n\n## **Overview**\n\n*earthaccess* is a **python library to search, download or stream NASA Earth science data** with just a few lines of code.\n\n\nIn the age of cloud computing, the power of open science only reaches its full potential if we have easy-to-use workflows that facilitate research in an inclusive, efficient and reproducible way. Unfortunately \u2014as it stands today\u2014 scientists and students alike face a steep learning curve adapting to systems that have grown too complex and end up spending more time on the technicalities of the tools, cloud and NASA APIs than focusing on their important science.\n\nDuring several workshops organized by [NASA Openscapes](https://nasa-openscapes.github.io/events.html) the need to provide easy-to-use tools to our users became evident. Open science is a collaborative effort, it involves people from different technical backgrounds. Data analysis for the pressing problems we face cannot be limited by the complexity of the underlaying systems and thus providing easy access to NASA Earthdata is the main motivation behind this library.\n\n## **Installing earthaccess**\n\nInstall the latest release using conda\n\n```bash\nconda install -c conda-forge earthaccess\n```\n\nUsing Pip\n\n```bash\npip install earthaccess\n```\n\nTry it in your browser without installing anything! [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/nsidc/earthdata/main)\n\n\n## **Usage**\n\n\nWith *earthaccess* we can login, search and download data with a few lines of code and even more relevant, our code will work the same way if we are running it in the cloud or from our laptop. ***earthaccess*** handles authentication with [NASA's Earthdata Login (EDL)](https://urs.earthdata.nasa.gov), search using NASA's [CMR](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html) and access through [`fsspec`](https://github.com/fsspec/filesystem_spec).\n\nThe only requirement to use this library is to open a free account with NASA [EDL](https://urs.earthdata.nasa.gov).\n\n<a href=\"https://urs.earthdata.nasa.gov\"><img src=\"https://auth.ops.maap-project.org/cas/images/urs-logo.png\" /></a>\n\n\n### **Authentication**\n\nOnce you have an EDL account, you can authenticate using one of the following three methods:\n\n1. Using a `.netrc` file\n    * Can use *earthaccess* to read your EDL credentials (username and password) from a `.netrc` file\n2. Reading your EDL credentials from environment variables\n    * if available you can use environment variables **EDL_USERNAME** and **EDL_PASSWORD**\n3. Interactively entering your EDL credentials\n    * You can be prompted for these credentials and save them to a `.netrc` file\n\n```python\nimport earthaccess\n\nauth = earthaccess.login(strategy=\"netrc\")\nif not auth:\n    auth = earthaccess.login(strategy=\"interactive\", persist=True)\n```\n\nOnce you are authenticated with NASA EDL you can:\n\n* Get a file from a DAAC using a `fsspec` session.\n* Request temporary S3 credentials from a particular DAAC (needed to download or stream data from an S3 bucket in the cloud).\n* Use the library to download or stream data directly from S3.\n* Regenerate CMR tokens (used for restricted datasets)\n\n\n### **Searching for data**\n\nOnce we have selected our dataset we can search for the data granules using *doi*, *short_name* or *concept_id*.\nIf we are not sure or we don't know how to search for a particular dataset, we can start with the \"searching for data\" tutorial or through the [Earthdata search portal](https://search.earthdata.nasa.gov/). For a complete list of search parameters we can use visit the extended API documentation.\n\n```python\n\nresults = earthaccess.search_data(\n    short_name='ATL06',\n    version=\"005\",\n    cloud_hosted=True,\n    bounding_box=(-10, 20, 10, 50),\n    temporal=(\"2020-02\", \"2020-03\"),\n    count=100\n)\n\n\n```\n\nNow that we have our results we can do multiple things, we can iterate over them to get HTTP (or S3) links; we can download the files to a local folder or we can open these files and stream their content directly to other libraries e.g. xarray.\n\n### **Accessing the data**\n\n**Option 1: Using the data links**\n\nIf we already have a workflow in place for downloading our data, we can use *earthaccess* as a search-only library and get HTTP links from our query results. This could be the case if our current workflow uses a different language and we only need the links as input.\n\n```python\n\n# if the data set is cloud hosted there will be S3 links available. The access parameter accepts \"direct\" or \"external\", direct access is only possible if you are in the us-west-2 region in the cloud.\ndata_links = [granule.data_links(access=\"direct\") for granule in results]\n\n# or if the data is an on-prem dataset\ndata_links = [granule.data_links(access=\"external\") for granule in results]\n\n```\n\n> Note: *earthaccess* can get S3 credentials for us, or auhenticated HTTP sessions in case we want to use them with a different library.\n\n**Option 2: Download data to a local folder**\n\nThis option is practical if you have the necessary space available on disk, the *earthaccess* library will print out the approximate size of the download and its progress.\n```python\nfiles = earthaccess.download(results, \"./local_folder\")\n\n```\n\n**Option 3: Direct S3 Access - Stream data directly to xarray**\n\nThis method works best if you are in the same region as the data (us-west-2) and you are working with gridded datasets (processing level 3 and above).\n\n```python\nimport xarray as xr\n\nds = xr.open_mfdataset(earthaccess.open(results, auth=auth), engine=\"scipy\")\n\n```\n\nAnd that's it! Just one line of code, and this same piece of code will also work for data that are not hosted in the cloud, i.e. NASA hosted data sets.\n\n\n> More examples coming soon!\n\n\n### Compatibility\n\nOnly **Python 3.8+** is supported.\n\n\n\n\n## Contributors\n\n[![Contributors](https://contrib.rocks/image?repo=nsidc/earthaccess)](https://github.com/nsidc/earthaccess/graphs/contributors)\n\n## Contributing Guide\n\nWelcome! \ud83d\ude0a\ud83d\udc4b\n\n> Please see the [Contributing Guide](CONTRIBUTING.md).\n\n### [Project Board](https://github.com/nsidc/earthdata/discussions).\n\n### Glossary\n\n<a href=\"https://www.earthdata.nasa.gov/learn/glossary\">NASA Earth Science Glossary</a>\n\n## License\n\nearthaccess is licensed under the MIT license. See [LICENSE](LICENSE.txt).\n\n## Level of Support\n\n<div><img src=\"https://raw.githubusercontent.com/nsidc/earthdata/main/docs/nsidc-logo.png\" width=\"84px\" align=\"left\" text-align=\"middle\"/>\n<br>\n This repository is not actively supported by NSIDC but we welcome issue submissions and pull requests in order to foster community contribution.\n</div>\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -169,7 +168,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16039497,
+        "last_serial": 16070015,
         "urls": [
             {
                 "comment_text": "",
@@ -208,6 +207,113 @@
                 "upload_time": "2022-12-08T20:37:45",
                 "upload_time_iso_8601": "2022-12-08T20:37:45.066300Z",
                 "url": "https://files.pythonhosted.org/packages/cd/a4/2efc33d0422c8d120e3baaf36090add0e6701e33f94ef9f33e8181cab175/earthaccess-0.4.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.7": {
+        "info": {
+            "author": "earthaccess contributors",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Console",
+                "Framework :: IPython",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development",
+                "Topic :: Software Development :: Libraries"
+            ],
+            "description": "<p align=\"center\">\n<img alt=\"earthaccess, a python library to search, download or stream NASA Earth science data with just a few lines of code\" src=\"https://user-images.githubusercontent.com/717735/205517116-7a5d0f41-7acc-441e-94ba-2e541bfb7fc8.png\" width=\"70%\" align=\"center\" />\n</p>\n\n<p align=\"center\">\n\n<a href=\"https://twitter.com/allison_horst\" target=\"_blank\">\n    <img src=\"https://img.shields.io/badge/Art%20By-Allison%20Horst-blue\" alt=\"Art Designer: Allison Horst\">\n</a>\n\n<a href=\"https://pypi.org/project/earthdata\" target=\"_blank\">\n    <img src=\"https://img.shields.io/pypi/v/earthaccess?color=%2334D058&label=pypi%20package\" alt=\"Package version\">\n</a>\n\n<a href=\"https://pypi.org/project/earthdata/\" target=\"_blank\">\n    <img src=\"https://img.shields.io/pypi/pyversions/earthaccess.svg\" alt=\"Python Versions\">\n</a>\n\n<a href=\"https://nsidc.github.io/earthdata/\" target=\"_blank\">\n    <img src=\"https://readthedocs.org/projects/earthaccess/badge/?version=latest&style=plastic\" alt=\"Documentation link\">\n</a>\n\n</p>\n\n## **Overview**\n\n*earthaccess* is a **python library to search, download or stream NASA Earth science data** with just a few lines of code.\n\n\nIn the age of cloud computing, the power of open science only reaches its full potential if we have easy-to-use workflows that facilitate research in an inclusive, efficient and reproducible way. Unfortunately \u2014as it stands today\u2014 scientists and students alike face a steep learning curve adapting to systems that have grown too complex and end up spending more time on the technicalities of the tools, cloud and NASA APIs than focusing on their important science.\n\nDuring several workshops organized by [NASA Openscapes](https://nasa-openscapes.github.io/events.html) the need to provide easy-to-use tools to our users became evident. Open science is a collaborative effort, it involves people from different technical backgrounds and data analysis for the pressing problems we face cannot be limited by the complexity of the underlaying systems. Therefore, providing easy access to NASA Earthdata regardless of the data location (cloud or NASA hosted) is the main motivation behind this Python library.\n\n## **Installing earthaccess**\n\nInstall the latest release using conda\n\n```bash\nconda install -c conda-forge earthaccess\n```\n\nUsing Pip\n\n```bash\npip install earthaccess\n```\n\nTry it in your browser without installing anything! [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/nsidc/earthdata/main)\n\n\n## **Usage**\n\n\nWith *earthaccess* we can login, search and download data with a few lines of code and even more relevant, our code will work the same way if we are running it in the cloud or from our laptop. ***earthaccess*** handles authentication with [NASA's Earthdata Login (EDL)](https://urs.earthdata.nasa.gov), search using NASA's [CMR](https://cmr.earthdata.nasa.gov/search/site/docs/search/api.html) and access through [`fsspec`](https://github.com/fsspec/filesystem_spec).\n\nThe only requirement to use this library is to open a free account with NASA [EDL](https://urs.earthdata.nasa.gov).\n\n<a href=\"https://urs.earthdata.nasa.gov\"><img src=\"https://auth.ops.maap-project.org/cas/images/urs-logo.png\" /></a>\n\n\n### **Authentication**\n\nOnce you have an EDL account, you can authenticate using one of the following three methods:\n\n1. Using a `.netrc` file\n    * Can use *earthaccess* to read your EDL credentials (username and password) from a `.netrc` file\n2. Reading your EDL credentials from environment variables\n    * if available you can use environment variables **EDL_USERNAME** and **EDL_PASSWORD**\n3. Interactively entering your EDL credentials\n    * You can be prompted for these credentials and save them to a `.netrc` file\n\n```python\nimport earthaccess\n\nauth = earthaccess.login(strategy=\"netrc\")\nif not auth:\n    auth = earthaccess.login(strategy=\"interactive\", persist=True)\n```\n\nOnce you are authenticated with NASA EDL you can:\n\n* Get a file from a DAAC using a `fsspec` session.\n* Request temporary S3 credentials from a particular DAAC (needed to download or stream data from an S3 bucket in the cloud).\n* Use the library to download or stream data directly from S3.\n* Regenerate CMR tokens (used for restricted datasets)\n\n\n### **Searching for data**\n\nOnce we have selected our dataset we can search for the data granules using *doi*, *short_name* or *concept_id*.\nIf we are not sure or we don't know how to search for a particular dataset, we can start with the \"searching for data\" tutorial or through the [Earthdata search portal](https://search.earthdata.nasa.gov/). For a complete list of search parameters we can use visit the extended API documentation.\n\n```python\n\nresults = earthaccess.search_data(\n    short_name='ATL06',\n    version=\"005\",\n    cloud_hosted=True,\n    bounding_box=(-10, 20, 10, 50),\n    temporal=(\"2020-02\", \"2020-03\"),\n    count=100\n)\n\n\n```\n\nNow that we have our results we can do multiple things, we can iterate over them to get HTTP (or S3) links; we can download the files to a local folder or we can open these files and stream their content directly to other libraries e.g. xarray.\n\n### **Accessing the data**\n\n**Option 1: Using the data links**\n\nIf we already have a workflow in place for downloading our data, we can use *earthaccess* as a search-only library and get HTTP links from our query results. This could be the case if our current workflow uses a different language and we only need the links as input.\n\n```python\n\n# if the data set is cloud hosted there will be S3 links available. The access parameter accepts \"direct\" or \"external\", direct access is only possible if you are in the us-west-2 region in the cloud.\ndata_links = [granule.data_links(access=\"direct\") for granule in results]\n\n# or if the data is an on-prem dataset\ndata_links = [granule.data_links(access=\"external\") for granule in results]\n\n```\n\n> Note: *earthaccess* can get S3 credentials for us, or auhenticated HTTP sessions in case we want to use them with a different library.\n\n**Option 2: Download data to a local folder**\n\nThis option is practical if you have the necessary space available on disk, the *earthaccess* library will print out the approximate size of the download and its progress.\n```python\nfiles = earthaccess.download(results, \"./local_folder\")\n\n```\n\n**Option 3: Direct S3 Access - Stream data directly to xarray**\n\nThis method works best if you are in the same region as the data (us-west-2) and you are working with gridded datasets (processing level 3 and above).\n\n```python\nimport xarray as xr\n\nds = xr.open_mfdataset(earthaccess.open(results, auth=auth), engine=\"scipy\")\n\n```\n\nAnd that's it! Just one line of code, and this same piece of code will also work for data that are not hosted in the cloud, i.e. NASA hosted data sets.\n\n\n> More examples coming soon!\n\n\n### Compatibility\n\nOnly **Python 3.8+** is supported.\n\n\n\n\n## Contributors\n\n[![Contributors](https://contrib.rocks/image?repo=nsidc/earthaccess)](https://github.com/nsidc/earthaccess/graphs/contributors)\n\n## Contributing Guide\n\nWelcome! \ud83d\ude0a\ud83d\udc4b\n\n> Please see the [Contributing Guide](CONTRIBUTING.md).\n\n### [Project Board](https://github.com/nsidc/earthdata/discussions).\n\n### Glossary\n\n<a href=\"https://www.earthdata.nasa.gov/learn/glossary\">NASA Earth Science Glossary</a>\n\n## License\n\nearthaccess is licensed under the MIT license. See [LICENSE](LICENSE.txt).\n\n## Level of Support\n\n<div><img src=\"https://raw.githubusercontent.com/nsidc/earthdata/main/docs/nsidc-logo.png\" width=\"84px\" align=\"left\" text-align=\"middle\"/>\n<br>\n This repository is not actively supported by NSIDC but we welcome issue submissions and pull requests in order to foster community contribution.\n</div>\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/nsidc/earthaccess",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Luis Lopez",
+            "maintainer_email": "betolin@gmail.com",
+            "name": "earthaccess",
+            "package_url": "https://pypi.org/project/earthaccess/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/earthaccess/",
+            "project_urls": {
+                "Homepage": "https://github.com/nsidc/earthaccess"
+            },
+            "release_url": "https://pypi.org/project/earthaccess/0.4.7/",
+            "requires_dist": [
+                "python-cmr (>=0.7)",
+                "python-benedict (>=0.25)",
+                "pqdm (>=0.1)",
+                "requests (>=2.26)",
+                "s3fs (>=2021.11,<2024)",
+                "fsspec (>=2022.1)",
+                "tinynetrc (>=1.3.1,<2.0.0)",
+                "aiofiles (>=0.8.0)",
+                "aiohttp (>=3.8.0)",
+                "multimethod (>=1.8)"
+            ],
+            "requires_python": ">=3.8,<4.0",
+            "summary": "Client library for NASA Earthdata APIs",
+            "version": "0.4.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16070015,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ed572ea72c1898e14bfe6eb293aade40",
+                    "sha256": "a4e1a3b1321fbb64220ed684341ca64c39f95920b32cf429c2ad9291a762a337"
+                },
+                "downloads": -1,
+                "filename": "earthaccess-0.4.7-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "ed572ea72c1898e14bfe6eb293aade40",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<4.0",
+                "size": 50950,
+                "upload_time": "2022-12-12T04:04:44",
+                "upload_time_iso_8601": "2022-12-12T04:04:44.590654Z",
+                "url": "https://files.pythonhosted.org/packages/42/c8/caafeccb1839bf55bf105f269bba380ea94c70baee17b095ec2ac126d9d5/earthaccess-0.4.7-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d8fbe8b2b132a5c89cffc4e616261e10",
+                    "sha256": "aa01c4b77131967942bbb422dfa0510092d0deda0d01bac3310953a0cf0d3b83"
+                },
+                "downloads": -1,
+                "filename": "earthaccess-0.4.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d8fbe8b2b132a5c89cffc4e616261e10",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<4.0",
+                "size": 51340,
+                "upload_time": "2022-12-12T04:04:46",
+                "upload_time_iso_8601": "2022-12-12T04:04:46.764806Z",
+                "url": "https://files.pythonhosted.org/packages/d9/72/3a618ba0b2bd03d804d31b968a3406c3cfa5bc963a3f463c5a35e9a08cb7/earthaccess-0.4.7.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
