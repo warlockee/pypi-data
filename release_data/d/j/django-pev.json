@@ -41,7 +41,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15833614,
+        "last_serial": 16081415,
         "urls": [
             {
                 "comment_text": "",
@@ -99,7 +99,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# Django Postgres Explain Visualizer (Django-PEV)\n\n[![PyPI version](https://badge.fury.io/py/django-pev.svg)](https://pypi.org/project/django-pev/)\n[![versions](https://img.shields.io/pypi/pyversions/django-pev.svg)](https://pypi.org/project/django-pev/)\n[![Lint](https://github.com/uptick/django-pev/actions/workflows/ci.yaml/badge.svg)](https://github.com/uptick/django-pev/actions/workflows/ci.yaml)\n\nThis tool captures sql queries and uploads the query plan to postgresql explain visualizer (PEV) by [dalibo](https://explain.dalibo.com/). This is especially helpful for debugging slow queries.\n\n# Usage\n\nWrap some code with the explain context manager. All sql queries are captured\nalongside a stacktrace (to locate where it was called). The slowest query is accessible via `.slowest`.\n\n```python\nimport django_pev\n\nwith django_pev.explain(\n    title=\"Analyzing slow User join\"\n) as e:\n    # Every SQL query is captured\n    list(User.objects.filter(some__long__join=1).all())\n\n# Rerun the slowest query with `EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON)`\npev_response = e.slowest.visualize(\n    # By default the text of the query is not uploaded for security reasons\n    upload_query=True,\n)\nprint(pev_response.url)\n\n# View the visualization\ne.slowest.visualize_in_browser()\n\n\n# Delete the plan hosted on https://explain.dalibo.com\npev_response.delete()\n```\n\n**Debugging a slow endpoint**\n\n```python\nimport django_pev\n\nfrom django.test import Client as TestClient\n\nclient = TestClient()\n\nwith django_pev.explain() as e:\n    url = \"/some_slow_url\"\n    response = client.get(url)\n\nprint(e.slowest.visualize())\n\n```\n\n# Disclaimer\n\nCredit goes to Pierre Giraud (@pgiraud) for PEV2 and Alex Tatiyants (@AlexTatiyants) for the original pev tool.\n\nIN NO EVENT SHALL DALIBO BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF DALIBO HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\nDALIBO SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON AN \"AS IS\" BASIS, AND DALIBO HAS NO OBLIGATIONS TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -129,7 +128,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15833614,
+        "last_serial": 16081415,
         "urls": [
             {
                 "comment_text": "",
@@ -168,6 +167,94 @@
                 "upload_time": "2022-11-20T22:36:30",
                 "upload_time_iso_8601": "2022-11-20T22:36:30.687959Z",
                 "url": "https://files.pythonhosted.org/packages/49/af/cc790a19c84ef8077e90b9572ff96565ea6655ef670e58ec3b74cbd79a3d/django_pev-0.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.2": {
+        "info": {
+            "author": "william chu",
+            "author_email": "william.chu@uptickhq.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# Django Postgres Explain Visualizer (Django-PEV)\n\n[![PyPI version](https://badge.fury.io/py/django-pev.svg)](https://pypi.org/project/django-pev/)\n[![versions](https://img.shields.io/pypi/pyversions/django-pev.svg)](https://pypi.org/project/django-pev/)\n[![Lint](https://github.com/uptick/django-pev/actions/workflows/ci.yaml/badge.svg)](https://github.com/uptick/django-pev/actions/workflows/ci.yaml)\n\nThis tool captures sql queries and uploads the query plan to postgresql explain visualizer (PEV) by [dalibo](https://explain.dalibo.com/). This is especially helpful for debugging slow queries.\n\n# Usage\n\nWrap some code with the explain context manager. All sql queries are captured\nalongside a stacktrace (to locate where it was called). The slowest query is accessible via `.slowest`.\n\n```python\nimport django_pev\nfrom django.contrib.auth.models import User\n\nwith django_pev.explain() as e:\n    # Every SQL query is captured\n    list(User.objects.filter(email='test@test.com').all())\n\n# Rerun the slowest query with `EXPLAIN (ANALYZE, COSTS, VERBOSE, BUFFERS, FORMAT JSON)`\npev_response = e.slowest.visualize(\n    # By default the text of the query is not uploaded for security reasons\n    upload_query=True,\n    # Set to false if the query is slow and you want only an explain\n    analyze=True,\n    # Give a helpful title for the uploaded query plan\n    title=\"Measuring email filter\",\n)\nprint(pev_response.url)\n\n# View the postgres explain visualization\ne.slowest.visualize_in_browser()\n\n# View the stack trace of the slowest query\nprint(e.slowest.stacktrace)\n\n# Delete the plan hosted on https://explain.dalibo.com\npev_response.delete()\n```\n\n**How to debug a slow endpoint in production**\n\nIf you have access to `python manage.py shell` on the production server;\nyou can run the following code snippet to get an explain plan uploaded. In general this technique is all types of profiling.\n\n```python\nimport django_pev\n\nfrom django.contrib.auth.models import User\nfrom django.test import Client as TestClient\n\nclient = TestClient()\n# Authentication\nclient.force_login(User.objects.get(id=1))\nurl = \"/some_slow_url\"\n\nwith django_pev.explain() as e:\n    response = client.get(url)\n\nprint(e.slowest.visualize(title=f\"Fetching {url}\"))\n\n```\n\n# Disclaimer\n\nCredit goes to Pierre Giraud (@pgiraud) for PEV2 and Alex Tatiyants (@AlexTatiyants) for the original pev tool.\n\nIN NO EVENT SHALL DALIBO BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF DALIBO HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\nDALIBO SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON AN \"AS IS\" BASIS, AND DALIBO HAS NO OBLIGATIONS TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "django-pev",
+            "package_url": "https://pypi.org/project/django-pev/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/django-pev/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/django-pev/0.1.2/",
+            "requires_dist": [
+                "sqlparse",
+                "django (>=3.2,<4.0)"
+            ],
+            "requires_python": ">=3.7,<4.0",
+            "summary": "Context manager to upload explain plans to https://explain.dalibo.com/",
+            "version": "0.1.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16081415,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c9fc66fe9dbc586a75c65073780f3e67",
+                    "sha256": "6afbf60129b860b5cbb09497065de16b0ba7a80bb117a924c3719c52584262d1"
+                },
+                "downloads": -1,
+                "filename": "django_pev-0.1.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c9fc66fe9dbc586a75c65073780f3e67",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7,<4.0",
+                "size": 6209,
+                "upload_time": "2022-12-13T02:31:22",
+                "upload_time_iso_8601": "2022-12-13T02:31:22.624962Z",
+                "url": "https://files.pythonhosted.org/packages/d1/b2/dddefdf6c1a43abc2d234bb43bf2ca9a7c71d86a0552fd5324381f345efd/django_pev-0.1.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "57afa7eea792c6b6d94f3dbc763dbe34",
+                    "sha256": "4e319bae8f9c0652d82d05718c04ed222c98b94cdce58f7dac096bfbddf13f16"
+                },
+                "downloads": -1,
+                "filename": "django_pev-0.1.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "57afa7eea792c6b6d94f3dbc763dbe34",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<4.0",
+                "size": 5609,
+                "upload_time": "2022-12-13T02:31:24",
+                "upload_time_iso_8601": "2022-12-13T02:31:24.291890Z",
+                "url": "https://files.pythonhosted.org/packages/e2/61/52001aee6980cb6a076a69156875eb3c919f7dca25c7703d30eae784d76b/django_pev-0.1.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

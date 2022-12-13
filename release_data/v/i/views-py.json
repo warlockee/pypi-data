@@ -12,7 +12,6 @@
                 "Programming Language :: Python :: 3.11",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "# Views-Py\n\nViews and related utilities for generic sequence types.\n\nDefines a dynamic, read-only sequence view with contiguous windowing capabilities, alongside some utilities for defining custom ones.\n\n## Getting Started\n\nThis project is available through pip (requires Python 3.10 or higher):\n\n```\npip install views-py\n```\n\nDocumentation can be found below.\n\n## Contributing\n\nThis project is currently maintained by [Braedyn L](https://github.com/braedynl). Feel free to report bugs or make a pull request through this repository.\n\n## License\n\nDistributed under the MIT license. See the [LICENSE](LICENSE) file for more details.\n\n## Quickstart\n\nDue to the simplicity of this library, the following is considered the \"official\" documentation of the API. Classes and associated functions may contain further details in their docstrings.\n\nUnder this library's definition, a *view* is a thin wrapper around a reference to some [`Sequence[T]`](https://docs.python.org/3/library/collections.abc.html#collections-abstract-base-classes) (called the \"target\"), and a [`slice`](https://docs.python.org/3/library/functions.html#slice) of indices to view from it (called the \"window\"). Alterations made to the target are reflected by its views. Views are, themselves, a type of `Sequence[T]`, and do not offer much in terms of extra functionality.\n\nViews are a useful alternative to copies, as an instance of one takes significantly less space in memory for larger sequences, and does not induce much runtime overhead on construction or copy. The `View` class that comes with this library is read-only, but dynamic - meaning that the target can change its items and length, but the view itself cannot be modified (similar to the objects returned by `dict.keys()`, `dict.values()`, and `dict.items()`):\n\n```python\n>>> from views import View\n>>>\n>>> target = ['a', 'b', 'c', 'd', 'e']\n>>>\n>>> view = View(target)\n>>> print(view)\nView(target=['a', 'b', 'c', 'd', 'e'], window=slice(None, None, None))\n>>>\n>>> print(list(view))\n['a', 'b', 'c', 'd', 'e']\n>>>\n>>> target.append('f')\n>>>\n>>> print(list(view))\n['a', 'b', 'c', 'd', 'e', 'f']\n```\n\nWithout specifying a window at construction time, views will default to a window that encompasses all of the target's content (equivalent to setting a window of `slice(None, None)`), expanding and contracting when necessary.\n\nThe window of a `View` allows for contiguous subsets of a target sequence to be captured. This functionality can be invoked manually, but is best interfaced by a sequence's `__getitem__()` implementation:\n\n```python\n>>> from views import View\n>>>\n>>> target = ['a', 'b', 'c', 'd', 'e']\n>>>\n>>> view = View(target, slice(1, 4))\n>>> print(list(view))\n['b', 'c', 'd']\n>>>\n>>> view = View(target, slice(None, None, -1))\n>>> print(list(view))\n['e', 'd', 'c', 'b', 'a']\n>>>\n>>> view = View(target, slice(6, 10))\n>>> print(list(view))\n[]\n>>>\n>>> view = View(target, slice(5, None, -2))\n>>> print(list(view))\n['d', 'b']\n```\n\nThe window may or may not overlap with the target's indices. If the window captures a range of indices beyond what is available, then the view is considered empty (but may not always be if the target sequence expands at a later moment in time).\n\nWhen the target indices and window *do* overlap, the window is \"narrowed\" to only include the indices that are visible. The narrowed window is calculated similar to how `slice.indices()` calculates its start, stop, and step tuple - the start, however, is computed in a manner that is consistent with the slice's step value:\n\n```python\n>>> from views import indices as view_indices\n>>>\n>>> def slice_indices(slc: slice, len: int) -> tuple[int, int, int]:\n...     return slc.indices(len)\n...\n>>>\n>>> target = ['a', 'b', 'c', 'd', 'e']\n>>>\n>>> slc = slice(5, None, -2)  # Note that index 5 is one space out-of-range\n>>>\n>>> x = range( *view_indices(slc, len(target)))\n>>> y = range(*slice_indices(slc, len(target)))\n>>>\n>>> # View indices are calculated in a manner that preserves other items of the\n>>> # subset, as if some items are \"hidden\" from us\n>>> for i in x: print(target[i])\n...\nd\nb\n>>> # The indices() method of built-in slice simply clamps the starting value,\n>>> # which may include items that are not normally a part of the subset if all\n>>> # indices of the slice were present\n>>> for i in y: print(target[i])\n...\ne\nc\na\n```\n\nThis `indices()` utility is exposed as a free function, and interfaced as a method of the same name under the `View` class. Note that its values in certain edge cases can be hard to judge - particularly with \"bad\" slices (e.g., a slice whose start precedes its stop, but has negative step). The values in such cases are guaranteed to produce a zero-length `range` when converted to one, however - this is done for performance benefits.\n\n## Examples\n\nOne common scenario in which a `View` may be desirable is in \"immutable exposition\" of mutable data:\n\n```python\nfrom collections.abc import Iterable, MutableSequence\nfrom typing import TypeVar\n\nfrom views import View\n\nT = TypeVar(\"T\")\n\n\nclass List(MutableSequence[T]):\n\n    __slots__ = (\"_data\",)\n\n    def __init__(self, data: Iterable[T]) -> None:\n        self._data = list(data)\n\n    ...\n\n    @property\n    def data(self) -> View[T]:\n        return View(self._data)\n\n    ...\n```\n\nWe may not want the user to have direct access to our `_data` attribute, in this example, so we can instead provide a `View` of it. This avoids the need to copy, while being incredibly cheap to compute.\n\nThis particular `View` implementation is immensely useful in `__getitem__()` methods. The `View` class is, itself, a type of `Sequence[T]`, allowing for compliance with classes that are implementing the `Sequence[T]` interface:\n\n```python\n...\n\nclass List(MutableSequence[T]):\n\n    ...\n\n    @overload\n    def __getitem__(self, key: SupportsIndex) -> T: ...\n    @overload\n    def __getitem__(self, key: slice) -> View[T]: ...\n\n    def __getitem__(self, key):\n\n        # Provide a view on ourself, with the user's slice as the window -\n        # everything else is handled for you, as long as your sequence type\n        # follows Python conventions (i.e., indices begin at 0, last index is\n        # `len(self) - 1`, each index between is defined, etc.)\n\n        # It's often the case that a user-defined sequence composes a built-in\n        # one (like `list` or `tuple`). You may, alternatively, return a view\n        # on that attribute directly for performance benefits.\n\n        if isinstance(key, slice):\n            return View(self, key)\n\n        ...\n\n    ...\n```\n\nYou may often want to return a `View` that implements a common interface. In such cases, you can define a set of applicable [mixins](https://stackoverflow.com/questions/533631/what-is-a-mixin-and-why-is-it-useful), and use `View` as a base class. A [`Protocol`](https://docs.python.org/3/library/typing.html#typing.Protocol) can be used to group classes together without explicitly inheriting.\n\nCustom views may not always want the attributes that come from the concrete `View` class. An abstract base class, `SequenceView`, is provided for scenarios like this. It extends `collections.abc.Sequence`, and does not add or implement anything.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -44,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16061243,
+        "last_serial": 16080803,
         "urls": [
             {
                 "comment_text": "",
@@ -83,6 +82,96 @@
                 "upload_time": "2022-12-11T00:11:33",
                 "upload_time_iso_8601": "2022-12-11T00:11:33.111067Z",
                 "url": "https://files.pythonhosted.org/packages/e1/e8/3d5292ef496dd896c2fca2bb7b8858018488c9b489ef7ec6814e83fbdf0f/views-py-1.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.1": {
+        "info": {
+            "author": "Braedyn L",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "# Views-Py\n\nViews and related utilities for generic sequence types.\n\nDefines a dynamic, read-only sequence view with contiguous windowing capabilities, alongside some utilities for defining custom ones.\n\n## Getting Started\n\nThis project is available through pip (requires Python 3.10 or higher):\n\n```\npip install views-py\n```\n\nDocumentation can be found below.\n\n## Contributing\n\nThis project is currently maintained by [Braedyn L](https://github.com/braedynl). Feel free to report bugs or make a pull request through this repository.\n\n## License\n\nDistributed under the MIT license. See the [LICENSE](LICENSE) file for more details.\n\n## Quickstart\n\nDue to the simplicity of this library, the following is considered the \"official\" documentation of the API. Classes and associated functions may contain further details in their docstrings.\n\nUnder this library's definition, a *view* is a thin wrapper around a reference to some [`Sequence[T]`](https://docs.python.org/3/library/collections.abc.html#collections-abstract-base-classes) (called the \"target\"), and a [`slice`](https://docs.python.org/3/library/functions.html#slice) of indices to view from it (called the \"window\"). Alterations made to the target are reflected by its views. Views are, themselves, a type of `Sequence[T]`, and do not offer much in terms of extra functionality.\n\nViews are a useful alternative to copies, as an instance of one takes significantly less space in memory for larger sequences, and does not induce much runtime overhead on construction or copy. The `View` class that comes with this library is read-only, but dynamic - meaning that the target can change its items and length, but the view itself cannot be modified (similar to the objects returned by `dict.keys()`, `dict.values()`, and `dict.items()`):\n\n```python\n>>> from views import View\n>>>\n>>> target = ['a', 'b', 'c', 'd', 'e']\n>>>\n>>> view = View(target)\n>>> print(view)\nView(target=['a', 'b', 'c', 'd', 'e'], window=slice(None, None, None))\n>>>\n>>> print(list(view))\n['a', 'b', 'c', 'd', 'e']\n>>>\n>>> target.append('f')\n>>>\n>>> print(list(view))\n['a', 'b', 'c', 'd', 'e', 'f']\n```\n\nWithout specifying a window at construction time, views will default to a window that encompasses all of the target's content (equivalent to setting a window of `slice(None, None)`), expanding and contracting when necessary.\n\nThe window of a `View` allows for contiguous subsets of a target sequence to be captured. This functionality can be invoked manually, but is best interfaced by a sequence's `__getitem__()` implementation:\n\n```python\n>>> from views import View\n>>>\n>>> target = ['a', 'b', 'c', 'd', 'e']\n>>>\n>>> view = View(target, slice(1, 4))\n>>> print(list(view))\n['b', 'c', 'd']\n>>>\n>>> view = View(target, slice(None, None, -1))\n>>> print(list(view))\n['e', 'd', 'c', 'b', 'a']\n>>>\n>>> view = View(target, slice(6, 10))\n>>> print(list(view))\n[]\n>>>\n>>> view = View(target, slice(5, None, -2))\n>>> print(list(view))\n['d', 'b']\n```\n\nThe window may or may not overlap with the target's indices. If the window captures a range of indices beyond what is available, then the view is considered empty (but may not always be if the target sequence expands at a later moment in time).\n\nWhen the target indices and window *do* overlap, the window is \"narrowed\" to only include the indices that are visible. The narrowed window is calculated similar to how `slice.indices()` calculates its start, stop, and step tuple - the start, however, is computed in a manner that is consistent with the slice's step value:\n\n```python\n>>> from views import indices as view_indices\n>>>\n>>> def slice_indices(slc: slice, len: int) -> tuple[int, int, int]:\n...     return slc.indices(len)\n...\n>>>\n>>> target = ['a', 'b', 'c', 'd', 'e']\n>>>\n>>> slc = slice(5, None, -2)  # Note that index 5 is one space out-of-range\n>>>\n>>> x = range( *view_indices(slc, len(target)))\n>>> y = range(*slice_indices(slc, len(target)))\n>>>\n>>> # View indices are calculated in a manner that preserves other items of the\n>>> # subset, as if some items are \"hidden\" from us\n>>> for i in x: print(target[i])\n...\nd\nb\n>>> # The indices() method of built-in slice simply clamps the starting value,\n>>> # which may include items that are not normally a part of the subset if all\n>>> # indices of the slice were present\n>>> for i in y: print(target[i])\n...\ne\nc\na\n```\n\nThis `indices()` utility is exposed as a free function, and interfaced as a method of the same name under the `View` class. Note that its values in certain edge cases can be hard to judge - particularly with \"bad\" slices (e.g., a slice whose start precedes its stop, but has negative step). The values in such cases are guaranteed to produce a zero-length `range` when converted to one, however - this is done for performance benefits.\n\n## Examples\n\nOne common scenario in which a `View` may be desirable is in \"immutable exposition\" of mutable data:\n\n```python\nfrom collections.abc import Iterable, MutableSequence\nfrom typing import TypeVar\n\nfrom views import View\n\nT = TypeVar(\"T\")\n\n\nclass List(MutableSequence[T]):\n\n    __slots__ = (\"_data\",)\n\n    def __init__(self, data: Iterable[T]) -> None:\n        self._data = list(data)\n\n    ...\n\n    @property\n    def data(self) -> View[T]:\n        return View(self._data)\n\n    ...\n```\n\nWe may not want the user to have direct access to our `_data` attribute, in this example, so we can instead provide a `View` of it. This avoids the need to copy, while being incredibly cheap to compute.\n\nThis particular `View` implementation is immensely useful in `__getitem__()` methods. The `View` class is, itself, a type of `Sequence[T]`, allowing for compliance with classes that are implementing the `Sequence[T]` interface:\n\n```python\n...\n\nclass List(MutableSequence[T]):\n\n    ...\n\n    @overload\n    def __getitem__(self, key: SupportsIndex) -> T: ...\n    @overload\n    def __getitem__(self, key: slice) -> View[T]: ...\n\n    def __getitem__(self, key):\n\n        # Provide a view on ourself, with the user's slice as the window -\n        # everything else is handled for you, as long as your sequence type\n        # follows Python conventions (i.e., indices begin at 0, last index is\n        # `len(self) - 1`, each index between is defined, etc.)\n\n        # It's often the case that a user-defined sequence composes a built-in\n        # one (like `list` or `tuple`). You may, alternatively, return a view\n        # on that attribute directly for performance benefits.\n\n        if isinstance(key, slice):\n            return View(self, key)\n\n        ...\n\n    ...\n```\n\nYou may often want to return a `View` that implements a common interface. In such cases, you can define a set of applicable [mixins](https://stackoverflow.com/questions/533631/what-is-a-mixin-and-why-is-it-useful), and use `View` as a base class. A [`Protocol`](https://docs.python.org/3/library/typing.html#typing.Protocol) can be used to group classes together without explicitly inheriting.\n\nCustom views may not always want the attributes that come from the concrete `View` class. An abstract base class, `SequenceView`, is provided for scenarios like this. It extends `collections.abc.Sequence`, and does not add or implement anything.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "view,views,windowing,sequences,sequence-viewer",
+            "license": "MIT License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "views-py",
+            "package_url": "https://pypi.org/project/views-py/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/views-py/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/braedynl/views-py/issues",
+                "Documentation": "https://github.com/braedynl/views-py#quickstart",
+                "Homepage": "https://github.com/braedynl/views-py",
+                "Source": "https://github.com/braedynl/views-py"
+            },
+            "release_url": "https://pypi.org/project/views-py/1.0.1/",
+            "requires_dist": null,
+            "requires_python": ">=3.10",
+            "summary": "Views and related utilities for generic sequence types.",
+            "version": "1.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16080803,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "452a9a994c79d4f0bb147022ee9a710c",
+                    "sha256": "1d0343fe5c32250cc6aa108dd3b296ad11a6cfc3fce69fd608464ba02eb9cc1c"
+                },
+                "downloads": -1,
+                "filename": "views_py-1.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "452a9a994c79d4f0bb147022ee9a710c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10",
+                "size": 9742,
+                "upload_time": "2022-12-13T00:57:15",
+                "upload_time_iso_8601": "2022-12-13T00:57:15.332689Z",
+                "url": "https://files.pythonhosted.org/packages/dd/14/5406fd5e66142a3cde6140db0a1c881a23a9871df6883117ecb6b6385856/views_py-1.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8e9d549c5592061ff680dee362a38e46",
+                    "sha256": "4ecd969cb16b3246c80e1102f9dfcea55483b8c1ffff37a59169411d85d02e5f"
+                },
+                "downloads": -1,
+                "filename": "views-py-1.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "8e9d549c5592061ff680dee362a38e46",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10",
+                "size": 11517,
+                "upload_time": "2022-12-13T00:57:17",
+                "upload_time_iso_8601": "2022-12-13T00:57:17.675893Z",
+                "url": "https://files.pythonhosted.org/packages/64/43/4e01c53f93fdc454cba887c6a8fff3f56b55c0ba084e7429d5bf01ef17ba/views-py-1.0.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
