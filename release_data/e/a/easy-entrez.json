@@ -45,7 +45,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 11477333,
+        "last_serial": 16087501,
         "urls": [
             {
                 "comment_text": "",
@@ -116,7 +116,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 11477333,
+        "last_serial": 16087501,
         "urls": [
             {
                 "comment_text": "",
@@ -188,7 +188,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 11477333,
+        "last_serial": 16087501,
         "urls": [
             {
                 "comment_text": "",
@@ -260,7 +260,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 11477333,
+        "last_serial": 16087501,
         "urls": [
             {
                 "comment_text": "",
@@ -332,7 +332,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 11477333,
+        "last_serial": 16087501,
         "urls": [
             {
                 "comment_text": "",
@@ -404,7 +404,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 11477333,
+        "last_serial": 16087501,
         "urls": [
             {
                 "comment_text": "",
@@ -476,7 +476,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 11477333,
+        "last_serial": 16087501,
         "urls": [
             {
                 "comment_text": "",
@@ -548,7 +548,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 11477333,
+        "last_serial": 16087501,
         "urls": [
             {
                 "comment_text": "",
@@ -596,7 +596,6 @@
                 "Topic :: Utilities",
                 "Typing :: Typed"
             ],
-            "description": "# easy-entrez\n\n![tests](https://github.com/krassowski/easy-entrez/workflows/tests/badge.svg)\n![CodeQL](https://github.com/krassowski/easy-entrez/workflows/CodeQL/badge.svg)\n[![Documentation Status](https://readthedocs.org/projects/easy-entrez/badge/?version=latest)](https://easy-entrez.readthedocs.io/en/latest/?badge=latest)\n\nPython REST API for Entrez E-Utilities, aiming to  be easy to use and reliable.\n\nEasy-entrez:\n\n- makes common tasks easy thanks to simple Pythonic API,\n- is typed and integrates well with mypy,\n- is tested on Windows, Mac and Linux across Python 3.6, 3.7, 3.8 and 3.9,\n- is limited in scope, allowing to focus on the reliability of the core code,\n- does not use the stateful API as it is [error-prone](https://gitlab.com/ncbipy/entrezpy/-/issues/7) as seen on example of the alternative *entrezpy*.\n\n\n**Status:** beta (pending tutorial write-up and documentation improvements before official release).\n\n```python\nfrom easy_entrez import EntrezAPI\n\nentrez_api = EntrezAPI(\n    'your-tool-name',\n    'e@mail.com',\n    # optional\n    return_type='json'\n)\n\n# find up to 10 000 results for cancer in human\nresult = entrez_api.search('cancer AND human[organism]', max_results=10_000)\n\n# data will be populated with JSON or XML (depending on the `return_type` value)\nresult.data\n```\n\nSee more in the [Demo notebook](./Demo.ipynb) and [documentation](https://easy-entrez.readthedocs.io/en/latest).\n\nFor a real-world example (i.e. used for [this publication](https://www.frontiersin.org/articles/10.3389/fgene.2020.610798/full)) see notebooks in [multi-omics-state-of-the-field](https://github.com/krassowski/multi-omics-state-of-the-field) repository.\n\n#### Example: fetching genes for a variant from dbSNP \n\nFetch the SNP record for `rs6311`:\n\n```python\nrs6311 = entrez_api.fetch(['rs6311'], max_results=1, database='snp').data[0]\nrs6311\n```\n\nDisplay the result:\n\n```python\nfrom xml.dom import minidom\nfrom xml.etree import ElementTree\n\n\ndef xml_to_sting(element):\n    return (\n        minidom.parseString(ElementTree.tostring(element))\n        .toprettyxml(indent=' ' * 4)\n    )\n\n\nprint(xml_to_sting(rs6311))\n```\n\nFind the gene names for `rs6311`:\n\n```python\nnamespaces = {'ns0': 'https://www.ncbi.nlm.nih.gov/SNP/docsum'}\ngenes = [\n    name.text\n    for name in rs6311.findall('.//ns0:GENE_E/ns0:NAME', namespaces)\n]\nprint(genes)\n```\n\n> `['HTR2A']`\n\nFetch data for multiple variants at once:\n\n```python\nresult = entrez_api.fetch(['rs6311', 'rs662138'], max_results=10, database='snp')\ngene_names = {\n    'rs' + document_summary.get('uid'): [\n        element.text\n        for element in document_summary.findall('.//ns0:GENE_E/ns0:NAME', namespaces)\n    ]\n    for document_summary in result.data\n}\nprint(gene_names)\n```\n\n> `{'rs6311': ['HTR2A'], 'rs662138': ['SLC22A1']}`\n\n#### Example: obtaining the SNP rs ID number from chromosomal position\n\nYou can use the query string directly:\n\n```python\nresults = entrez_api.search(\n    '13[CHROMOSOME] AND human[ORGANISM] AND 31873085[POSITION]',\n    database='snp',\n    max_results=10\n)\nprint(results.data['esearchresult']['idlist'])\n```\n\n> `['59296319', '17076752', '7336701', '4']`\n\nOr pass a dictionary (no validation of arguments is performed, `AND` conjunction is used):\n\n```python\nresults = entrez_api.search(\n    dict(chromosome=13, organism='human', position=31873085),\n    database='snp',\n    max_results=10\n)\nprint(results.data['esearchresult']['idlist'])\n```\n\n> `['59296319', '17076752', '7336701', '4']`\n\nThe base position should use the latest genome assembly (GRCh38 at the time of writing);\nyou can use the position in previous assembly coordinates by replacing `POSITION` with `POSITION_GRCH37`.\nFor more information of the arguments accepted by the SNP database see the [entrez help page](https://www.ncbi.nlm.nih.gov/snp/docs/entrez_help/) on NCBI website.\n\n### Installation\n\nRequires Python 3.6+. Install with:\n\n\n```bash\npip install easy-entrez\n```\n\nIf you wish to enable (optional, tqdm-based) progress bars use:\n\n```bash\npip install easy-entrez[with_progress_bars]\n```\n\n### Alternatives:\n\nYou might want to try:\n\n- [biopython.Entrez](https://biopython.org/docs/1.74/api/Bio.Entrez.html) - biopython is a heavy dependency, but probably good choice if you already use it\n- [pubmedpy](https://github.com/dhimmel/pubmedpy) - provides interesting utilities for parsing the responses\n- [entrez](https://github.com/jordibc/entrez) - appears to have a comparable scope but quite different API\n\nI have tried and do not recommend:\n\n- [entrezpy](https://gitlab.com/ncbipy/entrezpy) - in addition to the history problems, watch out for [documentation issues](https://gitlab.com/ncbipy/entrezpy/-/issues/8) and basically [no reaction](https://gitlab.com/ncbipy/entrezpy/-/merge_requests/1) to pull requests.\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -630,7 +629,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 11477333,
+        "last_serial": 16087501,
         "urls": [
             {
                 "comment_text": "",
@@ -669,6 +668,313 @@
                 "upload_time": "2021-09-17T10:27:56",
                 "upload_time_iso_8601": "2021-09-17T10:27:56.398783Z",
                 "url": "https://files.pythonhosted.org/packages/a8/9b/73def27f3f8815a19f8452e599922d28d9408b2600a635b2aaddc1a939a1/easy_entrez-0.3.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.1": {
+        "info": {
+            "author": "Michal Krassowski",
+            "author_email": "krassowski.michal+pypi@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Database",
+                "Topic :: Scientific/Engineering :: Bio-Informatics",
+                "Topic :: Software Development :: Libraries :: Python Modules",
+                "Topic :: Utilities",
+                "Typing :: Typed"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/krassowski/easy-entrez",
+            "keywords": "entrez,pubmed,e-utilities,ncbi,rest,api,dbsnp,literature,mining",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "easy-entrez",
+            "package_url": "https://pypi.org/project/easy-entrez/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/easy-entrez/",
+            "project_urls": {
+                "Homepage": "https://github.com/krassowski/easy-entrez"
+            },
+            "release_url": "https://pypi.org/project/easy-entrez/0.3.1/",
+            "requires_dist": [
+                "requests",
+                "typing-extensions",
+                "dataclasses (>=\"0.7\") ; python_version < \"3.7\"",
+                "tqdm ; extra == 'parsing'",
+                "tqdm ; extra == 'with_progress_bars'"
+            ],
+            "requires_python": "",
+            "summary": "Python REST API for Entrez E-Utilities: stateless, easy to use, reliable.",
+            "version": "0.3.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16087501,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e0f831cf3db2a6c9443ce76e2fb33a8e",
+                    "sha256": "b408bb04cda5bca8c406602b03ec08ce78a3e4b7f0138247355536e48597b759"
+                },
+                "downloads": -1,
+                "filename": "easy_entrez-0.3.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e0f831cf3db2a6c9443ce76e2fb33a8e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 18819,
+                "upload_time": "2022-12-13T12:23:07",
+                "upload_time_iso_8601": "2022-12-13T12:23:07.137759Z",
+                "url": "https://files.pythonhosted.org/packages/a1/65/9ffa7a35f98f41a8d889664a55fcc9e707b61c13cf9a89e1d2538f9f9d47/easy_entrez-0.3.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6523166c67f4fa0a455f90aaa1c64355",
+                    "sha256": "1551dfe7515ceaab81f14c65befa7d8fe2cdfbce4f03450de948e6cb251ea465"
+                },
+                "downloads": -1,
+                "filename": "easy_entrez-0.3.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6523166c67f4fa0a455f90aaa1c64355",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 18878,
+                "upload_time": "2022-12-13T12:23:09",
+                "upload_time_iso_8601": "2022-12-13T12:23:09.684061Z",
+                "url": "https://files.pythonhosted.org/packages/d0/80/a16f8556cd81fe43f6243b692ecde8d1a940d808d736caaa240866d27a1a/easy_entrez-0.3.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.2": {
+        "info": {
+            "author": "Michal Krassowski",
+            "author_email": "krassowski.michal+pypi@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Database",
+                "Topic :: Scientific/Engineering :: Bio-Informatics",
+                "Topic :: Software Development :: Libraries :: Python Modules",
+                "Topic :: Utilities",
+                "Typing :: Typed"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/krassowski/easy-entrez",
+            "keywords": "entrez,pubmed,e-utilities,ncbi,rest,api,dbsnp,literature,mining",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "easy-entrez",
+            "package_url": "https://pypi.org/project/easy-entrez/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/easy-entrez/",
+            "project_urls": {
+                "Homepage": "https://github.com/krassowski/easy-entrez"
+            },
+            "release_url": "https://pypi.org/project/easy-entrez/0.3.2/",
+            "requires_dist": [
+                "requests",
+                "typing-extensions",
+                "dataclasses (>=\"0.7\") ; python_version < \"3.7\"",
+                "tqdm ; extra == 'parsing'",
+                "tqdm ; extra == 'with_progress_bars'"
+            ],
+            "requires_python": "",
+            "summary": "Python REST API for Entrez E-Utilities: stateless, easy to use, reliable.",
+            "version": "0.3.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16087501,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cf55c4758bfee4db08b50d6b18a13648",
+                    "sha256": "ffb3b2a7874f6d171efb6398343465d224c6b7d353df490ab3d541d906c66598"
+                },
+                "downloads": -1,
+                "filename": "easy_entrez-0.3.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "cf55c4758bfee4db08b50d6b18a13648",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 18822,
+                "upload_time": "2022-12-13T12:47:55",
+                "upload_time_iso_8601": "2022-12-13T12:47:55.239524Z",
+                "url": "https://files.pythonhosted.org/packages/62/d5/5ce3e89dfcef96bcde648987da90c665f1fd59683fd9797cc0b5687f205b/easy_entrez-0.3.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "89538e0af43051bb8e559e088606b348",
+                    "sha256": "e6a2d53860da21f70c2b5aebc42d5f56fb3e0795dc87c8fcecb06e8e7f75e784"
+                },
+                "downloads": -1,
+                "filename": "easy_entrez-0.3.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "89538e0af43051bb8e559e088606b348",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 18915,
+                "upload_time": "2022-12-13T12:47:57",
+                "upload_time_iso_8601": "2022-12-13T12:47:57.470056Z",
+                "url": "https://files.pythonhosted.org/packages/33/c6/6fe0b0a7faf9b8ff77e53e7a7e08eb5a7066c6112eef6ca98a2ea8ac55b9/easy_entrez-0.3.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.3": {
+        "info": {
+            "author": "Michal Krassowski",
+            "author_email": "krassowski.michal+pypi@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Database",
+                "Topic :: Scientific/Engineering :: Bio-Informatics",
+                "Topic :: Software Development :: Libraries :: Python Modules",
+                "Topic :: Utilities",
+                "Typing :: Typed"
+            ],
+            "description": "# easy-entrez\n\n![tests](https://github.com/krassowski/easy-entrez/workflows/tests/badge.svg)\n![CodeQL](https://github.com/krassowski/easy-entrez/workflows/CodeQL/badge.svg)\n[![Documentation Status](https://readthedocs.org/projects/easy-entrez/badge/?version=latest)](https://easy-entrez.readthedocs.io/en/latest/?badge=latest)\n\nPython REST API for Entrez E-Utilities, aiming to  be easy to use and reliable.\n\nEasy-entrez:\n\n- makes common tasks easy thanks to simple Pythonic API,\n- is typed and integrates well with mypy,\n- is tested on Windows, Mac and Linux across Python 3.7, 3.8, 3.9 and 3.10,\n- is limited in scope, allowing to focus on the reliability of the core code,\n- does not use the stateful API as it is [error-prone](https://gitlab.com/ncbipy/entrezpy/-/issues/7) as seen on example of the alternative *entrezpy*.\n\n\n**Status:** beta (pending tutorial write-up and documentation improvements before official release).\n\n```python\nfrom easy_entrez import EntrezAPI\n\nentrez_api = EntrezAPI(\n    'your-tool-name',\n    'e@mail.com',\n    # optional\n    return_type='json'\n)\n\n# find up to 10 000 results for cancer in human\nresult = entrez_api.search('cancer AND human[organism]', max_results=10_000)\n\n# data will be populated with JSON or XML (depending on the `return_type` value)\nresult.data\n```\n\nSee more in the [Demo notebook](./Demo.ipynb) and [documentation](https://easy-entrez.readthedocs.io/en/latest).\n\nFor a real-world example (i.e. used for [this publication](https://www.frontiersin.org/articles/10.3389/fgene.2020.610798/full)) see notebooks in [multi-omics-state-of-the-field](https://github.com/krassowski/multi-omics-state-of-the-field) repository.\n\n#### Example: fetching genes for a variant from dbSNP \n\nFetch the SNP record for `rs6311`:\n\n```python\nrs6311 = entrez_api.fetch(['rs6311'], max_results=1, database='snp').data[0]\nrs6311\n```\n\nDisplay the result:\n\n```python\nfrom easy_entrez.parsing import xml_to_string\n\nprint(xml_to_string(rs6311))\n```\n\nFind the gene names for `rs6311`:\n\n```python\nnamespaces = {'ns0': 'https://www.ncbi.nlm.nih.gov/SNP/docsum'}\ngenes = [\n    name.text\n    for name in rs6311.findall('.//ns0:GENE_E/ns0:NAME', namespaces)\n]\nprint(genes)\n```\n\n> `['HTR2A']`\n\nFetch data for multiple variants at once:\n\n```python\nresult = entrez_api.fetch(['rs6311', 'rs662138'], max_results=10, database='snp')\ngene_names = {\n    'rs' + document_summary.get('uid'): [\n        element.text\n        for element in document_summary.findall('.//ns0:GENE_E/ns0:NAME', namespaces)\n    ]\n    for document_summary in result.data\n}\nprint(gene_names)\n```\n\n> `{'rs6311': ['HTR2A'], 'rs662138': ['SLC22A1']}`\n\n#### Example: obtaining the chromosomal position from SNP rsID number\n\n```python\nfrom pandas import DataFrame\n\nresult = entrez_api.fetch(['rs6311', 'rs662138'], max_results=10, database='snp')\n\nvariant_positions = DataFrame([\n    {\n        'id': 'rs' + document_summary.get('uid'),\n        'chromosome': chromosome,\n        'position': position\n    }\n    for document_summary in result.data\n    for chrom_and_position in document_summary.findall('.//ns0:CHRPOS', namespaces)\n    for chromosome, position in [chrom_and_position.text.split(':')]\n])\n\nvariant_positions\n```\n\n> |    | id       |   chromosome |   position |\n> |---:|:---------|-------------:|-----------:|\n> |  0 | rs6311   |           13 |   46897343 |\n> |  1 | rs662138 |            6 |  160143444 |\n\n\n#### Example: obtaining the SNP rs ID number from chromosomal position\n\nYou can use the query string directly:\n\n```python\nresults = entrez_api.search(\n    '13[CHROMOSOME] AND human[ORGANISM] AND 31873085[POSITION]',\n    database='snp',\n    max_results=10\n)\nprint(results.data['esearchresult']['idlist'])\n```\n\n> `['59296319', '17076752', '7336701', '4']`\n\nOr pass a dictionary (no validation of arguments is performed, `AND` conjunction is used):\n\n```python\nresults = entrez_api.search(\n    dict(chromosome=13, organism='human', position=31873085),\n    database='snp',\n    max_results=10\n)\nprint(results.data['esearchresult']['idlist'])\n```\n\n> `['59296319', '17076752', '7336701', '4']`\n\nThe base position should use the latest genome assembly (GRCh38 at the time of writing);\nyou can use the position in previous assembly coordinates by replacing `POSITION` with `POSITION_GRCH37`.\nFor more information of the arguments accepted by the SNP database see the [entrez help page](https://www.ncbi.nlm.nih.gov/snp/docs/entrez_help/) on NCBI website.\n\n### Installation\n\nRequires Python 3.6+. Install with:\n\n\n```bash\npip install easy-entrez\n```\n\nIf you wish to enable (optional, tqdm-based) progress bars use:\n\n```bash\npip install easy-entrez[with_progress_bars]\n```\n\n### Alternatives:\n\nYou might want to try:\n\n- [biopython.Entrez](https://biopython.org/docs/1.74/api/Bio.Entrez.html) - biopython is a heavy dependency, but probably good choice if you already use it\n- [pubmedpy](https://github.com/dhimmel/pubmedpy) - provides interesting utilities for parsing the responses\n- [entrez](https://github.com/jordibc/entrez) - appears to have a comparable scope but quite different API\n\nI have tried and do not recommend:\n\n- [entrezpy](https://gitlab.com/ncbipy/entrezpy) - in addition to the history problems, watch out for [documentation issues](https://gitlab.com/ncbipy/entrezpy/-/issues/8) and basically [no reaction](https://gitlab.com/ncbipy/entrezpy/-/merge_requests/1) to pull requests.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/krassowski/easy-entrez",
+            "keywords": "entrez,pubmed,e-utilities,ncbi,rest,api,dbsnp,literature,mining",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "easy-entrez",
+            "package_url": "https://pypi.org/project/easy-entrez/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/easy-entrez/",
+            "project_urls": {
+                "Homepage": "https://github.com/krassowski/easy-entrez"
+            },
+            "release_url": "https://pypi.org/project/easy-entrez/0.3.3/",
+            "requires_dist": [
+                "requests",
+                "typing-extensions",
+                "dataclasses (>=\"0.7\") ; python_version < \"3.7\"",
+                "tqdm ; extra == 'parsing'",
+                "tqdm ; extra == 'with_progress_bars'"
+            ],
+            "requires_python": "",
+            "summary": "Python REST API for Entrez E-Utilities: stateless, easy to use, reliable.",
+            "version": "0.3.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16087501,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e92f7d864974f02449ce724a767fea35",
+                    "sha256": "719e31c54c5110f288a5afe60a28d6aab522960839eddc210c0e966210312e1f"
+                },
+                "downloads": -1,
+                "filename": "easy_entrez-0.3.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e92f7d864974f02449ce724a767fea35",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 18978,
+                "upload_time": "2022-12-13T15:01:38",
+                "upload_time_iso_8601": "2022-12-13T15:01:38.973462Z",
+                "url": "https://files.pythonhosted.org/packages/5d/31/ec02819aea14620fc548051a657c16e14eb2b860396792ab98d0f037c333/easy_entrez-0.3.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "32c0f2290b22eaba49c11590ad655527",
+                    "sha256": "1907fc7b414b136d97e74bf77c42c33dcb91f6053b0aab97d1da99c492cd5062"
+                },
+                "downloads": -1,
+                "filename": "easy_entrez-0.3.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "32c0f2290b22eaba49c11590ad655527",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 19048,
+                "upload_time": "2022-12-13T15:01:41",
+                "upload_time_iso_8601": "2022-12-13T15:01:41.557687Z",
+                "url": "https://files.pythonhosted.org/packages/80/d3/82c1df54f7cb1351985c15f3c21da4bbc74be5fdef92fcaaf2cbbb7bdbc0/easy_entrez-0.3.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

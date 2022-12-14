@@ -52,7 +52,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15929806,
+        "last_serial": 16090029,
         "urls": [
             {
                 "comment_text": "pypi",
@@ -150,7 +150,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15929806,
+        "last_serial": 16090029,
         "urls": [
             {
                 "comment_text": "pypi",
@@ -213,7 +213,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "========\nidem-k8s\n========\n\nThe Idem Kubernetes provider\n\nAbout\n=====\n\nAn Idem plugin to manage Kubernetes resources.\n\nWhat is POP?\n------------\n\nThis project is built with `pop <https://pop.readthedocs.io/>`__, a Python-based implementation of *Plugin Oriented Programming (POP)*. POP seeks to bring together concepts and wisdom from the history of computing in new ways to solve modern computing problems.\n\nFor more information:\n\n* `Intro to Plugin Oriented Programming (POP) <https://pop-book.readthedocs.io/en/latest/>`__\n* `pop-awesome <https://gitlab.com/saltstack/pop/pop-awesome>`__\n* `pop-create <https://gitlab.com/saltstack/pop/pop-create/>`__\n\nGetting Started\n===============\n\nPrerequisites\n-------------\n\n* Python 3.7+\n* git *(if installing from source or contributing to the project)*\n\n  To contribute to the project and set up your local development environment, see ``CONTRIBUTING.rst`` in the source repository for this project.\n\nInstallation\n------------\n\nYou can install ``idem-k8s`` with the Python package installer (PyPI) or from source.\n\nInstall from PyPI\n+++++++++++++++++\n\n.. code-block:: bash\n\n      pip install idem-k8s\n\nInstall from source\n+++++++++++++++++++\n\n.. code-block:: bash\n\n   # Clone repo\n   git clone git@<your-project-path>/idem-k8s.git\n   cd idem-k8s\n\n   # Set up venv\n   python3 -m venv .venv\n   source .venv/bin/activate\n   pip install -e .\n\nDevelopment\n===========\n\nThe ``idem-k8s`` plugin has built-in automatic code generation to extend support for additional Kubernetes resources. Automatic code generation creates over 90% of the code required to support a new Kubernetes resource.\n\nAutomatically generate a Kubernetes resource state file with the following command:\n\n.. code-block:: bash\n\n   pop-create k8s \\\n   --directory ~/idem_k8s/autogen/dummy \\  # directory in which the generated state files are stored\n   -tv \\\n   -n idem_k8s \\\n   --resource apps/v1/DaemonSet  # resource for which state files are generated\n\nThe ``resource`` argument follows the format: ``group/version/kind``\n\nFor example, to add a resource state for Deployment, the argument is: ``apps/v1/Deployment``\n\nFor more information, see the `Kubernetes resource objects documentation <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#-strong-api-groups-strong>`__.\n\nUsage\n=====\n\nSetup\n-----\n\nAfter installation, ``idem-k8s`` execution and state modules are accessible to the pop *hub*.\n\nFor more information:\n\n* `Intro to Plugin Oriented Programming (POP) <https://pop-book.readthedocs.io/en/latest/>`__\n* `pop hub <https://pop-book.readthedocs.io/en/latest/main/hub.html#>`__\n\nTo use ``idem-k8s`` execution and state modules to manage cluster resources, you need to set up authentication in one of the following ways.\n\n**With environment variables**\n\nSet KUBE_CONFIG_PATH and KUBE_CTX environment variables to the Kubernetes configuration file and context found in your ``kube_config`` file.\n\n**In the Idem config file**\n\nEdit the Idem config file to include the ``kube_config_path`` and ``context`` under account extras. Use the following example as a guideline.\n\n.. code:: sls\n\n    acct:\n      extras:\n        k8s:\n          default:\n            kube_config_path: ~/.kube/config\n            context: default\n\n**In a credentials.yaml file**\n\nCreate or edit an Idem credentials.yaml file to add the ``kube_config_path`` and ``context`` to a Kubernetes profile. Use the following example as a guideline.\n\n..  code:: sls\n\n    k8s:\n      default:\n        kube_config_path: ~/.kube/config\n        context: default\n\nFor more about Idem credentials files, including recommended steps for encryption and environment variables, see `Authenticating with Idem <https://docs.idemproject.io/getting-started/en/latest/topics/gettingstarted/authenticating.html>`__\n\nYou are now ready to use idem-k8s.\n\nStates\n------\n\nIdem SLS files use states to ensure that resources are in a desired configuration. An idem-k8s SLS file supports three state functions: *present*, *absent*, and *describe*.\n\npresent\n+++++++\n\nThe *present* function ensures that a resource exists. If a resource doesn't exist, running *present* creates it. If the resource already exists, running *present* might leave it unchanged, or update it if there are any configuration changes.\n\nabsent\n++++++\n\nThe *absent* function ensures that a resource does not exist. If the resource exists, running *absent* deletes it. If the resource doesn't exist, running *absent* has no effect.\n\ndescribe\n++++++++\n\nThe *describe* function returns a list of all resources in the Kubernetes cluster of the same type as specified in the credential profile.\n\nAccessing States\n----------------\n\nStates can be accessed by their relative location in ``idem-k8s/k8s/states``.\n\nFor example, a Kubernetes deployment state can be created with the *present* function as shown in the following SLS file.\n\nk8s_deployment.sls:\n\n.. code:: sls\n\n    nginx-deployment:\n      k8s.apps.v1.deployment.present:\n      - metadata:\n          name: nginx-deployment\n          namespace: default\n      - spec:\n          replicas: 3\n          selector:\n            match_labels:\n              app: nginx\n          strategy:\n            rolling_update:\n              max_surge: 25%\n              max_unavailable: 25%\n            type: RollingUpdate\n          template:\n            metadata:\n              labels:\n                app: nginx\n            spec:\n              containers:\n              - image: nginx:1.14.20\n                image_pull_policy: IfNotPresent\n                name: nginx\n                ports:\n                - container_port: 80\n                  protocol: TCP\n                termination_message_path: /dev/termination-log\n                termination_message_policy: File\n              restart_policy: Always\n\nThe Idem command to create the preceding deployment state is:\n\n.. code:: bash\n\n    idem state $PWD/k8s_deployment.sls\n\nCurrent Supported Resources\n---------------------------\napiregistration_k8s_io.v1\n+++++++++++++++++++++++++\n\napi_service\n\napps.v1\n+++++++\n\ndaemon_set\n\ndeployment\n\ncore.v1\n+++++++\n\nconfig_map\n\nnamespace\n\nsecret\n\nservice_account\n\nservice\n\npersistent_volume_claim\n\nrbac.v1\n+++++++\n\ncluster_role\n\ncluster_role_binding\n\nrole_binding\n\nstorage_k8s_io.v1\n+++++++++++++++++\n\nstorage_class\n\n\n",
             "description_content_type": "text/x-rst",
             "docs_url": null,
             "download_url": "",
@@ -249,7 +248,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15929806,
+        "last_serial": 16090029,
         "urls": [
             {
                 "comment_text": "pypi",
@@ -288,6 +287,105 @@
                 "upload_time": "2022-11-29T15:42:56",
                 "upload_time_iso_8601": "2022-11-29T15:42:56.042189Z",
                 "url": "https://files.pythonhosted.org/packages/62/40/2283c63777c4c11e2b4d3551d6811f122ff73bdc8ca05eab689508df519b/idem-k8s-0.3.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.0": {
+        "info": {
+            "author": "Naresh",
+            "author_email": "nkumar5@vmware.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Information Technology",
+                "Intended Audience :: System Administrators",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "========\nidem-k8s\n========\n\nThe Idem Kubernetes provider\n\nAbout\n=====\n\nAn Idem plugin to manage Kubernetes resources.\n\nWhat is POP?\n------------\n\nThis project is built with `pop <https://pop.readthedocs.io/>`__, a Python-based implementation of *Plugin Oriented Programming (POP)*. POP seeks to bring together concepts and wisdom from the history of computing in new ways to solve modern computing problems.\n\nFor more information:\n\n* `Intro to Plugin Oriented Programming (POP) <https://pop-book.readthedocs.io/en/latest/>`__\n* `pop-awesome <https://gitlab.com/saltstack/pop/pop-awesome>`__\n* `pop-create <https://gitlab.com/saltstack/pop/pop-create/>`__\n\nGetting Started\n===============\n\nPrerequisites\n-------------\n\n* Python 3.7+\n* git *(if installing from source or contributing to the project)*\n\n  To contribute to the project and set up your local development environment, see ``CONTRIBUTING.rst`` in the source repository for this project.\n\nInstallation\n------------\n\nYou can install ``idem-k8s`` with the Python package installer (PyPI) or from source.\n\nInstall from PyPI\n+++++++++++++++++\n\n.. code-block:: bash\n\n      pip install idem-k8s\n\nInstall from source\n+++++++++++++++++++\n\n.. code-block:: bash\n\n   # Clone repo\n   git clone git@<your-project-path>/idem-k8s.git\n   cd idem-k8s\n\n   # Set up venv\n   python3 -m venv .venv\n   source .venv/bin/activate\n   pip install -e .\n\nDevelopment\n===========\n\nThe ``idem-k8s`` plugin has built-in automatic code generation to extend support for additional Kubernetes resources. Automatic code generation creates over 90% of the code required to support a new Kubernetes resource.\n\nAutomatically generate a Kubernetes resource state file with the following command:\n\n.. code-block:: bash\n\n   pop-create k8s \\\n   --directory ~/idem_k8s/autogen/dummy \\  # directory in which the generated state files are stored\n   -tv \\\n   -n idem_k8s \\\n   --resource apps/v1/DaemonSet  # resource for which state files are generated\n\nThe ``resource`` argument follows the format: ``group/version/kind``\n\nFor example, to add a resource state for Deployment, the argument is: ``apps/v1/Deployment``\n\nFor more information, see the `Kubernetes resource objects documentation <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#-strong-api-groups-strong>`__.\n\nUsage\n=====\n\nSetup\n-----\n\nAfter installation, ``idem-k8s`` execution and state modules are accessible to the pop *hub*.\n\nFor more information:\n\n* `Intro to Plugin Oriented Programming (POP) <https://pop-book.readthedocs.io/en/latest/>`__\n* `pop hub <https://pop-book.readthedocs.io/en/latest/main/hub.html#>`__\n\nTo use ``idem-k8s`` execution and state modules to manage cluster resources, you need to set up authentication in one of the following ways.\n\n**With environment variables**\n\nSet KUBE_CONFIG_PATH and KUBE_CTX environment variables to the Kubernetes configuration file and context found in your ``kube_config`` file.\n\n**In the Idem config file**\n\nEdit the Idem config file to include the ``kube_config_path`` and ``context`` under account extras. Use the following example as a guideline.\n\n.. code:: sls\n\n    acct:\n      extras:\n        k8s:\n          default:\n            kube_config_path: ~/.kube/config\n            context: default\n\n**In a credentials.yaml file**\n\nCreate or edit an Idem credentials.yaml file to add the ``kube_config_path`` and ``context`` to a Kubernetes profile. Use the following example as a guideline.\n\n..  code:: sls\n\n    k8s:\n      default:\n        kube_config_path: ~/.kube/config\n        context: default\n\nFor more about Idem credentials files, including recommended steps for encryption and environment variables, see `Authenticating with Idem <https://docs.idemproject.io/getting-started/en/latest/topics/gettingstarted/authenticating.html>`__\n\nYou are now ready to use idem-k8s.\n\nStates\n------\n\nIdem SLS files use states to ensure that resources are in a desired configuration. An idem-k8s SLS file supports three state functions: *present*, *absent*, and *describe*.\n\npresent\n+++++++\n\nThe *present* function ensures that a resource exists. If a resource doesn't exist, running *present* creates it. If the resource already exists, running *present* might leave it unchanged, or update it if there are any configuration changes.\n\nabsent\n++++++\n\nThe *absent* function ensures that a resource does not exist. If the resource exists, running *absent* deletes it. If the resource doesn't exist, running *absent* has no effect.\n\ndescribe\n++++++++\n\nThe *describe* function returns a list of all resources in the Kubernetes cluster of the same type as specified in the credential profile.\n\nAccessing States\n----------------\n\nStates can be accessed by their relative location in ``idem-k8s/k8s/states``.\n\nFor example, a Kubernetes deployment state can be created with the *present* function as shown in the following SLS file.\n\nk8s_deployment.sls:\n\n.. code:: sls\n\n    nginx-deployment:\n      k8s.apps.v1.deployment.present:\n      - metadata:\n          name: nginx-deployment\n          namespace: default\n      - spec:\n          replicas: 3\n          selector:\n            match_labels:\n              app: nginx\n          strategy:\n            rolling_update:\n              max_surge: 25%\n              max_unavailable: 25%\n            type: RollingUpdate\n          template:\n            metadata:\n              labels:\n                app: nginx\n            spec:\n              containers:\n              - image: nginx:1.14.20\n                image_pull_policy: IfNotPresent\n                name: nginx\n                ports:\n                - container_port: 80\n                  protocol: TCP\n                termination_message_path: /dev/termination-log\n                termination_message_policy: File\n              restart_policy: Always\n\nThe Idem command to create the preceding deployment state is:\n\n.. code:: bash\n\n    idem state $PWD/k8s_deployment.sls\n\nCurrent Supported Resources\n---------------------------\napiregistration_k8s_io.v1\n+++++++++++++++++++++++++\n\napi_service\n\napps.v1\n+++++++\n\ndaemon_set\n\ndeployment\n\ncore.v1\n+++++++\n\nconfig_map\n\nnamespace\n\nsecret\n\nservice_account\n\nservice\n\npersistent_volume_claim\n\nrbac.v1\n+++++++\n\ncluster_role\n\ncluster_role_binding\n\nrole_binding\n\nstorage_k8s_io.v1\n+++++++++++++++++\n\nstorage_class\n\n\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "idem-k8s",
+            "package_url": "https://pypi.org/project/idem-k8s/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/idem-k8s/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/idem-k8s/0.4.0/",
+            "requires_dist": [
+                "pop (>=17.0)",
+                "idem (>=18.8.0<19.0.0)",
+                "kubernetes (==23.3.0)",
+                "pop-config (>=6.11.1)",
+                "deepdiff (==5.8.0)",
+                "jmespath (==1.0.0)",
+                "pop-create-idem ; extra == 'autogen'",
+                "pop-create-idem ; extra == 'full'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "",
+            "version": "0.4.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16090029,
+        "urls": [
+            {
+                "comment_text": "pypi",
+                "digests": {
+                    "md5": "bffe92077d129f31990275b5db388cea",
+                    "sha256": "feadc4666b384540c067a3aa5e37f5e48e34d14a78367517bf0b46847d8b9ccb"
+                },
+                "downloads": -1,
+                "filename": "idem_k8s-0.4.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "bffe92077d129f31990275b5db388cea",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 68044,
+                "upload_time": "2022-12-13T18:40:13",
+                "upload_time_iso_8601": "2022-12-13T18:40:13.798978Z",
+                "url": "https://files.pythonhosted.org/packages/48/d0/e1d0780d66acd7cfd632a86526826075605cd9ddb21becda77fc632a795f/idem_k8s-0.4.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "pypi",
+                "digests": {
+                    "md5": "98ca1243b34c8df1f63fca2399a39b04",
+                    "sha256": "6ea9f137cca9b847de4e0397d3d3f042f08f03746515a40686e047de55f3b168"
+                },
+                "downloads": -1,
+                "filename": "idem-k8s-0.4.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "98ca1243b34c8df1f63fca2399a39b04",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 38808,
+                "upload_time": "2022-12-13T18:40:15",
+                "upload_time_iso_8601": "2022-12-13T18:40:15.988477Z",
+                "url": "https://files.pythonhosted.org/packages/5e/89/e03293121a9f98ab45b8e16dd0788eaaeb64be98a8a02e3ed14e5910e6b8/idem-k8s-0.4.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -38,7 +38,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15103732,
+        "last_serial": 16086007,
         "urls": [
             {
                 "comment_text": "",
@@ -135,7 +135,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15103732,
+        "last_serial": 16086007,
         "urls": [
             {
                 "comment_text": "",
@@ -232,7 +232,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15103732,
+        "last_serial": 16086007,
         "urls": [
             {
                 "comment_text": "",
@@ -329,7 +329,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15103732,
+        "last_serial": 16086007,
         "urls": [
             {
                 "comment_text": "",
@@ -426,7 +426,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15103732,
+        "last_serial": 16086007,
         "urls": [
             {
                 "comment_text": "",
@@ -524,7 +524,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15103732,
+        "last_serial": 16086007,
         "urls": [
             {
                 "comment_text": "",
@@ -622,7 +622,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15103732,
+        "last_serial": 16086007,
         "urls": [
             {
                 "comment_text": "",
@@ -720,7 +720,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15103732,
+        "last_serial": 16086007,
         "urls": [
             {
                 "comment_text": "",
@@ -818,7 +818,7 @@
             "yanked": true,
             "yanked_reason": "Broken release"
         },
-        "last_serial": 15103732,
+        "last_serial": 16086007,
         "urls": [
             {
                 "comment_text": "",
@@ -864,7 +864,6 @@
                 "Topic :: Internet :: WWW/HTTP",
                 "Topic :: Internet :: WWW/HTTP :: Dynamic Content"
             ],
-            "description": "# Wagtail MeiliSearch\n\nThis is a (beta) Wagtail search backend for the [MeiliSearch](https://github.com/meilisearch/MeiliSearch) search engine.\n\n\n## Installation\n\n`poetry add wagtail_meilisearch` or `pip install wagtail_meilisearch`\n\n## Upgrading\n\nIf you're upgrading MeiliSearch from 0.9.x to anything higher, you will need to destroy and re-create MeiliSearch's data.ms directory.\n\n## Configuration\n\nSee the [MeiliSearch docs](https://docs.meilisearch.com/guides/advanced_guides/installation.html#environment-variables-and-flags) for info on the values you want to add here.\n\n```\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        'HOST': os.environ.get('MEILISEARCH_HOST', 'http://127.0.0.1'),\n        'PORT': os.environ.get('MEILISEARCH_PORT', '7700'),\n        'MASTER_KEY': os.environ.get('MEILI_MASTER_KEY', '')\n    },\n}\n```\n\n## Update strategies\n\nIndexing a very large site with `python manage.py update_index` can be pretty taxing on the CPU, take quite a long time, and reduce the responsiveness of the MeiliSearch server. Wagtail-MeiliSearch offers two update strategies, `soft` and `hard`. The default, `soft` strategy will do an \"add or update\" call for each document sent to it, while the `hard` strategy will delete every document in the index and then replace them.\n\nThere are tradeoffs with either strategy - `hard` will guarantee that your search data matches your model data, but be hard work on the CPU for longer. `soft` will be faster and less CPU intensive, but if a field is removed from your model between indexings, that field data will remain in the search index.\n\nOne useful trick is to tell Wagtail that you have two search backends, with the default backend set to do `soft` updates that you can run nightly, and a second backend with `hard` updates that you can run less frequently.\n\n```\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        'HOST': os.environ.get('MEILISEARCH_HOST', 'http://127.0.0.1'),\n        'PORT': os.environ.get('MEILISEARCH_PORT', '7700'),\n        'MASTER_KEY': os.environ.get('MEILI_MASTER_KEY', '')\n    },\n    'hard': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        'HOST': os.environ.get('MEILISEARCH_HOST', 'http://127.0.0.1'),\n        'PORT': os.environ.get('MEILISEARCH_PORT', '7700'),\n        'MASTER_KEY': os.environ.get('MEILI_MASTER_KEY', ''),\n        'UPDATE_STRATEGY': 'hard'\n    }\n}\n```\n\nIf you use this technique, remember to pass the backend name into the `update_index` command otherwise both will run.\n\n`python manage.py update_index --backend default` for a soft update\n`python manage.py update_index --backend hard` for a hard update\n\n### Delta strategy\n\nThe `delta` strategy is useful if you habitually add created_at and updated_at timestamps to your models. This strategy will check the fields...\n\n* `first_published_at`\n* `last_published_at`\n* `created_at`\n* `updated_at`\n\nAnd only update the records for objects where one or more of these fields has a date more recent than the time delta specified in the settings.\n\n```\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        'HOST': os.environ.get('MEILISEARCH_HOST', 'http://127.0.0.1'),\n        'PORT': os.environ.get('MEILISEARCH_PORT', '7700'),\n        'MASTER_KEY': os.environ.get('MEILI_MASTER_KEY', '')\n        'UPDATE_STRATEGY': delta,\n        'UPDATE_DELTA': {\n            'weeks': -1\n        }\n    }\n}\n```\n\nIf the delta is set to `{'weeks': -1}`, wagtail-meilisearch will only update indexes for documents where one of the timestamp fields has a date within the last week. Your time delta _must_ be a negative.\n\nUnder the hood we use [Arrow](https://arrow.readthedocs.io), so you can use any keyword args supported by [Arrow's `shift()`](https://arrow.readthedocs.io/en/latest/index.html#replace-shift).\n\nIf you set `UPDATE_STRATEGY` to `delta` but don't provide a value for `UPDATE_DELTA` wagtail-meilisearch will default to `{'weeks': -1}`.\n\n## Skip models\n\nSometimes you might have a site where a certain page model is guaranteed not to change, for instance an archive section. After creating your initial search index, you can add a `SKIP_MODELS` key to the config to tell wagtail-meilisearch to ignore specific models when running `update_index`. Behind the scenes wagtail-meilisearch returns a dummy model index to the `update_index` management command for every model listed in your `SKIP_MODELS` - this ensures that this setting only affects `update_index`, so if you manually edit one of the models listed it should get re-indexed with the update signal.\n\n```\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        'HOST': os.environ.get('MEILISEARCH_HOST', 'http://127.0.0.1'),\n        'PORT': os.environ.get('MEILISEARCH_PORT', '7700'),\n        'MASTER_KEY': os.environ.get('MEILI_MASTER_KEY', ''),\n        'UPDATE_STRATEGY': 'delta',\n        'SKIP_MODELS': [\n            'core.ArchivePage',\n        ]\n    }\n}\n```\n\n## Stop Words\n\nStop words are words for which we don't want to place significance on their frequency. For instance, the search query `tom and jerry` would return far less relevant results if the word `and` was given the same importance as `tom` and `jerry`. There's a fairly sane list of English language stop words supplied, but you can also supply your own. This is particularly useful if you have a lot of content in any other language.\n\n```\nMY_STOP_WORDS = ['a', 'list', 'of', 'words']\n\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        [...]\n        'STOP_WORDS': MY_STOP_WORDS\n    },\n}\n```\n\nOr alternatively, you can extend the built in list.\n\n```\nfrom wagtail_meilisearch.settings import STOP_WORDS\n\nMY_STOP_WORDS = STOP_WORDS + WELSH_STOP_WORDS + FRENCH_STOP_WORDS\n\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        [...]\n        'STOP_WORDS': MY_STOP_WORDS\n    },\n}\n```\n\n\n## Query limits\n\nIf you have a lot of DB documents, the final query to the database can be quite a heavy load. Meilisearch's relevance means that it's usually pretty safe to restrict the number of documents Meilisearch returns, and therefore the number of documents your app needs to get from the database. The limit is **per model**, so if your project has 10 page types and you set a limit of 1000, there's a possible 10000 results.\n\n```\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        [...]\n        'QUERY_LIMIT': 1000\n    },\n}\n```\n\n## Contributing\n\nIf you want to help with the development I'd be more than happy. The vast majority of the heavy lifting is done by MeiliSearch itself, but there is a TODO list...\n\n\n### TODO\n\n* Faceting\n* Write tests\n* Performance improvements\n* ~~Implement boosting in the sort algorithm~~\n* ~~Implement stop words~~\n* ~~Search results~~\n* ~~Add support for the autocomplete api~~\n* ~~Ensure we're getting results by relevance~~\n\n## Change Log\n\n#### 0.14.0\n* Updates to work with the latest versions of Meilisearch (v0.28.1) and meilisearch-python (^0.19.1)\n\n#### 0.13.0\n* Yanked, sorry\n\n#### 0.12.0\n* Adds QUERY_LIMIT option to settings\n\n#### 0.11.0\n* Compatibility changes to keep up with MeiliSearch and [meilisearch-python](https://github.com/meilisearch/meilisearch-python)\n* we've also switched to more closely tracking the major and minor version numbers of meilisearch-python so that it's easier to see compatibility at a glance.\n* Note: if you're upgrading from an old version of MeiliSearch you may need to destroy MeiliSearch's data directory and start with a clean index.\n\n#### 0.1.5\n* Adds the delta update strategy\n* Adds the SKIP_MODELS setting\n* Adds support for using boost on your search fields\n\n\n### Thanks\n\nThank you to the devs of [Wagtail-Whoosh](https://github.com/wagtail/wagtail-whoosh). Reading the code over there was the only way I could work out how Wagtail Search backends are supposed to work.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -897,7 +896,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15103732,
+        "last_serial": 16086007,
         "urls": [
             {
                 "comment_text": "",
@@ -936,6 +935,106 @@
                 "upload_time": "2022-09-15T11:36:45",
                 "upload_time_iso_8601": "2022-09-15T11:36:45.624549Z",
                 "url": "https://files.pythonhosted.org/packages/04/55/b7483d88519b4a6689ec2e103dfe01eba12e40ef4dce20306fd121d44518/wagtail-meilisearch-0.14.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.15.0": {
+        "info": {
+            "author": "Hactar",
+            "author_email": "systems@hactar.is",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Environment :: Web Environment",
+                "Framework :: Django",
+                "Framework :: Wagtail",
+                "Framework :: Wagtail :: 2",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Internet :: WWW/HTTP",
+                "Topic :: Internet :: WWW/HTTP :: Dynamic Content"
+            ],
+            "description": "# Wagtail MeiliSearch\n\nThis is a (beta) Wagtail search backend for the [MeiliSearch](https://github.com/meilisearch/MeiliSearch) search engine.\n\n\n## Installation\n\n`poetry add wagtail_meilisearch` or `pip install wagtail_meilisearch`\n\n## Upgrading\n\nIf you're upgrading MeiliSearch from 0.9.x to anything higher, you will need to destroy and re-create MeiliSearch's data.ms directory.\n\n## Configuration\n\nSee the [MeiliSearch docs](https://docs.meilisearch.com/guides/advanced_guides/installation.html#environment-variables-and-flags) for info on the values you want to add here.\n\n```\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        'HOST': os.environ.get('MEILISEARCH_HOST', 'http://127.0.0.1'),\n        'PORT': os.environ.get('MEILISEARCH_PORT', '7700'),\n        'MASTER_KEY': os.environ.get('MEILI_MASTER_KEY', '')\n    },\n}\n```\n\n## Update strategies\n\nIndexing a very large site with `python manage.py update_index` can be pretty taxing on the CPU, take quite a long time, and reduce the responsiveness of the MeiliSearch server. Wagtail-MeiliSearch offers two update strategies, `soft` and `hard`. The default, `soft` strategy will do an \"add or update\" call for each document sent to it, while the `hard` strategy will delete every document in the index and then replace them.\n\nThere are tradeoffs with either strategy - `hard` will guarantee that your search data matches your model data, but be hard work on the CPU for longer. `soft` will be faster and less CPU intensive, but if a field is removed from your model between indexings, that field data will remain in the search index.\n\nOne useful trick is to tell Wagtail that you have two search backends, with the default backend set to do `soft` updates that you can run nightly, and a second backend with `hard` updates that you can run less frequently.\n\n```\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        'HOST': os.environ.get('MEILISEARCH_HOST', 'http://127.0.0.1'),\n        'PORT': os.environ.get('MEILISEARCH_PORT', '7700'),\n        'MASTER_KEY': os.environ.get('MEILI_MASTER_KEY', '')\n    },\n    'hard': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        'HOST': os.environ.get('MEILISEARCH_HOST', 'http://127.0.0.1'),\n        'PORT': os.environ.get('MEILISEARCH_PORT', '7700'),\n        'MASTER_KEY': os.environ.get('MEILI_MASTER_KEY', ''),\n        'UPDATE_STRATEGY': 'hard'\n    }\n}\n```\n\nIf you use this technique, remember to pass the backend name into the `update_index` command otherwise both will run.\n\n`python manage.py update_index --backend default` for a soft update\n`python manage.py update_index --backend hard` for a hard update\n\n### Delta strategy\n\nThe `delta` strategy is useful if you habitually add created_at and updated_at timestamps to your models. This strategy will check the fields...\n\n* `first_published_at`\n* `last_published_at`\n* `created_at`\n* `updated_at`\n\nAnd only update the records for objects where one or more of these fields has a date more recent than the time delta specified in the settings.\n\n```\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        'HOST': os.environ.get('MEILISEARCH_HOST', 'http://127.0.0.1'),\n        'PORT': os.environ.get('MEILISEARCH_PORT', '7700'),\n        'MASTER_KEY': os.environ.get('MEILI_MASTER_KEY', '')\n        'UPDATE_STRATEGY': delta,\n        'UPDATE_DELTA': {\n            'weeks': -1\n        }\n    }\n}\n```\n\nIf the delta is set to `{'weeks': -1}`, wagtail-meilisearch will only update indexes for documents where one of the timestamp fields has a date within the last week. Your time delta _must_ be a negative.\n\nUnder the hood we use [Arrow](https://arrow.readthedocs.io), so you can use any keyword args supported by [Arrow's `shift()`](https://arrow.readthedocs.io/en/latest/index.html#replace-shift).\n\nIf you set `UPDATE_STRATEGY` to `delta` but don't provide a value for `UPDATE_DELTA` wagtail-meilisearch will default to `{'weeks': -1}`.\n\n## Skip models\n\nSometimes you might have a site where a certain page model is guaranteed not to change, for instance an archive section. After creating your initial search index, you can add a `SKIP_MODELS` key to the config to tell wagtail-meilisearch to ignore specific models when running `update_index`. Behind the scenes wagtail-meilisearch returns a dummy model index to the `update_index` management command for every model listed in your `SKIP_MODELS` - this ensures that this setting only affects `update_index`, so if you manually edit one of the models listed it should get re-indexed with the update signal.\n\n```\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        'HOST': os.environ.get('MEILISEARCH_HOST', 'http://127.0.0.1'),\n        'PORT': os.environ.get('MEILISEARCH_PORT', '7700'),\n        'MASTER_KEY': os.environ.get('MEILI_MASTER_KEY', ''),\n        'UPDATE_STRATEGY': 'delta',\n        'SKIP_MODELS': [\n            'core.ArchivePage',\n        ]\n    }\n}\n```\n\n## Stop Words\n\nStop words are words for which we don't want to place significance on their frequency. For instance, the search query `tom and jerry` would return far less relevant results if the word `and` was given the same importance as `tom` and `jerry`. There's a fairly sane list of English language stop words supplied, but you can also supply your own. This is particularly useful if you have a lot of content in any other language.\n\n```\nMY_STOP_WORDS = ['a', 'list', 'of', 'words']\n\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        [...]\n        'STOP_WORDS': MY_STOP_WORDS\n    },\n}\n```\n\nOr alternatively, you can extend the built in list.\n\n```\nfrom wagtail_meilisearch.settings import STOP_WORDS\n\nMY_STOP_WORDS = STOP_WORDS + WELSH_STOP_WORDS + FRENCH_STOP_WORDS\n\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        [...]\n        'STOP_WORDS': MY_STOP_WORDS\n    },\n}\n```\n\n\n## Query limits\n\nIf you have a lot of DB documents, the final query to the database can be quite a heavy load. Meilisearch's relevance means that it's usually pretty safe to restrict the number of documents Meilisearch returns, and therefore the number of documents your app needs to get from the database. The limit is **per model**, so if your project has 10 page types and you set a limit of 1000, there's a possible 10000 results.\n\n```\nWAGTAILSEARCH_BACKENDS = {\n    'default': {\n        'BACKEND': 'wagtail_meilisearch.backend',\n        [...]\n        'QUERY_LIMIT': 1000\n    },\n}\n```\n\n## Contributing\n\nIf you want to help with the development I'd be more than happy. The vast majority of the heavy lifting is done by MeiliSearch itself, but there is a TODO list...\n\n\n### TODO\n\n* Faceting\n* Write tests\n* Performance improvements\n* ~~Implement boosting in the sort algorithm~~\n* ~~Implement stop words~~\n* ~~Search results~~\n* ~~Add support for the autocomplete api~~\n* ~~Ensure we're getting results by relevance~~\n\n## Change Log\n\n#### 0.14.0\n* Adds Django 4 support and compatibility with the latest meilisearch server (0.30.2) and meilisearch python (0.23.0)\n\n#### 0.14.0\n* Updates to work with the latest versions of Meilisearch (v0.28.1) and meilisearch-python (^0.19.1)\n\n#### 0.13.0\n* Yanked, sorry\n\n#### 0.12.0\n* Adds QUERY_LIMIT option to settings\n\n#### 0.11.0\n* Compatibility changes to keep up with MeiliSearch and [meilisearch-python](https://github.com/meilisearch/meilisearch-python)\n* we've also switched to more closely tracking the major and minor version numbers of meilisearch-python so that it's easier to see compatibility at a glance.\n* Note: if you're upgrading from an old version of MeiliSearch you may need to destroy MeiliSearch's data directory and start with a clean index.\n\n#### 0.1.5\n* Adds the delta update strategy\n* Adds the SKIP_MODELS setting\n* Adds support for using boost on your search fields\n\n\n### Thanks\n\nThank you to the devs of [Wagtail-Whoosh](https://github.com/wagtail/wagtail-whoosh). Reading the code over there was the only way I could work out how Wagtail Search backends are supposed to work.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/hactar-is/wagtail-meilisearch",
+            "keywords": "wagtail,django,search,meilisearch",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "wagtail-meilisearch",
+            "package_url": "https://pypi.org/project/wagtail-meilisearch/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/wagtail-meilisearch/",
+            "project_urls": {
+                "Homepage": "https://github.com/hactar-is/wagtail-meilisearch",
+                "Repository": "https://github.com/hactar-is/wagtail-meilisearch"
+            },
+            "release_url": "https://pypi.org/project/wagtail-meilisearch/0.15.0/",
+            "requires_dist": [
+                "arrow (>=1.2.3,<2.0.0)",
+                "meilisearch (>=0.23.0,<0.24.0)"
+            ],
+            "requires_python": ">=3.8,<4.0",
+            "summary": "A MeiliSearch backend for Wagatil",
+            "version": "0.15.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16086007,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f0ed270abfdfca7d53b82679ed64da88",
+                    "sha256": "24af1135c7a623c450d8aa547541f9ce8574ce6b1e49e1d2cb89fd2149d1a9fc"
+                },
+                "downloads": -1,
+                "filename": "wagtail_meilisearch-0.15.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f0ed270abfdfca7d53b82679ed64da88",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<4.0",
+                "size": 14272,
+                "upload_time": "2022-12-13T12:42:03",
+                "upload_time_iso_8601": "2022-12-13T12:42:03.367716Z",
+                "url": "https://files.pythonhosted.org/packages/a8/39/780ceb1bdab714817e270aa1abfde119adae095c02bf00a119aeecf4dda0/wagtail_meilisearch-0.15.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "524d9ec6abf0d98a8ab1444ae38bc432",
+                    "sha256": "78939e3826651cb38bf8bb22bf9622a715a18912fb00f4dc8e697dab30f76b33"
+                },
+                "downloads": -1,
+                "filename": "wagtail_meilisearch-0.15.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "524d9ec6abf0d98a8ab1444ae38bc432",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<4.0",
+                "size": 15407,
+                "upload_time": "2022-12-13T12:42:05",
+                "upload_time_iso_8601": "2022-12-13T12:42:05.857558Z",
+                "url": "https://files.pythonhosted.org/packages/38/80/c684010ddb5d6b9cd22b21579eb8896974b72501b63b1eec7fa01926239f/wagtail_meilisearch-0.15.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

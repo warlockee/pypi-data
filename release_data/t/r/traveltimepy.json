@@ -36,7 +36,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16085814,
+        "last_serial": 16086636,
         "urls": [
             {
                 "comment_text": "",
@@ -118,7 +118,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16085814,
+        "last_serial": 16086636,
         "urls": [
             {
                 "comment_text": "",
@@ -202,7 +202,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16085814,
+        "last_serial": 16086636,
         "urls": [
             {
                 "comment_text": "",
@@ -253,7 +253,6 @@
             "author_email": "",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# Travel Time Python SDK\n[![PyPI version](https://badge.fury.io/py/traveltimepy.svg)](https://badge.fury.io/py/traveltimepy) [![Unit Tests](https://github.com/traveltime-dev/traveltime-python-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/traveltime-dev/traveltime-python-sdk/actions/workflows/ci.yml)\n\nTravel Time Python SDK helps users find locations by journey time rather than using \u2018as the crow flies\u2019 distance.  \nTime-based searching gives users more opportunities for personalisation and delivers a more relevant search.\n\n## Usage\n\n### Authentication\n\nIn order to authenticate with Travel Time API, you will have to supply the Application Id and Api Key.\n\n```python\nfrom traveltimepy.sdk import TravelTimeSdk\n\nsdk = TravelTimeSdk('YOUR_API_ID', 'YOUR_API_KEY')\n```\n\n### [Isochrones (Time Map)](https://traveltime.com/docs/api/reference/isochrones)\n\nGiven origin coordinates, find shapes of zones reachable within corresponding travel time.\n\n```python\nfrom datetime import datetime\n\nfrom traveltimepy.dto import Coordinates\nfrom traveltimepy.dto.requests import Range\nfrom traveltimepy.dto.requests.time_map import DepartureSearch, ArrivalSearch, Union, Intersection\nfrom traveltimepy.transportation import PublicTransport, Driving\n\ndeparture_search1 = DepartureSearch(\n    id='search_1',\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    departure_time=datetime.now(),\n    travel_time=900,\n    transportation=PublicTransport()\n)\ndeparture_search2 = DepartureSearch(\n    id='search_2',\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    departure_time=datetime.now(),\n    travel_time=900,\n    transportation=Driving()\n)\narrival_search = ArrivalSearch(\n    id='search_3',\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    arrival_time=datetime.now(),\n    travel_time=900,\n    transportation=PublicTransport(),\n    range=Range(enabled=True, width=3600)\n)\nunion = Union(\n    id='search_4',\n    search_ids=['search_2', 'search_3']\n)\nintersection = Intersection(\n    id='search_5',\n    search_ids=['search_2', 'search_3']\n)\nresponse = sdk.time_map(\n    [arrival_search],\n    [departure_search1, departure_search2],\n    [union],\n    [intersection]\n)\n```\n\n### [Distance Matrix (Time Filter)](https://traveltime.com/docs/api/reference/distance-matrix)\n\nGiven origin and destination points filter out points that cannot be reached within specified time limit.\n\n```python\nfrom datetime import datetime\n\nfrom traveltimepy.dto import Location, Coordinates\nfrom traveltimepy.dto.requests import FullRange, Property\nfrom traveltimepy.dto.requests.time_filter import DepartureSearch, ArrivalSearch\nfrom traveltimepy.transportation import PublicTransport\n\nlocations = [\n    Location(id='London center', coords=Coordinates(lat=51.508930, lng=-0.131387)),\n    Location(id='Hyde Park', coords=Coordinates(lat=51.508824, lng=-0.167093)),\n    Location(id='ZSL London Zoo', coords=Coordinates(lat=51.536067, lng=-0.153596))\n]\n\ndeparture_search = DepartureSearch(\n    id='forward search example',\n    arrival_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    departure_location_id='London center',\n    departure_time=datetime.now(),\n    travel_time=3600,\n    transportation=PublicTransport(type='bus'),\n    properties=[Property.TRAVEL_TIME],\n    full_range=FullRange(enabled=True, max_results=3, width=600)\n)\n\narrival_search = ArrivalSearch(\n    id='backward search example',\n    departure_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    arrival_location_id='London center',\n    arrival_time=datetime.now(),\n    travel_time=3800,\n    transportation=PublicTransport(type='bus'),\n    properties=[Property.TRAVEL_TIME, Property.FARES, Property.ROUTE],\n)\n\nresponse = sdk.time_filter(locations, [departure_search], [arrival_search])\n```\n\n\n### [Time Filter (Fast)](https://traveltime.com/api/reference/time-filter-fast)\n\nA very fast version of time_filter()\n\n```python\nfrom traveltimepy.dto import Location, Coordinates\nfrom traveltimepy.dto.requests import Property\nfrom traveltimepy.dto.requests.time_filter_fast import Transportation, ManyToOne, OneToMany\n\nlocations = [\n    Location(id='London center', coords=Coordinates(lat=51.508930, lng=-0.131387)),\n    Location(id='Hyde Park', coords=Coordinates(lat=51.508824, lng=-0.167093)),\n    Location(id='ZSL London Zoo', coords=Coordinates(lat=51.536067, lng=-0.153596))\n]\nmany_to_one = ManyToOne(\n    id='many-to-one search example',\n    departure_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    arrival_location_id='London center',\n    transportation=Transportation(type='public_transport'),\n    arrival_time_period='weekday_morning',\n    travel_time=1900,\n    properties=[Property.TRAVEL_TIME, Property.FARES]\n)\none_to_many = OneToMany(\n    id='one-to-many search example',\n    arrival_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    departure_location_id='London center',\n    transportation=Transportation(type='public_transport'),\n    arrival_time_period='weekday_morning',\n    travel_time=1900,\n    properties=[Property.TRAVEL_TIME, Property.FARES]\n)\n\nresponse = sdk.time_filter_fast(locations, [many_to_one], [one_to_many])\n```\n\n### Time Filter Fast (Proto)\n\nA fast version of time filter communicating using [protocol buffers](https://github.com/protocolbuffers/protobuf).\n\nThe request parameters are much more limited and only travel time is returned. In addition, the results are only approximately correct (95% of the results are guaranteed to be within 5% of the routes returned by regular time filter).\n\nThis inflexibility comes with a benefit of faster response times (Over 5x faster compared to regular time filter) and larger limits on the amount of destination points.\n\nBody attributes:\n* origin_coordinates: Origin point.\n* destination_coordinates: Destination points. Cannot be more than 200,000.\n* transportation: Transportation type.\n* travel_time: Time limit;\n* country: Return the results that are within the specified country\n\n```python\nfrom traveltimepy.dto import Coordinates\n\nfrom traveltimepy.dto.requests.time_filter_proto import OneToMany, Transportation, Country\n\none_to_many = OneToMany(\n    origin_coordinates=Coordinates(lat=51.425709, lng=-0.122061),\n    destination_coordinates=[\n        Coordinates(lat=51.348605, lng=-0.314783),\n        Coordinates(lat=51.337205, lng=-0.315793)\n    ],\n    transportation=Transportation.DRIVING,\n    travel_time=7200,\n    country=Country.UNITED_KINGDOM\n)\n\nresponse = sdk.time_filter_proto(one_to_many)\n```\n\nThe responses are in the form of a list where each position denotes either a\ntravel time (in seconds) of a journey, or if negative that the journey from the\norigin to the destination point is impossible.\n\n\n### [Routes](https://traveltime.com/docs/api/reference/routes)\n\nReturns routing information between source and destinations.\n\n```python\nfrom datetime import datetime\n\nfrom traveltimepy.dto import Location, Coordinates\nfrom traveltimepy.dto.requests import FullRange, Property\nfrom traveltimepy.dto.requests.routes import DepartureSearch, ArrivalSearch\nfrom traveltimepy.transportation import PublicTransport\n\nlocations = [\n    Location(id='London center', coords=Coordinates(lat=51.508930, lng=-0.131387)),\n    Location(id='Hyde Park', coords=Coordinates(lat=51.508824, lng=-0.167093)),\n    Location(id='ZSL London Zoo', coords=Coordinates(lat=51.536067, lng=-0.153596))\n]\n\ndeparture_search = DepartureSearch(\n    id='departure search example',\n    arrival_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    departure_location_id='London center',\n    departure_time=datetime.now(),\n    transportation=PublicTransport(type='bus'),\n    properties=[Property.TRAVEL_TIME],\n    full_range=FullRange(enabled=True, max_results=3, width=600)\n)\n\narrival_search = ArrivalSearch(\n    id='arrival search example',\n    departure_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    arrival_location_id='London center',\n    arrival_time=datetime.now(),\n    transportation=PublicTransport(type='bus'),\n    properties=[Property.TRAVEL_TIME, Property.FARES, Property.ROUTE],\n)\n\nresponse = sdk.routes(locations, [departure_search], [arrival_search])\n```\n\n### [Time Filter (Postcodes)](https://traveltime.com/docs/api/reference/postcode-search)\nFind reachable postcodes from origin (or to destination) and get statistics about such postcodes.\n\n```python\nfrom datetime import datetime\n\nfrom traveltimepy.dto import Coordinates\nfrom traveltimepy.dto.requests import Property\nfrom traveltimepy.dto.requests.postcodes import DepartureSearch, ArrivalSearch\nfrom traveltimepy.transportation import PublicTransport\n\ndeparture_search = DepartureSearch(\n    id='public transport from Trafalgar Square',\n    departure_time=datetime.now(),\n    travel_time=1800,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    transportation=PublicTransport(),\n    properties=[Property.TRAVEL_TIME, Property.DISTANCE]\n)\n\narrival_search = ArrivalSearch(\n    id='public transport to Trafalgar Square',\n    arrival_time=datetime.now(),\n    travel_time=1800,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    transportation=PublicTransport(),\n    properties=[Property.TRAVEL_TIME, Property.DISTANCE]\n)\n\nresponse = sdk.postcodes([departure_search], [arrival_search])\n```\n\n### [Time Filter (Postcode Sectors)](https://traveltime.com/docs/api/reference/postcode-sector-filter)\nFind sectors that have a certain coverage from origin (or to destination) and get statistics about postcodes within such sectors.\n\n```python\nfrom datetime import datetime\nfrom traveltimepy.dto import Coordinates\nfrom traveltimepy.dto.requests.zones import DepartureSearch, ArrivalSearch, Property\nfrom traveltimepy.transportation import PublicTransport\n\ndeparture_search = DepartureSearch(\n    id='public transport from Trafalgar Square',\n    departure_time=datetime.now(),\n    travel_time=200,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    reachable_postcodes_threshold=0.1,\n    transportation=PublicTransport(),\n    properties=[Property.TRAVEL_TIME_ALL, Property.TRAVEL_TIME_REACHABLE]\n)\n\narrival_search = ArrivalSearch(\n    id='public transport to Trafalgar Square',\n    arrival_time=datetime.now(),\n    travel_time=200,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    reachable_postcodes_threshold=0.1,\n    transportation=PublicTransport(),\n    properties=[Property.COVERAGE]\n)\n\nresponse = sdk.sectors([departure_search], [arrival_search])\n```\n\n### [Time Filter (Postcode Districts)](https://traveltime.com/docs/api/reference/postcode-district-filter)\nFind reachable postcodes from origin (or to destination) and get statistics about such postcodes.\n\n```python\nfrom datetime import datetime\nfrom traveltimepy.dto import Coordinates\nfrom traveltimepy.dto.requests.zones import DepartureSearch, ArrivalSearch, Property\nfrom traveltimepy.transportation import PublicTransport\n\ndeparture_search = DepartureSearch(\n    id='public transport from Trafalgar Square',\n    departure_time=datetime.now(),\n    travel_time=200,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    reachable_postcodes_threshold=0.1,\n    transportation=PublicTransport(),\n    properties=[Property.TRAVEL_TIME_ALL, Property.TRAVEL_TIME_REACHABLE]\n)\n\narrival_search = ArrivalSearch(\n    id='public transport to Trafalgar Square',\n    arrival_time=datetime.now(),\n    travel_time=200,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    reachable_postcodes_threshold=0.1,\n    transportation=PublicTransport(),\n    properties=[Property.COVERAGE]\n)\n\nresponse = sdk.districts([departure_search], [arrival_search])\n```\n\n### [Geocoding (Search)](https://traveltime.com/docs/api/reference/geocoding-search)\n\nMatch a query string to geographic coordinates.\n\n```python\nresponse = sdk.geocoding(query='Parliament square', limit=30)\n```\n\n### [Reverse Geocoding](https://traveltime.com/docs/api/reference/geocoding-reverse)\n\nMatch a latitude, longitude pair to an address.\n\n```python\nresponse = sdk.geocoding_reverse(lat=51.507281, lng=-0.132120)\n```\n\n### [Map Info](https://traveltime.com/docs/api/reference/map-info)\n\nGet information about currently supported countries.\n\n```python\nresponse = sdk.map_info()\n```\n\n### [Supported Locations](https://traveltime.com/docs/api/reference/supported-locations)\n\nFind out what points are supported by the api.\n\n```python\nfrom traveltimepy.dto import Location, Coordinates\n\nlocations = [\n    Location(id='Kaunas', coords=Coordinates(lat=54.900008, lng=23.957734)),\n    Location(id='London', coords=Coordinates(lat=51.506756, lng=-0.12805)),\n    Location(id='Bangkok', coords=Coordinates(lat=13.761866, lng=100.544818)),\n    Location(id='Lisbon', coords=Coordinates(lat=38.721869, lng=-9.138549)),\n]\nresponse = sdk.supported_locations(locations)\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -288,7 +287,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16085814,
+        "last_serial": 16086636,
         "urls": [
             {
                 "comment_text": "",
@@ -327,6 +326,177 @@
                 "upload_time": "2022-12-13T12:18:32",
                 "upload_time_iso_8601": "2022-12-13T12:18:32.999768Z",
                 "url": "https://files.pythonhosted.org/packages/e7/d0/79a7bd3b93bb1af906fb37ec0cee53af77bbef61685e105d2de0f423f06d/traveltimepy-2.0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.0.3": {
+        "info": {
+            "author": "TravelTime",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "traveltimepy,api,maps",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "traveltimepy",
+            "package_url": "https://pypi.org/project/traveltimepy/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/traveltimepy/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/traveltimepy/2.0.3/",
+            "requires_dist": [
+                "requests",
+                "pydantic",
+                "geojson-pydantic",
+                "dacite",
+                "certifi (>=2021.5.30)",
+                "aiohttp",
+                "protobuf (==3.20.1)"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "\"Python Interface to Travel Time.\"",
+            "version": "2.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16086636,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f4c40ec715b0f190ab6e4204d55b8fe1",
+                    "sha256": "ffb480e66c806c6e85f5ad37c3869a22b286c637e7d0ddfba106282c8846c830"
+                },
+                "downloads": -1,
+                "filename": "traveltimepy-2.0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f4c40ec715b0f190ab6e4204d55b8fe1",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 48836,
+                "upload_time": "2022-12-13T13:01:28",
+                "upload_time_iso_8601": "2022-12-13T13:01:28.383519Z",
+                "url": "https://files.pythonhosted.org/packages/76/3b/c388687436e8657618b27025b72a25fb35d96c8a98b563e7e0afee0487ac/traveltimepy-2.0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a90f4bf5a21db8eb35000e70a2807e94",
+                    "sha256": "32b51aaad03066a920fd0eb6e5f0366d1e667cd8ca8933818451e3e06bd7bab5"
+                },
+                "downloads": -1,
+                "filename": "traveltimepy-2.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a90f4bf5a21db8eb35000e70a2807e94",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 16418,
+                "upload_time": "2022-12-13T13:01:30",
+                "upload_time_iso_8601": "2022-12-13T13:01:30.306223Z",
+                "url": "https://files.pythonhosted.org/packages/dd/08/21589f4d06ba2f4c06fcbdc6a825a4dc05a71c2e54fc84f441dc7848d862/traveltimepy-2.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.0.4": {
+        "info": {
+            "author": "TravelTime",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# Travel Time Python SDK\n[![PyPI version](https://badge.fury.io/py/traveltimepy.svg)](https://badge.fury.io/py/traveltimepy) [![Unit Tests](https://github.com/traveltime-dev/traveltime-python-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/traveltime-dev/traveltime-python-sdk/actions/workflows/ci.yml)\n\nTravel Time Python SDK helps users find locations by journey time rather than using \u2018as the crow flies\u2019 distance.  \nTime-based searching gives users more opportunities for personalisation and delivers a more relevant search.\n\n## Usage\n\n### Authentication\n\nIn order to authenticate with Travel Time API, you will have to supply the Application Id and Api Key.\n\n```python\nfrom traveltimepy.sdk import TravelTimeSdk\n\nsdk = TravelTimeSdk('YOUR_API_ID', 'YOUR_API_KEY')\n```\n\n### [Isochrones (Time Map)](https://traveltime.com/docs/api/reference/isochrones)\n\nGiven origin coordinates, find shapes of zones reachable within corresponding travel time.\n\n```python\nfrom datetime import datetime\n\nfrom traveltimepy.dto import Coordinates\nfrom traveltimepy.dto.requests import Range\nfrom traveltimepy.dto.requests.time_map import DepartureSearch, ArrivalSearch, Union, Intersection\nfrom traveltimepy.transportation import PublicTransport, Driving\n\ndeparture_search1 = DepartureSearch(\n    id='search_1',\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    departure_time=datetime.now(),\n    travel_time=900,\n    transportation=PublicTransport()\n)\ndeparture_search2 = DepartureSearch(\n    id='search_2',\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    departure_time=datetime.now(),\n    travel_time=900,\n    transportation=Driving()\n)\narrival_search = ArrivalSearch(\n    id='search_3',\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    arrival_time=datetime.now(),\n    travel_time=900,\n    transportation=PublicTransport(),\n    range=Range(enabled=True, width=3600)\n)\nunion = Union(\n    id='search_4',\n    search_ids=['search_2', 'search_3']\n)\nintersection = Intersection(\n    id='search_5',\n    search_ids=['search_2', 'search_3']\n)\nresponse = sdk.time_map(\n    [arrival_search],\n    [departure_search1, departure_search2],\n    [union],\n    [intersection]\n)\n```\n\n### [Distance Matrix (Time Filter)](https://traveltime.com/docs/api/reference/distance-matrix)\n\nGiven origin and destination points filter out points that cannot be reached within specified time limit.\n\n```python\nfrom datetime import datetime\n\nfrom traveltimepy.dto import Location, Coordinates\nfrom traveltimepy.dto.requests import FullRange, Property\nfrom traveltimepy.dto.requests.time_filter import DepartureSearch, ArrivalSearch\nfrom traveltimepy.transportation import PublicTransport\n\nlocations = [\n    Location(id='London center', coords=Coordinates(lat=51.508930, lng=-0.131387)),\n    Location(id='Hyde Park', coords=Coordinates(lat=51.508824, lng=-0.167093)),\n    Location(id='ZSL London Zoo', coords=Coordinates(lat=51.536067, lng=-0.153596))\n]\n\ndeparture_search = DepartureSearch(\n    id='forward search example',\n    arrival_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    departure_location_id='London center',\n    departure_time=datetime.now(),\n    travel_time=3600,\n    transportation=PublicTransport(type='bus'),\n    properties=[Property.TRAVEL_TIME],\n    full_range=FullRange(enabled=True, max_results=3, width=600)\n)\n\narrival_search = ArrivalSearch(\n    id='backward search example',\n    departure_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    arrival_location_id='London center',\n    arrival_time=datetime.now(),\n    travel_time=3800,\n    transportation=PublicTransport(type='bus'),\n    properties=[Property.TRAVEL_TIME, Property.FARES, Property.ROUTE],\n)\n\nresponse = sdk.time_filter(locations, [departure_search], [arrival_search])\n```\n\n\n### [Time Filter (Fast)](https://traveltime.com/api/reference/time-filter-fast)\n\nA very fast version of time_filter()\n\n```python\nfrom traveltimepy.dto import Location, Coordinates\nfrom traveltimepy.dto.requests import Property\nfrom traveltimepy.dto.requests.time_filter_fast import Transportation, ManyToOne, OneToMany\n\nlocations = [\n    Location(id='London center', coords=Coordinates(lat=51.508930, lng=-0.131387)),\n    Location(id='Hyde Park', coords=Coordinates(lat=51.508824, lng=-0.167093)),\n    Location(id='ZSL London Zoo', coords=Coordinates(lat=51.536067, lng=-0.153596))\n]\nmany_to_one = ManyToOne(\n    id='many-to-one search example',\n    departure_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    arrival_location_id='London center',\n    transportation=Transportation(type='public_transport'),\n    arrival_time_period='weekday_morning',\n    travel_time=1900,\n    properties=[Property.TRAVEL_TIME, Property.FARES]\n)\none_to_many = OneToMany(\n    id='one-to-many search example',\n    arrival_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    departure_location_id='London center',\n    transportation=Transportation(type='public_transport'),\n    arrival_time_period='weekday_morning',\n    travel_time=1900,\n    properties=[Property.TRAVEL_TIME, Property.FARES]\n)\n\nresponse = sdk.time_filter_fast(locations, [many_to_one], [one_to_many])\n```\n\n### Time Filter Fast (Proto)\n\nA fast version of time filter communicating using [protocol buffers](https://github.com/protocolbuffers/protobuf).\n\nThe request parameters are much more limited and only travel time is returned. In addition, the results are only approximately correct (95% of the results are guaranteed to be within 5% of the routes returned by regular time filter).\n\nThis inflexibility comes with a benefit of faster response times (Over 5x faster compared to regular time filter) and larger limits on the amount of destination points.\n\nBody attributes:\n* origin_coordinates: Origin point.\n* destination_coordinates: Destination points. Cannot be more than 200,000.\n* transportation: Transportation type.\n* travel_time: Time limit;\n* country: Return the results that are within the specified country\n\n```python\nfrom traveltimepy.dto import Coordinates\n\nfrom traveltimepy.dto.requests.time_filter_proto import OneToMany, Transportation, Country\n\none_to_many = OneToMany(\n    origin_coordinates=Coordinates(lat=51.425709, lng=-0.122061),\n    destination_coordinates=[\n        Coordinates(lat=51.348605, lng=-0.314783),\n        Coordinates(lat=51.337205, lng=-0.315793)\n    ],\n    transportation=Transportation.DRIVING,\n    travel_time=7200,\n    country=Country.UNITED_KINGDOM\n)\n\nresponse = sdk.time_filter_proto(one_to_many)\n```\n\nThe responses are in the form of a list where each position denotes either a\ntravel time (in seconds) of a journey, or if negative that the journey from the\norigin to the destination point is impossible.\n\n\n### [Routes](https://traveltime.com/docs/api/reference/routes)\n\nReturns routing information between source and destinations.\n\n```python\nfrom datetime import datetime\n\nfrom traveltimepy.dto import Location, Coordinates\nfrom traveltimepy.dto.requests import FullRange, Property\nfrom traveltimepy.dto.requests.routes import DepartureSearch, ArrivalSearch\nfrom traveltimepy.transportation import PublicTransport\n\nlocations = [\n    Location(id='London center', coords=Coordinates(lat=51.508930, lng=-0.131387)),\n    Location(id='Hyde Park', coords=Coordinates(lat=51.508824, lng=-0.167093)),\n    Location(id='ZSL London Zoo', coords=Coordinates(lat=51.536067, lng=-0.153596))\n]\n\ndeparture_search = DepartureSearch(\n    id='departure search example',\n    arrival_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    departure_location_id='London center',\n    departure_time=datetime.now(),\n    transportation=PublicTransport(type='bus'),\n    properties=[Property.TRAVEL_TIME],\n    full_range=FullRange(enabled=True, max_results=3, width=600)\n)\n\narrival_search = ArrivalSearch(\n    id='arrival search example',\n    departure_location_ids=['Hyde Park', 'ZSL London Zoo'],\n    arrival_location_id='London center',\n    arrival_time=datetime.now(),\n    transportation=PublicTransport(type='bus'),\n    properties=[Property.TRAVEL_TIME, Property.FARES, Property.ROUTE],\n)\n\nresponse = sdk.routes(locations, [departure_search], [arrival_search])\n```\n\n### [Time Filter (Postcodes)](https://traveltime.com/docs/api/reference/postcode-search)\nFind reachable postcodes from origin (or to destination) and get statistics about such postcodes.\n\n```python\nfrom datetime import datetime\n\nfrom traveltimepy.dto import Coordinates\nfrom traveltimepy.dto.requests import Property\nfrom traveltimepy.dto.requests.postcodes import DepartureSearch, ArrivalSearch\nfrom traveltimepy.transportation import PublicTransport\n\ndeparture_search = DepartureSearch(\n    id='public transport from Trafalgar Square',\n    departure_time=datetime.now(),\n    travel_time=1800,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    transportation=PublicTransport(),\n    properties=[Property.TRAVEL_TIME, Property.DISTANCE]\n)\n\narrival_search = ArrivalSearch(\n    id='public transport to Trafalgar Square',\n    arrival_time=datetime.now(),\n    travel_time=1800,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    transportation=PublicTransport(),\n    properties=[Property.TRAVEL_TIME, Property.DISTANCE]\n)\n\nresponse = sdk.postcodes([departure_search], [arrival_search])\n```\n\n### [Time Filter (Postcode Sectors)](https://traveltime.com/docs/api/reference/postcode-sector-filter)\nFind sectors that have a certain coverage from origin (or to destination) and get statistics about postcodes within such sectors.\n\n```python\nfrom datetime import datetime\nfrom traveltimepy.dto import Coordinates\nfrom traveltimepy.dto.requests.zones import DepartureSearch, ArrivalSearch, Property\nfrom traveltimepy.transportation import PublicTransport\n\ndeparture_search = DepartureSearch(\n    id='public transport from Trafalgar Square',\n    departure_time=datetime.now(),\n    travel_time=200,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    reachable_postcodes_threshold=0.1,\n    transportation=PublicTransport(),\n    properties=[Property.TRAVEL_TIME_ALL, Property.TRAVEL_TIME_REACHABLE]\n)\n\narrival_search = ArrivalSearch(\n    id='public transport to Trafalgar Square',\n    arrival_time=datetime.now(),\n    travel_time=200,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    reachable_postcodes_threshold=0.1,\n    transportation=PublicTransport(),\n    properties=[Property.COVERAGE]\n)\n\nresponse = sdk.sectors([departure_search], [arrival_search])\n```\n\n### [Time Filter (Postcode Districts)](https://traveltime.com/docs/api/reference/postcode-district-filter)\nFind reachable postcodes from origin (or to destination) and get statistics about such postcodes.\n\n```python\nfrom datetime import datetime\nfrom traveltimepy.dto import Coordinates\nfrom traveltimepy.dto.requests.zones import DepartureSearch, ArrivalSearch, Property\nfrom traveltimepy.transportation import PublicTransport\n\ndeparture_search = DepartureSearch(\n    id='public transport from Trafalgar Square',\n    departure_time=datetime.now(),\n    travel_time=200,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    reachable_postcodes_threshold=0.1,\n    transportation=PublicTransport(),\n    properties=[Property.TRAVEL_TIME_ALL, Property.TRAVEL_TIME_REACHABLE]\n)\n\narrival_search = ArrivalSearch(\n    id='public transport to Trafalgar Square',\n    arrival_time=datetime.now(),\n    travel_time=200,\n    coords=Coordinates(lat=51.507609, lng=-0.128315),\n    reachable_postcodes_threshold=0.1,\n    transportation=PublicTransport(),\n    properties=[Property.COVERAGE]\n)\n\nresponse = sdk.districts([departure_search], [arrival_search])\n```\n\n### [Geocoding (Search)](https://traveltime.com/docs/api/reference/geocoding-search)\n\nMatch a query string to geographic coordinates.\n\n```python\nresponse = sdk.geocoding(query='Parliament square', limit=30)\n```\n\n### [Reverse Geocoding](https://traveltime.com/docs/api/reference/geocoding-reverse)\n\nMatch a latitude, longitude pair to an address.\n\n```python\nresponse = sdk.geocoding_reverse(lat=51.507281, lng=-0.132120)\n```\n\n### [Map Info](https://traveltime.com/docs/api/reference/map-info)\n\nGet information about currently supported countries.\n\n```python\nresponse = sdk.map_info()\n```\n\n### [Supported Locations](https://traveltime.com/docs/api/reference/supported-locations)\n\nFind out what points are supported by the api.\n\n```python\nfrom traveltimepy.dto import Location, Coordinates\n\nlocations = [\n    Location(id='Kaunas', coords=Coordinates(lat=54.900008, lng=23.957734)),\n    Location(id='London', coords=Coordinates(lat=51.506756, lng=-0.12805)),\n    Location(id='Bangkok', coords=Coordinates(lat=13.761866, lng=100.544818)),\n    Location(id='Lisbon', coords=Coordinates(lat=38.721869, lng=-9.138549)),\n]\nresponse = sdk.supported_locations(locations)\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "traveltimepy,api,maps",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "traveltimepy",
+            "package_url": "https://pypi.org/project/traveltimepy/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/traveltimepy/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/traveltimepy/2.0.4/",
+            "requires_dist": [
+                "requests",
+                "pydantic",
+                "geojson-pydantic",
+                "dacite",
+                "certifi (>=2021.5.30)",
+                "aiohttp",
+                "protobuf (==3.20.1)"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "\"Python Interface to Travel Time.\"",
+            "version": "2.0.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16086636,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c11179f2c83954878290a7b81ed6993c",
+                    "sha256": "40e3fcf1879c96ae304b58da97021391effdd70a2a7f4e4b81e214b714b803f7"
+                },
+                "downloads": -1,
+                "filename": "traveltimepy-2.0.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c11179f2c83954878290a7b81ed6993c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 53573,
+                "upload_time": "2022-12-13T13:41:27",
+                "upload_time_iso_8601": "2022-12-13T13:41:27.216598Z",
+                "url": "https://files.pythonhosted.org/packages/bf/cd/31a6ad6bb6abd2d03e34960f9501659185dc29661e41fc766f612aac2587/traveltimepy-2.0.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1390593a18e2ac9ef9517e94a72a1874",
+                    "sha256": "60d278f5b88d65c80dfe628f193ae6bd0abc78d2fd6e6073b044796684de0aa0"
+                },
+                "downloads": -1,
+                "filename": "traveltimepy-2.0.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "1390593a18e2ac9ef9517e94a72a1874",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 17955,
+                "upload_time": "2022-12-13T13:41:29",
+                "upload_time_iso_8601": "2022-12-13T13:41:29.820801Z",
+                "url": "https://files.pythonhosted.org/packages/4c/8f/4049eb4876a8c201958a5f4939552cc96a0c77c194f76bf49d0e5f64921a/traveltimepy-2.0.4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
