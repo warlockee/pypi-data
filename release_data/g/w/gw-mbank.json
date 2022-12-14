@@ -36,7 +36,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15945099,
+        "last_serial": 16096823,
         "urls": [
             {
                 "comment_text": "",
@@ -98,7 +98,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15945099,
+        "last_serial": 16096823,
         "urls": [
             {
                 "comment_text": "",
@@ -132,7 +132,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# mbank\n`mbank` is a code for fast Gravitational Waves template bank generation. It creates a bank of binary black hole (BBH) systems. It is very handy for generating precessing and eccentric banks.\n\nIf you want more details, you can take a look at the [documentation](https://mbank.readthedocs.io/en/latest/).\nOtherwise, you can keep reading and learn the essentials below.\n\n## How it works\nIn order to search for a Binary Black Hole (BBH) signal, one needs to come up with a set of templates (a.k.a. bank), signals that will be searched in the noisy data from the interferometers.\nGenerating a [bank](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.80.104014) is a tedious work, requiring to place huge number of templates so that their mutual distance is as constant as possible. Unfortunately the computation of such distance is highly expensive and, if we want to expand the parameter space covered by the searches, we are **very** interested to get a reliable bank covering an high dimensional space at a decent cost.\n\nThis is exactly the purpose of `mbank`: thanks to a cheap approximation to the distance between templates, it provides a very fast bank generation method, which can be successfully employed for high dimensional bank generation. The approximation consist in replacing the complicated distance with a _metric_ distance (i.e. a bilinear form).\n\nThe bank generation algorithm works in 4 steps:\n\n1. Defining a metric approximation\n2. Computing the metric on a small set of points all around the space (a.k.a. tiling the space)\n3. Placing the templates according to the tiling\n4. Validate the bank by means of injections\n\n`mbank` is the code that does all of this for you!\n\n## How to install\n\nTo install the latest [released](https://pypi.org/project/gw-mbank/) verion (no release has been done yet):\n\n```Bash\npip install gw-mbank\n```\n\nTo intall the latest version in the github repository, you can type:\n\n```Bash\npip install git+https://github.com/stefanoschmidt1995/mbank\n```\n\nOtherwise, you can clone the repo, build a distribution and install the package:\n\n```Bash\ngit clone git@github.com:stefanoschmidt1995/mbank.git\ncd mbank\npython setup.py sdist\npip install dist/mbank-0.0.1.tar.gz\n```\nThis will install the source code as well as some executables that makes the bank generation easier (plus the dependencies).\n\n## How to use\n\nTo generate a bank you can use the executable `mbank_run`. Make sure you have a PSD file (either in csv file either in ligo xml format).\nYou will need to choose:\n- The BBH variables that you want to vary within the bank (`--variable_format` parameter)\n- The minimum match (`--mm`), that controls the average spacing between templates\n- The range of physical parameters you want to include in the bank (note that the spins are _always_ expressed in spherical coordinates)\n- Low and high frequency for the match/metric computation (`--f-min` and `--f-max`)\n- The WF FD approximant (it must be lal)\n- Maximum number of templates in each tile: this tunes the hierarchical tiling (`--template-in-tile` argument)\n- A coarse grid for tiling: the tiling can be parallelized and performed independently on each split (`--grid-size` argument)\n- The placing method `--placing-method` for the templates in each tile ('geometric', 'stochastic', 'pure_stochastic', 'uniform', 'iterative'). The geometric method is recommended.\n\nAn example command to generate a simple precessing bank with precession placed only on one BH is:\n```Bash\nmbank_run \\\n\t--run-name myFirstBank \\\n\t--variable-format Mq_s1z_s2z \\\n\t--grid-size 1,1,2,2 \\\n\t--mm 0.97 \\\n\t--tile-tolerance 0.5 \\\n\t--max-depth 10 \\\n\t--psd examples/aligo_O3actual_H1.txt --asd \\\n\t--f-min 15 --f-max 1024 \\\n\t--mtot-range 20 75 \\\n\t--q-range 1 5 \\\n\t--s1-range 0.0 0.99 \\\n\t--s2-range -0.99 0.99 \\\n\t--plot \\\n\t--placing-method random \\\n\t--livepoints 100 \\\n\t--approximant IMRPhenomPv2 \\\n\t--use-ray \n```\nTo know more information about the available options type:\n```Bash\nmbank_run --help\n```\nThis is how the output bank look like:\n\n![](https://github.com/stefanoschmidt1995/mbank/raw/master/docs/img/bank_README.png)\n\nYou can also use the metric to estimate the fitting factor for a bunch of injections: \n\n```Bash\nmbank_injections \\\n\t--n-injs 10000 \\\n\t--N-neigh-templates 100 \\\n\t--variable-format Mq_s1z_s2z \\\n\t--tiling-file out_myFirstBank/tiling_myFirstBank.npy \\\n\t--bank-file out_myFirstBank/bank_myFirstBank.xml.gz \\\n\t--psd examples/aligo_O3actual_H1.txt --asd \\\n\t--approximant IMRPhenomPv2 \\\n\t--f-min 15 --f-max 1024 \\\n\t--plot\n```\n\nIf you specify the `--full-match` option, the match will be recomputed without a metric approximation: in this case, you want to speed things up with something like `--use-ray` and `--cache` (if you have enough memory).\nYou can also throw some injection chosen from a file: you just need to set an input xml injection file with the `--inj-file` option.\n\nHere's the injection recovery:\n\n![](https://github.com/stefanoschmidt1995/mbank/raw/master/docs/img/injections_README.png)\n\nIf you don't feel like typing all the options every time, you can add them to a text file `myFirstBank.ini` and pass it to the command: it will figure out by itself. You can find some example [ini files](https://github.com/stefanoschmidt1995/mbank/tree/master/examples) in the repo. To run them:\n\n```Bash\nmbank_run myFirstBank.ini\nmbank_injections myFirstBank.ini\n```\n\nAs you see, the same file can be used for different commands: each command will just ignore any option not relevant for it.\n\n\n## Contacts\n\nFore more info, or just to say hello, you can contact me: [stefanoschmidt1995@gmail.com](mailto:stefanoschmidt1995@gmail.com).\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -161,7 +160,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15945099,
+        "last_serial": 16096823,
         "urls": [
             {
                 "comment_text": "",
@@ -180,6 +179,69 @@
                 "upload_time": "2022-11-30T16:49:52",
                 "upload_time_iso_8601": "2022-11-30T16:49:52.939885Z",
                 "url": "https://files.pythonhosted.org/packages/6e/7c/1a5c441d0549f0c057cde6c0126f486d3182e9b59099a5cb934a4b86477b/gw-mbank-0.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.1.post1": {
+        "info": {
+            "author": "Stefano Schmidt",
+            "author_email": "stefanoschmidt1995@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# mbank\n`mbank` is a code for fast Gravitational Waves template bank generation. It creates a bank of binary black hole (BBH) systems. It is very handy for generating precessing and eccentric banks.\n\nIf you want more details, you can take a look at the [documentation](https://mbank.readthedocs.io/en/latest/).\nOtherwise, you can keep reading and learn the essentials below.\n\n## How it works\nIn order to search for a Binary Black Hole (BBH) signal, one needs to come up with a set of templates (a.k.a. bank), signals that will be searched in the noisy data from the interferometers.\nGenerating a [bank](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.80.104014) is a tedious work, requiring to place huge number of templates so that their mutual distance is as constant as possible. Unfortunately the computation of such distance is highly expensive and, if we want to expand the parameter space covered by the searches, we are **very** interested to get a reliable bank covering an high dimensional space at a decent cost.\n\nThis is exactly the purpose of `mbank`: thanks to a cheap approximation to the distance between templates, it provides a very fast bank generation method, which can be successfully employed for high dimensional bank generation. The approximation consist in replacing the complicated distance with a _metric_ distance (i.e. a bilinear form).\n\nThe bank generation algorithm works in 4+1 steps:\n\n1. Defining a metric approximation\n2. Computing the metric on a small set of points all around the space (a.k.a. tiling the space)\n3. Optional: training a normalizing flow to interpolate the metric\n4. Placing the templates according to the tiling\n5. Validate the bank by means of injections\n\n`mbank` is the code that does all of this for you!\n\n## How to install\n\nTo install the latest [released](https://pypi.org/project/gw-mbank/) verion (no release has been done yet):\n\n```Bash\npip install gw-mbank\n```\n\nTo intall the latest version in the github repository, you can type:\n\n```Bash\npip install git+https://github.com/stefanoschmidt1995/mbank\n```\n\nOtherwise, you can clone the repo, build a distribution and install the package:\n\n```Bash\ngit clone git@github.com:stefanoschmidt1995/mbank.git\ncd mbank\npython setup.py sdist\npip install dist/mbank-0.0.1.tar.gz\n```\nThis will install the source code as well as some executables that makes the bank generation easier (plus the dependencies).\n\n## How to use\n\nTo generate a bank you can use the executable `mbank_run`. Make sure you have a PSD file (either in csv file either in ligo xml format).\nYou will need to choose:\n- The BBH variables that you want to vary within the bank (`--variable_format` parameter)\n- The minimum match (`--mm`), that controls the average spacing between templates\n- The range of physical parameters you want to include in the bank (note that the spins are _always_ expressed in spherical coordinates)\n- Low and high frequency for the match/metric computation (`--f-min` and `--f-max`)\n- The WF FD approximant (it must be lal)\n- Maximum number of templates in each tile: this tunes the hierarchical tiling (`--template-in-tile` argument)\n- A coarse grid for tiling: the tiling can be parallelized and performed independently on each split (`--grid-size` argument)\n- The placing method `--placing-method` for the templates in each tile ('geometric', 'stochastic', 'pure_stochastic', 'uniform', 'iterative', 'random'). The 'stochastic' method is recommended.\n\nIf you don't have a favourite PSD, you can download one with `wget https://dcc.ligo.org/public/0165/T2000012/002/aligo_O3actual_H1.txt`.\n\nAn example command to generate a simple non-precessing bank is:\n```Bash\nmbank_run \\\n\t--run-name myFirstBank \\\n\t--variable-format Mq_s1z_s2z \\\n\t--grid-size 1,1,2,2 \\\n\t--mm 0.97 \\\n\t--tile-tolerance 0.5 \\\n\t--max-depth 10 \\\n\t--psd ./aligo_O3actual_H1.txt --asd \\\n\t--f-min 15 --f-max 1024 \\\n\t--mtot-range 20 75 \\\n\t--q-range 1 5 \\\n\t--s1-range 0.0 0.99 \\\n\t--s2-range -0.99 0.99 \\\n\t--plot \\\n\t--placing-method stochastic \\\n\t--empty-iterations 100 \\\n\t--approximant IMRPhenomPv2 \\\n\t--use-ray \n```\nTo know more information about the available options type:\n```Bash\nmbank_run --help\n```\nThis is how the output bank look like:\n\n![](docs/img/bank_README.png)\n\nYou can also use the metric to estimate the fitting factor for a bunch of injections: \n\n```Bash\nmbank_injections \\\n\t--n-injs 10000 \\\n\t--variable-format Mq_s1z_s2z \\\n\t--tiling-file out_myFirstBank/tiling_myFirstBank.npy \\\n\t--bank-file out_myFirstBank/bank_myFirstBank.xml.gz \\\n\t--psd ./aligo_O3actual_H1.txt --asd \\\n\t--approximant IMRPhenomPv2 \\\n\t--f-min 15 --f-max 1024 \\\n\t--plot\n```\n\nIf you specify the `--full-match` option, the match will be recomputed without a metric approximation: in this case, you want to speed things up with something like `--use-ray` and `--cache` (if you have enough memory).\nYou can also throw some injection chosen from a file: you just need to set an input xml injection file with the `--inj-file` option.\n\nHere's the injection recovery:\n\n![](docs/img/injections_README.png)\n\nIf you don't feel like typing all the options every time, you can add them to a text file `myFirstBank.ini` and pass it to the command: it will figure out by itself. You can find some example [ini files](https://github.com/stefanoschmidt1995/mbank/tree/master/examples) in the repo. To run them:\n\n```Bash\nmbank_run my_first_eccentric_bank.ini\nmbank_injections my_first_eccentric_bank.ini\n```\n\nAs you see, the same file can be used for different commands: each command will just ignore any option not relevant for it.\n\n\n## Contacts\n\nFore more info, or just to say hello, you can contact me: [stefanoschmidt1995@gmail.com](mailto:stefanoschmidt1995@gmail.com).\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/stefanoschmidt1995/mbank",
+            "keywords": "",
+            "license": "GNU GENERAL PUBLIC LICENSE v3",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "gw-mbank",
+            "package_url": "https://pypi.org/project/gw-mbank/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/gw-mbank/",
+            "project_urls": {
+                "Homepage": "https://github.com/stefanoschmidt1995/mbank"
+            },
+            "release_url": "https://pypi.org/project/gw-mbank/0.1.1.post1/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "Metric bank generation for gravitational waves data analysis",
+            "version": "0.1.1.post1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16096823,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "356b37b6095244152ac0876a77f82f04",
+                    "sha256": "02e40f0ee56edee2fa8760a830627d08d0d5cd207f76b013c99b5b8cac66b8cd"
+                },
+                "downloads": -1,
+                "filename": "gw-mbank-0.1.1.post1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "356b37b6095244152ac0876a77f82f04",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 101012,
+                "upload_time": "2022-12-14T07:30:33",
+                "upload_time_iso_8601": "2022-12-14T07:30:33.619019Z",
+                "url": "https://files.pythonhosted.org/packages/28/d5/f29bec62d8f1886c49bb91ed2011986e32a8e6366458e106f4d4572d43b2/gw-mbank-0.1.1.post1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

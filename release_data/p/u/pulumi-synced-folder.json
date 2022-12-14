@@ -31,7 +31,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14903996,
+        "last_serial": 16094105,
         "urls": [
             {
                 "comment_text": "",
@@ -88,7 +88,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14903996,
+        "last_serial": 16094105,
         "urls": [
             {
                 "comment_text": "",
@@ -145,7 +145,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14903996,
+        "last_serial": 16094105,
         "urls": [
             {
                 "comment_text": "",
@@ -205,7 +205,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14903996,
+        "last_serial": 16094105,
         "urls": [
             {
                 "comment_text": "",
@@ -236,7 +236,6 @@
             "author_email": "",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# synced-folder\n\nA Pulumi component that synchronizes a local folder to Amazon S3, Azure Blob Storage, or Google Cloud Storage.\n\n## Installing\n\nThe component is available in these Pulumi-supported languages:\n\n* JavaScript/TypeScript: [`@pulumi/synced-folder`](https://www.npmjs.com/package/@pulumi/synced-folder)\n* Python: [`pulumi_synced_folder`](https://pypi.org/project/pulumi-synced-folder/)\n* Go: [`github.com/pulumi/pulumi-synced-folder/sdk/go/synced-folder`](https://github.com/pulumi/pulumi-synced-folder/)\n* .NET: [`Pulumi.SyncedFolder`](https://www.nuget.org/packages/Pulumi.SyncedFolder)\n* YAML\n\n## Using the component\n\nGiven a cloud-storage bucket and the path to a local folder, the component synchronizes files from the folder to the bucket, deleting any files in the destination bucket that don't exist locally. It does this in one of two ways:\n\n* By managing each file as an individual Pulumi resource (`aws.s3.BucketObject`, `azure.storage.Blob`, or `gcp.storage.BucketObject`). This is the component's default behavior.\n\n* By delegating sync responsibility to a cloud provider CLI (e.g., [`aws`](https://aws.amazon.com/cli/), [`az`](https://docs.microsoft.com/en-us/cli/azure/), or [`gcloud`/`gsutil`](https://cloud.google.com/storage/docs/gsutil)). This behavior is enabled by setting the `managedObjects` input property to `false` and ensuring the relevant CLI tool is installed alongside `pulumi`.\n\nThe former approach &mdash; having Pulumi manage your resources for you &mdash; is generally preferable, but in some cases, for example  a website consisting of thousands of files, it may not be the best fit. This component lets you choose the approach that works best for you, without having to brek out of your Pulumi program or workflow.\n\nBelow are a few examples in Pulumi YAML, each of which assumes the existence of a `site` folder containing one or more files to be uploaded. See the [examples](./examples) folder for additional languages and scenarios.\n\n### Sync to an S3 bucket\n\nHere, a local folder, `./site`, is pushed to Amazon S3, its contents managed as individual `s3.BucketObject`s:\n\n\n```yaml\nname: synced-folder-examples-aws-yaml\nruntime: yaml\ndescription: An example of using the synced-folder component.\n\nresources:\n\n  s3-bucket:\n    type: aws:s3:Bucket\n    properties:\n      acl: public-read\n      website:\n        indexDocument: index.html\n        errorDocument: error.html\n  \n  # \ud83d\udc47\n  synced-bucket-folder:\n    type: synced-folder:index:S3BucketFolder\n    properties:\n      path: ./site\n      bucketName: ${s3-bucket.bucket}\n      acl: public-read\n\noutputs:\n  url: http://${s3-bucket.websiteEndpoint}\n```\n\n### Sync to an Azure Blob Storage container\n\nHere, the folder's contents are synced to an Azure Blob Storage container, but instead of managing each file as an `azure.storage.Blob`, the component invokes the Azure CLI (specifically the `az storage blob sync` command) with [Pulumi Command](https://www.pulumi.com/registry/packages/command/). The optional `managedObjects` property lets you configure this behavior on a folder-by-folder basis.\n\n```yaml\nname: synced-folder-examples-azure-yaml\nruntime: yaml\ndescription: An example of using the synced-folder component in YAML.\n\nresources:\n\n  resource-group:\n    type: azure-native:resources:ResourceGroup\n\n  storage:\n    type: azure-native:storage:StorageAccount\n    properties:\n      resourceGroupName: ${resource-group.name}\n      kind: StorageV2\n      sku:\n        name: Standard_LRS\n\n  website:\n    type: azure-native:storage:StorageAccountStaticWebsite\n    properties:\n      resourceGroupName: ${resource-group.name}\n      accountName: ${storage.name}\n      indexDocument: index.html\n      error404Document: error.html\n\n  # \ud83d\udc47\n  synced-azure-blob-folder:\n    type: synced-folder:index:AzureBlobFolder\n    properties:\n      path: ./site\n      resourceGroupName: ${resource-group.name}\n      storageAccountName: ${storage.name}\n      containerName: ${website.containerName}\n      managedObjects: false  # \ud83d\udc48  Sync files with the Azure CLI.\n\noutputs:\n  url: ${storage.primaryEndpoints.web}\n```\n\n### Sync to a Google Cloud Storage bucket\n\nHere, `./site` is synced to a Google Cloud Storage bucket.\n\n```yaml\nname: synced-folder-examples-google-cloud-yaml\nruntime: yaml\ndescription: An example of using the synced-folder component in YAML.\n\nresources:\n\n  gcp-bucket:\n    type: gcp:storage:Bucket\n    properties:\n      location: US\n      website:\n        mainPageSuffix: index.html\n        notFoundPage: error.html\n\n  gcp-bucket-iam-binding:\n    type: gcp:storage:BucketIAMBinding\n    properties: \n      bucket: ${gcp-bucket.name}\n      role: roles/storage.objectViewer\n      members: \n        - allUsers\n\n  # \ud83d\udc47\n  synced-google-cloud-folder:\n    type: synced-folder:index:GoogleCloudFolder\n    properties:\n      path: ./site\n      bucketName: ${gcp-bucket.name}\n\noutputs:\n  url: https://storage.googleapis.com/${gcp-bucket.name}/index.html\n```\n\n## Configuration\n\n\nThe following input properties are common to all three resource types:\n\n| Property | Type | Description | \n| -------- | ---- | ----------- | \n| `path` | `string` | The path (relative or fully-qualified) to the folder containing the files to be synced. Required. | \n| `managedObjects` | `boolean` | Whether to have Pulumi manage files as individual cloud resources. Defaults to `true`. See below for details. |\n\nAdditional resource-specific properties are listed below.\n\n### `S3BucketFolder` properties\n\n| Property | Type | Description | \n| -------- | ---- | ----------- | \n| `bucketName` | `string` | The name of the S3 bucket to sync to (e.g., `my-bucket` in `s3://my-bucket`). Required. |\n| `acl` | `string` | The AWS [Canned ACL](https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl) to apply to each file (e.g., `public-read`). Required. |\n\n### `AzureBlobFolder` properties\n\n| Property | Type | Description | \n| -------- | ---- | ----------- | \n| `containerName` | `string` | The name of the Azure storage container to sync to. Required. |\n| `storageAccountName` | `string` | The name of the Azure storage account that the container belongs to. Required. |\n| `resourceGroupName` | `string` | The name of the Azure resource group that the storage account belongs to. Required. |\n\n### `GoogleCloudFolder` properties\n\n| Property | Type | Description | \n| -------- | ---- | ----------- | \n| `bucketName` | `string` | The name of the Google Cloud Storage bucket to sync to (e.g., `my-bucket` in `gs://my-bucket`). Required. |\n\n## Notes\n\n### Using the `managedObjects` property\n\nBy default, the component manages your files as individual Pulumi cloud resources, but you can opt out of this behavior by setting the component's `managedObjects` property to `false`. When you do this, the component assumes you've installed the appropriate CLI tool &mdash; [`aws`](https://aws.amazon.com/cli/), [`az`](https://docs.microsoft.com/en-us/cli/azure/), or [`gcloud`/`gsutil`](https://cloud.google.com/storage/docs/gsutil), depending on the cloud &mdash; and uses the [Command](https://www.pulumi.com/registry/packages/command/) provider to issue commands on that tool directly. Files are one-way synchronized only (local to remote), and files that exist remotely but not locally are deleted. All files are deleted from remote storage on `pulumi destroy`.\n\nThe component does not yet support switching seamlessly between `managedObjects: true` and `managedObjects: false`, however, so if you find after deploying a given folder with managed objects that you'd prefer to use unmanaged objects instead (or vice-versa), we recommend creating a second bucket/storage container and folder and removing the first. You can generally do this within the scope of a single program update. For example:\n\n```yaml\n# ...\n\nresources:\n\n  # The original bucket and synced-folder resources, using managed file objects.\n  # \n  # my-first-bucket:\n  #   type: aws:s3:Bucket\n  #   properties:\n  #     acl: public-read  \n  #     website:\n  #       indexDocument: index.html\n  #       errorDocument: error.html\n  #\n  # my-first-synced-folder:\n  #   type: synced-folder:index:S3BucketFolder\n  #   properties:\n  #     path: ./stuff\n  #     bucketName: ${my-first-bucket.bucket}\n  #     acl: public-read\n\n  # A new bucket and synced-folder using unmanaged file objects.\n  changed-my-mind-bucket:\n    type: aws:s3:Bucket\n    properties:\n      acl: public-read\n      website:\n        indexDocument: index.html\n        errorDocument: error.html\n\n  changed-my-mind-synced-folder:\n    type: synced-folder:index:S3BucketFolder\n    properties:\n      path: ./stuff\n      bucketName: ${changed-my-mind-bucket.bucket}\n      acl: public-read\n      managedObjects: false \n\noutputs:\n\n  # An updated program reference pointing to the new bucket.\n  url: http://${changed-my-mind-bucket.websiteEndpoint}\n```\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -266,7 +265,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14903996,
+        "last_serial": 16094105,
         "urls": [
             {
                 "comment_text": "",
@@ -285,6 +284,67 @@
                 "upload_time": "2022-08-26T20:35:51",
                 "upload_time_iso_8601": "2022-08-26T20:35:51.788889Z",
                 "url": "https://files.pythonhosted.org/packages/1a/78/5fb2c110c3fbb68350fb2b9e585a87b033db82c2602f16e108286297c35b/pulumi_synced_folder-0.0.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.9": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# synced-folder\n\nA Pulumi component that synchronizes a local folder to Amazon S3, Azure Blob Storage, or Google Cloud Storage.\n\n## Installing\n\nThe component is available in these Pulumi-supported languages:\n\n* JavaScript/TypeScript: [`@pulumi/synced-folder`](https://www.npmjs.com/package/@pulumi/synced-folder)\n* Python: [`pulumi_synced_folder`](https://pypi.org/project/pulumi-synced-folder/)\n* Go: [`github.com/pulumi/pulumi-synced-folder/sdk/go/synced-folder`](https://github.com/pulumi/pulumi-synced-folder/)\n* .NET: [`Pulumi.SyncedFolder`](https://www.nuget.org/packages/Pulumi.SyncedFolder)\n* YAML\n\n## Using the component\n\nGiven a cloud-storage bucket and the path to a local folder, the component synchronizes files from the folder to the bucket, deleting any files in the destination bucket that don't exist locally. It does this in one of two ways:\n\n* By managing each file as an individual Pulumi resource (`aws.s3.BucketObject`, `azure.storage.Blob`, or `gcp.storage.BucketObject`). This is the component's default behavior.\n\n* By delegating sync responsibility to a cloud provider CLI (e.g., [`aws`](https://aws.amazon.com/cli/), [`az`](https://docs.microsoft.com/en-us/cli/azure/), or [`gcloud`/`gsutil`](https://cloud.google.com/storage/docs/gsutil)). This behavior is enabled by setting the `managedObjects` input property to `false` and ensuring the relevant CLI tool is installed alongside `pulumi`.\n\nThe former approach &mdash; having Pulumi manage your resources for you &mdash; is generally preferable, but in some cases, for example  a website consisting of thousands of files, it may not be the best fit. This component lets you choose the approach that works best for you, without having to brek out of your Pulumi program or workflow.\n\nBelow are a few examples in Pulumi YAML, each of which assumes the existence of a `site` folder containing one or more files to be uploaded. See the [examples](./examples) folder for additional languages and scenarios.\n\n### Sync to an S3 bucket\n\nHere, a local folder, `./site`, is pushed to Amazon S3, its contents managed as individual `s3.BucketObject`s:\n\n\n```yaml\nname: synced-folder-examples-aws-yaml\nruntime: yaml\ndescription: An example of using the synced-folder component.\n\nresources:\n\n  s3-bucket:\n    type: aws:s3:Bucket\n    properties:\n      acl: public-read\n      website:\n        indexDocument: index.html\n        errorDocument: error.html\n  \n  # \ud83d\udc47\n  synced-bucket-folder:\n    type: synced-folder:index:S3BucketFolder\n    properties:\n      path: ./site\n      bucketName: ${s3-bucket.bucket}\n      acl: public-read\n\noutputs:\n  url: http://${s3-bucket.websiteEndpoint}\n```\n\n### Sync to an Azure Blob Storage container\n\nHere, the folder's contents are synced to an Azure Blob Storage container, but instead of managing each file as an `azure.storage.Blob`, the component invokes the Azure CLI (specifically the `az storage blob sync` command) with [Pulumi Command](https://www.pulumi.com/registry/packages/command/). The optional `managedObjects` property lets you configure this behavior on a folder-by-folder basis.\n\n```yaml\nname: synced-folder-examples-azure-yaml\nruntime: yaml\ndescription: An example of using the synced-folder component in YAML.\n\nresources:\n\n  resource-group:\n    type: azure-native:resources:ResourceGroup\n\n  storage:\n    type: azure-native:storage:StorageAccount\n    properties:\n      resourceGroupName: ${resource-group.name}\n      kind: StorageV2\n      sku:\n        name: Standard_LRS\n\n  website:\n    type: azure-native:storage:StorageAccountStaticWebsite\n    properties:\n      resourceGroupName: ${resource-group.name}\n      accountName: ${storage.name}\n      indexDocument: index.html\n      error404Document: error.html\n\n  # \ud83d\udc47\n  synced-azure-blob-folder:\n    type: synced-folder:index:AzureBlobFolder\n    properties:\n      path: ./site\n      resourceGroupName: ${resource-group.name}\n      storageAccountName: ${storage.name}\n      containerName: ${website.containerName}\n      managedObjects: false  # \ud83d\udc48  Sync files with the Azure CLI.\n\noutputs:\n  url: ${storage.primaryEndpoints.web}\n```\n\n### Sync to a Google Cloud Storage bucket\n\nHere, `./site` is synced to a Google Cloud Storage bucket.\n\n```yaml\nname: synced-folder-examples-google-cloud-yaml\nruntime: yaml\ndescription: An example of using the synced-folder component in YAML.\n\nresources:\n\n  gcp-bucket:\n    type: gcp:storage:Bucket\n    properties:\n      location: US\n      website:\n        mainPageSuffix: index.html\n        notFoundPage: error.html\n\n  gcp-bucket-iam-binding:\n    type: gcp:storage:BucketIAMBinding\n    properties: \n      bucket: ${gcp-bucket.name}\n      role: roles/storage.objectViewer\n      members: \n        - allUsers\n\n  # \ud83d\udc47\n  synced-google-cloud-folder:\n    type: synced-folder:index:GoogleCloudFolder\n    properties:\n      path: ./site\n      bucketName: ${gcp-bucket.name}\n\noutputs:\n  url: https://storage.googleapis.com/${gcp-bucket.name}/index.html\n```\n\n## Configuration\n\n\nThe following input properties are common to all three resource types:\n\n| Property | Type | Description | \n| -------- | ---- | ----------- | \n| `path` | `string` | The path (relative or fully-qualified) to the folder containing the files to be synced. Required. | \n| `managedObjects` | `boolean` | Whether to have Pulumi manage files as individual cloud resources. Defaults to `true`. See below for details. |\n\nAdditional resource-specific properties are listed below.\n\n### `S3BucketFolder` properties\n\n| Property | Type | Description | \n| -------- | ---- | ----------- | \n| `bucketName` | `string` | The name of the S3 bucket to sync to (e.g., `my-bucket` in `s3://my-bucket`). Required. |\n| `acl` | `string` | The AWS [Canned ACL](https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl) to apply to each file (e.g., `public-read`). Required. |\n\n### `AzureBlobFolder` properties\n\n| Property | Type | Description | \n| -------- | ---- | ----------- | \n| `containerName` | `string` | The name of the Azure storage container to sync to. Required. |\n| `storageAccountName` | `string` | The name of the Azure storage account that the container belongs to. Required. |\n| `resourceGroupName` | `string` | The name of the Azure resource group that the storage account belongs to. Required. |\n\n### `GoogleCloudFolder` properties\n\n| Property | Type | Description | \n| -------- | ---- | ----------- | \n| `bucketName` | `string` | The name of the Google Cloud Storage bucket to sync to (e.g., `my-bucket` in `gs://my-bucket`). Required. |\n\n## Notes\n\n### Using the `managedObjects` property\n\nBy default, the component manages your files as individual Pulumi cloud resources, but you can opt out of this behavior by setting the component's `managedObjects` property to `false`. When you do this, the component assumes you've installed the appropriate CLI tool &mdash; [`aws`](https://aws.amazon.com/cli/), [`az`](https://docs.microsoft.com/en-us/cli/azure/), or [`gcloud`/`gsutil`](https://cloud.google.com/storage/docs/gsutil), depending on the cloud &mdash; and uses the [Command](https://www.pulumi.com/registry/packages/command/) provider to issue commands on that tool directly. Files are one-way synchronized only (local to remote), and files that exist remotely but not locally are deleted. All files are deleted from remote storage on `pulumi destroy`.\n\nThe component does not yet support switching seamlessly between `managedObjects: true` and `managedObjects: false`, however, so if you find after deploying a given folder with managed objects that you'd prefer to use unmanaged objects instead (or vice-versa), we recommend creating a second bucket/storage container and folder and removing the first. You can generally do this within the scope of a single program update. For example:\n\n```yaml\n# ...\n\nresources:\n\n  # The original bucket and synced-folder resources, using managed file objects.\n  # \n  # my-first-bucket:\n  #   type: aws:s3:Bucket\n  #   properties:\n  #     acl: public-read  \n  #     website:\n  #       indexDocument: index.html\n  #       errorDocument: error.html\n  #\n  # my-first-synced-folder:\n  #   type: synced-folder:index:S3BucketFolder\n  #   properties:\n  #     path: ./stuff\n  #     bucketName: ${my-first-bucket.bucket}\n  #     acl: public-read\n\n  # A new bucket and synced-folder using unmanaged file objects.\n  changed-my-mind-bucket:\n    type: aws:s3:Bucket\n    properties:\n      acl: public-read\n      website:\n        indexDocument: index.html\n        errorDocument: error.html\n\n  changed-my-mind-synced-folder:\n    type: synced-folder:index:S3BucketFolder\n    properties:\n      path: ./stuff\n      bucketName: ${changed-my-mind-bucket.bucket}\n      acl: public-read\n      managedObjects: false \n\noutputs:\n\n  # An updated program reference pointing to the new bucket.\n  url: http://${changed-my-mind-bucket.websiteEndpoint}\n```\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://pulumi.com",
+            "keywords": "pulumi aws azure gcp category/cloud kind/component",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pulumi-synced-folder",
+            "package_url": "https://pypi.org/project/pulumi-synced-folder/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pulumi-synced-folder/",
+            "project_urls": {
+                "Homepage": "https://pulumi.com",
+                "Repository": "https://github.com/pulumi/pulumi-synced-folder"
+            },
+            "release_url": "https://pypi.org/project/pulumi-synced-folder/0.0.9/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "A Pulumi component that synchronizes a local folder to Amazon S3, Azure Blob Storage, or Google Cloud Storage.",
+            "version": "0.0.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16094105,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4a90bf1eea90afb3ed7ffab536d92d3d",
+                    "sha256": "157fdbd585ce1b209d8c00679046a2a40b8b34fca9194f51ec6d52ca13057156"
+                },
+                "downloads": -1,
+                "filename": "pulumi_synced_folder-0.0.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "4a90bf1eea90afb3ed7ffab536d92d3d",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 12175,
+                "upload_time": "2022-12-14T01:30:09",
+                "upload_time_iso_8601": "2022-12-14T01:30:09.994815Z",
+                "url": "https://files.pythonhosted.org/packages/56/6f/2dfcf9bf272eaa7f3aed8780efc248a60b1cb151e995c54e1bfd466995d0/pulumi_synced_folder-0.0.9.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
