@@ -1,0 +1,101 @@
+{
+    "0.7.5a2": {
+        "info": {
+            "author": "David C Ellis",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# PrefabClasses - Python Class Boilerplate Generator  #\n![PrefabClasses Test Status](https://github.com/DavidCEllis/PrefabClasses/actions/workflows/auto_test.yml/badge.svg?branch=main)\n\nWrites the class boilerplate code so you don't have to. \nYet another variation on attrs/dataclasses.\n\nEither written lazily when you first access the methods or\neagerly when the class is compiled into a .pyc. Can optionally\nbe made to rewrite .py source code with plain classes.\n\nFor more detail look at the [documentation](https://prefabclasses.readthedocs.io).\n\n## Usage ##\n\nDefine the class using plain assignment and `attribute` function calls:\n\n```python\nfrom prefab_classes import prefab, attribute\n\n@prefab\nclass Settings:\n    hostname = attribute(default=\"localhost\")\n    template_folder = attribute(default='base/path')\n    template_name = attribute(default='index')\n```\n\nOr with type hinting:\n\n```python\nfrom prefab_classes import prefab\n\n@prefab\nclass Settings:\n    hostname: str = \"localhost\"\n    template_folder: str = 'base/path'\n    template_name: str = 'index'\n```\n\nIn either case the result behaves the same.\n\n```python\n>>> from prefab_classes import to_json\n>>> s = Settings()\n>>> print(s)\nSettings(hostname='localhost', template_folder='base/path', template_name='index')\n>>> to_json(s)\n'{\"hostname\": \"localhost\", \"template_folder\": \"base/path\", \"template_name\": \"index\"}'\n```\n\nFor further details see the `usage` pages in the documentation.\n\n## How does it work ##\n\nThe `@prefab` decorator either rewrites the class dynamically, putting methods\nin place that will be generated as they are first accessed **OR** it acts\nas a marker to indicate the class should be transformed for the compiled\nclasses.\n\nCompiled classes can both be imported directly or converted back to new .py\nfiles. Direct import will perform the conversion before creating the .pyc file.\n\nexample.py\n```python\n# COMPILE_PREFABS\nfrom prefab_classes import prefab, attribute\nfrom pathlib import Path\n\n\n@prefab(compile_prefab=True)\nclass SettingsPath:\n    hostname = attribute(default=\"localhost\")\n    template_folder = attribute(default='base/path')\n    template_name = attribute(default='index')\n    file_types = attribute(default_factory=list)\n\n    def __prefab_post_init__(self, template_folder, file_types):\n        self.template_folder = Path(template_folder)\n        file_types.extend(['.md', '.html'])\n        self.file_types = file_types\n\n```\n\nDirect import using prefab_compiler\n\n```python\nfrom prefab_classes import prefab_compiler\n\nwith prefab_compiler():\n    from example import SettingsPath\n\n# Use normally from here\n```\n\nCompile to a new .py file using rewrite_to_py:\n\n```python\n>>> from prefab_classes.compiled import rewrite_to_py\n>>> rewrite_to_py('example.py', 'example_compiled.py', use_black=True, delete_firstlines=1)\n```\n\nUsing black to format for ease of reading and deleting the now unused prefab imports.\n\nexample_compiled.py\n```python\n# DO NOT MANUALLY EDIT THIS FILE\n# MODULE: example_compiled.py\n# GENERATED FROM: example.py\n# USING prefab_classes VERSION: v0.7.2\n\nfrom pathlib import Path\n\n\nclass SettingsPath:\n    COMPILED = True\n    PREFAB_FIELDS = [\"hostname\", \"template_folder\", \"template_name\", \"file_types\"]\n    __match_args__ = (\"hostname\", \"template_folder\", \"template_name\", \"file_types\")\n\n    def __init__(\n        self,\n        hostname=\"localhost\",\n        template_folder=\"base/path\",\n        template_name=\"index\",\n        file_types=None,\n    ):\n        self.hostname = hostname\n        self.template_name = template_name\n        file_types = file_types if file_types is not None else list()\n        self.__prefab_post_init__(\n            template_folder=template_folder, file_types=file_types\n        )\n\n    def __repr__(self):\n        return f\"{type(self).__qualname__}(hostname={self.hostname!r}, template_folder={self.template_folder!r}, template_name={self.template_name!r}, file_types={self.file_types!r})\"\n\n    def __eq__(self, other):\n        return (\n            (self.hostname, self.template_folder, self.template_name, self.file_types)\n            == (\n                other.hostname,\n                other.template_folder,\n                other.template_name,\n                other.file_types,\n            )\n            if self.__class__ == other.__class__\n            else NotImplemented\n        )\n\n    def __prefab_post_init__(self, template_folder, file_types):\n        self.template_folder = Path(template_folder)\n        file_types.extend([\".md\", \".html\"])\n        self.file_types = file_types\n```\n\n## Why not just use attrs/dataclasses? ##\n\nIf attrs or dataclasses solves your problem then you should use them.\nThey are thoroughly tested, well supported packages.\n\nThis project came about because I had a project which had 1 use of \nattrs and I was trying to reduce my dependencies. At the time I didn't\nlike the requirerment for type hints in dataclasses and was looking at \n[David Beazley's Cluegen](https://github.com/dabeaz/cluegen)\nas a potential replacement as it seemed easy to modify. \nI needed some additional features so I added them and it eventually \nlead to this project.\n\nThe `autogen` code and some of the method definitions for the `dynamic` \nclasses still use the code from Cluegen.\n\nCluegen's lazy creation of the methods made me think about instead \ntaking an eager construction, but doing it only once when the .py\nsource is first compiled into a .pyc file by modifying the AST.\n\nThe benefit of this method is that once the source has been compiled\nto a .pyc file there is no longer any overhead from generating the\nclass methods. The result is a normal python class as if it had been\nwritten by hand. \n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "prefab-classes",
+            "package_url": "https://pypi.org/project/prefab-classes/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/prefab-classes/",
+            "project_urls": {
+                "Documentation": "https://prefabclasses.readthedocs.io/",
+                "Homepage": "https://github.com/davidcellis/PrefabClasses"
+            },
+            "release_url": "https://pypi.org/project/prefab-classes/0.7.5a2/",
+            "requires_dist": [
+                "typing-extensions ; python_version < \"3.11\"",
+                "build ; extra == 'build'",
+                "twine ; extra == 'build'",
+                "sphinx ; extra == 'docs'",
+                "myst-parser ; extra == 'docs'",
+                "sphinx-rtd-theme ; extra == 'docs'",
+                "attrs ; extra == 'performance'",
+                "pydantic ; extra == 'performance'",
+                "pytest ; extra == 'testing'",
+                "pytest-cov ; extra == 'testing'"
+            ],
+            "requires_python": ">=3.9",
+            "summary": "Boilerplate Generator for Classes",
+            "version": "0.7.5a2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16105787,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ca1929ddac533e986990e60b6f2b380d",
+                    "sha256": "fc9329b98dfdd7e559a069d4cb5bdfed32ecde4d58b369d6c4017c90cfe8339d"
+                },
+                "downloads": -1,
+                "filename": "prefab_classes-0.7.5a2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "ca1929ddac533e986990e60b6f2b380d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.9",
+                "size": 30802,
+                "upload_time": "2022-12-14T22:57:58",
+                "upload_time_iso_8601": "2022-12-14T22:57:58.696866Z",
+                "url": "https://files.pythonhosted.org/packages/1e/ee/274f0c580165091675cc504686186fbeda4add28b27d54d3d9ec8d04de39/prefab_classes-0.7.5a2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9c05b2e7a830158004556cebc5c1088e",
+                    "sha256": "824e6f86d0df262abd3f08fae95b02482492c91c4db59f2a57d2092807835bd4"
+                },
+                "downloads": -1,
+                "filename": "prefab_classes-0.7.5a2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "9c05b2e7a830158004556cebc5c1088e",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9",
+                "size": 26157,
+                "upload_time": "2022-12-14T22:58:00",
+                "upload_time_iso_8601": "2022-12-14T22:58:00.282824Z",
+                "url": "https://files.pythonhosted.org/packages/04/10/b9fc66f6bd86bca51be8ca1a041fde7eaf86c86aaf17c2b882e8e421a74f/prefab_classes-0.7.5a2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

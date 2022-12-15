@@ -58,7 +58,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15700031,
+        "last_serial": 16101155,
         "urls": [
             {
                 "comment_text": "",
@@ -163,7 +163,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15700031,
+        "last_serial": 16101155,
         "urls": [
             {
                 "comment_text": "",
@@ -268,7 +268,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15700031,
+        "last_serial": 16101155,
         "urls": [
             {
                 "comment_text": "",
@@ -373,7 +373,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15700031,
+        "last_serial": 16101155,
         "urls": [
             {
                 "comment_text": "",
@@ -480,7 +480,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15700031,
+        "last_serial": 16101155,
         "urls": [
             {
                 "comment_text": "",
@@ -587,7 +587,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15700031,
+        "last_serial": 16101155,
         "urls": [
             {
                 "comment_text": "",
@@ -696,7 +696,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15700031,
+        "last_serial": 16101155,
         "urls": [
             {
                 "comment_text": "",
@@ -758,7 +758,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Scientific/Engineering :: Artificial Intelligence"
             ],
-            "description": "<img src=\"https://raw.githubusercontent.com/huggingface/setfit/main/assets/setfit.png\">\n\n<p align=\"center\">\n    \ud83e\udd17 <a href=\"https://huggingface.co/setfit\" target=\"_blank\">Models & Datasets</a> | \ud83d\udcd6 <a href=\"https://huggingface.co/blog/setfit\" target=\"_blank\">Blog</a> | \ud83d\udcc3 <a href=\"https://arxiv.org/abs/2209.11055\" target=\"_blank\">Paper</a>\n</p>\n\n# SetFit - Efficient Few-shot Learning with Sentence Transformers\n\nSetFit is an efficient and prompt-free framework for few-shot fine-tuning of [Sentence Transformers](https://sbert.net/). It achieves high accuracy with little labeled data - for instance, with only 8 labeled examples per class on the Customer Reviews sentiment dataset, SetFit is competitive with fine-tuning RoBERTa Large on the full training set of 3k examples \ud83e\udd2f!\n\n\nCompared to other few-shot learning methods, SetFit has several unique features:\n\n* \ud83d\udde3 **No prompts or verbalisers:** Current techniques for few-shot fine-tuning require handcrafted prompts or verbalisers to convert examples into a format that's suitable for the underlying language model. SetFit dispenses with prompts altogether by generating rich embeddings directly from text examples.\n* \ud83c\udfce **Fast to train:** SetFit doesn't require large-scale models like T0 or GPT-3 to achieve high accuracy. As a result, it is typically an order of magnitude (or more) faster to train and run inference with.\n* \ud83c\udf0e **Multilingual support**: SetFit can be used with any [Sentence Transformer](https://huggingface.co/models?library=sentence-transformers&sort=downloads) on the Hub, which means you can classify text in multiple languages by simply fine-tuning a multilingual checkpoint.\n\n## Installation\n\nDownload and install `setfit` by running:\n\n```bash\npython -m pip install setfit\n```\n\nIf you want the bleeding-edge version, install from source by running:\n\n```bash\npython -m pip install git+https://github.com/huggingface/setfit.git\n```\n\n## Usage\n\nThe examples below provide a quick overview on the various features supported in `setfit`. For more examples, check out the [`notebooks`](https://github.com/huggingface/setfit/tree/main/notebooks) folder.\n\n\n### Training a SetFit model\n\n`setfit` is integrated with the [Hugging Face Hub](https://huggingface.co/) and provides two main classes:\n\n* `SetFitModel`: a wrapper that combines a pretrained body from `sentence_transformers` and a classification head from either [`scikit-learn`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html) or [`SetFitHead`](https://github.com/huggingface/setfit/blob/main/src/setfit/modeling.py) (a differentiable head built upon `PyTorch` with similar APIs to `sentence_transformers`).\n* `SetFitTrainer`: a helper class that wraps the fine-tuning process of SetFit.\n\nHere is an end-to-end example using a classification head from `scikit-learn`:\n\n\n```python\nfrom datasets import load_dataset\nfrom sentence_transformers.losses import CosineSimilarityLoss\n\nfrom setfit import SetFitModel, SetFitTrainer, sample_dataset\n\n\n# Load a dataset from the Hugging Face Hub\ndataset = load_dataset(\"sst2\")\n\n# Simulate the few-shot regime by sampling 8 examples per class\ntrain_dataset = sample_dataset(dataset[\"train\"], label_column=\"label\", num_samples=8)\neval_dataset = dataset[\"validation\"]\n\n# Load a SetFit model from Hub\nmodel = SetFitModel.from_pretrained(\"sentence-transformers/paraphrase-mpnet-base-v2\")\n\n# Create trainer\ntrainer = SetFitTrainer(\n    model=model,\n    train_dataset=train_dataset,\n    eval_dataset=eval_dataset,\n    loss_class=CosineSimilarityLoss,\n    metric=\"accuracy\",\n    batch_size=16,\n    num_iterations=20, # The number of text pairs to generate for contrastive learning\n    num_epochs=1, # The number of epochs to use for constrastive learning\n    column_mapping={\"sentence\": \"text\", \"label\": \"label\"} # Map dataset columns to text/label expected by trainer\n)\n\n# Train and evaluate\ntrainer.train()\nmetrics = trainer.evaluate()\n\n# Push model to the Hub\ntrainer.push_to_hub(\"my-awesome-setfit-model\")\n\n# Download from Hub and run inference\nmodel = SetFitModel.from_pretrained(\"lewtun/my-awesome-setfit-model\")\n# Run inference\npreds = model([\"i loved the spiderman movie!\", \"pineapple on pizza is the worst \ud83e\udd2e\"]) \n```\n\nHere is an end-to-end example using `SetFitHead`:\n\n\n```python\nfrom datasets import load_dataset\nfrom sentence_transformers.losses import CosineSimilarityLoss\n\nfrom setfit import SetFitModel, SetFitTrainer\n\n\n# Load a dataset from the Hugging Face Hub\ndataset = load_dataset(\"sst2\")\n\n# Simulate the few-shot regime by sampling 8 examples per class\nnum_classes = 2\ntrain_dataset = dataset[\"train\"].shuffle(seed=42).select(range(8 * num_classes))\neval_dataset = dataset[\"validation\"]\n\n# Load a SetFit model from Hub\nmodel = SetFitModel.from_pretrained(\n    \"sentence-transformers/paraphrase-mpnet-base-v2\",\n    use_differentiable_head=True,\n    head_params={\"out_features\": num_classes},\n)\n\n# Create trainer\ntrainer = SetFitTrainer(\n    model=model,\n    train_dataset=train_dataset,\n    eval_dataset=eval_dataset,\n    loss_class=CosineSimilarityLoss,\n    metric=\"accuracy\",\n    batch_size=16,\n    num_iterations=20, # The number of text pairs to generate for contrastive learning\n    num_epochs=1, # The number of epochs to use for constrastive learning\n    column_mapping={\"sentence\": \"text\", \"label\": \"label\"} # Map dataset columns to text/label expected by trainer\n)\n\n# Train and evaluate\ntrainer.freeze() # Freeze the head\ntrainer.train() # Train only the body\n\n# Unfreeze the head and freeze the body -> head-only training\ntrainer.unfreeze(keep_body_frozen=True)\n# or\n# Unfreeze the head and unfreeze the body -> end-to-end training\ntrainer.unfreeze(keep_body_frozen=False)\n\ntrainer.train(\n    num_epochs=25, # The number of epochs to train the head or the whole model (body and head)\n    batch_size=16,\n    body_learning_rate=1e-5, # The body's learning rate\n    learning_rate=1e-2, # The head's learning rate\n    l2_weight=0.0, # Weight decay on **both** the body and head. If `None`, will use 0.01.\n)\nmetrics = trainer.evaluate()\n\n# Push model to the Hub\ntrainer.push_to_hub(\"my-awesome-setfit-model\")\n\n# Download from Hub and run inference\nmodel = SetFitModel.from_pretrained(\"lewtun/my-awesome-setfit-model\")\n# Run inference\npreds = model([\"i loved the spiderman movie!\", \"pineapple on pizza is the worst \ud83e\udd2e\"]) \n```\n\nBased on our experiments, `SetFitHead` can achieve similar performance as using a `scikit-learn` head. We use `AdamW` as the optimizer and scale down learning rates by 0.5 every 5 epochs. For more details about the experiments, please check out [here](https://github.com/huggingface/setfit/pull/112#issuecomment-1295773537). We recommend using a large learning rate (e.g. `1e-2`) for `SetFitHead` and a small learning rate (e.g. `1e-5`) for the body in your first attempt.\n\n### Training on multilabel datasets\n\nTo train SetFit models on multilabel datasets, specify the `multi_target_strategy` argument when loading the pretrained model:\n\n```python\nfrom setfit import SetFitModel\n\nmodel = SetFitModel.from_pretrained(model_id, multi_target_strategy=\"one-vs-rest\")\n```\n\nThis will initialise a multilabel classification head from `sklearn` - the following options are available for `multi_target_strategy`:\n\n* `one-vs-rest`: use a `OneVsRestClassifier` head.\n* `multi-output`: use a `MultiOutputClassifier` head.\n* `classifier-chain`: use a `ClassifierChain` head.\n\nFrom here, you can instantiate a `SetFitTrainer` using the same example above, and train it as usual.\n\n**Note:** If you use the differentiable head, it will automatically use `softmax` with `argmax` when `num_classes` is greater than 1.\n\n### Training on unlabeled datasets\n\nSetFit can also be applied to scenarios where no labels are available. To do so, create a synthetic dataset of training examples:\n\n```python\nfrom datasets import Dataset\nfrom setfit import add_templated_examples\n\ncandidate_labels = [\"negative\", \"positive\"]\ndummy_dataset = Dataset.from_dict({})\ntrain_dataset = add_templated_examples(dummy_dataset, candidate_labels=candidate_labels, sample_size=8)\n```\n\nThis will create examples of the form `\"This sentence is {}\"`, where the `{}` is filled in with one of the candidate labels. From here you can train a SetFit model as usual:\n\n```python\nfrom setfit import SetFitModel, SetFitTrainer\n\nmodel = SetFitModel.from_pretrained(\"sentence-transformers/paraphrase-mpnet-base-v2\")\ntrainer = SetFitTrainer(\n    model=model,\n    train_dataset=train_dataset\n)\ntrainer.train()\n```\n\nWe find this approach typically outperforms the [zero-shot pipeline](https://huggingface.co/docs/transformers/v4.24.0/en/main_classes/pipelines#transformers.ZeroShotClassificationPipeline) in \ud83e\udd17 Transformers (based on MNLI with Bart), while being 5x faster to generate predictions with.\n\n\n### Running hyperparameter search\n\n`SetFitTrainer` provides a `hyperparameter_search()` method that you can use to find good hyperparameters for your data. To use this feature, first install the `optuna` backend:\n\n```bash\npython -m pip install setfit[optuna]\n```\n\nTo use this method, you need to define two functions:\n\n* `model_init()`: A function that instantiates the model to be used. If provided, each call to `train()` will start from a new instance of the model as given by this function.\n* `hp_space()`: A function that defines the hyperparameter search space.\n\nHere is an example of a `model_init()` function that we'll use to scan over the hyperparameters associated with the classification head in `SetFitModel`:\n\n```python\nfrom setfit import SetFitModel\n\ndef model_init(params):\n    params = params or {}\n    max_iter = params.get(\"max_iter\", 100)\n    solver = params.get(\"solver\", \"liblinear\")\n    params = {\n        \"head_params\": {\n            \"max_iter\": max_iter,\n            \"solver\": solver,\n        }\n    }\n    return SetFitModel.from_pretrained(\"sentence-transformers/paraphrase-albert-small-v2\", **params)\n```\n\nSimilarly, to scan over hyperparameters associated with the SetFit training process, we can define a `hp_space()` function as follows:\n\n```python\ndef hp_space(trial):  # Training parameters\n    return {\n        \"learning_rate\": trial.suggest_float(\"learning_rate\", 1e-6, 1e-4, log=True),\n        \"num_epochs\": trial.suggest_int(\"num_epochs\", 1, 5),\n        \"batch_size\": trial.suggest_categorical(\"batch_size\", [4, 8, 16, 32, 64]),\n        \"seed\": trial.suggest_int(\"seed\", 1, 40),\n        \"num_iterations\": trial.suggest_categorical(\"num_iterations\", [5, 10, 20]),\n        \"max_iter\": trial.suggest_int(\"max_iter\", 50, 300),\n        \"solver\": trial.suggest_categorical(\"solver\", [\"newton-cg\", \"lbfgs\", \"liblinear\"]),        \n    }\n```\n\n**Note:** In practice, we found `num_iterations` to be the most important hyperparameter for the contrastive learning process.\n\nThe next step is to instantiate a `SetFitTrainer` and call `hyperparameter_search()`:\n\n```python\nfrom datasets import Dataset\nfrom setfit import SetFitTrainer\n\ndataset = Dataset.from_dict(\n            {\"text_new\": [\"a\", \"b\", \"c\"], \"label_new\": [0, 1, 2], \"extra_column\": [\"d\", \"e\", \"f\"]}\n        )\n\ntrainer = SetFitTrainer(\n    train_dataset=dataset,\n    eval_dataset=dataset,\n    model_init=model_init,\n    column_mapping={\"text_new\": \"text\", \"label_new\": \"label\"},\n)\nbest_run = trainer.hyperparameter_search(direction=\"maximize\", hp_space=hp_space, n_trials=20)\n```\n\nFinally, you can apply the hyperparameters you found to the trainer, and lock in the optimal model, before training for\na final time.\n\n```python\ntrainer.apply_hyperparameters(best_run.hyperparameters, final_model=True)\ntrainer.train()\n```\n\n## Reproducing the results from the paper\n\nWe provide scripts to reproduce the results for SetFit and various baselines presented in Table 2 of our paper. Check out the setup and training instructions in the `scripts/` directory.\n\n## Developer installation\n\nTo run the code in this project, first create a Python virtual environment using e.g. Conda:\n\n```bash\nconda create -n setfit python=3.9 && conda activate setfit\n```\n\nThen install the base requirements with:\n\n```bash\npython -m pip install -e '.[dev]'\n```\n\nThis will install `datasets` and packages like `black` and `isort` that we use to ensure consistent code formatting.\n\n### Formatting your code\n\nWe use `black` and `isort` to ensure consistent code formatting. After following the installation steps, you can check your code locally by running:\n\n```\nmake style && make quality\n```\n\n\n\n## Project structure\n\n```\n\u251c\u2500\u2500 LICENSE\n\u251c\u2500\u2500 Makefile        <- Makefile with commands like `make style` or `make tests`\n\u251c\u2500\u2500 README.md       <- The top-level README for developers using this project.\n\u251c\u2500\u2500 notebooks       <- Jupyter notebooks.\n\u251c\u2500\u2500 final_results   <- Model predictions from the paper\n\u251c\u2500\u2500 scripts         <- Scripts for training and inference\n\u251c\u2500\u2500 setup.cfg       <- Configuration file to define package metadata\n\u251c\u2500\u2500 setup.py        <- Make this project pip installable with `pip install -e`\n\u251c\u2500\u2500 src             <- Source code for SetFit\n\u2514\u2500\u2500 tests           <- Unit tests\n```\n\n\n## Citation\n\n```@misc{https://doi.org/10.48550/arxiv.2209.11055,\n  doi = {10.48550/ARXIV.2209.11055},\n  url = {https://arxiv.org/abs/2209.11055},\n  author = {Tunstall, Lewis and Reimers, Nils and Jo, Unso Eun Seo and Bates, Luke and Korat, Daniel and Wasserblat, Moshe and Pereg, Oren},\n  keywords = {Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences},\n  title = {Efficient Few-Shot Learning Without Prompts},\n  publisher = {arXiv},\n  year = {2022},\n  copyright = {Creative Commons Attribution 4.0 International}}\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "https://github.com/SetFit/setfit/tags",
@@ -806,7 +805,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15700031,
+        "last_serial": 16101155,
         "urls": [
             {
                 "comment_text": "",
@@ -845,6 +844,136 @@
                 "upload_time": "2022-11-08T15:24:55",
                 "upload_time_iso_8601": "2022-11-08T15:24:55.387242Z",
                 "url": "https://files.pythonhosted.org/packages/fc/7d/6fa3652f1eba38a3222030d3b1169826711d24c8985dbae0dfbee947661f/setfit-0.4.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.5.0": {
+        "info": {
+            "author": "SetFit",
+            "author_email": "lewis@huggingface.co",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 1 - Planning",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Education",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence"
+            ],
+            "description": "<img src=\"https://raw.githubusercontent.com/huggingface/setfit/main/assets/setfit.png\">\n\n<p align=\"center\">\n    \ud83e\udd17 <a href=\"https://huggingface.co/setfit\" target=\"_blank\">Models & Datasets</a> | \ud83d\udcd6 <a href=\"https://huggingface.co/blog/setfit\" target=\"_blank\">Blog</a> | \ud83d\udcc3 <a href=\"https://arxiv.org/abs/2209.11055\" target=\"_blank\">Paper</a>\n</p>\n\n# SetFit - Efficient Few-shot Learning with Sentence Transformers\n\nSetFit is an efficient and prompt-free framework for few-shot fine-tuning of [Sentence Transformers](https://sbert.net/). It achieves high accuracy with little labeled data - for instance, with only 8 labeled examples per class on the Customer Reviews sentiment dataset, SetFit is competitive with fine-tuning RoBERTa Large on the full training set of 3k examples \ud83e\udd2f!\n\n\nCompared to other few-shot learning methods, SetFit has several unique features:\n\n* \ud83d\udde3 **No prompts or verbalisers:** Current techniques for few-shot fine-tuning require handcrafted prompts or verbalisers to convert examples into a format that's suitable for the underlying language model. SetFit dispenses with prompts altogether by generating rich embeddings directly from text examples.\n* \ud83c\udfce **Fast to train:** SetFit doesn't require large-scale models like T0 or GPT-3 to achieve high accuracy. As a result, it is typically an order of magnitude (or more) faster to train and run inference with.\n* \ud83c\udf0e **Multilingual support**: SetFit can be used with any [Sentence Transformer](https://huggingface.co/models?library=sentence-transformers&sort=downloads) on the Hub, which means you can classify text in multiple languages by simply fine-tuning a multilingual checkpoint.\n\n## Installation\n\nDownload and install `setfit` by running:\n\n```bash\npython -m pip install setfit\n```\n\nIf you want the bleeding-edge version, install from source by running:\n\n```bash\npython -m pip install git+https://github.com/huggingface/setfit.git\n```\n\n## Usage\n\nThe examples below provide a quick overview on the various features supported in `setfit`. For more examples, check out the [`notebooks`](https://github.com/huggingface/setfit/tree/main/notebooks) folder.\n\n\n### Training a SetFit model\n\n`setfit` is integrated with the [Hugging Face Hub](https://huggingface.co/) and provides two main classes:\n\n* `SetFitModel`: a wrapper that combines a pretrained body from `sentence_transformers` and a classification head from either [`scikit-learn`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html) or [`SetFitHead`](https://github.com/huggingface/setfit/blob/main/src/setfit/modeling.py) (a differentiable head built upon `PyTorch` with similar APIs to `sentence_transformers`).\n* `SetFitTrainer`: a helper class that wraps the fine-tuning process of SetFit.\n\nHere is an end-to-end example using a classification head from `scikit-learn`:\n\n\n```python\nfrom datasets import load_dataset\nfrom sentence_transformers.losses import CosineSimilarityLoss\n\nfrom setfit import SetFitModel, SetFitTrainer, sample_dataset\n\n\n# Load a dataset from the Hugging Face Hub\ndataset = load_dataset(\"sst2\")\n\n# Simulate the few-shot regime by sampling 8 examples per class\ntrain_dataset = sample_dataset(dataset[\"train\"], label_column=\"label\", num_samples=8)\neval_dataset = dataset[\"validation\"]\n\n# Load a SetFit model from Hub\nmodel = SetFitModel.from_pretrained(\"sentence-transformers/paraphrase-mpnet-base-v2\")\n\n# Create trainer\ntrainer = SetFitTrainer(\n    model=model,\n    train_dataset=train_dataset,\n    eval_dataset=eval_dataset,\n    loss_class=CosineSimilarityLoss,\n    metric=\"accuracy\",\n    batch_size=16,\n    num_iterations=20, # The number of text pairs to generate for contrastive learning\n    num_epochs=1, # The number of epochs to use for contrastive learning\n    column_mapping={\"sentence\": \"text\", \"label\": \"label\"} # Map dataset columns to text/label expected by trainer\n)\n\n# Train and evaluate\ntrainer.train()\nmetrics = trainer.evaluate()\n\n# Push model to the Hub\ntrainer.push_to_hub(\"my-awesome-setfit-model\")\n\n# Download from Hub and run inference\nmodel = SetFitModel.from_pretrained(\"lewtun/my-awesome-setfit-model\")\n# Run inference\npreds = model([\"i loved the spiderman movie!\", \"pineapple on pizza is the worst \ud83e\udd2e\"]) \n```\n\nHere is an end-to-end example using `SetFitHead`:\n\n\n```python\nfrom datasets import load_dataset\nfrom sentence_transformers.losses import CosineSimilarityLoss\n\nfrom setfit import SetFitModel, SetFitTrainer\n\n\n# Load a dataset from the Hugging Face Hub\ndataset = load_dataset(\"sst2\")\n\n# Simulate the few-shot regime by sampling 8 examples per class\nnum_classes = 2\ntrain_dataset = dataset[\"train\"].shuffle(seed=42).select(range(8 * num_classes))\neval_dataset = dataset[\"validation\"]\n\n# Load a SetFit model from Hub\nmodel = SetFitModel.from_pretrained(\n    \"sentence-transformers/paraphrase-mpnet-base-v2\",\n    use_differentiable_head=True,\n    head_params={\"out_features\": num_classes},\n)\n\n# Create trainer\ntrainer = SetFitTrainer(\n    model=model,\n    train_dataset=train_dataset,\n    eval_dataset=eval_dataset,\n    loss_class=CosineSimilarityLoss,\n    metric=\"accuracy\",\n    batch_size=16,\n    num_iterations=20, # The number of text pairs to generate for contrastive learning\n    num_epochs=1, # The number of epochs to use for contrastive learning\n    column_mapping={\"sentence\": \"text\", \"label\": \"label\"} # Map dataset columns to text/label expected by trainer\n)\n\n# Train and evaluate\ntrainer.freeze() # Freeze the head\ntrainer.train() # Train only the body\n\n# Unfreeze the head and freeze the body -> head-only training\ntrainer.unfreeze(keep_body_frozen=True)\n# or\n# Unfreeze the head and unfreeze the body -> end-to-end training\ntrainer.unfreeze(keep_body_frozen=False)\n\ntrainer.train(\n    num_epochs=25, # The number of epochs to train the head or the whole model (body and head)\n    batch_size=16,\n    body_learning_rate=1e-5, # The body's learning rate\n    learning_rate=1e-2, # The head's learning rate\n    l2_weight=0.0, # Weight decay on **both** the body and head. If `None`, will use 0.01.\n)\nmetrics = trainer.evaluate()\n\n# Push model to the Hub\ntrainer.push_to_hub(\"my-awesome-setfit-model\")\n\n# Download from Hub and run inference\nmodel = SetFitModel.from_pretrained(\"lewtun/my-awesome-setfit-model\")\n# Run inference\npreds = model([\"i loved the spiderman movie!\", \"pineapple on pizza is the worst \ud83e\udd2e\"]) \n```\n\nBased on our experiments, `SetFitHead` can achieve similar performance as using a `scikit-learn` head. We use `AdamW` as the optimizer and scale down learning rates by 0.5 every 5 epochs. For more details about the experiments, please check out [here](https://github.com/huggingface/setfit/pull/112#issuecomment-1295773537). We recommend using a large learning rate (e.g. `1e-2`) for `SetFitHead` and a small learning rate (e.g. `1e-5`) for the body in your first attempt.\n\n### Training on multilabel datasets\n\nTo train SetFit models on multilabel datasets, specify the `multi_target_strategy` argument when loading the pretrained model:\n\n```python\nfrom setfit import SetFitModel\n\nmodel = SetFitModel.from_pretrained(model_id, multi_target_strategy=\"one-vs-rest\")\n```\n\nThis will initialise a multilabel classification head from `sklearn` - the following options are available for `multi_target_strategy`:\n\n* `one-vs-rest`: use a `OneVsRestClassifier` head.\n* `multi-output`: use a `MultiOutputClassifier` head.\n* `classifier-chain`: use a `ClassifierChain` head.\n\nFrom here, you can instantiate a `SetFitTrainer` using the same example above, and train it as usual.\n\n**Note:** If you use the differentiable head, it will automatically use `softmax` with `argmax` when `num_classes` is greater than 1.\n\n### Zero-shot text classification\n\nSetFit can also be applied to scenarios where no labels are available. To do so, create a synthetic dataset of training examples:\n\n```python\nfrom datasets import Dataset\nfrom setfit import add_templated_examples\n\ncandidate_labels = [\"negative\", \"positive\"]\ndummy_dataset = Dataset.from_dict({})\ntrain_dataset = add_templated_examples(dummy_dataset, candidate_labels=candidate_labels, sample_size=8)\n```\n\nThis will create examples of the form `\"This sentence is {}\"`, where the `{}` is filled in with one of the candidate labels. From here you can train a SetFit model as usual:\n\n```python\nfrom setfit import SetFitModel, SetFitTrainer\n\nmodel = SetFitModel.from_pretrained(\"sentence-transformers/paraphrase-mpnet-base-v2\")\ntrainer = SetFitTrainer(\n    model=model,\n    train_dataset=train_dataset\n)\ntrainer.train()\n```\n\nWe find this approach typically outperforms the [zero-shot pipeline](https://huggingface.co/docs/transformers/v4.24.0/en/main_classes/pipelines#transformers.ZeroShotClassificationPipeline) in \ud83e\udd17 Transformers (based on MNLI with Bart), while being 5x faster to generate predictions with.\n\n\n### Running hyperparameter search\n\n`SetFitTrainer` provides a `hyperparameter_search()` method that you can use to find good hyperparameters for your data. To use this feature, first install the `optuna` backend:\n\n```bash\npython -m pip install setfit[optuna]\n```\n\nTo use this method, you need to define two functions:\n\n* `model_init()`: A function that instantiates the model to be used. If provided, each call to `train()` will start from a new instance of the model as given by this function.\n* `hp_space()`: A function that defines the hyperparameter search space.\n\nHere is an example of a `model_init()` function that we'll use to scan over the hyperparameters associated with the classification head in `SetFitModel`:\n\n```python\nfrom setfit import SetFitModel\n\ndef model_init(params):\n    params = params or {}\n    max_iter = params.get(\"max_iter\", 100)\n    solver = params.get(\"solver\", \"liblinear\")\n    params = {\n        \"head_params\": {\n            \"max_iter\": max_iter,\n            \"solver\": solver,\n        }\n    }\n    return SetFitModel.from_pretrained(\"sentence-transformers/paraphrase-albert-small-v2\", **params)\n```\n\nSimilarly, to scan over hyperparameters associated with the SetFit training process, we can define a `hp_space()` function as follows:\n\n```python\ndef hp_space(trial):  # Training parameters\n    return {\n        \"learning_rate\": trial.suggest_float(\"learning_rate\", 1e-6, 1e-4, log=True),\n        \"num_epochs\": trial.suggest_int(\"num_epochs\", 1, 5),\n        \"batch_size\": trial.suggest_categorical(\"batch_size\", [4, 8, 16, 32, 64]),\n        \"seed\": trial.suggest_int(\"seed\", 1, 40),\n        \"num_iterations\": trial.suggest_categorical(\"num_iterations\", [5, 10, 20]),\n        \"max_iter\": trial.suggest_int(\"max_iter\", 50, 300),\n        \"solver\": trial.suggest_categorical(\"solver\", [\"newton-cg\", \"lbfgs\", \"liblinear\"]),        \n    }\n```\n\n**Note:** In practice, we found `num_iterations` to be the most important hyperparameter for the contrastive learning process.\n\nThe next step is to instantiate a `SetFitTrainer` and call `hyperparameter_search()`:\n\n```python\nfrom datasets import Dataset\nfrom setfit import SetFitTrainer\n\ndataset = Dataset.from_dict(\n            {\"text_new\": [\"a\", \"b\", \"c\"], \"label_new\": [0, 1, 2], \"extra_column\": [\"d\", \"e\", \"f\"]}\n        )\n\ntrainer = SetFitTrainer(\n    train_dataset=dataset,\n    eval_dataset=dataset,\n    model_init=model_init,\n    column_mapping={\"text_new\": \"text\", \"label_new\": \"label\"},\n)\nbest_run = trainer.hyperparameter_search(direction=\"maximize\", hp_space=hp_space, n_trials=20)\n```\n\nFinally, you can apply the hyperparameters you found to the trainer, and lock in the optimal model, before training for\na final time.\n\n```python\ntrainer.apply_hyperparameters(best_run.hyperparameters, final_model=True)\ntrainer.train()\n```\n\n## Reproducing the results from the paper\n\nWe provide scripts to reproduce the results for SetFit and various baselines presented in Table 2 of our paper. Check out the setup and training instructions in the `scripts/` directory.\n\n## Developer installation\n\nTo run the code in this project, first create a Python virtual environment using e.g. Conda:\n\n```bash\nconda create -n setfit python=3.9 && conda activate setfit\n```\n\nThen install the base requirements with:\n\n```bash\npython -m pip install -e '.[dev]'\n```\n\nThis will install `datasets` and packages like `black` and `isort` that we use to ensure consistent code formatting.\n\n### Formatting your code\n\nWe use `black` and `isort` to ensure consistent code formatting. After following the installation steps, you can check your code locally by running:\n\n```\nmake style && make quality\n```\n\n\n\n## Project structure\n\n```\n\u251c\u2500\u2500 LICENSE\n\u251c\u2500\u2500 Makefile        <- Makefile with commands like `make style` or `make tests`\n\u251c\u2500\u2500 README.md       <- The top-level README for developers using this project.\n\u251c\u2500\u2500 notebooks       <- Jupyter notebooks.\n\u251c\u2500\u2500 final_results   <- Model predictions from the paper\n\u251c\u2500\u2500 scripts         <- Scripts for training and inference\n\u251c\u2500\u2500 setup.cfg       <- Configuration file to define package metadata\n\u251c\u2500\u2500 setup.py        <- Make this project pip installable with `pip install -e`\n\u251c\u2500\u2500 src             <- Source code for SetFit\n\u2514\u2500\u2500 tests           <- Unit tests\n```\n\n\n## Citation\n\n```@misc{https://doi.org/10.48550/arxiv.2209.11055,\n  doi = {10.48550/ARXIV.2209.11055},\n  url = {https://arxiv.org/abs/2209.11055},\n  author = {Tunstall, Lewis and Reimers, Nils and Jo, Unso Eun Seo and Bates, Luke and Korat, Daniel and Wasserblat, Moshe and Pereg, Oren},\n  keywords = {Computation and Language (cs.CL), FOS: Computer and information sciences, FOS: Computer and information sciences},\n  title = {Efficient Few-Shot Learning Without Prompts},\n  publisher = {arXiv},\n  year = {2022},\n  copyright = {Creative Commons Attribution 4.0 International}}\n```\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://github.com/SetFit/setfit/tags",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/SetFit/setfit",
+            "keywords": "nlp,machine learning,fewshot learning,transformers",
+            "license": "Apache 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "setfit",
+            "package_url": "https://pypi.org/project/setfit/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/setfit/",
+            "project_urls": {
+                "Download": "https://github.com/SetFit/setfit/tags",
+                "Homepage": "https://github.com/SetFit/setfit"
+            },
+            "release_url": "https://pypi.org/project/setfit/0.5.0/",
+            "requires_dist": [
+                "datasets (>=2.3.0)",
+                "sentence-transformers (>=2.2.1)",
+                "evaluate (>=0.3.0)",
+                "datasets (==2.3.0) ; extra == 'compat_tests'",
+                "sentence-transformers (==2.2.1) ; extra == 'compat_tests'",
+                "evaluate (==0.3.0) ; extra == 'compat_tests'",
+                "pytest ; extra == 'compat_tests'",
+                "pytest-cov ; extra == 'compat_tests'",
+                "onnxruntime ; extra == 'compat_tests'",
+                "onnx ; extra == 'compat_tests'",
+                "skl2onnx ; extra == 'compat_tests'",
+                "onnx ; extra == 'dev'",
+                "onnxruntime ; extra == 'dev'",
+                "datasets (==2.3.0) ; extra == 'dev'",
+                "tabulate ; extra == 'dev'",
+                "flake8 ; extra == 'dev'",
+                "pytest-cov ; extra == 'dev'",
+                "skl2onnx ; extra == 'dev'",
+                "isort ; extra == 'dev'",
+                "pytest ; extra == 'dev'",
+                "evaluate (==0.3.0) ; extra == 'dev'",
+                "black ; extra == 'dev'",
+                "sentence-transformers (==2.2.1) ; extra == 'dev'",
+                "optuna ; extra == 'dev'",
+                "onnxruntime ; extra == 'onnx'",
+                "onnx ; extra == 'onnx'",
+                "skl2onnx ; extra == 'onnx'",
+                "optuna ; extra == 'optuna'",
+                "black ; extra == 'quality'",
+                "flake8 ; extra == 'quality'",
+                "isort ; extra == 'quality'",
+                "tabulate ; extra == 'quality'",
+                "pytest ; extra == 'tests'",
+                "pytest-cov ; extra == 'tests'",
+                "onnxruntime ; extra == 'tests'",
+                "onnx ; extra == 'tests'",
+                "skl2onnx ; extra == 'tests'"
+            ],
+            "requires_python": "",
+            "summary": "Efficient few-shot learning with Sentence Transformers",
+            "version": "0.5.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16101155,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2a102abadabe5a9b7a5bcb4f99dd10a2",
+                    "sha256": "2854800c6a3eb55dfb5f08d54f4f3122102650c391d7c968b00f3f9693b3e4a5"
+                },
+                "downloads": -1,
+                "filename": "setfit-0.5.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "2a102abadabe5a9b7a5bcb4f99dd10a2",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 40764,
+                "upload_time": "2022-12-14T14:58:49",
+                "upload_time_iso_8601": "2022-12-14T14:58:49.178838Z",
+                "url": "https://files.pythonhosted.org/packages/b0/a0/e2421009c6a1d7278ab55cf5e03ccc5e91276b56056eb54bd8d47a5fd374/setfit-0.5.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8fd7b67bc76fbc535f5dce5994882e09",
+                    "sha256": "6624c8335776207872d8ffd034b2f604e994603351aaf9e878342f96a4494f61"
+                },
+                "downloads": -1,
+                "filename": "setfit-0.5.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "8fd7b67bc76fbc535f5dce5994882e09",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 39720,
+                "upload_time": "2022-12-14T14:58:51",
+                "upload_time_iso_8601": "2022-12-14T14:58:51.885580Z",
+                "url": "https://files.pythonhosted.org/packages/c4/d1/e2c5c5484b0e22c2f795cfc8c9ffb92e2d2f02b5aa0dd7bc93952293e9ca/setfit-0.5.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

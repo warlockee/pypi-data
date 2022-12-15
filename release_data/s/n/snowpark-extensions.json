@@ -37,7 +37,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16060214,
+        "last_serial": 16104946,
         "urls": [
             {
                 "comment_text": "",
@@ -120,7 +120,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16060214,
+        "last_serial": 16104946,
         "urls": [
             {
                 "comment_text": "",
@@ -203,7 +203,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16060214,
+        "last_serial": 16104946,
         "urls": [
             {
                 "comment_text": "",
@@ -286,7 +286,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16060214,
+        "last_serial": 16104946,
         "urls": [
             {
                 "comment_text": "",
@@ -337,7 +337,6 @@
             "author_email": "mauricio.rojas@mobilize.net",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# snowpark-extensions-py\n\nSnowpark by itself is a powerful library, but still some utility functions can always help.\n\n\n\n\n# Installation\n\nWe recommended installing using [PYPI](https://pypi.org/)\n\n```bash\n\n    $ pip install snowconvert-deploy-tool --upgrade\n```    \n> note:: If you run this command on MacOS change `pip` by `pip3`\n\n\n# Usage\n\n\njust import it at the top of your file and it will automatically extend your snowpark package.\nFor example:\n``` python\nfrom snowflake.snowpark import Session\nimport snowpark_extensions\nnew_session = Session.builder.from_snowsql().appName(\"app1\").getOrCreate()\n```\n```\n\n## Currently provided extensions:\n\n## SessionBuilder extensions\n\n| Name                          | Description |\n| ----------------------------- | ----------- |\n| SessionBuilder.from_snowsql   | can read the information from the snowsql config file by default at ~/snowsql/config or at a given location |\n| SessionBuilder.env            | reads settings from SNOW_xxx or SNOWSQL_xxx variables |\n| SessionBuilder.appName        | Sets a query tag with the given appName               |\n| SessionBuilder.append_tag     | Appends a new tag to the existing query tag           | \n\n\nYou can the create your session like:\n\n``` python\nfrom snowflake.snowpark import Session\nimport snowpark_extensions\nnew_session = Session.builder.from_snowsql().appName(\"app1\").create()\n```\n\n``` python\nfrom snowflake.snowpark import Session\nimport snowpark_extensions\nnew_session = Session.builder.env().appName(\"app1\").create()\n```\n\nThe `appName` can use to setup a query_tag like `APPNAME=tag;execution_id=guid` which can then be used to track job actions with a query like\n\nYou can then use a query like:\nTo see all executions from an app or \n```sql\nselect *\nfrom table(information_schema.query_history())\nwhery query_tag like '%APPNAME=tag%'\norder by start_time desc;\n```\n\nTo see the executions for a particular execution:\n\n```sql\nselect *\nfrom table(information_schema.query_history())\nwhery query_tag like '%APPNAME=tag;execution_id=guid%'\norder by start_time desc;\n```\n\n## Column Extensions\n| Name                         | Description                                                                         |\n|------------------------------|-------------------------------------------------------------------------------------|\n| Column.getItem               | An expression that gets an item at position ordinal out of a list, or gets an item by key out of a dict. |\n\n\n## DataFrame Extensions\n\n| Name                           | Description                                                                         |\n|--------------------------------|-------------------------------------------------------------------------------------|\n| DataFrame.dtypes               | returns the list of datatypes in the DataFrame\n| DataFrame.map                  | provides an equivalent for the map function for example `df.map(func,input_types=[StringType(),StringType()],output_types=[StringType(),IntegerType()],to_row=True)` \n| DataFrame.simple_map           | if a simple lambda like `lambda x: x.col1 + x.col2` is used this functions can be used like `df.simple_map(lambda x: x.col1 + x.col2)`\n| DataFrame.groupby.applyInPandas| Maps each group of the current DataFrame using a pandas udf and returns the result as a DataFrame. |\n| DataFrame.replace        | extends replace to allow using a regex\n\n### Examples\n\n#### map and simple_map\n\n```python\nfrom snowflake.snowpark import Session\nfrom snowflake.snowpark.types import *\nimport snowpark_extensions\n\nsession = Session.builder.from_snowsql().appName(\"app1\").getOrCreate()\n  \ndata = [('James','Smith','M',30),('Anna','Rose','F',41),('Robert','Williams','M',62)]\ncolumns = [\"firstname\",\"lastname\",\"gender\",\"salary\"]\ndf = session.createDataFrame(data=data, schema = columns)\ndf.show()\n\n\n#\n#--------------------------------------------------\n#|\"FIRSTNAME\"  |\"LASTNAME\"  |\"GENDER\"  |\"SALARY\"  |\n#--------------------------------------------------\n#|James        |Smith       |M         |30        |\n#|Anna         |Rose        |F         |41        |\n#|Robert       |Williams    |M         |62        |\n#--------------------------------------------------\n\n\n\n\n# using map with a lamda, the to_row indicates that the code will pass a row as x to the lambda\n# if you have a lambda like lambda x,y,z you can use to_row=False\ndf2=df.map(lambda x: \n        (x[0]+\",\"+x[1],x[2],x[3]*2),\n        output_types=[StringType(),StringType(),IntegerType()],to_row=True)\ndf2.show()\n\n#\n#-----------------------------------\n#|\"C_1\"            |\"C_2\"  |\"C_3\"  |\n#-----------------------------------\n#|James,Smith      |M      |60     |\n#|Anna,Rose        |F      |82     |\n#|Robert,Williams  |M      |124    |\n#-----------------------------------\n#\n\n# for simple lambda\n# simple map will just pass the same dataframe to the function\n# this approach is faster\ndf2 = df.simple_map(lambda x: (x[0]+\",\"+x[1],x[2],x[3]*2))\ndf2.toDF([\"name\",\"gender\",\"new_salary\"]).show()\n\n#---------------------------------------------\n#|\"NAME\"           |\"GENDER\"  |\"NEW_SALARY\"  |\n#---------------------------------------------\n#|James,Smith      |M         |60            |\n#|Anna,Rose        |F         |82            |\n#|Robert,Williams  |M         |124           |\n#---------------------------------------------\n#\n\n```\n\n### replace with support for regex\n\n```python\ndf = session.createDataFrame([('bat',1,'abc'),('foo',2,'bar'),('bait',3,'xyz')],['A','C','B'])\n# already supported replace\ndf.replace(to_replace=1, value=100).show()\n# replace with regex\ndf.replace(to_replace=r'^ba.$', value='new',regex=True).show()\n```\n\n### applyInPandas\n```python\nfrom snowflake.snowpark import Session\nimport snowpark_extensions\nsession = Session.builder.from_snowsql().getOrCreate()\nimport pandas as pd  \ndf = session.createDataFrame(\n    [(1, 1.0), (1, 2.0), (2, 3.0), (2, 5.0), (2, 10.0)],\n    schema=[\"ID\", \"V\"])\ndf1 = df.to_pandas()\ndef normalize(pdf):\n    V = pdf.V\n    return pdf.assign(V=(V - V.mean()) / V.std())\ndf2 = normalize(df1)\n# schema can be an string or an StructType\ndf.group_by(\"ID\").applyInPandas(\n    normalize, schema=\"id long, v double\").show()  \n```\n\n```\n------------------------------\n|\"ID\"  |\"V\"                  |\n------------------------------\n|2     |-0.8320502943378437  |\n|2     |-0.2773500981126146  |\n|2     |1.1094003924504583   |\n|1     |-0.7071067811865475  |\n|1     |0.7071067811865475   |\n------------------------------\n```\n\n## Functions Extensions\n\n| Name                         | Description                                                                         |\n|------------------------------|-------------------------------------------------------------------------------------|\n| functions.array_sort         | sorts the input array in ascending order or descending order. The elements of the input array must be orderable. Null elements will be placed at the end of the returned array. |\n| functions.unix_timestamp     | returns the UNIX timestamp of current time.                                         |\n| functions.from_unixtimestamp | can be used to convert UNIX time to Snowflake timestamp                             |\n| functions.format_number      | formats numbers using the specified number of decimal places                        |\n| functions.reverse            | returns a reversed string                                                           |\n| functions.explode            | returns a new row for each element in the given array                               |\n| functions.date_add           | returns the date that is n days days after                                          |\n| functions.date_sub           | returns the date that is n days before                                              |\n| functions.regexp_extract     | Extract a specific group matched by a regex, from the specified string column.      |\n\n\n### Examples:\n\n#### array_sort\n\n```python\nfrom snowflake.snowpark import Session, DataFrame\nfrom snowflake.snowpark.functions import col, lit\nfrom snowflake.snowpark import functions as F\nimport snowpark_extensions\n\nsession = Session.builder.from_snowsql().getOrCreate()\ndf = session.createDataFrame([([2, 1, None, 3],),([1],),([],)], ['data'])\ndf.select(F.array_sort(df.data)).show()\n```\n\n```\n-------------------------------------------\n|\"ARRAY_SORT(\"\"DATA\"\", TRUE :: BOOLEAN)\"  |\n-------------------------------------------\n|[                                        |\n|  2,                                     |\n|  1,                                     |\n|  3,                                     |\n|  null                                   |\n|]                                        |\n|[]                                       |\n|[                                        |\n|  1                                      |\n|]                                        |\n-------------------------------------------\n```\ndf.select(F.array_sort(df.data, asc=False)).show()\n\n```\n--------------------------------------------\n|\"ARRAY_SORT(\"\"DATA\"\", FALSE :: BOOLEAN)\"  |\n--------------------------------------------\n|[                                         |\n|  1                                       |\n|]                                         |\n|[]                                        |\n|[                                         |\n|  null,                                   |\n|  2,                                      |\n|  1,                                      |\n|  3                                       |\n|]                                         |\n--------------------------------------------\n```\n\n### regexp_extract\n\n```python\nsession = Session.builder.from_snowsql().create()\n\n\ndf = session.createDataFrame([('100-200',)], ['str'])\nres = df.select(F.regexp_extract('str',r'(\\d+)-(\\d+)',1).alias('d')).collect()\nprint(str(res))\n# [Row(D='1')]\n\ndf = session.createDataFrame([['id_20_30', 10], ['id_40_50', 30]], ['id', 'age'])\ndf.show()\n# --------------------\n# |\"ID\"      |\"AGE\"  |\n# --------------------\n# |id_20_30  |10     |\n# |id_40_50  |30     |\n# --------------------\n\n\ndf.select(F.regexp_extract('id', r'(\\d+)', 1)).show()\n# ------------------------------------------------------\n# |\"COALESCE(REGEXP_SUBSTR(\"\"ID\"\", '(\\\\D+)', 1, 1,...  |\n# ------------------------------------------------------\n# |20                                                  |\n# |40                                                  |\n# ------------------------------------------------------\n\n\ndf.select(F.regexp_extract('id', r'(\\d+)_(\\d+)', 2)).show()\n# ------------------------------------------------------\n# |\"COALESCE(REGEXP_SUBSTR(\"\"ID\"\", '(\\\\D+)_(\\\\D+)'...  |\n# ------------------------------------------------------\n# |30                                                  |\n# |50                                                  |\n# ------------------------------------------------------\n```\n\n# utilities\n\n| Name | Description         |\n|------|---------------------|\n| utils.map_to_python_type | maps from DataType to python type |\n| utils.map_string_type_to_datatype | maps a type by name to a snowpark `DataType` |\n| utils.schema_str_to_schema | maps an schema specified as an string to a `StructType()`\n\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -370,7 +369,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16060214,
+        "last_serial": 16104946,
         "urls": [
             {
                 "comment_text": "",
@@ -409,6 +408,179 @@
                 "upload_time": "2022-12-10T20:27:01",
                 "upload_time_iso_8601": "2022-12-10T20:27:01.977120Z",
                 "url": "https://files.pythonhosted.org/packages/4c/e2/da4e6a64a7261b4ce76da38dec0fcf69f4958ddd15215f809808bf13ce82/snowpark_extensions-0.0.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.8": {
+        "info": {
+            "author": "mauricio.rojas",
+            "author_email": "mauricio.rojas@mobilize.net",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "http://github.com/MobilizeNet/snowpark-extensions-py",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "snowpark-extensions",
+            "package_url": "https://pypi.org/project/snowpark-extensions/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/snowpark-extensions/",
+            "project_urls": {
+                "Homepage": "http://github.com/MobilizeNet/snowpark-extensions-py"
+            },
+            "release_url": "https://pypi.org/project/snowpark-extensions/0.0.8/",
+            "requires_dist": [
+                "snowflake-snowpark-python",
+                "pandas",
+                "shortuuid",
+                "nest-asyncio",
+                "jinja2",
+                "rich"
+            ],
+            "requires_python": "",
+            "summary": "A set of helpers to extend snowpark functionality",
+            "version": "0.0.8",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16104946,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "17b57175d5ed85a5afbd1d972656e604",
+                    "sha256": "33ffc4da6d2556e2154df62d3a3aa2522f73a3b5b1f73c6aec2ae72553d6e441"
+                },
+                "downloads": -1,
+                "filename": "snowpark_extensions-0.0.8-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "17b57175d5ed85a5afbd1d972656e604",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 12134,
+                "upload_time": "2022-12-14T14:56:24",
+                "upload_time_iso_8601": "2022-12-14T14:56:24.926642Z",
+                "url": "https://files.pythonhosted.org/packages/e2/de/5dcd8250347bd455efa270e0a44fe79b0dc2500a8a5ee13d7dc72c5a39f8/snowpark_extensions-0.0.8-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f2968357a5d3528d63c20fc3473bcb53",
+                    "sha256": "e36780f8e9fd62864fbfdb322cae100cea8beff20575034d3b962ad1342337f0"
+                },
+                "downloads": -1,
+                "filename": "snowpark_extensions-0.0.8.tar.gz",
+                "has_sig": false,
+                "md5_digest": "f2968357a5d3528d63c20fc3473bcb53",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 13368,
+                "upload_time": "2022-12-14T14:56:26",
+                "upload_time_iso_8601": "2022-12-14T14:56:26.257474Z",
+                "url": "https://files.pythonhosted.org/packages/d0/8e/e59bf3e511fc61c2a133346f75d8c58cd30019aa355d63bbc160411e28ba/snowpark_extensions-0.0.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.9": {
+        "info": {
+            "author": "mauricio.rojas",
+            "author_email": "mauricio.rojas@mobilize.net",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# snowpark-extensions-py\n\nSnowpark by itself is a powerful library, but still some utility functions can always help.\n\n\n\n\n# Installation\n\nWe recommended installing using [PYPI](https://pypi.org/)\n\n```bash\n\n    $ pip install snowconvert-deploy-tool --upgrade\n```    \n> note:: If you run this command on MacOS change `pip` by `pip3`\n\n\n# Usage\n\n\njust import it at the top of your file and it will automatically extend your snowpark package.\nFor example:\n``` python\nfrom snowflake.snowpark import Session\nimport snowpark_extensions\nnew_session = Session.builder.from_snowsql().appName(\"app1\").getOrCreate()\n```\n```\n\n## Currently provided extensions:\n\n## SessionBuilder extensions\n\n| Name                          | Description |\n| ----------------------------- | ----------- |\n| SessionBuilder.from_snowsql   | can read the information from the snowsql config file by default at ~/snowsql/config or at a given location |\n| SessionBuilder.env            | reads settings from SNOW_xxx or SNOWSQL_xxx variables |\n| SessionBuilder.appName        | Sets a query tag with the given appName               |\n| SessionBuilder.append_tag     | Appends a new tag to the existing query tag           | \n\n\nYou can the create your session like:\n\n``` python\nfrom snowflake.snowpark import Session\nimport snowpark_extensions\nnew_session = Session.builder.from_snowsql().appName(\"app1\").create()\n```\n\n``` python\nfrom snowflake.snowpark import Session\nimport snowpark_extensions\nnew_session = Session.builder.env().appName(\"app1\").create()\n```\n\nThe `appName` can use to setup a query_tag like `APPNAME=tag;execution_id=guid` which can then be used to track job actions with a query like\n\nYou can then use a query like:\nTo see all executions from an app or \n```sql\nselect *\nfrom table(information_schema.query_history())\nwhery query_tag like '%APPNAME=tag%'\norder by start_time desc;\n```\n\nTo see the executions for a particular execution:\n\n```sql\nselect *\nfrom table(information_schema.query_history())\nwhery query_tag like '%APPNAME=tag;execution_id=guid%'\norder by start_time desc;\n```\n\n## Column Extensions\n| Name                         | Description                                                                         |\n|------------------------------|-------------------------------------------------------------------------------------|\n| Column.getItem               | An expression that gets an item at position ordinal out of a list, or gets an item by key out of a dict. |\n\n\n## DataFrame Extensions\n\n| Name                           | Description                                                                         |\n|--------------------------------|-------------------------------------------------------------------------------------|\n| DataFrame.dtypes               | returns the list of datatypes in the DataFrame\n| DataFrame.map                  | provides an equivalent for the map function for example `df.map(func,input_types=[StringType(),StringType()],output_types=[StringType(),IntegerType()],to_row=True)` \n| DataFrame.simple_map           | if a simple lambda like `lambda x: x.col1 + x.col2` is used this functions can be used like `df.simple_map(lambda x: x.col1 + x.col2)`\n| DataFrame.groupby.applyInPandas| Maps each group of the current DataFrame using a pandas udf and returns the result as a DataFrame. |\n| DataFrame.replace        | extends replace to allow using a regex\n\n### Examples\n\n#### map and simple_map\n\n```python\nfrom snowflake.snowpark import Session\nfrom snowflake.snowpark.types import *\nimport snowpark_extensions\n\nsession = Session.builder.from_snowsql().appName(\"app1\").getOrCreate()\n  \ndata = [('James','Smith','M',30),('Anna','Rose','F',41),('Robert','Williams','M',62)]\ncolumns = [\"firstname\",\"lastname\",\"gender\",\"salary\"]\ndf = session.createDataFrame(data=data, schema = columns)\ndf.show()\n\n\n#\n#--------------------------------------------------\n#|\"FIRSTNAME\"  |\"LASTNAME\"  |\"GENDER\"  |\"SALARY\"  |\n#--------------------------------------------------\n#|James        |Smith       |M         |30        |\n#|Anna         |Rose        |F         |41        |\n#|Robert       |Williams    |M         |62        |\n#--------------------------------------------------\n\n\n\n\n# using map with a lamda, the to_row indicates that the code will pass a row as x to the lambda\n# if you have a lambda like lambda x,y,z you can use to_row=False\ndf2=df.map(lambda x: \n        (x[0]+\",\"+x[1],x[2],x[3]*2),\n        output_types=[StringType(),StringType(),IntegerType()],to_row=True)\ndf2.show()\n\n#\n#-----------------------------------\n#|\"C_1\"            |\"C_2\"  |\"C_3\"  |\n#-----------------------------------\n#|James,Smith      |M      |60     |\n#|Anna,Rose        |F      |82     |\n#|Robert,Williams  |M      |124    |\n#-----------------------------------\n#\n\n# for simple lambda\n# simple map will just pass the same dataframe to the function\n# this approach is faster\ndf2 = df.simple_map(lambda x: (x[0]+\",\"+x[1],x[2],x[3]*2))\ndf2.toDF([\"name\",\"gender\",\"new_salary\"]).show()\n\n#---------------------------------------------\n#|\"NAME\"           |\"GENDER\"  |\"NEW_SALARY\"  |\n#---------------------------------------------\n#|James,Smith      |M         |60            |\n#|Anna,Rose        |F         |82            |\n#|Robert,Williams  |M         |124           |\n#---------------------------------------------\n#\n\n```\n\n### replace with support for regex\n\n```python\ndf = session.createDataFrame([('bat',1,'abc'),('foo',2,'bar'),('bait',3,'xyz')],['A','C','B'])\n# already supported replace\ndf.replace(to_replace=1, value=100).show()\n# replace with regex\ndf.replace(to_replace=r'^ba.$', value='new',regex=True).show()\n```\n\n### applyInPandas\n```python\nfrom snowflake.snowpark import Session\nimport snowpark_extensions\nsession = Session.builder.from_snowsql().getOrCreate()\nimport pandas as pd  \ndf = session.createDataFrame(\n    [(1, 1.0), (1, 2.0), (2, 3.0), (2, 5.0), (2, 10.0)],\n    schema=[\"ID\", \"V\"])\ndf1 = df.to_pandas()\ndef normalize(pdf):\n    V = pdf.V\n    return pdf.assign(V=(V - V.mean()) / V.std())\ndf2 = normalize(df1)\n# schema can be an string or an StructType\ndf.group_by(\"ID\").applyInPandas(\n    normalize, schema=\"id long, v double\").show()  \n```\n\n```\n------------------------------\n|\"ID\"  |\"V\"                  |\n------------------------------\n|2     |-0.8320502943378437  |\n|2     |-0.2773500981126146  |\n|2     |1.1094003924504583   |\n|1     |-0.7071067811865475  |\n|1     |0.7071067811865475   |\n------------------------------\n```\n\n## Functions Extensions\n\n| Name                         | Description                                                                         |\n|------------------------------|-------------------------------------------------------------------------------------|\n| functions.array_sort         | sorts the input array in ascending order or descending order. The elements of the input array must be orderable. Null elements will be placed at the end of the returned array. |\n| functions.unix_timestamp     | returns the UNIX timestamp of current time.                                         |\n| functions.from_unixtimestamp | can be used to convert UNIX time to Snowflake timestamp                             |\n| functions.format_number      | formats numbers using the specified number of decimal places                        |\n| functions.reverse            | returns a reversed string                                                           |\n| functions.explode            | returns a new row for each element in the given array                               |\n| functions.date_add           | returns the date that is n days days after                                          |\n| functions.date_sub           | returns the date that is n days before                                              |\n| functions.regexp_extract     | Extract a specific group matched by a regex, from the specified string column.      |\n\n\n### Examples:\n\n#### array_sort\n\n```python\nfrom snowflake.snowpark import Session, DataFrame\nfrom snowflake.snowpark.functions import col, lit\nfrom snowflake.snowpark import functions as F\nimport snowpark_extensions\n\nsession = Session.builder.from_snowsql().getOrCreate()\ndf = session.createDataFrame([([2, 1, None, 3],),([1],),([],)], ['data'])\ndf.select(F.array_sort(df.data)).show()\n```\n\n```\n-------------------------------------------\n|\"ARRAY_SORT(\"\"DATA\"\", TRUE :: BOOLEAN)\"  |\n-------------------------------------------\n|[                                        |\n|  2,                                     |\n|  1,                                     |\n|  3,                                     |\n|  null                                   |\n|]                                        |\n|[]                                       |\n|[                                        |\n|  1                                      |\n|]                                        |\n-------------------------------------------\n```\ndf.select(F.array_sort(df.data, asc=False)).show()\n\n```\n--------------------------------------------\n|\"ARRAY_SORT(\"\"DATA\"\", FALSE :: BOOLEAN)\"  |\n--------------------------------------------\n|[                                         |\n|  1                                       |\n|]                                         |\n|[]                                        |\n|[                                         |\n|  null,                                   |\n|  2,                                      |\n|  1,                                      |\n|  3                                       |\n|]                                         |\n--------------------------------------------\n```\n\n### regexp_extract\n\n```python\nsession = Session.builder.from_snowsql().create()\n\n\ndf = session.createDataFrame([('100-200',)], ['str'])\nres = df.select(F.regexp_extract('str',r'(\\d+)-(\\d+)',1).alias('d')).collect()\nprint(str(res))\n# [Row(D='1')]\n\ndf = session.createDataFrame([['id_20_30', 10], ['id_40_50', 30]], ['id', 'age'])\ndf.show()\n# --------------------\n# |\"ID\"      |\"AGE\"  |\n# --------------------\n# |id_20_30  |10     |\n# |id_40_50  |30     |\n# --------------------\n\n\ndf.select(F.regexp_extract('id', r'(\\d+)', 1)).show()\n# ------------------------------------------------------\n# |\"COALESCE(REGEXP_SUBSTR(\"\"ID\"\", '(\\\\D+)', 1, 1,...  |\n# ------------------------------------------------------\n# |20                                                  |\n# |40                                                  |\n# ------------------------------------------------------\n\n\ndf.select(F.regexp_extract('id', r'(\\d+)_(\\d+)', 2)).show()\n# ------------------------------------------------------\n# |\"COALESCE(REGEXP_SUBSTR(\"\"ID\"\", '(\\\\D+)_(\\\\D+)'...  |\n# ------------------------------------------------------\n# |30                                                  |\n# |50                                                  |\n# ------------------------------------------------------\n```\n\n# utilities\n\n| Name | Description         |\n|------|---------------------|\n| utils.map_to_python_type | maps from DataType to python type |\n| utils.map_string_type_to_datatype | maps a type by name to a snowpark `DataType` |\n| utils.schema_str_to_schema | maps an schema specified as an string to a `StructType()`\n\n\n# Experimental\n\n## Jupyter Notebook support\n\n```\n%load_ext snowpark_extensions\n```\n\nThis extension provides simple integration with Jupyter notebooks\nIt will preload the snowpark libraries and adds a simple magic.\n\nA `%%sql` magic can be used to run queries. \nQueries can use `Jinja2` syntax. For example:\n\n```sql\nselect * from tables where col={{COL1}}\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "http://github.com/MobilizeNet/snowpark-extensions-py",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "snowpark-extensions",
+            "package_url": "https://pypi.org/project/snowpark-extensions/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/snowpark-extensions/",
+            "project_urls": {
+                "Homepage": "http://github.com/MobilizeNet/snowpark-extensions-py"
+            },
+            "release_url": "https://pypi.org/project/snowpark-extensions/0.0.9/",
+            "requires_dist": [
+                "snowflake-snowpark-python",
+                "pandas",
+                "shortuuid",
+                "nest-asyncio",
+                "jinja2",
+                "rich"
+            ],
+            "requires_python": "",
+            "summary": "A set of helpers to extend snowpark functionality",
+            "version": "0.0.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16104946,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "186e22c9db7591152835ee0da5c9c756",
+                    "sha256": "58c79d45d341d808d9f221790031c6202ac8698dee29c243781c075e99a2981e"
+                },
+                "downloads": -1,
+                "filename": "snowpark_extensions-0.0.9-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "186e22c9db7591152835ee0da5c9c756",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 12173,
+                "upload_time": "2022-12-14T21:32:40",
+                "upload_time_iso_8601": "2022-12-14T21:32:40.611252Z",
+                "url": "https://files.pythonhosted.org/packages/a3/aa/22bc76e2ff8aa308a0413e95e96984b7971e439c10ed3ccd34b541c2bb71/snowpark_extensions-0.0.9-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "677d3f8e61f78fd7dce05c65de4c6c18",
+                    "sha256": "6c9b6c113bc7c9b5cd889249387cd5629dd0d3a1f3da0bfdaedc896ff33bbda9"
+                },
+                "downloads": -1,
+                "filename": "snowpark_extensions-0.0.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "677d3f8e61f78fd7dce05c65de4c6c18",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 13419,
+                "upload_time": "2022-12-14T21:32:41",
+                "upload_time_iso_8601": "2022-12-14T21:32:41.992975Z",
+                "url": "https://files.pythonhosted.org/packages/74/2e/37a6bebfa325a001df8c8e0d5909748d9efdbda9de91877f7101bd32c687/snowpark_extensions-0.0.9.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
