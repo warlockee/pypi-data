@@ -1,0 +1,84 @@
+{
+    "0.0.4": {
+        "info": {
+            "author": "",
+            "author_email": "Jason Liang <jasonliangyc@qq.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: Microsoft :: Windows",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "## Overview\n\nDagline is a package for executing multiple tasks of a DAG flow in parallel. The type of task can be python function and Windows bat script.\n\n### System Requirements\n\n*   Python 3.10+\n\n### Installation\n\n*   python -m pip install dagline\n\n### Use-cases\n\n*   **Create the following file structure locally. You can name your folder/py whatever you want:**  \n    dags\\_tasks\\\\  \n    \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u251c\u2500\u2500 dags\\\\  \n    \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u2502 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u251c\u2500\u2500\\_\\_init\\_\\_.py  \n    \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u2502 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u2514\u2500\u2500dag\\_example.py  \n    \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u251c\u2500\u2500 tasks\\\\  \n    \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u2502 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u251c\u2500\u2500\\_\\_init\\_\\_.py  \n    \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u2502 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u2514\u2500\u2500task\\_example.py  \n    \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u2514\u2500\u2500 \\_\\_init\\_\\_.py\n*   **Define the tasks, open** _**task\\_example.py**_ **and enter the following content:**\n\n```python\nfrom dagline.models.operators.winbat import WinbatOperator\nfrom dagline.models.operators.python import PythonOperator\n\ndef read_excel():\n    '''Do your works here'''\n    print('call this func read_excel')\n    \ndef read_csv():\n    '''Do your works here'''\n    print('call this func read_csv')\n    \ndef load_to_db():\n    '''Do your works here'''\n    print('call this func load_to_db')\n\n\ntask1 = PythonOperator(task_id = 'read_excel', python_callable = read_excel)\ntask2 = PythonOperator(task_id = 'read_csv', python_callable = read_csv)\ntask3 = PythonOperator(task_id = 'load_to_db', python_callable = load_to_db)\ntask4 = WinbatOperator(task_id = 'housekeep', bat_command = r\"C:\\xxx\\housekeep.bat\")\n```\n\n*   **Define the DAG, open** _**dag\\_example.py**_ **and enter the following content:**\n\n```python\nfrom dagline.models.dag import DAG\nfrom dags_tasks.tasks import tasks_example as tasks_bag\nfrom dagline.models.operators.winbat import WinbatOperator\nfrom dagline.models.operators.python import PythonOperator\n\n\n'''DAG graph, child task : [parent tasks]'''\ntasks_flow ={\ntasks_bag.task1 : [],\ntasks_bag.task2 : [],\ntasks_bag.task3 : [tasks_bag.task1, tasks_bag.task2],\ntasks_bag.task4 : [tasks_bag.task3]\n}\n\n\nwith DAG(\n    dag_id = 'dag_example',\n    tasks_flow = tasks_flow,\n    logfile = \"C:\\xxx\\dag_example.log\"\n) as dag:\n    pass\n```\n\n*   **Run commands from the parent directory of the folder where dags\\_tasks is located:**\n\n\u00a0 \u00a0 \u00a0 \u00a0 \u00a0_python -m dagline dags run \\<dag\\_files\\_home> \\<dag\\_id> \\< --start\\_with\\_task\\_ids >_  \n\u00a0 \u00a0 \u00a0 \u00a0 \u00a0dag\\_files\\_home \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 The folder of the DAG files  \n\u00a0 \u00a0 \u00a0 \u00a0 \u00a0dag\\_id \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0The id of the dag  \n\u00a0 \u00a0 \u00a0 \u00a0 \u00a0--start\\_with\\_task\\_ids \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0A list of the task ids, if it was provided, the DAG will start from these tasks, not from the beginning of the DAG\n\n```python\n>python -m dagline dags run C:\\xxx\\dags_tasks\\dags dag_example1\n>python -m dagline dags run C:\\xxx\\dags_tasks\\dags dag_example1 --start_with_task_ids read_csv\n```\n\n\u00a0 \u00a0 \u00a0 \u00a0\u00a0_python -m dagline tasks run \\<dag\\_files\\_home> \\<dag\\_id> \\<task\\_id>_  \n\u00a0 \u00a0 \u00a0 \u00a0 dag\\_files\\_home \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 The folder of the DAG files  \n\u00a0 \u00a0 \u00a0 \u00a0 dag\\_id \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0The id of the dag  \n\u00a0 \u00a0 \u00a0 \u00a0 task\\_id \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 \u00a0 The id of the task, only run this task in the DAG\n\n```python\n>python -m dagline tasks run C:\\xxx\\dags_tasks\\dags dag_example read_csv\n```",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "dagline",
+            "package_url": "https://pypi.org/project/dagline/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/dagline/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/dagline/0.0.4/",
+            "requires_dist": null,
+            "requires_python": ">=3.10",
+            "summary": "Use Python's multiprocessing module to execute tasks(python functon and windows bat script) of a DAG in parallel",
+            "version": "0.0.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16112469,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "255d83712d149c7ca8f04f1d205e785d",
+                    "sha256": "09778599c7f85c94c051f0c45f9da80011557e6f84e7b669130cbc0e12434a9d"
+                },
+                "downloads": -1,
+                "filename": "dagline-0.0.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "255d83712d149c7ca8f04f1d205e785d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10",
+                "size": 11984,
+                "upload_time": "2022-12-15T12:08:33",
+                "upload_time_iso_8601": "2022-12-15T12:08:33.251032Z",
+                "url": "https://files.pythonhosted.org/packages/01/4d/01921a5ada76cce8b0bf1012b2a6f466d0702289632ee2c475972a3c6038/dagline-0.0.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e40c68648dabd52531ab38daaae80c1a",
+                    "sha256": "009ddc91dcb36d95da4be0f995bb0aaa4aec6bd24961e1e3ce6b7e696bb5771a"
+                },
+                "downloads": -1,
+                "filename": "dagline-0.0.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e40c68648dabd52531ab38daaae80c1a",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10",
+                "size": 8001,
+                "upload_time": "2022-12-15T12:08:35",
+                "upload_time_iso_8601": "2022-12-15T12:08:35.454971Z",
+                "url": "https://files.pythonhosted.org/packages/24/6f/e1e95c7a2e7554e29270e9564f475f582567b2a0ad440f4a4f6eb0edf6b0/dagline-0.0.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

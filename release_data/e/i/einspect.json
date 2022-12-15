@@ -12,7 +12,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# einspect\n\nExtended Inspect for CPython\n\nProvides simple and robust ways to view and modify the base memory structures of Python objects at runtime.\n\n> *einspect* is in very early stages of development, API may change at any time without notice.\n\nNote: The below examples show interactions with a `TupleView`, but applies much the same way generically for\nmany of the specialized `View` subtypes that are dynamically returned by the `view` function. If no specific\nview is implemented, the base `View` will be used which represents limited interactions on the assumption of\n`PyObject` struct parts.\n\n\n```python\nfrom einspect import view\n\nobj = (1, 2, 3)\nv = view(obj)\n\nprint(v)\n```\n> `TupleView[tuple](<PyTupleObject at 0x10078dd00>)`\n\n## 1. Viewing python object struct attributes\n\nState information of the underlying `PyTupleObject` struct can be accessed through the view's attributes.\n```python\nprint(v.ref_count)  # ob_refcnt\nprint(v.type)       # ob_type\nprint(v.size)       # ob_size\nprint(v.items)      # ob_item\n```\n> ```\n> 4\n> <class 'tuple'>\n> 3\n> <einspect.structs.c_long_Array_3 object at 0x105038ed0>\n> ```\n\n## 2. Writing to view attributes\n\nWriting to these attributes will affect the underlying object of the view.\n\nNote that most memory-unsafe attribute modifications require entering an unsafe context manager with `View.unsafe()`\n```python\nwith v.unsafe():\n    v.size -= 1\n\nprint(obj)\n```\n> `(1, 2)`\n\n## 3. Writing to view attributes\n\nSince `items` is an array of integer pointers to python objects, they can be replaced by `id()` addresses to modify\nindex items in the tuple.\n```python\nfrom einspect import view\n\ntup = (100, 200)\n\nwith view(tup).unsafe() as v:\n    s = \"dog\"\n    v.item[0] = id(s)\n\nprint(tup)\n```\n> ```\n> ('dog', 200)\n> \n> >> Process finished with exit code 139 (interrupted by signal 11: SIGSEGV)\n> ```\n\nSo here we did set the item at index 0 with our new item, the string `\"dog\"`, but this also caused a segmentation fault.\nNote that the act of setting an item in containers like tuples and lists \"steals\" a reference to the object, even\nif we only supplied the address pointer.\n\nTo make this safe, we will have to manually increment a ref-count before the new item is assigned. To do this we can\neither create a `view` of our new item, and increment its `ref_count += 1`, or use the apis from `einspect.api`, which\nare pre-typed implementations of `ctypes.pythonapi` methods.\n```python\nfrom einspect import view\nfrom einspect.api import Py\n\ntup = (100, 200)\n\nwith view(tup).unsafe() as v:\n    a = \"bird\"\n    Py.IncRef(a)\n    v.item[0] = id(a)\n    \n    b = \"kitten\"\n    Py.IncRef(b)\n    v.item[1] = id(b)\n\nprint(tup)\n```\n> `('bird', 'kitten')`\n \n\ud83c\udf89 No more seg-faults, and we just successfully set both items in an otherwise immutable tuple.\n\nTo make the above routine easier, you can access an abstraction by simply indexing the view.\n\n```python\nfrom einspect import view\n\ntup = (\"a\", \"b\", \"c\")\n\nv = view(tup)\nv[0] = 123\nv[1] = \"hm\"\nv[2] = \"\ud83e\udd14\"\n\nprint(tup)\n```\n> `(123, 'hm', '\ud83e\udd14')`\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -41,7 +40,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16083284,
+        "last_serial": 16107913,
         "urls": [
             {
                 "comment_text": "",
@@ -80,6 +79,93 @@
                 "upload_time": "2022-12-13T08:06:43",
                 "upload_time_iso_8601": "2022-12-13T08:06:43.069120Z",
                 "url": "https://files.pythonhosted.org/packages/5e/75/07a384b4a0dac24a72b0bf5d7b647c1da9ea96e08fb7f35dcb4eed90705d/einspect-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.1": {
+        "info": {
+            "author": "ionite34",
+            "author_email": "dev@ionite.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# einspect\n\nExtended Inspect for CPython\n\nProvides simple and robust ways to view and modify the base memory structures of Python objects at runtime.\n\n> *einspect* is in very early stages of development, API may change at any time without notice.\n\nNote: The below examples show interactions with a `TupleView`, but applies much the same way generically for\nmany of the specialized `View` subtypes that are dynamically returned by the `view` function. If no specific\nview is implemented, the base `View` will be used which represents limited interactions on the assumption of\n`PyObject` struct parts.\n\n\n```python\nfrom einspect import view\n\nobj = (1, 2, 3)\nv = view(obj)\n\nprint(v)\n```\n> `TupleView[tuple](<PyTupleObject at 0x10078dd00>)`\n\n## 1. Viewing python object struct attributes\n\nState information of the underlying `PyTupleObject` struct can be accessed through the view's attributes.\n```python\nprint(v.ref_count)  # ob_refcnt\nprint(v.type)       # ob_type\nprint(v.size)       # ob_size\nprint(v.items)      # ob_item\n```\n> ```\n> 4\n> <class 'tuple'>\n> 3\n> <einspect.structs.c_long_Array_3 object at 0x105038ed0>\n> ```\n\n## 2. Writing to view attributes\n\nWriting to these attributes will affect the underlying object of the view.\n\nNote that most memory-unsafe attribute modifications require entering an unsafe context manager with `View.unsafe()`\n```python\nwith v.unsafe():\n    v.size -= 1\n\nprint(obj)\n```\n> `(1, 2)`\n\n## 3. Writing to view attributes\n\nSince `items` is an array of integer pointers to python objects, they can be replaced by `id()` addresses to modify\nindex items in the tuple.\n```python\nfrom einspect import view\n\ntup = (100, 200)\n\nwith view(tup).unsafe() as v:\n    s = \"dog\"\n    v.item[0] = id(s)\n\nprint(tup)\n```\n> ```\n> ('dog', 200)\n> \n> >> Process finished with exit code 139 (interrupted by signal 11: SIGSEGV)\n> ```\n\nSo here we did set the item at index 0 with our new item, the string `\"dog\"`, but this also caused a segmentation fault.\nNote that the act of setting an item in containers like tuples and lists \"steals\" a reference to the object, even\nif we only supplied the address pointer.\n\nTo make this safe, we will have to manually increment a ref-count before the new item is assigned. To do this we can\neither create a `view` of our new item, and increment its `ref_count += 1`, or use the apis from `einspect.api`, which\nare pre-typed implementations of `ctypes.pythonapi` methods.\n```python\nfrom einspect import view\nfrom einspect.api import Py\n\ntup = (100, 200)\n\nwith view(tup).unsafe() as v:\n    a = \"bird\"\n    Py.IncRef(a)\n    v.item[0] = id(a)\n    \n    b = \"kitten\"\n    Py.IncRef(b)\n    v.item[1] = id(b)\n\nprint(tup)\n```\n> `('bird', 'kitten')`\n \n\ud83c\udf89 No more seg-faults, and we just successfully set both items in an otherwise immutable tuple.\n\nTo make the above routine easier, you can access an abstraction by simply indexing the view.\n\n```python\nfrom einspect import view\n\ntup = (\"a\", \"b\", \"c\")\n\nv = view(tup)\nv[0] = 123\nv[1] = \"hm\"\nv[2] = \"\ud83e\udd14\"\n\nprint(tup)\n```\n> `(123, 'hm', '\ud83e\udd14')`\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "einspect",
+            "package_url": "https://pypi.org/project/einspect/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/einspect/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/einspect/0.1.1/",
+            "requires_dist": [
+                "typing-extensions (>=4.4.0,<5.0.0)"
+            ],
+            "requires_python": ">=3.8,<3.12",
+            "summary": "Extended Inspect - view and modify memory structs of runtime objects.",
+            "version": "0.1.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16107913,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c6616a1bcdee7b46a31586ee46f7e556",
+                    "sha256": "459a16f75a898bfaef4da95422c8512d9b90c0286d1864650f8e1a7d2cf90e2e"
+                },
+                "downloads": -1,
+                "filename": "einspect-0.1.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c6616a1bcdee7b46a31586ee46f7e556",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<3.12",
+                "size": 12058,
+                "upload_time": "2022-12-15T01:42:25",
+                "upload_time_iso_8601": "2022-12-15T01:42:25.919563Z",
+                "url": "https://files.pythonhosted.org/packages/9b/21/28a298e5ad0b55765bdadd8b10120e50eb2e03d0fa3851453097fdb50ec6/einspect-0.1.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "91168bebfd8e21a35b1a84402aef1c68",
+                    "sha256": "e8122339480776f3c752d44bc7e5aa8c2570ae8a332f978793d8d7b167e359a0"
+                },
+                "downloads": -1,
+                "filename": "einspect-0.1.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "91168bebfd8e21a35b1a84402aef1c68",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<3.12",
+                "size": 11388,
+                "upload_time": "2022-12-15T01:42:27",
+                "upload_time_iso_8601": "2022-12-15T01:42:27.028466Z",
+                "url": "https://files.pythonhosted.org/packages/1d/43/bcfa49df0da7cc1a386fe115ce2d9932d4c352eac3323e83f802863c29f0/einspect-0.1.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

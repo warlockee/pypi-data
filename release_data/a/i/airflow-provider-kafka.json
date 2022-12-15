@@ -52,7 +52,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14644242,
+        "last_serial": 16108229,
         "urls": [
             {
                 "comment_text": "",
@@ -113,7 +113,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# Kafka Airflow Provider\n\n\nAn airflow provider to: \n- interact with kafka clusters\n- read from topics\n- write to topics\n- wait for specific messages to arrive to a topic\n\nThis package currently contains\n\n3 hooks :\n- `airflow_provider_kafka.hooks.admin_client.KafkaAdminClientHook` - a hook to work against the actual kafka admin client\n- `airflow_provider_kafka.hooks.consumer.KafkaConsumerHook` - a hook that creates a consumer and provides it for interaction\n- `airflow_provider_kafka.hooks.producer.KafkaProducerHook` - a hook that creates a producer and provides it for interaction\n\n3 operators : \n- `airflow_provider_kafka.operators.await_message.AwaitKafkaMessageOperator` - a deferable operator (sensor) that awaits to encounter a message in the log before triggering down stream tasks.\n- `airflow_provider_kafka.operators.consume_from_topic.ConsumeFromTopicOperator` - an operator that reads from a topic and applies a function to each message fetched. \n- `airflow_provider_kafka.operators.produce_to_topic.ProduceToTopicOperator` - an operator that uses a iterable to produce messages as key/value pairs to a kafka topic. \n\n1 trigger : \n- `airflow_provider_kafka.triggers.await_message.AwaitMessageTrigger`\n\n\n## Quick start\n\n` pip install airflow-provider-kafka`\n\n```python \n    # hello_kafka.py \n    \n    from airflow_provider_kafka.operators.await_message import AwaitKafkaMessageOperator\n    from airflow_provider_kafka.operators.consume_from_topic import ConsumeFromTopicOperator\n    from airflow_provider_kafka.operators.produce_to_topic import ProduceToTopicOperator\n\n    def producer_function():\n        for i in range(20):\n            yield (json.dumps(i), json.dumps(i + 1))\n\n\n\n    consumer_logger = logging.getLogger(\"airflow\")\n    def consumer_function(message, prefix=None):\n        key = json.loads(message.key())\n        value = json.loads(message.value())\n        consumer_logger.info(f\"{prefix} {message.topic()} @ {message.offset()}; {key} : {value}\")\n        return\n\n\n    def await_function(message):\n        if json.loads(message.value()) % 5 == 0:\n            return f\" Got the following message: {json.loads(message.value())}\"\n\n    t1 = ProduceToTopicOperator(\n        task_id=\"produce_to_topic\",\n        topic=\"test_1\",\n        producer_function=\"hello_kafka.producer_function\",\n        kafka_config={\"bootstrap.servers\": \"broker:29092\"},\n    )\n\n    t2 = ConsumeFromTopicOperator(\n        task_id=\"consume_from_topic\",\n        topics=[\"test_1\"],\n        apply_function=\"hello_kafka.consumer_function\",\n        apply_function_kwargs={\"prefix\": \"consumed:::\"},\n        consumer_config={\n            \"bootstrap.servers\": \"broker:29092\",\n            \"group.id\": \"foo\",\n            \"enable.auto.commit\": False,\n            \"auto.offset.reset\": \"beginning\",\n        },\n        commit_cadence=\"end_of_batch\",\n        max_messages=10,\n        max_batch_size=2,\n    )\n\n    AwaitKafkaMessageOperator(\n        task_id=\"awaiting_message\",\n        topics=[\"test_1\"],\n        apply_function=\"hello_kafka.await_function\",\n        kafka_config={\n            \"bootstrap.servers\": \"broker:29092\",\n            \"group.id\": \"awaiting_message\",\n            \"enable.auto.commit\": False,\n            \"auto.offset.reset\": \"beginning\",\n        },\n        xcom_push_key=\"retrieved_message\",\n    )\n```\n\n## FAQs \n\n**Why confluent kafka and not (other library) ?** A few reasons: the [confluent-kafka](https://github.com/confluentinc/confluent-kafka-python) library is guaranteed to be 1:1 functional with librdkafka, is faster, and is maintained by a company with a commercial stake in ensuring the continued quality and upkeep of it as a product. \n\n**Why not release this into airflow directly ?** I could probably make the PR and get it through, but the airflow code base is getting huge and I don't want to burden the maintainers with code that they don't own for maintainence. Also there's been multiple attempts to get a Kafka provider in before and this is just faster. \n\n**Why is most of the configuration handled in a dict ?** Because that's how `confluen-kafka` does it. I'd rather maintain interfaces that people already using kafka are comfortable with as a starting point - I'm happy to add more options/ interfaces in later but would prefer to be thoughtful about it to ensure that there difference between these operators and the actual client interface are minimal. \n\n## Development\n\n### Unit Tests\n\nUnit tests are located at `tests/unit`, a kafka server isn't required to run these tests.\nexecute with `pytest`\n\n\n### Setup on M1 Mac\nInstalling on M1 chip means a brew install of the librdkafka library before you can pip install confluent-kafka\n```bash\nbrew install librdkafka\nexport C_INCLUDE_PATH=/opt/homebrew/Cellar/librdkafka/1.8.2/include\nexport LIBRARY_PATH=/opt/homebrew/Cellar/librdkafka/1.8.2/lib\npip install confluent-kafka\n```\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -151,7 +150,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14644242,
+        "last_serial": 16108229,
         "urls": [
             {
                 "comment_text": "",
@@ -190,6 +189,105 @@
                 "upload_time": "2022-08-03T17:42:29",
                 "upload_time_iso_8601": "2022-08-03T17:42:29.518145Z",
                 "url": "https://files.pythonhosted.org/packages/3d/53/c4c30714319d1da17429fbb347201225cef8d2e6e2ad4bd91c3775edc46e/airflow-provider-kafka-0.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.1": {
+        "info": {
+            "author": "Dylan Storey",
+            "author_email": "dylan.storey@astronomer.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Environment :: Web Environment",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# Kafka Airflow Provider\n\n\nAn airflow provider to: \n- interact with kafka clusters\n- read from topics\n- write to topics\n- wait for specific messages to arrive to a topic\n\nThis package currently contains\n\n3 hooks :\n- `airflow_provider_kafka.hooks.admin_client.KafkaAdminClientHook` - a hook to work against the actual kafka admin client\n- `airflow_provider_kafka.hooks.consumer.KafkaConsumerHook` - a hook that creates a consumer and provides it for interaction\n- `airflow_provider_kafka.hooks.producer.KafkaProducerHook` - a hook that creates a producer and provides it for interaction\n\n3 operators : \n- `airflow_provider_kafka.operators.await_message.AwaitKafkaMessageOperator` - a deferable operator (sensor) that awaits to encounter a message in the log before triggering down stream tasks.\n- `airflow_provider_kafka.operators.consume_from_topic.ConsumeFromTopicOperator` - an operator that reads from a topic and applies a function to each message fetched. \n- `airflow_provider_kafka.operators.produce_to_topic.ProduceToTopicOperator` - an operator that uses a iterable to produce messages as key/value pairs to a kafka topic. \n\n1 trigger : \n- `airflow_provider_kafka.triggers.await_message.AwaitMessageTrigger`\n\n\n## Quick start\n\n` pip install airflow-provider-kafka`\n\n```python \n    # hello_kafka.py \n    \n    from airflow_provider_kafka.operators.await_message import AwaitKafkaMessageOperator\n    from airflow_provider_kafka.operators.consume_from_topic import ConsumeFromTopicOperator\n    from airflow_provider_kafka.operators.produce_to_topic import ProduceToTopicOperator\n\n    def producer_function():\n        for i in range(20):\n            yield (json.dumps(i), json.dumps(i + 1))\n\n\n\n    consumer_logger = logging.getLogger(\"airflow\")\n    def consumer_function(message, prefix=None):\n        key = json.loads(message.key())\n        value = json.loads(message.value())\n        consumer_logger.info(f\"{prefix} {message.topic()} @ {message.offset()}; {key} : {value}\")\n        return\n\n\n    def await_function(message):\n        if json.loads(message.value()) % 5 == 0:\n            return f\" Got the following message: {json.loads(message.value())}\"\n\n    t1 = ProduceToTopicOperator(\n        task_id=\"produce_to_topic\",\n        topic=\"test_1\",\n        producer_function=\"hello_kafka.producer_function\",\n        kafka_config={\"bootstrap.servers\": \"broker:29092\"},\n    )\n\n    t2 = ConsumeFromTopicOperator(\n        task_id=\"consume_from_topic\",\n        topics=[\"test_1\"],\n        apply_function=\"hello_kafka.consumer_function\",\n        apply_function_kwargs={\"prefix\": \"consumed:::\"},\n        consumer_config={\n            \"bootstrap.servers\": \"broker:29092\",\n            \"group.id\": \"foo\",\n            \"enable.auto.commit\": False,\n            \"auto.offset.reset\": \"beginning\",\n        },\n        commit_cadence=\"end_of_batch\",\n        max_messages=10,\n        max_batch_size=2,\n    )\n\n    AwaitKafkaMessageOperator(\n        task_id=\"awaiting_message\",\n        topics=[\"test_1\"],\n        apply_function=\"hello_kafka.await_function\",\n        kafka_config={\n            \"bootstrap.servers\": \"broker:29092\",\n            \"group.id\": \"awaiting_message\",\n            \"enable.auto.commit\": False,\n            \"auto.offset.reset\": \"beginning\",\n        },\n        xcom_push_key=\"retrieved_message\",\n    )\n```\n\n## FAQs \n\n**Why confluent kafka and not (other library) ?** A few reasons: the [confluent-kafka](https://github.com/confluentinc/confluent-kafka-python) library is guaranteed to be 1:1 functional with librdkafka, is faster, and is maintained by a company with a commercial stake in ensuring the continued quality and upkeep of it as a product. \n\n**Why not release this into airflow directly ?** I could probably make the PR and get it through, but the airflow code base is getting huge and I don't want to burden the maintainers with code that they don't own for maintainence. Also there's been multiple attempts to get a Kafka provider in before and this is just faster. \n\n**Why is most of the configuration handled in a dict ?** Because that's how `confluent-kafka` does it. I'd rather maintain interfaces that people already using kafka are comfortable with as a starting point - I'm happy to add more options/ interfaces in later but would prefer to be thoughtful about it to ensure that there difference between these operators and the actual client interface are minimal. \n\n## Development\n\n### Unit Tests\n\nUnit tests are located at `tests/unit`, a kafka server isn't required to run these tests.\nexecute with `pytest`\n\n\n### Setup on M1 Mac\nInstalling on M1 chip means a brew install of the librdkafka library before you can pip install confluent-kafka\n```bash\nbrew install librdkafka\nexport C_INCLUDE_PATH=/opt/homebrew/Cellar/librdkafka/1.8.2/include\nexport LIBRARY_PATH=/opt/homebrew/Cellar/librdkafka/1.8.2/lib\npip install confluent-kafka\n```\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/astronomer/airflow-provider-kafka",
+            "keywords": "",
+            "license": "Apache License 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "airflow-provider-kafka",
+            "package_url": "https://pypi.org/project/airflow-provider-kafka/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/airflow-provider-kafka/",
+            "project_urls": {
+                "Changelog": "https://github.com/astronomer/airflow-provider-kafka/blob/main/CHANGELOG.md",
+                "Homepage": "https://github.com/astronomer/airflow-provider-kafka",
+                "Source Code": "https://github.com/astronomer/airflow-provider-kafka"
+            },
+            "release_url": "https://pypi.org/project/airflow-provider-kafka/0.2.1/",
+            "requires_dist": [
+                "apache-airflow (>=2.2.0)",
+                "asgiref",
+                "confluent-kafka (>=1.8.2)",
+                "mypy (>=0.800) ; extra == 'dev'",
+                "pytest ; extra == 'dev'",
+                "pre-commit ; extra == 'dev'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Apache Airflow Kafka provider containing Deferrable Operators & Sensors.",
+            "version": "0.2.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16108229,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "31e391931e26a3dd989ebb4b7756cc97",
+                    "sha256": "d095d32322b36ceca625eeade73250420f5c652e08547adbcd6c592d3769e543"
+                },
+                "downloads": -1,
+                "filename": "airflow_provider_kafka-0.2.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "31e391931e26a3dd989ebb4b7756cc97",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 20354,
+                "upload_time": "2022-12-15T02:18:13",
+                "upload_time_iso_8601": "2022-12-15T02:18:13.869767Z",
+                "url": "https://files.pythonhosted.org/packages/c6/5a/d52dc5080127c6024727b120e81e4449979baa15efbb666b87c059a404ee/airflow_provider_kafka-0.2.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f8999a7404e54a63c1aec3002e4ae47d",
+                    "sha256": "2595cada2bf10f0d02ecfccaa69b167f969c188877c3409f17c97b4dd0b944d4"
+                },
+                "downloads": -1,
+                "filename": "airflow-provider-kafka-0.2.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "f8999a7404e54a63c1aec3002e4ae47d",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 15898,
+                "upload_time": "2022-12-15T02:18:15",
+                "upload_time_iso_8601": "2022-12-15T02:18:15.805112Z",
+                "url": "https://files.pythonhosted.org/packages/5b/01/7d2cd7055d9f9a0d3436131619fe065278589de22243e29c6bc6e5fbb7e5/airflow-provider-kafka-0.2.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

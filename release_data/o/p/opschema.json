@@ -35,7 +35,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16090210,
+        "last_serial": 16109979,
         "urls": [
             {
                 "comment_text": "",
@@ -116,7 +116,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16090210,
+        "last_serial": 16109979,
         "urls": [
             {
                 "comment_text": "",
@@ -197,7 +197,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16090210,
+        "last_serial": 16109979,
         "urls": [
             {
                 "comment_text": "",
@@ -278,7 +278,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16090210,
+        "last_serial": 16109979,
         "urls": [
             {
                 "comment_text": "",
@@ -359,7 +359,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16090210,
+        "last_serial": 16109979,
         "urls": [
             {
                 "comment_text": "",
@@ -410,7 +410,6 @@
             "author_email": "hrbigelow@gmail.com",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "\n# opschema \n\nA system to build input constraint schemas for TensorFlow operations\n\nInstall from PyPI:\n\n    pip install opschema\n\n## Motivation\n\nTensorFlow Python ops give cryptic error messages. Often the\nexceptions arise from several stack levels down the TensorFlow codebase.\nBecause of this, it is frequently not clear to the user what input constraints\nare violated and what should be done to correct the error.\n\nThis is particularly challenging for ops that are highly polymorphic in the\ncombinations of shapes, data layouts and dtypes they accept. Documentation\noften does not fully describe the legal inputs to ops. Finding out whether a\nparticular call is legal must be done by trial and error in many cases.\n\n# Introduction\n\nopschema provides an API for building *op schemas* for representing TensorFlow\noperations.  Once written, a schema represents a single operation, such as\n`tf.nn.convoution` or `tf.nn.bias_add`, etc.  The schema defines what inputs are\nlegal for the op.  Once defined, it provides four functionalities:\n\n* wrap TensorFlow op, intercept inputs at call-time, provide human-readable\n  error message \n\n* generate a complete set of legal (and a particular set of illegal) inputs for\n  the op\n\n* provide mathematically precise documentation of legal call\n  configurations\n\n* empirically validate schema correctness against TensorFlow\n  op, given in TP, TN, FP and FN counts\n\n## Synopsis\n\n`opschema` provides a registry for the available schemas and allows you\nto load them individually or all together.  Schemas are instances of\n`opschema.schema.OpSchema`, which provides member functions to configure it.\nThe schema definitions are in `opschema/ops`.\n\nTo see the list of implemented schemas, use:\n\n    python -m opschema.cl list\n\nor\n\n```python\nimport opschema\nops = opschema.list_schemas()\nprint('\\n'.join(op for op in ops))\ntf.gather_nd\ntf.nn.atrous_conv2d\ntf.nn.atrous_conv2d_transpose\ntf.nn.avg_pool\ntf.nn.bias_add\ntf.nn.convolution\ntf.nn.depth_to_space\n...\n```\n\nTo print a human-readable representation of a schema, use one of:\n\n    python -m opschema.cl explain tf.gather_nd\n    python -m opschema.cl explain tf.gather_nd -i\n    python -m opschema.cl explain tf.gather_nd --include_inventory\n\nor\n\n```python\nopschema.explain('tf.gather_nd', include_inventory=False)\n```\n\nNote that including the inventory may be very long for highly polymorphic ops.\n\nTo wrap the original TensorFlow op so that it opschema can intercept its inputs\nand provide error messages.  \n\n```python\n# wrap tf.gather_nd\nopschema.register('tf.gather_nd')\n\n# call tf.gather_nd(...) directly\n\n# restore tf.gather_nd to original\nopschema.deregister('tf.gather_nd')\n```\n\nThis process reassigns the member function, for example `tf.gather_nd` to a\nwrapper function.  The wrapper function first inspects the inputs and prints an\nerror message if any violation is detected.  Regardless of violation, it then\npasses the inputs on to the original TensorFlow operation.  In this way it is\notherwise unobtrusive to the functioning of an existing network.\n\n## Example Error messages - before and after\n\nRun\n\n    python -m opschema.cl validate <op_path> <reports_dir> [id_list]\n    # example\n    python -m opschema.cl validate tf.nn.convolution reports\n\nThe example produces files `reports/tf.nn.convolution.txt` and\n`reports/tf.nn.convolution.sum.txt`.  If id_list is given, there will be one\nentry for each id.  Otherwise, there is one entry for each input produced by\n`generate_args()`.  \n\n## How does it work?\n\nTo see a schema, run:\n\n    python -m opschema.cl explain <op_path> [--include_inventory]\n    # examples \n    python -m opschema.cl explain tf.nn.convolution\n\nThis provides a report in several sections, gradually explained below.\n\n`opschema` uses three abstractions to define the schema:  *index*, *signature*,\nand *layout*.\n\n### Index\n\nThe lowest level abstraction is the *index*, created with the `OpSchema` API\nfunction [add_index](opschema/schema.py#L877).  This is a group of semantically\nrelated dimensions that occur within the shape of input tensors or other\nshape-related arguments.  An index has a single-letter name and a longer\ndescription.  It is rank-agnostic in that different calls to the op may take on\na different number of these dimensions.  The individual components of the\ndimensions often participate in formulas with dimensions of other indices.\n\nExamples:\n\n    code  description\n    b     batch\n    i     input spatial\n    k     input channel\n    f     filter spatial\n    j     output filter \n    l     output channel\n\nRank-agnostic here means that, at run-time, an index can represent zero, one,\ntwo, or more individual dimensions within a tensor shape, depending on how the\nop was called.\n\n### Signature\n\nA *signature* is simply an ordered sequence of *indexes*, usually represented\nas a string of the one-letter codes.  Most input tensors have a *signature*.\nImportantly, since each *index* is rank-agnostic, so is the signature.\n\nExamples:\n\n    tensor   signature\n    input    bik           \n    filter   fjl\n\nWhile indexes are rank-agnostic, it is also useful to see possible\n*instantiations* of indexes showing the actual rank of the shape for a\nparticular call of the op.  For instance, `tf.nn.convolution` may be called\nwith 1, 2, or 3 spatial dimensions, which imply the rank of indexes 'i' and\n'f'.  Similarly, it works with any number of batch dimensions 'b' >= 1.  Such\ninstantiations can be represented using repetitions of the one-letter code:\n\nExamples:\n\n    input shape instantiations\n    bik, biik, biiik, bbik, bbbik, ...\n\nBy default, each index has no constraints on what rank it can take on.\nRank constraints are provided within the [add_index](opschema/schema.py#L877)\nAPI function.  The 'explain' command-line function has a section on the index\nrank constraints.  For `tf.nn.convolution` it is:\n\n```\nIndex ranks\n\nrank(b) in [1, 5]\nrank(i) in [1, 3]\nrank(f) = rank(i)\nrank(p) = rank(i)\nrank(s) = rank(i)\nrank(d) = rank(i)\nrank(k) = 1\nrank(j) = 1\nrank(l) = 1\nrank(o) = rank(i)\n```\n\nThe rank of an index can be constrained either within a range, or constrained\nto be equal to that of another index.  In the above, the rank of the 'input\nspatial' (i) index can be in [1,3], and there can be between 1 and 5 batch\ndimensions.  The rank of the 'filter spatial' (f) index is set equal to that of\n'input spatial' and so on.\n\n#### Computed Indexes and intermediate Indexes\n\nIndexes come in two varieties:  *computed* or not computed.  Being *computed*\nmeans that the dimensions are determined as a function of the dimensions of\nother indices.  A function is assigned using the API call\n[OpSchema.comp_dims_cw](opschema/schema.py#1130) for a component-wise computation, or\n[OpSchema.comp_dims](opschema/schema.py#1113) for a non-component-wise computation.  For\nexample, with `tf.nn.convolution` the 'explain' section shows:\n\n```bash\nComputed dimensions\n\np = (f - 1) * d + 1\no = ceil((i - p + 1) / s)   [padding = VALID]\no = ceil(i / s)   [padding = SAME]\n```\n\nThese are registered as component-wise.  For instance, if `rank(i) = 2`, then\neach dimension of `i` will be computed from the corresponding dimension of `s`\nand/or `p`, and so forth.\n\nHere, we see that 'padded filter spatial' (p) index is computed from 'filter\nspatial' and 'dilation'.  And, 'output spatial' (o) has two different formulas,\ndepending on the command-line argument 'padding'.\n\nNote here that the 'p' index does not appear anywhere in an input signature.\nIt is purely an intermediate calculation.  But, having an explicit name for the\nindex is useful to clarify to the user how the visible 'o' index is computed in\nthe case of 'padding = VALID'.\n\nThese formulas are also used to display actual dimensions in error messages.\n\n### Layout\n\nA *layout* is a set of consistent *signatures* accepted by the op.  Some ops\nhave just a single layout.  May have two, which could be described as 'channel\nfirst' or 'channel last', and are determined by the `data_format` argument.\n\nExamples:\n\n    input  filters  strides  dilations  return[0]  data_format\n    bki    fjl      s        d          blo        ['NCW', 'NCHW', 'NCDHW']\n    bik    fjl      s        d          bol        ['NWC', 'NHWC', 'NDHWC']\n\nThe above example shows two different layouts for the `tf.nn.convolution`\noperation.  Like *signatures*, the notion of a *layout* is rank-agnostic.  \n\nThe indexes and layouts for a given op schema can be shown with:\n\n    python -m opschema.cl explain tf.nn.convolution\n\nTo see the complete list of signature instantiations, use:\n\n    python -m opschema.cl explain tf.nn.convolution -i\n\n# DType constraints\n\nTensorFlow ops are usually constrained to work on certain combinations of\n`dtype` of the input tensors.  `opschema` provides a few API functions to\nspecify this.\n\n```python\n# DType constraints for tf.nn.convolution\nop.valid_dtypes('input', ('int32', 'float', 'bfloat16'))\nop.equate_dtypes('filters', 'input')\nop.exclude_combos('input', 'int32', 'i', (1,2), LAYOUT, 0)\nop.exclude_combos('input', 'int32', 'i', 3)\nop.exclude_combos('input', 'bfloat16', 'i', (1,2))\nop.exclude_combos('input', 'bfloat16', 'i', 3, LAYOUT, 0)\n```\n\nThe above snippet of the `tf.nn.convolution` schema definition illustrates the\nthree `OpSchema` API calls related to dtype constraints.  `valid_dtypes` simply\nspecifies which dtypes are accepted for a given argument tensor.  There is a\nwildcard-like syntax (see [base.py:parse_dtype_expr](opschema/base.py#L264))\nused to specify multiple dtypes briefly.\n\n`equate_dtypes` says that the dtype of one argument tensor must be identical to\nanother.\n\n`exclude_combos` declares that a certain combination of dtypes, index ranks,\nand/or layouts is excluded.  This is needed because certain of these\ncombinations may not be implemented by TensorFlow.\n\n# Other Constraints\n\nThere are other relationships between inputs in certain TensorFlow ops.  For\nexample, with `tf.gather_nd`, the last dimension of the `indices` shape\ndetermines the rank of the 'read location' (r) index.  This is declared using\nthe API function [OpSchema.rank_dims_constraint](opschema/schema.py#L1638).\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -441,7 +440,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16090210,
+        "last_serial": 16109979,
         "urls": [
             {
                 "comment_text": "",
@@ -480,6 +479,88 @@
                 "upload_time": "2022-12-13T19:07:08",
                 "upload_time_iso_8601": "2022-12-13T19:07:08.422130Z",
                 "url": "https://files.pythonhosted.org/packages/45/7c/0a103166430c1eae063b031b3270368491d66b697abf8c5e1c90addbff1c/opschema-0.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.2": {
+        "info": {
+            "author": "Henry Bigelow",
+            "author_email": "hrbigelow@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "\n# opschema \n\nA system to build input constraint schemas for TensorFlow operations\n\nInstall from PyPI:\n\n    pip install opschema\n\n# Motivation\n\nTensorFlow Python is a workhorse of the Machine Learning world used by many\nthousands of developers.  However, as an API, it is challenging.  Tensor ops\nare often highly polymorphic with intricate shape and other required\nrelationships in inputs.  If these are not met, often the exception will arise\nfrom several stack levels down the codebase.  Because of this, it is\nfrequently not clear to the user what input constraints are violated and what\nshould be done to correct the error.\n\nDocumentation very often does not fully describe the legal inputs to ops. Finding\nout whether a particular call is legal must be done by trial and error in many\ncases.\n\nIn some cases, the API requires redundant information to be provided.  For\nexample,\n[tf.nn.atrous_conv2d_transpose](https://www.tensorflow.org/api_docs/python/tf/nn/atrous_conv2d_transpose)\nand\n[tf.nn.conv_transpose](https://www.tensorflow.org/api_docs/python/tf/nn/conv_transpose)\nrequire an `output_shape` parameter which requires the user to restate the\n'batch' and 'out_channel' dimensions, and compute the out_height and out_width\nmanually.  This is also the case with\n\nMany ops accept a `data_format` parameter which takes on values such as 'NCW',\n'NCHW', 'NCDHW', 'NWC', 'NHWC' and 'NDHWC'.  This parameter is really\ncommunicating the notion of a *layout* which is either *channel first* or\n*channel last*.  Which variety of `data_format` is needed is already\ncommunicated by the `filter` shape.  \n\nIn fact, contraray to documentation, \n[tf.nn.convolution](https://www.tensorflow.org/api_docs/python/tf/nn/convolution)\nactually does accept 'NWC', 'NCW' values for `data_format` for some 2D\nconvolutions.\n\n# Introduction\n\nopschema provides an API for building *op schemas* for representing TensorFlow\noperations.  Once written, a schema represents a single operation, such as\n`tf.nn.convoution` or `tf.nn.bias_add`, etc.  The schema defines what inputs are\nlegal for the op.  Once defined, it provides four functionalities:\n\n* wrap TensorFlow op, intercept inputs at call-time, provide human-readable\n  error message \n\n* generate a complete set of legal (and a particular set of illegal) inputs for\n  the op\n\n* provide mathematically precise documentation of legal call\n  configurations\n\n* empirically validate schema correctness against TensorFlow\n  op, given in TP, TN, FP and FN counts\n\n## Synopsis\n\n`opschema` provides a registry for the available schemas and allows you\nto load them individually or all together.  Schemas are instances of\n`opschema.schema.OpSchema`, which provides member functions to configure it.\nThe schema definitions are in `opschema/ops`.\n\nTo see the list of implemented schemas, use:\n\n    python -m opschema.cl list\n\nTo print a human-readable representation of a schema, use one of:\n\n    python -m opschema.cl explain tf.gather_nd\n    python -m opschema.cl explain tf.gather_nd -i\n    python -m opschema.cl explain tf.gather_nd --include_inventory\n\nNote that including the inventory may be very long for highly polymorphic ops.\n\nTo wrap the original TensorFlow op so that it opschema can intercept its inputs\nand provide error messages.  \n\n```python\n# wrap tf.gather_nd\nopschema.register('tf.gather_nd')\n\n# call tf.gather_nd(...) directly\n\n# restore tf.gather_nd to original\nopschema.deregister('tf.gather_nd')\n```\n\nThis process reassigns the member function, for example `tf.gather_nd` to a\nwrapper function.  The wrapper function first inspects the inputs and prints an\nerror message if any violation is detected.  Regardless of violation, it then\npasses the inputs on to the original TensorFlow operation.  In this way it is\notherwise unobtrusive to the functioning of an existing network.\n\n## Example Error messages - before and after\n\nRun\n\n    python -m opschema.cl validate OP_PATH REPORTS_DIR [TEST_IDS] [SKIP_IDS] [ERROR_QUOTA]\n    # example\n    python -m opschema.cl validate tf.nn.convolution reports\n\nThe example produces files `reports/tf.nn.convolution.txt` and\n`reports/tf.nn.convolution.sum.txt`.  \n\n## How does it work?\n\n`opschema` uses three abstractions to define the schema:  *index*, *signature*,\nand *layout*.\n\n### Index\n\nThe lowest level abstraction is the *index*, created with the `OpSchema` API\nfunction [add_index](opschema/schema.py#L877).  This is a group of semantically\nrelated dimensions that occur within the shape of input tensors or other\nshape-related arguments.  An index has a single-letter name and a longer\ndescription.  It is rank-agnostic in that different calls to the op may take on\na different number of these dimensions.  The individual components of the\ndimensions often participate in formulas with dimensions of other indices.\n\nExamples:\n\n    code  description\n    b     batch\n    i     input spatial\n    k     input channel\n    f     filter spatial\n    j     output filter \n    l     output channel\n\nRank-agnostic here means that, at run-time, an index can represent zero, one,\ntwo, or more individual dimensions within a tensor shape, depending on how the\nop was called.\n\n### Signature\n\nA *signature* is simply an ordered sequence of *indexes*, usually represented\nas a string of the one-letter codes.  Most input tensors have a *signature*.\nImportantly, since each *index* is rank-agnostic, so is the signature.\n\nExamples:\n\n    tensor   signature\n    input    bik           \n    filter   fjl\n\nWhile indexes are rank-agnostic, it is also useful to see possible\n*instantiations* of indexes showing the actual rank of the shape for a\nparticular call of the op.  For instance, `tf.nn.convolution` may be called\nwith 1, 2, or 3 spatial dimensions, which imply the rank of indexes 'i' and\n'f'.  Similarly, it works with any number of batch dimensions 'b' >= 1.  Such\ninstantiations can be represented using repetitions of the one-letter code:\n\nExamples:\n\n    input shape instantiations\n    bik, biik, biiik, bbik, bbbik, ...\n\nBy default, each index has no constraints on what rank it can take on.\nRank constraints are provided within the [add_index](opschema/schema.py#L877)\nAPI function.  The 'explain' command-line function has a section on the index\nrank constraints.  For `tf.nn.convolution` it is:\n\n```\nIndex ranks\n\nrank(b) in [1, 5]\nrank(i) in [1, 3]\nrank(f) = rank(i)\nrank(p) = rank(i)\nrank(s) = rank(i)\nrank(d) = rank(i)\nrank(k) = 1\nrank(j) = 1\nrank(l) = 1\nrank(o) = rank(i)\n```\n\nThe rank of an index can be constrained either within a range, or constrained\nto be equal to that of another index.  In the above, the rank of the 'input\nspatial' (i) index can be in [1,3], and there can be between 1 and 5 batch\ndimensions.  The rank of the 'filter spatial' (f) index is set equal to that of\n'input spatial' and so on.\n\n#### Computed Indexes and intermediate Indexes\n\nIndexes come in two varieties:  *computed* or not computed.  Being *computed*\nmeans that the dimensions are determined as a function of the dimensions of\nother indices.  A function is assigned using the API call\n[OpSchema.comp_dims_cw](opschema/schema.py#1130) for a component-wise computation, or\n[OpSchema.comp_dims](opschema/schema.py#1113) for a non-component-wise computation.  For\nexample, with `tf.nn.convolution` the 'explain' section shows:\n\n```bash\nComputed dimensions\n\np = (f - 1) * d + 1\no = ceil((i - p + 1) / s)   [padding = VALID]\no = ceil(i / s)   [padding = SAME]\n```\n\nThese are registered as component-wise.  For instance, if `rank(i) = 2`, then\neach dimension of `i` will be computed from the corresponding dimension of `s`\nand/or `p`, and so forth.\n\nHere, we see that 'padded filter spatial' (p) index is computed from 'filter\nspatial' and 'dilation'.  And, 'output spatial' (o) has two different formulas,\ndepending on the command-line argument 'padding'.\n\nNote here that the 'p' index does not appear anywhere in an input signature.\nIt is purely an intermediate calculation.  But, having an explicit name for the\nindex is useful to clarify to the user how the visible 'o' index is computed in\nthe case of 'padding = VALID'.\n\nThese formulas are also used to display actual dimensions in error messages.\n\n### Layout\n\nA *layout* is a set of consistent *signatures* accepted by the op.  Some ops\nhave just a single layout.  May have two, which could be described as 'channel\nfirst' or 'channel last', and are determined by the `data_format` argument.\n\nExamples:\n\n    input  filters  strides  dilations  return[0]  data_format\n    bki    fjl      s        d          blo        ['NCW', 'NCHW', 'NCDHW']\n    bik    fjl      s        d          bol        ['NWC', 'NHWC', 'NDHWC']\n\nThe above example shows two different layouts for the `tf.nn.convolution`\noperation.  Like *signatures*, the notion of a *layout* is rank-agnostic.  \n\nThe indexes and layouts for a given op schema can be shown with:\n\n    python -m opschema.cl explain tf.nn.convolution\n\nTo see the complete list of signature instantiations, use:\n\n    python -m opschema.cl explain tf.nn.convolution -i\n\n# DType constraints\n\nTensorFlow ops are usually constrained to work on certain combinations of\n`dtype` of the input tensors.  `opschema` provides a few API functions to\nspecify this.\n\n```python\n# DType constraints for tf.nn.convolution\nop.valid_dtypes('input', ('int32', 'float', 'bfloat16'))\nop.equate_dtypes('filters', 'input')\nop.exclude_combos('input', 'int32', 'i', (1,2), LAYOUT, 0)\nop.exclude_combos('input', 'int32', 'i', 3)\nop.exclude_combos('input', 'bfloat16', 'i', (1,2))\nop.exclude_combos('input', 'bfloat16', 'i', 3, LAYOUT, 0)\n```\n\nThe above snippet of the `tf.nn.convolution` schema definition illustrates the\nthree `OpSchema` API calls related to dtype constraints.  `valid_dtypes` simply\nspecifies which dtypes are accepted for a given argument tensor.  There is a\nwildcard-like syntax (see [base.py:parse_dtype_expr](opschema/base.py#L264))\nused to specify multiple dtypes briefly.\n\n`equate_dtypes` says that the dtype of one argument tensor must be identical to\nanother.\n\n`exclude_combos` declares that a certain combination of dtypes, index ranks,\nand/or layouts is excluded.  This is needed because certain of these\ncombinations may not be implemented by TensorFlow.\n\n# Other Constraints\n\nThere are other relationships between inputs in certain TensorFlow ops.  For\nexample, with `tf.gather_nd`, the last dimension of the `indices` shape\ndetermines the rank of the 'read location' (r) index.  This is declared using\nthe API function [OpSchema.rank_dims_constraint](opschema/schema.py#L1638).\n\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/hrbigelow/opschema",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "opschema",
+            "package_url": "https://pypi.org/project/opschema/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/opschema/",
+            "project_urls": {
+                "Homepage": "https://github.com/hrbigelow/opschema"
+            },
+            "release_url": "https://pypi.org/project/opschema/0.1.2/",
+            "requires_dist": [
+                "tensorflow"
+            ],
+            "requires_python": "",
+            "summary": "Define Error-checking Schemas for TensorFlow ops",
+            "version": "0.1.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16109979,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "927646bd215d60721bc5a38b8ced4a3b",
+                    "sha256": "eb8333ff7ed0065c931204565239a8273795244c1e5f91cb9806b0e7464de06c"
+                },
+                "downloads": -1,
+                "filename": "opschema-0.1.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "927646bd215d60721bc5a38b8ced4a3b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 71227,
+                "upload_time": "2022-12-15T07:06:58",
+                "upload_time_iso_8601": "2022-12-15T07:06:58.261236Z",
+                "url": "https://files.pythonhosted.org/packages/8a/ca/ee2549cb3fda8d653c6c3efe39e728422b33727bf00fb89cf57ca9f6c7b9/opschema-0.1.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d4511e2c69ca6be8e291b0cd82db2bda",
+                    "sha256": "a6fb9c48c24d4e78a96c8dcb9f5b506fb5977c99430fb17941df0937a4e96f7c"
+                },
+                "downloads": -1,
+                "filename": "opschema-0.1.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d4511e2c69ca6be8e291b0cd82db2bda",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 67551,
+                "upload_time": "2022-12-15T07:07:00",
+                "upload_time_iso_8601": "2022-12-15T07:07:00.141880Z",
+                "url": "https://files.pythonhosted.org/packages/4f/ee/76d72f2ea4d64cba4e12ead29fc25a5438a70c377e2d7f2e2527d36f43df/opschema-0.1.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

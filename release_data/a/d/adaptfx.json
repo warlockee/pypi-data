@@ -1,0 +1,90 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "",
+            "author_email": "Janic Tom Weber <janic.weber@uzh.ch>, Yoel P\u00e9rez Haas <yoel.perezhaas@uzh.ch>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.10"
+            ],
+            "description": "# The `adaptfx` package\n\n## Content\n\n1. [About](#about)  \n2. [Installation](#installation)  \n3. [Package Structure](#package-structure)  \n4. [Describtion](#description)  \n    1. [2D Algorithms](#the-2d-algorithms)\n    2. [3D Algorithms](#the-3d-algorithms)\n    3. [Discrete Value Function](#discrete-value-function)\n    4. [GUI](#gui)\n    5. [t-Distribution](#t-distribution)\n    6. [Additional Data](#additional-data)\n5. [Extended Function](#extended-functionality)\n6. [Troubleshooting](#troubleshooting)\n\n---\n\n## About\n\n`adaptfx` is a python package to calculate adaptive fractionation schemes. Using magnetic resonance (MR) guidance in radiotherapy, treatment plans can be adapted daily to a patient's geometry, thereby exploiting inter-fractional motion of tumors and organs at risk (OAR). This can improve OAR sparing or tumor coverage, compared to standard fractionation schemes, which simply apply a predefined dose every time.\n\n\nFor this adaptive approach a reinforcement learning algorithm based on dynamic programming was initially developed by P\u00e9rez Haas et al. [[1]](#1). The package is actively maintained and frequently extended as part of our ongoing research on the topic\n\n\n## Installation\n\nIt is recommended to create a virtual environment using the `venv` module:\n\n```\n$ python3.10 -m venv adaptfx_env\n```\n\nactivate the virtual environment\n```\n$ cd adaptfx_env\n$ source bin/activate\n```\n\nTo install the `adaptfx` package, use either of the methods below.\n\n### Method 1: pip\n\n```\n$ pip install adaptfx\n```\n\n### Method 2: install from source\n\n```\n$ git clone https://github.com/openAFT/adaptfx.git\n$ cd adaptfx\n$ pip3 install .\n```\n\nthe command line tool (CLI) is then available and can be used via\n\n```\n$ aft [options] <instructions_file>\n```\n\nfor more information on the usage of the CLI, read the [manual](MANUAL.md).\n\nThe user can also decide to use the scripts from `reinforce` in their python scripts e.g.\n\n```python\nimport adapatfx as afx\nplan_output = afx.multiple('oar', keys)\n```\n\n`adaptfx` also provides a GUI. However, it depends on `Tkinter`. It often comes installed, but if not you can find the relevant installation instructions [here](https://tkdocs.com/tutorial/install.html). E.g. in python and on Ubuntu, you would install it via\n\n```\n$ sudo apt install python3-tk\n```\n\n## Package Structure\n\nThe package is organized under the `src` folder. The relevant scripts that calculate the fractionation schemes are located in `reinforce`. \n\n```\nadaptfx\n\u251c\u2500\u2500 adaptfx_old\n\u251c\u2500\u2500 src/adaptfx\n\u2502  \u251c\u2500\u2500 aft_propmt.py\n\u2502  \u251c\u2500\u2500 aft_utils.py\n\u2502  \u251c\u2500\u2500 aft.py\n\u2502  \u251c\u2500\u2500 constants.py\n\u2502  \u251c\u2500\u2500 maths.py\n\u2502  \u251c\u2500\u2500 planning.py\n\u2502  \u251c\u2500\u2500 radiobiology.py\n\u2502  \u251c\u2500\u2500 reinforce.py\n\u2502  \u2514\u2500\u2500 visualiser.py\n\u2514\u2500\u2500 work\n```\n\n## Description\n\nIn the `reinforce` module one can find all relevant code to calculate an OAR tracked adaptive fractionation plan and plan by tracking tumor biological effective dose (tumor BED) and OAR BED (maximizing tumor BED while minimizing OAR BED). \n\n### The 2D algorithms\n\nThe code in `tumor_maximization.py` globally tracks OAR BED to satisfy constraints on the dose to the normal tissue, while attempting to maximize the BED delivered to the tumor.\n\n`oar_minimization.py`, on the other hand, tracks tumor BED to achieve the tumor dose target and in doing so it minimizes the cumulative OAR BED.\n\nSince the state spaces for these two algorithms are essentially two-dimensional, they are the faster algorithm. But they may overshoot w.r.t. the dose delivered to the tumor/OAR, since only one of the structure's BED can be tracked, one has to decide whether reaching the prescribed tumor dose or staying below the maximum OAR BED is more relevant.\n\nGenerally the OAR tracking is better suited for patients with anatomies where the OAR and tumor are close to each other and the prescribed dose may not be reached. When the OAR and tumor are farther apart, tracking the tumor BED and minimizing OAR BED can lead to reduced toxicity while achieving the same treatment goals.\n\n`fraction_minimisation.py` defines functions to track OAR BED and minimize the number of fractions in cases where there appears an exceptionally low sparing factor during the course of a treatment.\n\n### The 3D algorithms\n\nThe 3D algorithms in `track_tumor_oar.py` track OAR BED and tumor BED simultaneously. In this version a prescribed tumor dose must be provided alongside an OAR BED constraint. The algorithm then tries smartly optimizes for a low OAR BED _and_ high tumor BED at the same time, while never compromising OAR constraints and always preferring to reduce normal tissue dose when achieving the treatment objectives.\n\nThe algorithms are based on an inverse-gamma prior distribution. To set up this distribution a dataset is needed with prior patient data (sparing factors) from the same population.\n\nThere is a function to calculate the hyperparameters of the inverse-gamma distribution. But there is also the option to use a fixed probability distribution for the sparing factors. In this case, the probability distribution must be provided with a mean and a standard deviation, and it is not updated as more information is available. To check out how the hyperparameters influence the prior distribution, the `Inverse_gamma_distribution_preview.py` file has been included that allows direct modelling of the distribution.\n\n### Discrete Value Function\n\nThere is a subfolder with more basic algorithms, the discrete algorithms. Generally, we cannot calculate the value function for each possible OAR BED and sparing factor. Thus, the values must be calculated for discrete steps. E.g. 0.1Gy BED steps for the OAR BED and 0.01 steps for the sparing factors. The discrete algorithms depict this idea of using these steps to calculate the value for each discrete value of BED and sparing factor. This approach limits the precision of the computed doses, as we must round any given BED to the given steps. So interpolation was used to improve precision, in calculating every possible BED. A higher precision comes with the cost of larger computation time, but the 2D code still runs in a matter of seconds, while the 3D code runs in a matter of minutes.\n\n### GUI\n\nA last addition is made with graphical user interfaces that facilitate the use of the interpolation algorithms. There are two interfaces that can be run. In these interfaces all variables can be given to compute an adaptive fractionation plan for a patient. \n\n> :warning: Note:\\\n> The interfaces are not optimized, and thus it is not recommended using them to further develop extensions.\n\n### $t$-Distribution\n\nApart from using a gamma prior for the standard deviation, a full Bayesian approach can be done with a conjugate prior for the variance.\nIn the $t$-distribution folder the same algorithms as in the paper are applied, but instead of using the gamma prior, the probability distribution is estimated from an updated $t$-distribution by using an inverse-gamma prior for the variance.\nThe results are slightly different when alternative priors are applied. Since the $t$-distribution estimates larger standard deviations, more sparing factors are relevant and thus the state space is increased which results in a longer computation time.\n\n### Additional Data\n\nThe two additional folders (`DVH_figures`, `Patientdata_paper`) contain the DVH data and figures of the 10 patients that were included in the paper.\n\n## Extended Functionality\n\nThe algorithms allow to choose some extra parameters to specify extra constraints. The suggested parameters are specified for a 5 fraction SBRT plan where there are not constraints on the maximum or minimum dose:\n\n- Chose the amount of fractions. Instead of just calculating for the case of a 5-fractions SBRT treatment, the amount of fractions can be chosen freely (e.g. 30 fractions)\n- Fix a minimum and maximum dose: Limits the action space by forcing a minimum and maximum dose for each fraction. (e.g. 4-16 Gy)\n- Calculate optimal fraction size by tracking tumor BED: The 2D GUI has an additional extension, where one can optimize the optimal dose based on the prescribed tumor dose. (E.g., the clinician prescribes a tumor BED of 72 Gy. The program will try to minimize the OAR BED while aiming at the 72 Gy BED prescribed dose.)\n\n## Troubleshooting\n\n### No module named `_ctypes` on install\n\n**Problem:** on Linux distributions it happens that the `pip install .` command fails with the message:\n\n```\nTraceback (most recent call last):\n   File \"<stdin>\", line 1, in <module>\n   File \"/usr/local/lib/python3.10/some/module\", line 10, in <module>\n   import ctypes\n   File \"/usr/local/lib/python3.10/ctypes/__init__.py\", line 7, in <module>\n      from _ctypes import Union, Structure, Array\nImportError: No module named '_ctypes'\n```\n\n**Solution:** with the specific package manager of the Linux distribution install `libffi-dev` development tool. E.g. in Fedora Linux and derivatives install this tool\n\n```\nsudo dnf install libffi-devel\n```\n\nOn Ubuntu:\n```\nsudo apt install libffi-dev\n```\n\n### No GUI backend for `matplotlib`\n\n**Problem:** on Linux or MacOS it could be that once `aft` is run the plots are not shown and there is an error message:\n\n\n```\nCollecting tkinter\n  Could not find a version that satisfies the requirement tkinter (from versions: )\nNo matching distribution found for tkinter\n```\n\n**Solution:** on Fedora Linux and derivative distributions one could solve this by either installing python tkinter\n\n```\nsudo dnf install python3-tkinter\n```\n\nor on Ubuntu\n\n```\nsudo apt-get install python3-tk\n```\n\nor use pyqt and install via pip\n\n```\npip install pyqt5\n```\n\n\n## References\n\n<a id=\"1\">[1]</a>\nYoel Samuel P\u00e9rez Haas, Roman Ludwig, Riccardo Dal Bello, Lan Wenhong, Stephanie Tanadini-Lang, Jan Unkelbach;\n[**Adaptive fractionation at the MR-Linac based on a dynamic programming approach**](https://www.sciencedirect.com/science/article/pii/S0167814022027244), _ESTRO 2022_, OC-0944\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "fractionation,adaptive radiotherapy,reinforcement-learning",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "adaptfx",
+            "package_url": "https://pypi.org/project/adaptfx/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/adaptfx/",
+            "project_urls": {
+                "source": "https://github.com/openAFT/adaptfx"
+            },
+            "release_url": "https://pypi.org/project/adaptfx/0.1.0/",
+            "requires_dist": [
+                "numpy",
+                "scipy",
+                "matplotlib"
+            ],
+            "requires_python": ">=3.10",
+            "summary": "Package for computing dose fractionation schemes in MR guided Adaptive Radiotherapy",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16110505,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1b0acdc96d53e2535e75747b3b679710",
+                    "sha256": "ec3ab4f243d38d9f249de7ca517322afa6109695e4048d8567e61a22576bc530"
+                },
+                "downloads": -1,
+                "filename": "adaptfx-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "1b0acdc96d53e2535e75747b3b679710",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10",
+                "size": 26140,
+                "upload_time": "2022-12-15T08:28:07",
+                "upload_time_iso_8601": "2022-12-15T08:28:07.868600Z",
+                "url": "https://files.pythonhosted.org/packages/d5/73/123b9a0afb2a4b5665f36d7086d72037b5c0da4b6a0bb42761adaca5305b/adaptfx-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b625d7dbaaf8ef2a018e9c2337312cfa",
+                    "sha256": "7f9696cf16db4f586ce9f39b3a3bcd360f50b0f7e43c1469e1ad34e2e8f2fb55"
+                },
+                "downloads": -1,
+                "filename": "adaptfx-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "b625d7dbaaf8ef2a018e9c2337312cfa",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10",
+                "size": 3616288,
+                "upload_time": "2022-12-15T08:28:09",
+                "upload_time_iso_8601": "2022-12-15T08:28:09.826125Z",
+                "url": "https://files.pythonhosted.org/packages/41/f8/ad6ea549b3545b0d7383d3a20dd2b41f2bbd668d1cc50ff18d799738737b/adaptfx-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
