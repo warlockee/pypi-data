@@ -44,7 +44,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15655976,
+        "last_serial": 16117466,
         "urls": [
             {
                 "comment_text": "",
@@ -134,7 +134,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15655976,
+        "last_serial": 16117466,
         "urls": [
             {
                 "comment_text": "",
@@ -225,7 +225,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15655976,
+        "last_serial": 16117466,
         "urls": [
             {
                 "comment_text": "",
@@ -316,7 +316,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15655976,
+        "last_serial": 16117466,
         "urls": [
             {
                 "comment_text": "",
@@ -407,7 +407,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15655976,
+        "last_serial": 16117466,
         "urls": [
             {
                 "comment_text": "",
@@ -500,7 +500,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15655976,
+        "last_serial": 16117466,
         "urls": [
             {
                 "comment_text": "",
@@ -560,7 +560,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# pyhidra\n\nPyhidra is a Python library that provides direct access to the Ghidra API within a native CPython interpreter using [jpype](https://jpype.readthedocs.io/en/latest). As well, Pyhidra contains some conveniences for setting up analysis on a given sample and running a Ghidra script locally. It also contains a Ghidra plugin to allow the use of CPython from the\nGhidra user interface.\n\nPyhidra was initially developed for use with Dragodis and is designed to be installable without requiring Java or Ghidra. Due to this restriction, the Java plugin for Pyhidra is compiled and installed automatically during first use. The Java plugin is managed by Pyhidra and will automatically be rebuilt as necessary.\n\n\n## Install\n\n1. Download and install [Ghidra](https://github.com/NationalSecurityAgency/ghidra/releases) to a desired location.\n\n1. Set the `GHIDRA_INSTALL_DIR` environment variable to point to the directory where Ghidra is installed.\n\n1. Install pyhidra.\n\n```console\n> pip install pyhidra\n```\n### Enabling the Ghidra User Interface Plugin\n\n1. Run `pyhidraw` from a terminal of your choice.\n2. Open the Code Browser Tool.\n3. From the `File` toolbar menu, select `Configure...`.\n4. From the menu in the image below select `configure` under `Experimental`.\n ![](https://raw.githubusercontent.com/Defense-Cyber-Crime-Center/pyhidra/master/images/image-20220111154029764.png)\n5. Check and enable Pyhidra as seen in the image below.\n ![](https://raw.githubusercontent.com/Defense-Cyber-Crime-Center/pyhidra/master/images/image-20220111154120531.png)\n\n## Usage\n\n\n### Raw Connection\n\nTo get just a raw connection to Ghidra use the `start()` function.\nThis will setup a Jpype connection and initialize Ghidra in headless mode,\nwhich will allow you to directly import `ghidra` and `java`.\n\n*NOTE: No projects or programs get setup in this mode.*\n\n```python\nimport pyhidra\npyhidra.start()\n\nimport ghidra\nfrom ghidra.app.util.headless import HeadlessAnalyzer\nfrom ghidra.program.flatapi import FlatProgramAPI\nfrom ghidra.base.project import GhidraProject\nfrom java.lang import String\n\n# do things\n```\n\n### Customizing Java and Ghidra initialization\n\nJVM configuration for the classpath and vmargs may be done through a `PyhidraLauncher`.\n\n```python\nfrom pyhidra.launcher import HeadlessPyhidraLauncher\n\nlauncher = HeadlessPyhidraLauncher()\nlauncher.add_classpaths(\"log4j-core-2.17.1.jar\", \"log4j-api-2.17.1.jar\")\nlauncher.add_vmargs(\"-Dlog4j2.formatMsgNoLookups=true\")\nlauncher.start()\n```\n\n### Analyze a File\n\nTo have pyhidra setup a binary file for you, use the `open_program()` function.\nThis will setup a Ghidra project and import the given binary file as a program for you.\n\nAgain, this will also allow you to import `ghidra` and `java` to perform more advanced processing.\n\n```python\nimport pyhidra\n\nwith pyhidra.open_program(\"binary_file.exe\") as flat_api:\n    program = flat_api.getCurrentProgram()\n    listing = program.getListing()\n    print(listing.getCodeUnitAt(flat_api.toAddr(0x1234)))\n\n    # We are also free to import ghidra while in this context to do more advanced things.\n    from ghidra.app.decompiler.flatapi import FlatDecompilerAPI\n    decomp_api = FlatDecompilerAPI(flat_api)\n    # ...\n    decomp_api.dispose()\n```\n\nBy default, pyhidra will run analysis for you. If you would like to do this yourself, set `analyze` to `False`.\n\n```python\nimport pyhidra\n\nwith pyhidra.open_program(\"binary_file.exe\", analyze=False) as flat_api:\n    from ghidra.program.util import GhidraProgramUtilities\n\n    program = flat_api.getCurrentProgram()\n    if GhidraProgramUtilities.shouldAskToAnalyze(program):\n        flat_api.analyzeAll(program)\n```\n\n\nThe `open_program()` function can also accept optional arguments to control the project name and location that gets created.\n(Helpful for opening up a sample in an already existing project.)\n\n```python\nimport pyhidra\n\nwith pyhidra.open_program(\"binary_file.exe\", project_name=\"EXAM_231\", project_location=r\"C:\\exams\\231\") as flat_api:\n    ...\n```\n\n\n### Run a Script\n\nPyhidra can also be used to run an existing Ghidra Python script directly in your native python interpreter\nusing the `run_script()` command.\nHowever, while you can technically run an existing Ghidra script unmodified, you may\nrun into issues due to differences between Jython 2 and CPython 3.\nTherefore, some modification to the script may be needed.\n\n```python\n\nimport pyhidra\n\npyhidra.run_script(r\"C:\\input.exe\", r\"C:\\some_ghidra_script.py\")\n```\n\nThis can also be done on the command line using `pyhidra`.\n\n```console\n> pyhidra C:\\input.exe C:\\some_ghidra_script.py <CLI ARGS PASSED TO SCRIPT>\n```\n\n### Ghidra User Interface\n\nGhidra **must** be started via `pyhidraw` and the plugin must be enabled for the user interface features to be present. Once these prerequisites are met the `pyhidra` menu item will be available in the `Window` toolbar menu and all Python scripts outside of the Ghidra installation will automatically be run with CPython. Any Python script found within the Ghidra installation will be run using Jython to prevent causing issues with any analyzers or Ghidra internals that use them. Below is a screenshot of the standard Python interpreter in Ghidra which is using CPython instead of Jython. It will appear when `pyhidra` is opened from the `Window` toolbar menu.\n\n![](https://raw.githubusercontent.com/Defense-Cyber-Crime-Center/pyhidra/master/images/image-20220111152440065.png)\n\n### Handling Package Name Conflicts\n\nThere may be some Python modules and Java packages with the same import path. When this occurs the Python module takes precedence.\nWhile jpype has its own mechanism for handling this situation, pyhidra automatically makes the Java package accessible by allowing\nit to be imported with an underscore appended to the package name.\n\n```python\nimport pdb   # imports Python's pdb\nimport pdb_  # imports Ghidra's pdb\n```\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -594,7 +593,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15655976,
+        "last_serial": 16117466,
         "urls": [
             {
                 "comment_text": "",
@@ -633,6 +632,99 @@
                 "upload_time": "2022-11-04T14:21:36",
                 "upload_time_iso_8601": "2022-11-04T14:21:36.512202Z",
                 "url": "https://files.pythonhosted.org/packages/c0/02/9a34b94a24c34f06200279b5b78b230e0ecd19f4e1978b6c92ce328f27f0/pyhidra-0.2.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.0": {
+        "info": {
+            "author": "DC3",
+            "author_email": "dcci@dc3.mil",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# pyhidra\n\nPyhidra is a Python library that provides direct access to the Ghidra API within a native CPython interpreter using [jpype](https://jpype.readthedocs.io/en/latest). As well, Pyhidra contains some conveniences for setting up analysis on a given sample and running a Ghidra script locally. It also contains a Ghidra plugin to allow the use of CPython from the\nGhidra user interface.\n\nPyhidra was initially developed for use with Dragodis and is designed to be installable without requiring Java or Ghidra. Due to this restriction, the Java plugin for Pyhidra is compiled and installed automatically during first use. The Java plugin is managed by Pyhidra and will automatically be rebuilt as necessary.\n\n\n## Install\n\n1. Download and install [Ghidra](https://github.com/NationalSecurityAgency/ghidra/releases) to a desired location.\n\n1. Set the `GHIDRA_INSTALL_DIR` environment variable to point to the directory where Ghidra is installed.\n\n1. Install pyhidra.\n\n```console\n> pip install pyhidra\n```\n### Enabling the Ghidra User Interface Plugin\n\n1. Run `pyhidraw` from a terminal of your choice.\n2. Open the Code Browser Tool.\n3. From the `File` toolbar menu, select `Configure...`.\n4. From the menu in the image below select `configure` under `Experimental`.\n ![](https://raw.githubusercontent.com/Defense-Cyber-Crime-Center/pyhidra/master/images/image-20220111154029764.png)\n5. Check and enable Pyhidra as seen in the image below.\n ![](https://raw.githubusercontent.com/Defense-Cyber-Crime-Center/pyhidra/master/images/image-20220111154120531.png)\n\n## Usage\n\n\n### Raw Connection\n\nTo get just a raw connection to Ghidra use the `start()` function.\nThis will setup a Jpype connection and initialize Ghidra in headless mode,\nwhich will allow you to directly import `ghidra` and `java`.\n\n*NOTE: No projects or programs get setup in this mode.*\n\n```python\nimport pyhidra\npyhidra.start()\n\nimport ghidra\nfrom ghidra.app.util.headless import HeadlessAnalyzer\nfrom ghidra.program.flatapi import FlatProgramAPI\nfrom ghidra.base.project import GhidraProject\nfrom java.lang import String\n\n# do things\n```\n\n### Customizing Java and Ghidra initialization\n\nJVM configuration for the classpath and vmargs may be done through a `PyhidraLauncher`.\n\n```python\nfrom pyhidra.launcher import HeadlessPyhidraLauncher\n\nlauncher = HeadlessPyhidraLauncher()\nlauncher.add_classpaths(\"log4j-core-2.17.1.jar\", \"log4j-api-2.17.1.jar\")\nlauncher.add_vmargs(\"-Dlog4j2.formatMsgNoLookups=true\")\nlauncher.start()\n```\n\n### Registering an Entry Point\n\nThe `PyhidraLauncher` can also be configured through the use of a registered entry point on your own python project.\nThis is useful for installing your own Ghidra plugin which uses pyhidra and self-compiles.\n\nFirst create an [entry_point](https://setuptools.pypa.io/en/latest/userguide/entry_point.html) for `pyhidra.setup`\npointing to a single argument function which accepts the launcher instance.\n\n```python\n# setup.py\nfrom setuptools import setup\n\nsetup(\n    # ...,\n    entry_points={\n        'pyhidra.setup': [\n            'acme_plugin = acme.ghidra_plugin.install:setup',\n        ]\n    }\n)\n```\n\n\nThen we create the target function.\nThis function will be called every time a user starts a pyhidra launcher.\nIn the same fashion, another entry point `pyhidra.pre_launch` may be registered and will be called after Ghidra and all\nplugins have been loaded.\n\n```python\n# acme/ghidra_plugin/install.py\nfrom pathlib import Path\nimport pyhidra\n\ndef setup(launcher):\n    \"\"\"\n    Run by pyhidra launcher to install our plugin.\n    \"\"\"\n    launcher.add_classpaths(\"log4j-core-2.17.1.jar\", \"log4j-api-2.17.1.jar\")\n    launcher.add_vmargs(\"-Dlog4j2.formatMsgNoLookups=true\")\n\n    # Install our plugin.\n    source_path = Path(__file__).parent / \"java\" / \"plugin\"  # path to uncompiled .java code\n    details = pyhidra.ExtensionDetails(\n        name=\"acme_plugin\",\n        description=\"My Cool Plugin\",\n        author=\"acme\",\n        plugin_version=\"1.2\",\n    )\n    launcher.install_plugin(source_path, details)  # install plugin (if not already)\n```\n\n\n### Analyze a File\n\nTo have pyhidra setup a binary file for you, use the `open_program()` function.\nThis will setup a Ghidra project and import the given binary file as a program for you.\n\nAgain, this will also allow you to import `ghidra` and `java` to perform more advanced processing.\n\n```python\nimport pyhidra\n\nwith pyhidra.open_program(\"binary_file.exe\") as flat_api:\n    program = flat_api.getCurrentProgram()\n    listing = program.getListing()\n    print(listing.getCodeUnitAt(flat_api.toAddr(0x1234)))\n\n    # We are also free to import ghidra while in this context to do more advanced things.\n    from ghidra.app.decompiler.flatapi import FlatDecompilerAPI\n    decomp_api = FlatDecompilerAPI(flat_api)\n    # ...\n    decomp_api.dispose()\n```\n\nBy default, pyhidra will run analysis for you. If you would like to do this yourself, set `analyze` to `False`.\n\n```python\nimport pyhidra\n\nwith pyhidra.open_program(\"binary_file.exe\", analyze=False) as flat_api:\n    from ghidra.program.util import GhidraProgramUtilities\n\n    program = flat_api.getCurrentProgram()\n    if GhidraProgramUtilities.shouldAskToAnalyze(program):\n        flat_api.analyzeAll(program)\n```\n\n\nThe `open_program()` function can also accept optional arguments to control the project name and location that gets created.\n(Helpful for opening up a sample in an already existing project.)\n\n```python\nimport pyhidra\n\nwith pyhidra.open_program(\"binary_file.exe\", project_name=\"EXAM_231\", project_location=r\"C:\\exams\\231\") as flat_api:\n    ...\n```\n\n\n### Run a Script\n\nPyhidra can also be used to run an existing Ghidra Python script directly in your native python interpreter\nusing the `run_script()` command.\nHowever, while you can technically run an existing Ghidra script unmodified, you may\nrun into issues due to differences between Jython 2 and CPython 3.\nTherefore, some modification to the script may be needed.\n\n```python\n\nimport pyhidra\n\npyhidra.run_script(r\"C:\\input.exe\", r\"C:\\some_ghidra_script.py\")\n```\n\nThis can also be done on the command line using `pyhidra`.\n\n```console\n> pyhidra C:\\input.exe C:\\some_ghidra_script.py <CLI ARGS PASSED TO SCRIPT>\n```\n\n### Ghidra User Interface\n\nGhidra **must** be started via `pyhidraw` and the plugin must be enabled for the user interface features to be present. Once these prerequisites are met the `pyhidra` menu item will be available in the `Window` toolbar menu and all Python scripts outside of the Ghidra installation will automatically be run with CPython. Any Python script found within the Ghidra installation will be run using Jython to prevent causing issues with any analyzers or Ghidra internals that use them. Below is a screenshot of the standard Python interpreter in Ghidra which is using CPython instead of Jython. It will appear when `pyhidra` is opened from the `Window` toolbar menu.\n\n![](https://raw.githubusercontent.com/Defense-Cyber-Crime-Center/pyhidra/master/images/image-20220111152440065.png)\n\n### Handling Package Name Conflicts\n\nThere may be some Python modules and Java packages with the same import path. When this occurs the Python module takes precedence.\nWhile jpype has its own mechanism for handling this situation, pyhidra automatically makes the Java package accessible by allowing\nit to be imported with an underscore appended to the package name.\n\n```python\nimport pdb   # imports Python's pdb\nimport pdb_  # imports Ghidra's pdb\n```\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/Defense-Cyber-Crime-Center/pyhidra",
+            "keywords": "ghidra",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pyhidra",
+            "package_url": "https://pypi.org/project/pyhidra/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/pyhidra/",
+            "project_urls": {
+                "Homepage": "https://github.com/Defense-Cyber-Crime-Center/pyhidra"
+            },
+            "release_url": "https://pypi.org/project/pyhidra/0.3.0/",
+            "requires_dist": [
+                "Jpype1 (>=1.3.0)",
+                "pyobjc ; sys_platform == \"darwin\"",
+                "pytest ; extra == 'testing'",
+                "pytest-datadir ; extra == 'testing'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Native CPython for Ghidra",
+            "version": "0.3.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16117466,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "14566a311e75cb612f4cb67a6c37b09c",
+                    "sha256": "9e5297d58ace1f7c877b72688782a9b1671eee2fbbe9902b20393e45261df267"
+                },
+                "downloads": -1,
+                "filename": "pyhidra-0.3.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "14566a311e75cb612f4cb67a6c37b09c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 43861,
+                "upload_time": "2022-12-15T19:22:00",
+                "upload_time_iso_8601": "2022-12-15T19:22:00.742952Z",
+                "url": "https://files.pythonhosted.org/packages/34/84/999c7f0077c7845b2edf2a86ca20d04c7219db052765125468765ac8727c/pyhidra-0.3.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cc817f7ed8176f1272529db3cf041fa5",
+                    "sha256": "18b9cc81dc060a59a4cf5ccfb32f24005511dafea3bb3e6066c477e6028aa90c"
+                },
+                "downloads": -1,
+                "filename": "pyhidra-0.3.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "cc817f7ed8176f1272529db3cf041fa5",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 34842,
+                "upload_time": "2022-12-15T19:22:03",
+                "upload_time_iso_8601": "2022-12-15T19:22:03.027205Z",
+                "url": "https://files.pythonhosted.org/packages/0d/a9/54838e6c3849d86d358c614c54a4e2c3ecb41d815c30773911b33592c486/pyhidra-0.3.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

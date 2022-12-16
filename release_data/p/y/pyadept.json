@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13349002,
+        "last_serial": 16115958,
         "urls": [
             {
                 "comment_text": "",
@@ -132,7 +132,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13349002,
+        "last_serial": 16115958,
         "urls": [
             {
                 "comment_text": "",
@@ -221,7 +221,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13349002,
+        "last_serial": 16115958,
         "urls": [
             {
                 "comment_text": "",
@@ -278,7 +278,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# adept algorithm -- Python implementation\n\nThis repo contains Python implementation of ADEPT method -- a fast, scalable, and accurate method for pattern segmentation in time series -- and, additionally, its extension for  walking segmentation from free-living wrist-worn sensor accelerometry data. \n\nRelated publoshed work: \n\n1. Karas, M., Straczkiewicz, M., Fadel, W., Harezlak, J., Crainiceanu, C. M., & Urbanek, J.\nK. (2019). Adaptive empirical pattern transformation (ADEPT) with application to walking\nstride segmentation. Biostatistics, 22(2), 331\u2013347.\n[https://doi.org/10.1093/biostatistics/kxz033](https://doi.org/10.1093/biostatistics/kxz033 )\n\n2. Karas, M., Urbanek, J. K. U., Illiano, V. P., Bogaarts, G., Crainiceanu, C. M., Dorn, J. F.\n(2021). Estimation of free-living walking cadence from wrist-worn sensor accelerometry\ndata and its association with SF-36 quality of life scores. Physiological measurement,\n42(6). [https://doi.org/10.1088/1361-6579/ac067b](https://doi.org/10.1088/1361-6579/ac067b)\n\nThe R implementation is available in R package adept ([CRAN index](https://cran.r-project.org/web/packages/adept/index.html)): \n\n- `segmentPattern()` -- ADEPT method implementation (paper 1 above), \n- `segmentWalking()` -- ADEPT extension for  walking segmentation from free-living wrist-worn sensor accelerometry data (paper 2 above). \n\nThis Python implementation presented in this repo was developed by Marta Karas during her internship at Novartis @ Sensor Data Analytics Team in summer 2019 (IP not proteceted). \n\n# Overview of walking segmentation algorithm\n\nThe proposed algorithm for walking segmentation from free-living wrist-worn sensor accelerometry data consists of 3 main parts: \n\n### Step (1): Stride pattern segmentation from raw accelerometry data. \n\n- Input: raw vector magnitude accelerometry data, stride pattern templates, other segmentation parameters.  \n- Output: List of lists, where each \"inner list\" has 3 elements which describe one identified data segment: \n\n    - 0. index of the start of the segment, \n    - 1. duration of the segment, expressed in array length, \n    - 2. correlation value between raw vector magnitude accelerometry data and stride pattern template. </br></br>\n\n- Related implementations: \n  - `python/segment_pattern.py` -- <span style=\"color:magenta\">**ADEPT method implementation (paper 1 above); corresponds to R's `adept::segmentPattern()`**</span>\n  - `python/segment_pattern_utils.py`\n  - `python/sliding_functions.py`</br></br>\n  \n- Corresponding tests:  \n  - `python/test_segment_pattern.py`\n  - `python/test_sliding_functions.py`\n\n### Step (2): Describing each data segment obtained in Step 1. with numeric summaries of corresponding raw accelerometry data.\n\n- Input: step (1) output, raw accelerometry data. \n\n- Output: List of lists, where each \"inner list\" has 23 elements which describe one identified data segment. \n\n- Related implementations: \n\n  - `python/describe_segments.py`\n\n### Step (3). Identification of: (a) valid walking strides, (b) walking instances, (c) walking bouts. \n\n- Input: step (2) output, further algorithm parameters. \n\n- Output: Data frame, where each row represents one identified data segment; it has columns `'walking_instance_id'` and `'walking_bout_id'` which define walking instance and walking bout ID, respectively. There is an option to return data frame of all identified data segments contained in step (2) output, or only those if they correspond to some identified walking bout. \n\n- Related implementations: \n\n  - `python/segment_walking_bouts.py` -- <span style=\"color:magenta\">**ADEPT extension for  walking segmentation from free-living wrist-worn sensor accelerometry data (paper 2 above); corresponds to R's `adept::segmentWalking()`**</span>\n\n### Explanation: (a) valid walking stride, (b) walking instance, (c) walking bout\n\nDefinitions: \n\n- valid walking stride - identified data segment which passes certain filtering conditions; parameters of those conditions are arguments of `python/segment_walking_bouts.py` function.\n\n- walking instance - a sequence of >=3 subsequent valid walking strides. To be a valid walking instance, those >=3 subsequent strides must also be \"similar\" to each other in a sense that their duration, azimuth angle median, elevation angle median are not larger (in their mean among 3 subsequent strides) than some parameter values; those parameters are arguments of `python/segment_walking_bouts.py` function.\n\n- walking bout -  walking instance, possibly joined with another walking instance. We merge walking instances which are i.e. very close to each other and it is plausible to think they come from one walking action, but, say, something in a middle of that walking action has missed the \"valid\" stride criteria.  3 cases of conditions upon which the merging happens: \n\n    - (case 1) no break between two neighbouring walking instances, or 1-element break (bridge) between the two neighbouring walking instances, \n    - (case 2) 2-element break (bridge) between the two neighbouring walking instances, where at least 1 element of the bridge is close to passing valid stride condition; \n    - (case 3) 3-element break (bridge) between the two neighbouring walking instances, where at least 2 elements of the bridge are close to passing valid stride condition. The primary conceptual difference is that information of walking bout may be used i.e. to compute walking bout size, but only the strides from walking instance (subset of walking bout) are the ones one may want to use in analysis etc. \n\n### Time execution of the above steps implementation\n\n- Step (1) is the most consuming one and takes 1-2 minutes per-subject per-dad24 with fs = 30 Hz of data collection. \n- Step (3) is the least time consuming and takes 1-2 seconds per-subject per-dad24 with fs = 30 Hz of data collection. Step (2) is also level of a few seconds. \n\n###  Wrapper for the above steps implementation\n\nA wrapper code: `python/wrapper_identify_walking.py` computes Step (1) and Step (2) of the algorithm steps above and save final results to file (per subject-, per dad24-specific numpy array files). I meant it to be something close to wrapper in the pipeline, but ran out of time to prepare it to be closer. \n\n- Input: 3 arguments (HDF4 file path, pattern template file path, partial results dir path)\n- Output: Step (2) output saved to file (precisely, per subject-, per dad24-specific numpy array files). \n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -311,7 +310,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13349002,
+        "last_serial": 16115958,
         "urls": [
             {
                 "comment_text": "",
@@ -350,6 +349,96 @@
                 "upload_time": "2022-03-30T17:14:16",
                 "upload_time_iso_8601": "2022-03-30T17:14:16.479872Z",
                 "url": "https://files.pythonhosted.org/packages/14/e9/330092b1e8d2ca7938f0f5dc458d0b1724cf2d1ccb9c1310d8728cf6f145/pyadept-0.1.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.4": {
+        "info": {
+            "author": "Marta Karass",
+            "author_email": "mkaras@hsph.harvard.edu",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# adept algorithm -- Python implementation\n\nThis repo contains Python implementation of ADEPT method -- a fast, scalable, and accurate method for pattern segmentation in time series -- and, additionally, its extension for  walking segmentation from free-living wrist-worn sensor accelerometry data. \n\nRelated publoshed work: \n\n1. Karas, M., Straczkiewicz, M., Fadel, W., Harezlak, J., Crainiceanu, C. M., & Urbanek, J.\nK. (2019). Adaptive empirical pattern transformation (ADEPT) with application to walking\nstride segmentation. Biostatistics, 22(2), 331\u2013347.\n[https://doi.org/10.1093/biostatistics/kxz033](https://doi.org/10.1093/biostatistics/kxz033 )\n\n2. Karas, M., Urbanek, J. K. U., Illiano, V. P., Bogaarts, G., Crainiceanu, C. M., Dorn, J. F.\n(2021). Estimation of free-living walking cadence from wrist-worn sensor accelerometry\ndata and its association with SF-36 quality of life scores. Physiological measurement,\n42(6). [https://doi.org/10.1088/1361-6579/ac067b](https://doi.org/10.1088/1361-6579/ac067b)\n\nThe R implementation is available in R package adept ([CRAN index](https://cran.r-project.org/web/packages/adept/index.html)): \n\n- `segmentPattern()` -- ADEPT method implementation (paper 1 above), \n- `segmentWalking()` -- ADEPT extension for  walking segmentation from free-living wrist-worn sensor accelerometry data (paper 2 above). \n\nThis Python implementation presented in this repo was developed by Marta Karas during her internship at Novartis @ Sensor Data Analytics Team in summer 2019 (IP not proteceted). \n\n# Overview of walking segmentation algorithm\n\nThe proposed algorithm for walking segmentation from free-living wrist-worn sensor accelerometry data consists of 3 main parts: \n\n### Step (1): Stride pattern segmentation from raw accelerometry data. \n\n- Input: raw vector magnitude accelerometry data, stride pattern templates, other segmentation parameters.  \n- Output: List of lists, where each \"inner list\" has 3 elements which describe one identified data segment: \n\n    - 0. index of the start of the segment, \n    - 1. duration of the segment, expressed in array length, \n    - 2. correlation value between raw vector magnitude accelerometry data and stride pattern template. </br></br>\n\n- Related implementations: \n  - `python/segment_pattern.py` -- <span style=\"color:magenta\">**ADEPT method implementation (paper 1 above); corresponds to R's `adept::segmentPattern()`**</span>\n  - `python/segment_pattern_utils.py`\n  - `python/sliding_functions.py`</br></br>\n  \n- Corresponding tests:  \n  - `python/test_segment_pattern.py`\n  - `python/test_sliding_functions.py`\n\n### Step (2): Describing each data segment obtained in Step 1. with numeric summaries of corresponding raw accelerometry data.\n\n- Input: step (1) output, raw accelerometry data. \n\n- Output: List of lists, where each \"inner list\" has 23 elements which describe one identified data segment. \n\n- Related implementations: \n\n  - `python/describe_segments.py`\n\n### Step (3). Identification of: (a) valid walking strides, (b) walking instances, (c) walking bouts. \n\n- Input: step (2) output, further algorithm parameters. \n\n- Output: Data frame, where each row represents one identified data segment; it has columns `'walking_instance_id'` and `'walking_bout_id'` which define walking instance and walking bout ID, respectively. There is an option to return data frame of all identified data segments contained in step (2) output, or only those if they correspond to some identified walking bout. \n\n- Related implementations: \n\n  - `python/segment_walking_bouts.py` -- <span style=\"color:magenta\">**ADEPT extension for  walking segmentation from free-living wrist-worn sensor accelerometry data (paper 2 above); corresponds to R's `adept::segmentWalking()`**</span>\n\n### Explanation: (a) valid walking stride, (b) walking instance, (c) walking bout\n\nDefinitions: \n\n- valid walking stride - identified data segment which passes certain filtering conditions; parameters of those conditions are arguments of `python/segment_walking_bouts.py` function.\n\n- walking instance - a sequence of >=3 subsequent valid walking strides. To be a valid walking instance, those >=3 subsequent strides must also be \"similar\" to each other in a sense that their duration, azimuth angle median, elevation angle median are not larger (in their mean among 3 subsequent strides) than some parameter values; those parameters are arguments of `python/segment_walking_bouts.py` function.\n\n- walking bout -  walking instance, possibly joined with another walking instance. We merge walking instances which are i.e. very close to each other and it is plausible to think they come from one walking action, but, say, something in a middle of that walking action has missed the \"valid\" stride criteria.  3 cases of conditions upon which the merging happens: \n\n    - (case 1) no break between two neighbouring walking instances, or 1-element break (bridge) between the two neighbouring walking instances, \n    - (case 2) 2-element break (bridge) between the two neighbouring walking instances, where at least 1 element of the bridge is close to passing valid stride condition; \n    - (case 3) 3-element break (bridge) between the two neighbouring walking instances, where at least 2 elements of the bridge are close to passing valid stride condition. The primary conceptual difference is that information of walking bout may be used i.e. to compute walking bout size, but only the strides from walking instance (subset of walking bout) are the ones one may want to use in analysis etc. \n\n### Time execution of the above steps implementation\n\n- Step (1) is the most consuming one and takes 1-2 minutes per-subject per-dad24 with fs = 30 Hz of data collection. \n- Step (3) is the least time consuming and takes 1-2 seconds per-subject per-dad24 with fs = 30 Hz of data collection. Step (2) is also level of a few seconds. \n\n###  Wrapper for the above steps implementation\n\nA wrapper code: `python/wrapper_identify_walking.py` computes Step (1) and Step (2) of the algorithm steps above and save final results to file (per subject-, per dad24-specific numpy array files). I meant it to be something close to wrapper in the pipeline, but ran out of time to prepare it to be closer. \n\n- Input: 3 arguments (HDF4 file path, pattern template file path, partial results dir path)\n- Output: Step (2) output saved to file (precisely, per subject-, per dad24-specific numpy array files). \n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/actigraph/pyadept",
+            "keywords": "",
+            "license": "GPL-3.0-or-later",
+            "maintainer": "Ali Neishabouri",
+            "maintainer_email": "ali.neishabouri@theactigraph.com",
+            "name": "pyadept",
+            "package_url": "https://pypi.org/project/pyadept/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pyadept/",
+            "project_urls": {
+                "Homepage": "https://github.com/actigraph/pyadept",
+                "Repository": "https://github.com/actigraph/pyadept"
+            },
+            "release_url": "https://pypi.org/project/pyadept/0.1.4/",
+            "requires_dist": [
+                "pandas (>=1.0.5)",
+                "numpy (>=1.20)"
+            ],
+            "requires_python": ">=3.8.1,<3.12",
+            "summary": "A python implementation of the ADEPT algorithm.",
+            "version": "0.1.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16115958,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c70195e90b69931800907e33656d9b18",
+                    "sha256": "24d9a5796aae512dea0f411d14e593f85824d2c830b9fd95307838499eb989be"
+                },
+                "downloads": -1,
+                "filename": "pyadept-0.1.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c70195e90b69931800907e33656d9b18",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8.1,<3.12",
+                "size": 30292,
+                "upload_time": "2022-12-15T17:02:37",
+                "upload_time_iso_8601": "2022-12-15T17:02:37.808089Z",
+                "url": "https://files.pythonhosted.org/packages/ff/f4/a35fb2f3c9f1a6fce11c97dd66f312e58df350fbb844ba0db30518cb4611/pyadept-0.1.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ef3b265d6e59efda71b2f05518fe8421",
+                    "sha256": "3cccbd4c054fdb24bf63f82c7bf000844344359889911098d5a6e058fdc3532e"
+                },
+                "downloads": -1,
+                "filename": "pyadept-0.1.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ef3b265d6e59efda71b2f05518fe8421",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8.1,<3.12",
+                "size": 29714,
+                "upload_time": "2022-12-15T17:02:39",
+                "upload_time_iso_8601": "2022-12-15T17:02:39.410405Z",
+                "url": "https://files.pythonhosted.org/packages/4d/66/68935eb1bed826e9f541ad0fb178e5e33f786fdef7eea761c5f266148666/pyadept-0.1.4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

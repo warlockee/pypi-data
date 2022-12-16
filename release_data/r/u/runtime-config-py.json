@@ -50,7 +50,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15526854,
+        "last_serial": 16118537,
         "urls": [
             {
                 "comment_text": "",
@@ -146,7 +146,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15526854,
+        "last_serial": 16118537,
         "urls": [
             {
                 "comment_text": "",
@@ -242,7 +242,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15526854,
+        "last_serial": 16118537,
         "urls": [
             {
                 "comment_text": "",
@@ -338,7 +338,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15526854,
+        "last_serial": 16118537,
         "urls": [
             {
                 "comment_text": "",
@@ -434,7 +434,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15526854,
+        "last_serial": 16118537,
         "urls": [
             {
                 "comment_text": "",
@@ -530,7 +530,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15526854,
+        "last_serial": 16118537,
         "urls": [
             {
                 "comment_text": "",
@@ -595,7 +595,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Software Development"
             ],
-            "description": "![license](https://img.shields.io/pypi/l/runtime-config-py?style=for-the-badge) ![python version](https://img.shields.io/pypi/pyversions/runtime-config-py?style=for-the-badge) [![version](https://img.shields.io/pypi/v/runtime-config-py?style=for-the-badge)](https://pypi.org/project/runtime-config-py/) [![coverage](https://img.shields.io/codecov/c/github/runtime-config/runtime-config-py/master?style=for-the-badge)](https://app.codecov.io/gh/runtime-config/runtime-config-py) [![tests status](https://img.shields.io/github/workflow/status/runtime-config/runtime-config-py/Tests/master?style=for-the-badge)](https://github.com/runtime-config/runtime-config-py/actions?query=branch%3Amaster) [![](https://img.shields.io/pypi/dm/runtime-config-py?style=for-the-badge)](https://pypi.org/project/runtime-config-py/)\n\nruntime-config-py\n=================\n\nThis library allows you to update project settings at runtime. In its basic use case, it is just a client for the\n[server](https://github.com/runtime-config/runtime-config), but if necessary, you can implement your adapter for the\ndesired source and get settings from them.\n\nruntime-config-py supports Python 3.8+.\n\nExamples of using:\n\n- Create feature flags to control which features are enabled for users. Feature flags are especially useful when the\nservice is based on a microservice architecture and the addition of a new feature affects multiple services.\n\n- Quick response to problems in project infrastructure. For example, if one of consumers sends too many requests to\nanother service, and you need to reduce its performance.\n\n\nTable of contents:\n\n- [Installation](#installation)\n- [Usage](#usage)\n- [Backend](#backend)\n- [Development](#development)\n  - [Tests](#tests)\n  - [Style code](#style-code)\n\n\n# Installation\n\nYou can install the library like this:\n\n- from pypi\n\n  ```\n  pip install \"runtime-config-py[aiohttp]\"\n  ```\n\n  or\n\n  ```\n  poetry add runtime-config-py -E aiohttp\n  ```\n\n- from git:\n\n  ```\n  pip install git+https://github.com/runtime-config/runtime-config-py.git#egg=\"runtime-config-py[aiohttp]\"\n  ```\n\n\nSource dependencies have been moved to extras to give you more control over which libraries are installed. If you\nhave a project dependency on a certain version of aiohttp you can install the library without specifying extras.\n\n```\npip install runtime-config-py\n```\n\n# Usage\n\nExamples of using the library can be found [here](./example).\n\nLet's see a simple example of using this library together with aiohttp application.\n\n```python\nfrom aiohttp import web\n\nfrom runtime_config import RuntimeConfig\nfrom runtime_config.sources import ConfigServerSrc\n\n\nasync def hello(request):\n    name = request.app['config'].name\n    return web.Response(text=f'Hello world {name}!')\n\n\nasync def init(application):\n    source = ConfigServerSrc(host='http://127.0.0.1:8080', service_name='hello_world')\n    config = await RuntimeConfig.create(init_settings={'name': 'Alex'}, source=source)\n    application['config'] = config\n\n\nasync def shutdown(application):\n    await application['config'].close()\n\n\napp = web.Application()\napp.on_startup.append(init)\napp.on_shutdown.append(shutdown)\napp.add_routes([web.get('/', hello)])\nweb.run_app(app, port=5000)\n```\n\nBefore running this code, you need to run [server](https://github.com/runtime-config/runtime-config) from which this\nlibrary can take new values for your variables.\nIf you don't do this, nothing bad will not happen. You simply cannot change the value of the name variable at runtime :)\n\n**Automatic source initialization**\n\nYou can simplify library initialization by automatically creating a source instance. Simply define the following\nenvironment variables and the source instance will be created automatically:\n\n- RUNTIME_CONFIG_HOST\n- RUNTIME_CONFIG_SERVICE_NAME\n\n**Ways to access settings**\n\nThis library supports several ways to access variables. All of them are shown below:\n\n```python\nprint(config.name)\nprint(config['name'])\nprint(config.get('name', default='Dima'))\n```\n\n# Backend\n\nCurrently, only 1 [backend](https://github.com/runtime-config/runtime-config) is supported. Later, support for other\nbackends, such as redis, will probably be added to the library, but this is not in the nearest plans.\n\nIf you need support for another settings storage source right now, you can write your own source. Implementing this is\nvery simple. You need to create a class that will be able to retrieve data from the desired source and will inherit\nfrom `runtime_config.sources.base.BaseSource`. After that, an instance of the class you created must be passed to\nthe `RuntimeConfig.create` method.\n\n```python\nyour_source = YourSource(...)\nconfig = await RuntimeConfig.create(..., source=your_source)\n```\n\n\n# Development\n\n## Install deps\n\n```\npoetry install --all-extras\n```\n\n## Tests\n\nCheck the work of the library on several versions of Python at once using the command below:\n\n```\nmake test-multi-versions\n```\n\nThe simple test run is available through the command below:\n\n```\nmake test\n```\n\n\n## Style code\n\nFor automatic code formatting and code verification, you need to use the command below:\n\n```\nmake lint\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -628,7 +627,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15526854,
+        "last_serial": 16118537,
         "urls": [
             {
                 "comment_text": "",
@@ -667,6 +666,104 @@
                 "upload_time": "2022-10-25T18:59:01",
                 "upload_time_iso_8601": "2022-10-25T18:59:01.643639Z",
                 "url": "https://files.pythonhosted.org/packages/21/d9/0503c10b6f5e742f4c79a894ad28338660c97c51b775247286d61d6f2bb6/runtime_config_py-0.0.7.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.8": {
+        "info": {
+            "author": "Aleksey Petrunnik",
+            "author_email": "petrunnik.a@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "Intended Audience :: System Administrators",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development"
+            ],
+            "description": "![license](https://img.shields.io/pypi/l/runtime-config-py?style=for-the-badge) ![python version](https://img.shields.io/pypi/pyversions/runtime-config-py?style=for-the-badge) [![version](https://img.shields.io/pypi/v/runtime-config-py?style=for-the-badge)](https://pypi.org/project/runtime-config-py/) [![coverage](https://img.shields.io/codecov/c/github/runtime-config/runtime-config-py/master?style=for-the-badge)](https://app.codecov.io/gh/runtime-config/runtime-config-py) [![tests status](https://img.shields.io/github/workflow/status/runtime-config/runtime-config-py/Tests/master?style=for-the-badge)](https://github.com/runtime-config/runtime-config-py/actions?query=branch%3Amaster) [![](https://img.shields.io/pypi/dm/runtime-config-py?style=for-the-badge)](https://pypi.org/project/runtime-config-py/)\n\nruntime-config-py\n=================\n\nThis library allows you to update project settings at runtime. In its basic use case, it is just a client for the\n[server](https://github.com/runtime-config/runtime-config), but if necessary, you can implement your adapter for the\ndesired source and get settings from them.\n\nruntime-config-py supports Python 3.8+.\n\nExamples of using:\n\n- Create feature flags to control which features are enabled for users. Feature flags are especially useful when the\nservice is based on a microservice architecture and the addition of a new feature affects multiple services.\n\n- Quick response to problems in project infrastructure. For example, if one of consumers sends too many requests to\nanother service, and you need to reduce its performance.\n\n\nTable of contents:\n\n- [Installation](#installation)\n- [Usage](#usage)\n- [Backend](#backend)\n- [Development](#development)\n  - [Tests](#tests)\n  - [Style code](#style-code)\n\n\n# Installation\n\nYou can install the library like this:\n\n- from pypi\n\n  ```\n  pip install \"runtime-config-py[aiohttp]\"\n  ```\n\n  or\n\n  ```\n  poetry add runtime-config-py -E aiohttp\n  ```\n\n- from git:\n\n  ```\n  pip install git+https://github.com/runtime-config/runtime-config-py.git#egg=\"runtime-config-py[aiohttp]\"\n  ```\n\n\nSource dependencies have been moved to extras to give you more control over which libraries are installed. If you\nhave a project dependency on a certain version of aiohttp you can install the library without specifying extras.\n\n```\npip install runtime-config-py\n```\n\n# Usage\n\nExamples of using the library can be found [here](./example).\n\nLet's see a simple example of using this library together with aiohttp application.\n\n```python\nfrom aiohttp import web\n\nfrom runtime_config import RuntimeConfig\nfrom runtime_config.sources import ConfigServerSrc\n\n\nasync def hello(request):\n    name = request.app['config'].name\n    return web.Response(text=f'Hello world {name}!')\n\n\nasync def init(application):\n    source = ConfigServerSrc(host='http://127.0.0.1:8080', service_name='hello_world')\n    config = await RuntimeConfig.create(init_settings={'name': 'Alex'}, source=source)\n    application['config'] = config\n\n\nasync def shutdown(application):\n    await application['config'].close()\n\n\napp = web.Application()\napp.on_startup.append(init)\napp.on_shutdown.append(shutdown)\napp.add_routes([web.get('/', hello)])\nweb.run_app(app, port=5000)\n```\n\nBefore running this code, you need to run [server](https://github.com/runtime-config/runtime-config) from which this\nlibrary can take new values for your variables.\nIf you don't do this, nothing bad will not happen. You simply cannot change the value of the name variable at runtime :)\n\n**Automatic source initialization**\n\nYou can simplify library initialization by automatically creating a source instance. Simply define the following\nenvironment variables and the source instance will be created automatically:\n\n- RUNTIME_CONFIG_HOST\n- RUNTIME_CONFIG_SERVICE_NAME\n\n**Ways to access settings**\n\nThis library supports several ways to access variables. All of them are shown below:\n\n```python\nprint(config.name)\nprint(config['name'])\nprint(config.get('name', default='Dima'))\n```\n\n# Backend\n\nCurrently, only 1 [backend](https://github.com/runtime-config/runtime-config) is supported. Later, support for other\nbackends, such as redis, will probably be added to the library, but this is not in the nearest plans.\n\nIf you need support for another settings storage source right now, you can write your own source. Implementing this is\nvery simple. You need to create a class that will be able to retrieve data from the desired source and will inherit\nfrom `runtime_config.sources.base.BaseSource`. After that, an instance of the class you created must be passed to\nthe `RuntimeConfig.create` method.\n\n```python\nyour_source = YourSource(...)\nconfig = await RuntimeConfig.create(..., source=your_source)\n```\n\n\n# Development\n\n## Install deps\n\n```\npoetry install --all-extras\n```\n\n## Tests\n\nCheck the work of the library on several versions of Python at once using the command below:\n\n```\nmake test-multi-versions\n```\n\nThe simple test run is available through the command below:\n\n```\nmake test\n```\n\n\n## Style code\n\nFor automatic code formatting and code verification, you need to use the command below:\n\n```\nmake lint\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/runtime-config/runtime-config-py",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Aleksey Petrunnik",
+            "maintainer_email": "petrunnik.a@gmail.com",
+            "name": "runtime-config-py",
+            "package_url": "https://pypi.org/project/runtime-config-py/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/runtime-config-py/",
+            "project_urls": {
+                "Homepage": "https://github.com/runtime-config/runtime-config-py",
+                "Repository": "https://github.com/runtime-config/runtime-config-py"
+            },
+            "release_url": "https://pypi.org/project/runtime-config-py/0.0.8/",
+            "requires_dist": [
+                "aiohttp (>=3.8.1,<4.0.0); extra == \"aiohttp\"",
+                "pydantic (>=1.5.0,<2.0.0)"
+            ],
+            "requires_python": ">=3.8,<3.12",
+            "summary": "Library for runtime updating project settings.",
+            "version": "0.0.8",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16118537,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "66f72048b3dae755ef004b79b2b2a3ff",
+                    "sha256": "8b9b0959d1d8fe51f8b34b98e23318337c4d935b6116c7318e425cd127f79f99"
+                },
+                "downloads": -1,
+                "filename": "runtime_config_py-0.0.8-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "66f72048b3dae755ef004b79b2b2a3ff",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<3.12",
+                "size": 10486,
+                "upload_time": "2022-12-15T20:48:19",
+                "upload_time_iso_8601": "2022-12-15T20:48:19.424901Z",
+                "url": "https://files.pythonhosted.org/packages/fc/9b/ad3d58990205a0d34decd8f27f6480d86decf53711471599a09770b8fb0e/runtime_config_py-0.0.8-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "35f0bae616e2cae1a162f974b88a1545",
+                    "sha256": "b79cce65c8d4e4158b16ab2d7d7cc60e30709e7808dd98fe5d8745489da18412"
+                },
+                "downloads": -1,
+                "filename": "runtime_config_py-0.0.8.tar.gz",
+                "has_sig": false,
+                "md5_digest": "35f0bae616e2cae1a162f974b88a1545",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<3.12",
+                "size": 10243,
+                "upload_time": "2022-12-15T20:48:21",
+                "upload_time_iso_8601": "2022-12-15T20:48:21.389077Z",
+                "url": "https://files.pythonhosted.org/packages/c0/c0/78b22b2485067020679b54c7b25bace476d6f5870d97e6f9071347fdd17b/runtime_config_py-0.0.8.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
