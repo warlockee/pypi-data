@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13023446,
+        "last_serial": 16123599,
         "urls": [
             {
                 "comment_text": "",
@@ -181,7 +181,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13023446,
+        "last_serial": 16123599,
         "urls": [
             {
                 "comment_text": "",
@@ -276,7 +276,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13023446,
+        "last_serial": 16123599,
         "urls": [
             {
                 "comment_text": "",
@@ -392,7 +392,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13023446,
+        "last_serial": 16123599,
         "urls": [
             {
                 "comment_text": "",
@@ -511,7 +511,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13023446,
+        "last_serial": 16123599,
         "urls": [
             {
                 "comment_text": "",
@@ -630,7 +630,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13023446,
+        "last_serial": 16123599,
         "urls": [
             {
                 "comment_text": "",
@@ -749,7 +749,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13023446,
+        "last_serial": 16123599,
         "urls": [
             {
                 "comment_text": "",
@@ -868,7 +868,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13023446,
+        "last_serial": 16123599,
         "urls": [
             {
                 "comment_text": "",
@@ -933,7 +933,6 @@
                 "Topic :: Security :: Cryptography",
                 "Topic :: System :: Systems Administration"
             ],
-            "description": "# vault-cert-deploy\n\n![pipeline](https://gitlab.com/rvojcik/vault-certificate-deploy/badges/master/pipeline.svg)\n\nDeploy SSL certificates from HashiCorp's Vault secret server\nScript is able to deploy certificates from KV store of Vault\nor when you use issue version of script it use PKI secret storage.\n\nAs auth method is used [Approle](https://www.vaultproject.io/docs/auth/approle.html \"Vault Approle Doc\"), you need role and secret id\ndeployed to server from different systems/locations. More\nabout this in usecase section.\n\nOn the first look, it may be little bit strange combination of \nconfig file and cli options. You can combine them in different \nways to support various types of deployments to meet the basic\nsecurity concepts.\n\n## Why do I need Vault Server ?\n\nWe are using Let's Encrypt for almost all of our SSL/TLS certificates.\nWe also have complex infrastructure so we have to retrieve \ncertificates in central place and then we distribute them into \ndatacenters, clouds or any other applications.\n\n## How deploy work ?\n\nIt deploy certificates to specified directory and create\ntwo directories `certs` and `private`.\n\n* certs has mode 0644\n* private keys has mode 0640\n* it deploys all secret content from vault, keys as files with suitable extension <secretname>.<secretKey>\n\n## Installation\n\n### Python PyPI\n```\npip install vault-certificate-deploy\n```\n\n### Manual\nManual installation\n\n```\ngit clone https://github.com/rvojcik/vault-certificate-deploy\ncd vault-certificate-deploy\nsudo python ./setup.py install \n```\n\nIn the end \n```\nvault-cert-deploy --help\n```\n\n## Example configuration\nCan be found in `config.example`. \n\nRole and Secret id can be passed from script arguments.\nYou could combine `-n` and `--cert-list` parameters.\n\nIn `vault` section of configuration it is possible to \nset `mount_point` of secret in Vault. \nBy default it is `cert`.\nYou could also change this option in arguments\n\n# Vault Configuration\n\nScript uses [Approle](https://www.vaultproject.io/docs/auth/approle.html \"Vault Approle Doc\") auth.\n\nFirst enable AppRole auth if it's not\n```\nvault auth enable approle\n```\n\nYou have to create your policy first.\nUse Vault [documentation](https://www.vaultproject.io/docs/concepts/policies.html) around policies and then continue here.\n\nExample policy with basic medium security can be\n```\n# Cert Deploy Policy\n# Give ability to\n# - read all certificates\n# - don't permit list certificates\n#\npath \"/certs/*\" {\n  capabilities = [\"read\"]\n}\n\n```\n\nConfigure your role\n```\nvault write auth/approle/role/my-role \\\nsecret_id_ttl=0 \\\ntoken_num_uses=0 \\\ntoken_ttl=20m \\\ntoken_max_ttl=30m \\\npolicies=\"my-policy,default\"\n```\n\nRetrieve your approle ID\n```\nvault read auth/approle/role/my-role/role-id\n```\n\nGet secret ID (onetime operation)\n```\nvault write -f auth/approle/role/my-role/secret-id\n```\n\n# Use Cases\nIt is important to don't have role-id and secret-id together\nin one repository or configuration management.\n\n## Puppet\nI deploy my servers with installer which create file `/etc/vault_role_id`\nwhich contain `role-id` of the approle.\n\nThen I have Puppet Configuration management which deploy this system with \nall files and `secret-id` in configuration file (`/etc/vault-deploy/config.conf`). \n\nPuppet create also file with certs/secret names `/etc/ssl-deploy-certs.conf`\n\nthen you can run deploy like this:\n```\nvault-certificate-deploy.py -c /etc/vault-deploy/config.conf \\\n  --cert-list /etc/ssl-deploy-certs.conf \\\n  --role-id $(cat /etc/vault_role_id)\n```\n\n### Why  ?\nI store Puppet configuration in Git, and therefore I have not \nrole-id and secret-id together in my repository.\nI choose to deploy `secret-id` with puppet because when need to \nrotate secret-id it is automaticly deployed by puppet to infrastructure.\n\n## What is issue version of the script ?\nIssue version of the command or script uses different Secret Storage\nEngine. It uses [PKI](https://www.vaultproject.io/api/secret/pki/index.html) which gives you ability to create\nyour own CA or Intermediate CA. Vault handle both certs generation and issuing. \n\nYou have to specify PKI mount point with `--vault-pki` option.\nThis pki mount_point is used as subdirectory of storage path in your\nconfig file. In this subdirectory we create same structure `certs` and `private`\nlike in other version of the script.\n\n### What is difference in function ?\nIssue command check if certificates you define exists, and it check their expiration time\ndefined by `--cert-min-ttl` option. \n\nIt basicaly means it generates and issue certificates for you, if they not exist, or if they are \nclose to expire. It is great automation capability in combination with Configuration\nManagement systems. You don't have to take care of the certificates anymore.\n\nIf certificates you define exists and are valid script just do nothing.\n\n### Examples\nCreate certificate server1.domin.intra on PKI mounted in pki mount point of vault.\nIf you want to issue new certificate, you have to issue it against some role. In \nour case this role is `test`.\n\nMore information about [PKI roles in documentation](https://www.vaultproject.io/docs/secrets/pki/index.html).\n```\nvault-certificate-issue-deploy --vault-pki pki -n server1.domain.intra --cert-role test\n```\n\nIf we need some subject alternative name you can define it as `--cert-extra-options`\n```\nvault-certificate-issue-deploy --vault-pki pki -n server1.domain.intra --cert-role test --cert-extra-options \"alt_names=console.domain.intra,console1.domain.intra,admin.domain.intra\"\n```\nResult of this can be something like this\n```\n X509v3 Subject Alternative Name: \n     DNS:console.domain.intra, DNS:console1.domain.intra, DNS:admin.domain.intra\n```\n\n# Security Best Practices\n* Never store your role-id and secret-id in your repository together\n* Deploy secret-id in way it's quick and easy for you to rotate/change\n* In production always use `verify_tls=yes`\n* when deploy secret-id and role-id in files/config, always set correct permissions (eg. `0400`, `0600`)\n* in vault set policy to your approle only for `read` capability, it's enough\n* for highest security set individual approle for every server and set individual policy for every server and certificate\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -968,7 +967,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13023446,
+        "last_serial": 16123599,
         "urls": [
             {
                 "comment_text": "",
@@ -1007,6 +1006,106 @@
                 "upload_time": "2022-02-27T10:16:30",
                 "upload_time_iso_8601": "2022-02-27T10:16:30.417730Z",
                 "url": "https://files.pythonhosted.org/packages/d1/21/13d4f9102f059761c0df1fb50efacb21e783271c26c2e135849569973c3a/vault-certificate-deploy-1.3.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.4.1": {
+        "info": {
+            "author": "Robert Vojcik",
+            "author_email": "robert@vojcik.net",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: POSIX",
+                "Operating System :: POSIX :: Linux",
+                "Operating System :: Unix",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Database",
+                "Topic :: Security",
+                "Topic :: Security :: Cryptography",
+                "Topic :: System :: Systems Administration"
+            ],
+            "description": "# vault-cert-deploy\n\n![pipeline](https://gitlab.com/rvojcik/vault-certificate-deploy/badges/master/pipeline.svg)\n\nDeploy SSL certificates from HashiCorp's Vault secret server\nScript is able to deploy certificates from KV store of Vault\nor when you use issue version of script it use PKI secret storage.\n\nAs auth method is used [Approle](https://www.vaultproject.io/docs/auth/approle.html \"Vault Approle Doc\"), you need role and secret id\ndeployed to server from different systems/locations. More\nabout this in usecase section.\n\nOn the first look, it may be little bit strange combination of \nconfig file and cli options. You can combine them in different \nways to support various types of deployments to meet the basic\nsecurity concepts.\n\n## Why do I need Vault Server ?\n\nWe are using Let's Encrypt for almost all of our SSL/TLS certificates.\nWe also have complex infrastructure so we have to retrieve \ncertificates in central place and then we distribute them into \ndatacenters, clouds or any other applications.\n\n## How deploy work ?\n\nIt deploy certificates to specified directory and create\ntwo directories `certs` and `private`.\n\n* certs has mode 0644\n* private keys has mode 0640\n* it deploys all secret content from vault, keys as files with suitable extension <secretname>.<secretKey>\n\n## Installation\n\n### Python PyPI\n```\npip install vault-certificate-deploy\n```\n\n### Manual\nManual installation\n\n```\ngit clone https://github.com/rvojcik/vault-certificate-deploy\ncd vault-certificate-deploy\nsudo python ./setup.py install \n```\n\nIn the end \n```\nvault-cert-deploy --help\n```\n\n## Example configuration\nCan be found in `config.example`. \n\nRole and Secret id can be passed from script arguments.\nYou could combine `-n` and `--cert-list` parameters.\n\nIn `vault` section of configuration it is possible to \nset `mount_point` of secret in Vault. \nBy default it is `cert`.\nYou could also change this option in arguments\n\n# Vault Configuration\n\nScript uses [Approle](https://www.vaultproject.io/docs/auth/approle.html \"Vault Approle Doc\") auth.\n\nFirst enable AppRole auth if it's not\n```\nvault auth enable approle\n```\n\nYou have to create your policy first.\nUse Vault [documentation](https://www.vaultproject.io/docs/concepts/policies.html) around policies and then continue here.\n\nExample policy with basic medium security can be\n```\n# Cert Deploy Policy\n# Give ability to\n# - read all certificates\n# - don't permit list certificates\n#\npath \"/certs/*\" {\n  capabilities = [\"read\"]\n}\n\n```\n\nConfigure your role\n```\nvault write auth/approle/role/my-role \\\nsecret_id_ttl=0 \\\ntoken_num_uses=0 \\\ntoken_ttl=20m \\\ntoken_max_ttl=30m \\\npolicies=\"my-policy,default\"\n```\n\nRetrieve your approle ID\n```\nvault read auth/approle/role/my-role/role-id\n```\n\nGet secret ID (onetime operation)\n```\nvault write -f auth/approle/role/my-role/secret-id\n```\n\n# Use Cases\nIt is important to don't have role-id and secret-id together\nin one repository or configuration management.\n\n## Puppet\nI deploy my servers with installer which create file `/etc/vault_role_id`\nwhich contain `role-id` of the approle.\n\nThen I have Puppet Configuration management which deploy this system with \nall files and `secret-id` in configuration file (`/etc/vault-deploy/config.conf`). \n\nPuppet create also file with certs/secret names `/etc/ssl-deploy-certs.conf`\n\nthen you can run deploy like this:\n```\nvault-certificate-deploy.py -c /etc/vault-deploy/config.conf \\\n  --cert-list /etc/ssl-deploy-certs.conf \\\n  --role-id $(cat /etc/vault_role_id)\n```\n\n### Why  ?\nI store Puppet configuration in Git, and therefore I have not \nrole-id and secret-id together in my repository.\nI choose to deploy `secret-id` with puppet because when need to \nrotate secret-id it is automaticly deployed by puppet to infrastructure.\n\n## What is issue version of the script ?\nIssue version of the command or script uses different Secret Storage\nEngine. It uses [PKI](https://www.vaultproject.io/api/secret/pki/index.html) which gives you ability to create\nyour own CA or Intermediate CA. Vault handle both certs generation and issuing. \n\nYou have to specify PKI mount point with `--vault-pki` option.\nThis pki mount_point is used as subdirectory of storage path in your\nconfig file. In this subdirectory we create same structure `certs` and `private`\nlike in other version of the script.\n\n### What is difference in function ?\nIssue command check if certificates you define exists, and it check their expiration time\ndefined by `--cert-min-ttl` option. \n\nIt basicaly means it generates and issue certificates for you, if they not exist, or if they are \nclose to expire. It is great automation capability in combination with Configuration\nManagement systems. You don't have to take care of the certificates anymore.\n\nIf certificates you define exists and are valid script just do nothing.\n\n### Examples\nCreate certificate server1.domin.intra on PKI mounted in pki mount point of vault.\nIf you want to issue new certificate, you have to issue it against some role. In \nour case this role is `test`.\n\nMore information about [PKI roles in documentation](https://www.vaultproject.io/docs/secrets/pki/index.html).\n```\nvault-certificate-issue-deploy --vault-pki pki -n server1.domain.intra --cert-role test\n```\n\nIf we need some subject alternative name you can define it as `--cert-extra-options`\n```\nvault-certificate-issue-deploy --vault-pki pki -n server1.domain.intra --cert-role test --cert-extra-options \"alt_names=console.domain.intra,console1.domain.intra,admin.domain.intra\"\n```\nResult of this can be something like this\n```\n X509v3 Subject Alternative Name: \n     DNS:console.domain.intra, DNS:console1.domain.intra, DNS:admin.domain.intra\n```\n\n# Security Best Practices\n* Never store your role-id and secret-id in your repository together\n* Deploy secret-id in way it's quick and easy for you to rotate/change\n* In production always use `verify_tls=yes`\n* when deploy secret-id and role-id in files/config, always set correct permissions (eg. `0400`, `0600`)\n* in vault set policy to your approle only for `read` capability, it's enough\n* for highest security set individual approle for every server and set individual policy for every server and certificate\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/rvojcik/vault-certificate-deploy",
+            "keywords": "vault_certificate_deploy,vault_cert_deploy,certificate,vault-certificate-deploy,vault-cert-deploy,hashicorp,certificates",
+            "license": "GPLv3",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "vault-certificate-deploy",
+            "package_url": "https://pypi.org/project/vault-certificate-deploy/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/vault-certificate-deploy/",
+            "project_urls": {
+                "Homepage": "https://github.com/rvojcik/vault-certificate-deploy"
+            },
+            "release_url": "https://pypi.org/project/vault-certificate-deploy/1.4.1/",
+            "requires_dist": [
+                "urllib3",
+                "hvac (<0.11.0,>=0.10.1)",
+                "requests (>=2.1)",
+                "configparser",
+                "pyOpenSSL (>=17.0)"
+            ],
+            "requires_python": "",
+            "summary": "System for deploying certificates from Hashicorp Vault server",
+            "version": "1.4.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16123599,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7eeee43341c9d021ead211d3292f0737",
+                    "sha256": "171d9387c7b0b08408e2c8a2874e0e90ebbf380d2a13b2d93650c3009e38bd70"
+                },
+                "downloads": -1,
+                "filename": "vault_certificate_deploy-1.4.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "7eeee43341c9d021ead211d3292f0737",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 27673,
+                "upload_time": "2022-12-16T08:47:37",
+                "upload_time_iso_8601": "2022-12-16T08:47:37.341791Z",
+                "url": "https://files.pythonhosted.org/packages/68/28/214e1a9b008c0051439aa369a7f3a92effde2e9eb6e3569fa7e9a9626f9b/vault_certificate_deploy-1.4.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "02ed9621757c373cfb48919f8e47fb3b",
+                    "sha256": "4e6c08b544d83e1a18df3037c6e2cfdfc0a883107c7f119b65453c7754d57fe4"
+                },
+                "downloads": -1,
+                "filename": "vault-certificate-deploy-1.4.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "02ed9621757c373cfb48919f8e47fb3b",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 26192,
+                "upload_time": "2022-12-16T08:47:38",
+                "upload_time_iso_8601": "2022-12-16T08:47:38.328042Z",
+                "url": "https://files.pythonhosted.org/packages/9a/ae/3d9560657350aac1c6c6ee6d546e80df894d42e980ab5b1196f9bc2a1b3a/vault-certificate-deploy-1.4.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

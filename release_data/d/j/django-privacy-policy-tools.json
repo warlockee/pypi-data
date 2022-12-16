@@ -40,7 +40,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14137818,
+        "last_serial": 16124808,
         "urls": [
             {
                 "comment_text": "",
@@ -96,7 +96,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# Django Privacy Policy Tools\n\nThis is a Django app to manage privacy policies and to handle the\nprocess of confirmation trough the users. \n\nFeatures: \n\n* Create policies using the admin interface\n* Different policies for different groups\n* Text styling with html\n* Confirmation middleware to force the users to confirm the policies\n* View all confirmations in the admin interface\n\nThis app is build for the current LTS Version of \n[Django](https://www.djangoproject.com/), which is 3.2.\n\n## Install\n\nInstall the app using pip.\n\n```shell\npip install django-privacy-policy-tools\n```\n\n## Configure\n\nAt first you have to add the app to your `INSTALLED_APPS` in your `settings.py`.\n\n```python\nINSTALLED_APPS = (\n    'django.contrib.auth',\n    'django.contrib.contenttypes',\n    'django.contrib.sessions',\n    'django.contrib.messages',\n    'django.contrib.staticfiles',\n    'django.contrib.humanize',\n    'privacy_policy_tools.apps.PrivacyPolicyToolsConfig',\n    ...\n)\n```\n\nAdd the middleware of the app to your `MIDDLEWARE` in your `settings.py`.\n\n```python\nMIDDLEWARE = (\n    'django.contrib.sessions.middleware.SessionMiddleware',\n    'django.middleware.locale.LocaleMiddleware',\n    'django.middleware.common.CommonMiddleware',\n    'django.middleware.csrf.CsrfViewMiddleware',\n    'django.contrib.auth.middleware.AuthenticationMiddleware',\n    'django.contrib.messages.middleware.MessageMiddleware',\n    'django.middleware.clickjacking.XFrameOptionsMiddleware',\n    'privacy_policy_tools.middleware.PrivacyPolicyMiddleware',\n    ...\n)\n```\n\nIf you want to use the app in your templates (e.g. create a link to \nthe privacy policy page), you should \nadd the context processor of the app to your config in your `settings.py`.\n\n```python\nTEMPLATES = [\n    {\n        'BACKEND': 'django.template.backends.django.DjangoTemplates',\n        'APP_DIRS': True,\n        'OPTIONS': {\n            'context_processors': [\n                'django.contrib.auth.context_processors.auth',\n                'django.template.context_processors.debug',\n                'django.template.context_processors.i18n',\n                'django.template.context_processors.media',\n                'django.template.context_processors.static',\n                'django.template.context_processors.tz',\n                'django.contrib.messages.context_processors.messages',\n                'django.template.context_processors.request',\n                'privacy_policy_tools.context_processors.privacy_tools',\n            ],\n            'debug': True,\n        },\n    },\n]\n```\n\nNow you can configure the app in your `settings.py`.\n\n```python\nPRIVACY_POLICY_TOOLS = {\n    'ENABLED': True,\n    'POLICY_PAGE_URL': 'terms/and/conditions',\n    'POLICY_CONFIRM_URL': 'terms/and/conditions/confirm',\n    'IGNORE_URLS': ['admin', ],\n    'DEFAULT_POLICY': True\n}\n```\n\nPossible values are: \n\n* __ENABLED__: True to enable the privacy policy tools. This means the users\n  have to confirm the created policies.\n* __POLICY_PAGE_URL__: URL schema of the policy page to show all active policies\n* __POLICY_CONFIRM_URL__: URL schema of the page to confirm a policy\n* __IGNORE_URLS__: List of URLs which contains these values could be accessed without\n  confirming a policy. Add the admin site to let you create a policy.\n* __DEFAULT_POLICY__: If true the policy created for no group has to be confirmed\n  by all users. If false such a policy has to be confirmed by users with no group only. \n\n## Usage\n\nAfter configuring the app everything is ready to be used. Start by creating a policy\nin the admin interface. It is possible to create different policies for different groups.\nDepending on your language settings you will get a field for each language for the policy\ntitle and text.\n\nNow the users are required to confirm your created policies.\n\n## Customization\n\n### Overwrite templates to customize the style\n\nThe included templates are using the base templet of the admin site. If you want\nto change this style to match your project you can overwrite these two templates\nby placing them in an app loaded in `INSTALLED_APPS` before this app. There\nare the following templates:\n\n* `privacy_policy_tools/show.html`\n* `privacy_policy_tools/confirm.html`\n\nIn `show.html` you have to place something like this: \n\n```\n{% for policy in policies %}\n    <h3>{{ policy.title }}</h3>\n    <p><small>{% trans \"Last changed:\" %} {{ policy.published_at }}</small></p>\n    <p>{{ policy.text|safe }}</p>\n{% endfor %}\n```\n\nIn `confirm.html` you have to do something like this: \n\n```\n<h3>{{ policy.title }}</h3>\n<p>{% trans \"Last changed:\" %}\n    {{ policy.published_at }}</p>\n\n<p>{{ policy.text|safe }}</p>\n\n{% if is_authenticated and not is_confirmed %}\n<form method=\"post\" action=\"{{ form_url }}\">\n    {% csrf_token %}\n    <input type=\"submit\" value=\"{% trans \"Confirm\" %}\" />\n</form>\n{% endif %}\n```\n\n### Link to policies\n\nIf you want to place a link to the policies at your page (e.g. in the footer)\nyou have to add a context processor as shown above. After that you can\ncreate the link in your template in the following way:\n\n```\n{% if privacy_enabled %}\n    <a href=\"{% url privacy_view %}\">{% trans \"Terms and Conditions\" %}</a>\n{% endif %}\n```\n\n### Add confirm checkbox to your registration form\n\nTo add a checkbox to your registration form where the users could confirm\nyour policies during registration, you have to do multiple things. At first\ncreate the form and add the fields: \n\n```python\nfrom django import forms\nfrom django.contrib.auth.forms import UserCreationForm\nfrom privacy_policy_tools.utils import get_setting\n\nclass UserCreateForm(UserCreationForm):\n\n    def __init__(self, *args, **kwargs):\n        super(UserCreateForm, self).__init__(*args, **kwargs)\n        if get_setting('ENABLED', False):\n            self.fields['confirm_privacy'] = forms.BooleanField(\n                label=_('I accept the Terms and Conditions')\n            )\n```\n\nIn the corresponding view you have to save the confirmation. Such a view\ncould look like this: \n\n```python\nfrom django.shortcuts import render\nfrom django.urls import reverse\nfrom django.http import HttpResponseRedirect\nfrom django.contrib.auth.models import User\nfrom privacy_policy_tools.utils import save_confirmation, get_setting\nfrom yourapp.forms import UserCreateForm\n\ndef create_user(request):\n    if request.method == 'POST':\n        form = UserCreateForm(request.POST, label_suffix='')\n        if form.is_valid():\n            username = form.cleaned_data['username']\n            password = form.cleaned_data['password1']\n            email = form.cleaned_data['email']\n            user = User.objects.create_user(username, email, password)\n            if get_setting('ENABLED'):\n                save_confirmation(user)\n            return HttpResponseRedirect(reverse('yourapp.views.index'))\n\n    else:\n        form = UserCreateForm()\n\n    return render(request, 'registration/create_user.html', {\n        'form': form,\n    })\n```\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -127,7 +126,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14137818,
+        "last_serial": 16124808,
         "urls": [
             {
                 "comment_text": "",
@@ -166,6 +165,94 @@
                 "upload_time": "2022-06-15T09:50:17",
                 "upload_time_iso_8601": "2022-06-15T09:50:17.798322Z",
                 "url": "https://files.pythonhosted.org/packages/6d/69/80745e254a29932cd1dae21bfd974610225a105bc8b11201b784d7378395/django-privacy-policy-tools-0.0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.3": {
+        "info": {
+            "author": "Josef Wachtler",
+            "author_email": "josef.wachtler@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Framework :: Django",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# Django Privacy Policy Tools\n\nThis is a Django app to manage privacy policies and to handle the\nprocess of confirmation trough the users. \n\nFeatures: \n\n* Create policies using the admin interface\n* Different policies for different groups\n* Text styling with html\n* Confirmation middleware to force the users to confirm the policies\n* View all confirmations in the admin interface\n\nThis app is build for the current LTS Version of \n[Django](https://www.djangoproject.com/), which is 3.2.\n\n## Install\n\nInstall the app using pip.\n\n```shell\npip install django-privacy-policy-tools\n```\n\n## Configure\n\nAt first you have to add the app to your `INSTALLED_APPS` in your `settings.py`.\n\n```python\nINSTALLED_APPS = (\n    'django.contrib.auth',\n    'django.contrib.contenttypes',\n    'django.contrib.sessions',\n    'django.contrib.messages',\n    'django.contrib.staticfiles',\n    'django.contrib.humanize',\n    'privacy_policy_tools.apps.PrivacyPolicyToolsConfig',\n    ...\n)\n```\n\nAdd the middleware of the app to your `MIDDLEWARE` in your `settings.py`.\n\n```python\nMIDDLEWARE = (\n    'django.contrib.sessions.middleware.SessionMiddleware',\n    'django.middleware.locale.LocaleMiddleware',\n    'django.middleware.common.CommonMiddleware',\n    'django.middleware.csrf.CsrfViewMiddleware',\n    'django.contrib.auth.middleware.AuthenticationMiddleware',\n    'django.contrib.messages.middleware.MessageMiddleware',\n    'django.middleware.clickjacking.XFrameOptionsMiddleware',\n    'privacy_policy_tools.middleware.PrivacyPolicyMiddleware',\n    ...\n)\n```\n\nIf you want to use the app in your templates (e.g. create a link to \nthe privacy policy page), you should \nadd the context processor of the app to your config in your `settings.py`.\n\n```python\nTEMPLATES = [\n    {\n        'BACKEND': 'django.template.backends.django.DjangoTemplates',\n        'APP_DIRS': True,\n        'OPTIONS': {\n            'context_processors': [\n                'django.contrib.auth.context_processors.auth',\n                'django.template.context_processors.debug',\n                'django.template.context_processors.i18n',\n                'django.template.context_processors.media',\n                'django.template.context_processors.static',\n                'django.template.context_processors.tz',\n                'django.contrib.messages.context_processors.messages',\n                'django.template.context_processors.request',\n                'privacy_policy_tools.context_processors.privacy_tools',\n            ],\n            'debug': True,\n        },\n    },\n]\n```\n\nNow you can configure the app in your `settings.py`.\n\n```python\nPRIVACY_POLICY_TOOLS = {\n    'ENABLED': True,\n    'POLICY_PAGE_URL': 'terms/and/conditions',\n    'POLICY_CONFIRM_URL': 'terms/and/conditions/confirm',\n    'IGNORE_URLS': ['admin', ],\n    'DEFAULT_POLICY': True\n}\n```\n\nPossible values are: \n\n* __ENABLED__: True to enable the privacy policy tools. This means the users\n  have to confirm the created policies.\n* __POLICY_PAGE_URL__: URL schema of the policy page to show all active policies\n* __POLICY_CONFIRM_URL__: URL schema of the page to confirm a policy\n* __IGNORE_URLS__: List of URLs which contains these values could be accessed without\n  confirming a policy. Add the admin site to let you create a policy.\n* __DEFAULT_POLICY__: If true the policy created for no group has to be confirmed\n  by all users. If false such a policy has to be confirmed by users with no group only. \n\n## Usage\n\nAfter configuring the app everything is ready to be used. Start by creating a policy\nin the admin interface. It is possible to create different policies for different groups.\nDepending on your language settings you will get a field for each language for the policy\ntitle and text.\n\nNow the users are required to confirm your created policies.\n\n## Customization\n\n### Overwrite templates to customize the style\n\nThe included templates are using the base templet of the admin site. If you want\nto change this style to match your project you can overwrite these two templates\nby placing them in an app loaded in `INSTALLED_APPS` before this app. There\nare the following templates:\n\n* `privacy_policy_tools/show.html`\n* `privacy_policy_tools/confirm.html`\n\nIn `show.html` you have to place something like this: \n\n```\n{% for policy in policies %}\n    <h3>{{ policy.title }}</h3>\n    <p><small>{% trans \"Last changed:\" %} {{ policy.published_at }}</small></p>\n    <p>{{ policy.text|safe }}</p>\n{% endfor %}\n```\n\nIn `confirm.html` you have to do something like this: \n\n```\n<h3>{{ policy.title }}</h3>\n<p>{% trans \"Last changed:\" %}\n    {{ policy.published_at }}</p>\n\n<p>{{ policy.text|safe }}</p>\n\n{% if is_authenticated and not is_confirmed %}\n<form method=\"post\" action=\"{{ form_url }}\">\n    {% csrf_token %}\n    <input type=\"submit\" value=\"{% trans \"Confirm\" %}\" />\n</form>\n{% endif %}\n```\n\n### Link to policies\n\nIf you want to place a link to the policies at your page (e.g. in the footer)\nyou have to add a context processor as shown above. After that you can\ncreate the link in your template in the following way:\n\n```\n{% if privacy_enabled %}\n    <a href=\"{% url privacy_view %}\">{% trans \"Terms and Conditions\" %}</a>\n{% endif %}\n```\n\n### Add confirm checkbox to your registration form\n\nTo add a checkbox to your registration form where the users could confirm\nyour policies during registration, you have to do multiple things. At first\ncreate the form and add the fields: \n\n```python\nfrom django import forms\nfrom django.contrib.auth.forms import UserCreationForm\nfrom privacy_policy_tools.utils import get_setting\n\nclass UserCreateForm(UserCreationForm):\n  \n    def __init__(self, *args, **kwargs):\n        super(UserCreateForm, self).__init__(*args, **kwargs)\n        if get_setting('ENABLED', False):\n            self.fields['confirm_privacy'] = forms.BooleanField(\n                label=_('I accept the Terms and Conditions')\n            )\n```\n\nIn the corresponding view you have to save the confirmation. Such a view\ncould look like this: \n\n```python\nfrom django.shortcuts import render\nfrom django.urls import reverse\nfrom django.http import HttpResponseRedirect\nfrom django.contrib.auth.models import User\nfrom privacy_policy_tools.utils import save_confirmation, get_setting\nfrom yourapp.forms import UserCreateForm\n\ndef create_user(request):\n    if request.method == 'POST':\n        form = UserCreateForm(request.POST, label_suffix='')\n        if form.is_valid():\n            username = form.cleaned_data['username']\n            password = form.cleaned_data['password1']\n            email = form.cleaned_data['email']\n            user = User.objects.create_user(username, email, password)\n            if get_setting('ENABLED'):\n                save_confirmation(user)\n            return HttpResponseRedirect(reverse('yourapp.views.index'))\n\n    else:\n        form = UserCreateForm()\n\n    return render(request, 'registration/create_user.html', {\n        'form': form,\n    })\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/wachjose88/django-privacy-policy-tools",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "django-privacy-policy-tools",
+            "package_url": "https://pypi.org/project/django-privacy-policy-tools/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/django-privacy-policy-tools/",
+            "project_urls": {
+                "Homepage": "https://github.com/wachjose88/django-privacy-policy-tools"
+            },
+            "release_url": "https://pypi.org/project/django-privacy-policy-tools/0.0.3/",
+            "requires_dist": [
+                "django (<3.3,>=3.2.0)",
+                "django-ckeditor"
+            ],
+            "requires_python": ">=3.4",
+            "summary": "This is a highly confirgurable Django app to manage privacy policies and confirmations.",
+            "version": "0.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16124808,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6558d1dfc97ff5633b07462b46914457",
+                    "sha256": "24559a2b3dd640b2b3c76498719aec85e11e55f0c774f901c6ea25063dbfcad5"
+                },
+                "downloads": -1,
+                "filename": "django_privacy_policy_tools-0.0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "6558d1dfc97ff5633b07462b46914457",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.4",
+                "size": 21059,
+                "upload_time": "2022-12-16T10:39:26",
+                "upload_time_iso_8601": "2022-12-16T10:39:26.571624Z",
+                "url": "https://files.pythonhosted.org/packages/82/a4/df92038509dc992aa9138aeafc527125e94b1f6a5d0c17ba7c40d0520cfd/django_privacy_policy_tools-0.0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "dff6e5fadccd2bc4a479962f86437711",
+                    "sha256": "8243080b5777a7c5f3941b367c75e0ea8507fc19c856e45db44408ab753a3cde"
+                },
+                "downloads": -1,
+                "filename": "django-privacy-policy-tools-0.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "dff6e5fadccd2bc4a479962f86437711",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.4",
+                "size": 10157,
+                "upload_time": "2022-12-16T10:39:31",
+                "upload_time_iso_8601": "2022-12-16T10:39:31.209749Z",
+                "url": "https://files.pythonhosted.org/packages/83/86/16723853aef3bc18da391716ce12e556747d334fa66015e392971bf29725/django-privacy-policy-tools-0.0.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
