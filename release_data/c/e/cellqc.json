@@ -42,7 +42,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16117475,
+        "last_serial": 16128544,
         "urls": [
             {
                 "comment_text": "",
@@ -98,7 +98,6 @@
                 "Natural Language :: English",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# cellqc: standardized quality control pipeline of single-cell RNA-Seq data\n\nCellqc standardizes the qualiy control of single-cell RNA-Seq (scRNA) data to render clean feature count matrices from Cell Ranger outputs. Cellqc is implemented using the Snakemake workflow management system to enhance reproduciblity and scalablity of data analysis. Briefly, the QC pipeline starts from raw count feature matrices from Cell Ranger. Dropkick filters out predicted empty droplets, and SoupX purify the transcriptome measurement by substracting the background trancripts. DoubletFinder further detects the potential doublets and retain clean count feature matrices for singlets. Cell types are annotated for clean cells by a reference database using scPred.\n\n![workflow](docs/workflow.png)\n\n## Installation\n\nCellqc depends on a number of R and Python packages, so please install the dependencies before installing cellqc. It is encouraged to use Conda to install dependencies as much as possible. E.g.,\n\n```\n$ conda create -y -n cellqc\n$ conda activate cellqc\n$ conda config --add channels defaults --add channels bioconda --add channels conda-forge\n$ conda install -y mamba\n$ mamba install -y bioconductor-dropletutils r-seurat r-seuratobject r-dplyr r-ggplot2 'r-soupx>=1.6.2' r-scpred r-remotes scanpy pygraphviz snakemake click\n$ Rscript -e \"remotes::install_github(c('chris-mcginnis-ucsf/DoubletFinder', 'mojaveazure/seurat-disk'))\"\n$ mamba install -y numpy=1.21 # bug fix to install dropkick\n$ mamba install -y anndata=0.7.8 # Fix .h5ad version\n$ pip install dropkick\n```\n\nwhere dependent software are below.\n\n| Software | URL |\n|-------|-------|\n| DoubletFinder | https://github.com/chris-mcginnis-ucsf/DoubletFinder |\n| DropletUtils | https://bioconductor.org/packages/release/bioc/html/DropletUtils.html |\n| Seurat | https://satijalab.org/seurat |\n| SeuratDisk | https://github.com/mojaveazure/seurat-disk |\n| SoupX | https://github.com/constantAmateur/SoupX |\n| scPred | https://github.com/powellgenomicslab/scPred |\n| Snakemake | https://github.com/snakemake/snakemake |\n| Scanpy | https://scanpy.readthedocs.io/en/stable |\n| dropkick | https://github.com/KenLauLab/dropkick |\n\nAfter installing dependencies, to install the pipeline rules globally, this package can be installed via `pip`. Namely,\n\n```\n$ git clone https://github.com/lijinbio/cellqc.git\n$ cd cellqc\n$ pip install .\n```\n\nAn example Bash script to wrap up above commands can be found at `dep.sh`.\n\nTo test the installation, simply run\n\n```\n$ cellqc -h\n```\n\n## Run the pipeline\n\nThere are two ways to run the pipeline. One is to call the global rule by the installed `cellqc`, and the other is to copy a local rule and run the pipeline manually by `snakemake`. Both ways reqiure a configuration file in the YAML format for pipeline parameters, as well as a sample file for input Cell Ranger directories. See an example below.\n\n### Inspection of configuration\n\nThe configuration file is in a YAML format. An example configuration can be found at the example directory. \n\n1. samples\n\nThis is a sample file (e.g., `samples.txt`) tab-delimited with headers: `sample`, `cellranger`, and/or `nreaction`. The `sample` column is the sample ID per sample, and the `cellranger` is its Cell Ranger output directory. The third column `nreaction` is the number of reactions in the library preparation, which is useful to infer expected doublets for a sample with a Cell Ranger analysis using combined raw reads from multiple reactions. If the `nreaction` column is not specified in the sample file, the default 1 reaction is used for all samples.\n\n2. dropkick\n\nThis section defines two parameters for empty droplet removal by dropkick.\n\n| Parameter | Description |\n|-------|-------|\n| dropkick.skip | Skip [Dropkick](https://github.com/KenLauLab/dropkick) and use the estimated cells from Cell Ranger alone (using [EmptyDrops](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/algorithms/overview#cell_calling)) if set `true`. If set `false`, to estimate further empty droplets by Dropkick. Be cautious that Dropdick might predict a significant number of false negatives for a poor library. |\n| dropkick.method | The thresholding method for labeling the training data for true cells, such as multiotsu, otsu, li, or mean. |\n| dropkick.numthreads | Number of threads. Dropkick will use significant memory. One thread is suggested for this step. |\n\n3. filterbycount\n\nTo filter cells by nCount, nFeature, and percentage of mitochondria reads.\n\n| Parameter | Description |\n|-------|-------|\n| filterbycount.mincount | Minimum counts for a cell. |\n| filterbycount.minfeature | Minimum features for a cell. |\n| filterbycount.mito | Maximum percentage of mitocondria transcripts. |\n\n4. doubletfinder\n\nThis section includes three parameters for doublet removal by DoubletFinder.\n\n| Parameter | Description |\n|-------|-------|\n| doubletfinder.findpK | To estimate the neighbor size (pK) by mean-variance bimodality coefficients if `true`. If set `false`, skip the estimation and use the preset pK value. |\n| doubletfinder.numthreads | Number of threads. |\n| doubletfinder.pK | A preset neighbor size (pK). Will be used if `doubletfinder.findpK=false`.|\n\n5. scpred\n\nA pre-trained classifier for cell-type annotation by scPred.\n\n| Parameter | Description |\n|-------|-------|\n| scpred.skip | Skip the automated cell type prediction by scPred if `true`. This is useful for a sample without a pre-trained reference. |\n| scpred.reference | The pre-trained reference classifier saved in a RDS file. See https://github.com/powellgenomicslab/scPred |\n| scpred.threshold | Threshold for a positive prediction. |\n\n### Result files\n\nThree result files are generated under a `result` directory. `result/*.h5seurat` and `result/*.h5ad` files are count matrices after processing with QC metrics such as \"pANN\" for proportion of artificial nearest neighbors, and/or \"scpred_prediction\" for predicted cell type. A report file `result/qc_report.html` is a summary of QC metrics.\n\n### An example\n\nThis example demonstrates the pipeline on two AMD samples. The test data consists of Cell Ranger output directories of two AMD samples, as well as a pretrained calssifier for cell-type annotation.\n\nhttps://bcm.box.com/s/nnlmgxh8avagje93cih20g1dsxx14if4\n\nBy feeding the file locations, below is an example configuration file `config.yaml` and a sample file `sample.txt`.\n\n```\n$ cat config.yaml\n# samples with Cell Ranger output directories\nsamples: /path/to/samples.txt\n\n## configuration for dropkick\ndropkick:\n  skip: true\n  method: multiotsu\n  numthreads: 1\n\n## Filter cells by nCount, nFeature, and mito\nfilterbycount:\n  mincount: 500\n  minfeature: 300\n  mito: 5\n\n## configuration for DoubletFinder\ndoubletfinder:\n  findpK: false\n  numthreads: 5\n  pK: 0.005\n\n## configuration for scPred\nscpred:\n  skip: false\n  reference: /path/to/scPred_reference.rds\n  threshold: 0.9\n```\n\n```\n$ cat sample.txt\nsample\tcellranger\tnreaction\nAMD1\t/path/to/cellqc_test_data/AMD1\t1\nAMD2\t/path/to/cellqc_test_data/AMD2\t1\n```\n\nBelow command is to run the pipeline by the installed entrypoint `cellqc`.\n\n```\n$ cellqc -c config.yaml\n```\n\nAlternatively, the pipeline rules can be copied to a local directory, and run manually under the local directory using `snakemake`.\n\n```\n$ git clone https://github.com/lijinbio/cellqc.git\n$ cp -R cellqc/cellqc /path/to/local\n# edit config.yaml and sample.txt under the local directory\n$ snakemake -j 4 --configfile config.yaml\n$ snakemake -j 4 --configfile config.yaml --report report.html\n$ snakemake -j 4 --configfile config.yaml --dag | tee dag.dot | dot -Tpdf > dag.pdf\n```\n\nA directed acyclic graph (DAG) of jobs will be generated. For example,\n\n![DAG](docs/tests/dag.png)\n\nA report of result files will be also produced, such as [report.html](https://github.com/lijinbio/cellqc/blob/master/docs/tests/report.html).\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -132,7 +131,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16117475,
+        "last_serial": 16128544,
         "urls": [
             {
                 "comment_text": "",
@@ -171,6 +170,96 @@
                 "upload_time": "2022-12-15T19:23:54",
                 "upload_time_iso_8601": "2022-12-15T19:23:54.678348Z",
                 "url": "https://files.pythonhosted.org/packages/9b/59/194d1cb07bd47ad1b2de4f3913bdcbdecd778294198899aec4829e8d67b0/cellqc-0.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.4": {
+        "info": {
+            "author": "Jin Li",
+            "author_email": "lijin.abc@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 2 - Pre-Alpha",
+                "License :: OSI Approved :: MIT License",
+                "Natural Language :: English",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# cellqc: standardized quality control pipeline of single-cell RNA-Seq data\n\nCellqc standardizes the qualiy control of single-cell RNA-Seq (scRNA) data to render clean feature count matrices from Cell Ranger outputs. Cellqc is implemented using the Snakemake workflow management system to enhance reproduciblity and scalablity of data analysis. Briefly, the QC pipeline starts from raw count feature matrices from Cell Ranger. Dropkick filters out predicted empty droplets, and SoupX purify the transcriptome measurement by substracting the background trancripts. DoubletFinder further detects the potential doublets and retain clean count feature matrices for singlets. Cell types are annotated for clean cells by a reference database using scPred.\n\n![workflow](docs/workflow.png)\n\n## Installation\n\nIt is easy to install cellqc via [conda](https://docs.conda.io/en/latest/miniconda.html) at https://anaconda.org/bioconda/cellqc. To use the full function of cellqc, please also install several dependencies outside conda. It is encouraged to use the C++ implementation [mamba](https://github.com/mamba-org/mamba) to speed up the installation. E.g.,\n\n```\nconda create -n cellqc cellqc\nconda activate cellqc\nRscript -e \"remotes::install_github(c('chris-mcginnis-ucsf/DoubletFinder', 'mojaveazure/seurat-disk'))\"\nconda install anndata=0.7.8\nconda install numpy=1.21 # by dropkick\npip install dropkick\n```\n\nDependent software are summarized below.\n\n| Software | URL |\n|-------|-------|\n| DoubletFinder | https://github.com/chris-mcginnis-ucsf/DoubletFinder |\n| DropletUtils | https://bioconductor.org/packages/release/bioc/html/DropletUtils.html |\n| Seurat | https://satijalab.org/seurat |\n| SeuratDisk | https://github.com/mojaveazure/seurat-disk |\n| SoupX | https://github.com/constantAmateur/SoupX |\n| scPred | https://github.com/powellgenomicslab/scPred |\n| Snakemake | https://github.com/snakemake/snakemake |\n| Scanpy | https://scanpy.readthedocs.io/en/stable |\n| dropkick | https://github.com/KenLauLab/dropkick |\n\nTo test the installation, simply run\n\n```\n$ cellqc -h\n```\n\n## Run the pipeline\n\nThere are two ways to run the pipeline. One is to call the global rule by the installed `cellqc`, and the other is to copy a local rule and run the pipeline manually by `snakemake`. Both ways reqiure a configuration file in the YAML format for pipeline parameters, as well as a sample file for input Cell Ranger directories. See an example below.\n\n### Inspection of configuration\n\nThe configuration file is in a YAML format. An example configuration can be found at the example directory. \n\n1. samples\n\nThis is a sample file (e.g., `samples.txt`) tab-delimited with headers: `sample`, `cellranger`, and/or `nreaction`. The `sample` column is the sample ID per sample, and the `cellranger` is its Cell Ranger output directory. The third column `nreaction` is the number of reactions in the library preparation, which is useful to infer expected doublets for a sample with a Cell Ranger analysis using combined raw reads from multiple reactions. If the `nreaction` column is not specified in the sample file, the default 1 reaction is used for all samples.\n\n2. dropkick\n\nThis section defines two parameters for empty droplet removal by dropkick.\n\n| Parameter | Description |\n|-------|-------|\n| dropkick.skip | Skip [Dropkick](https://github.com/KenLauLab/dropkick) and use the estimated cells from Cell Ranger alone (using [EmptyDrops](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/algorithms/overview#cell_calling)) if set `true`. If set `false`, to estimate further empty droplets by Dropkick. Be cautious that Dropdick might predict a significant number of false negatives for a poor library. |\n| dropkick.method | The thresholding method for labeling the training data for true cells, such as multiotsu, otsu, li, or mean. |\n| dropkick.numthreads | Number of threads. Dropkick will use significant memory. One thread is suggested for this step. |\n\n3. filterbycount\n\nTo filter cells by nCount, nFeature, and percentage of mitochondria reads.\n\n| Parameter | Description |\n|-------|-------|\n| filterbycount.mincount | Minimum counts for a cell. |\n| filterbycount.minfeature | Minimum features for a cell. |\n| filterbycount.mito | Maximum percentage of mitocondria transcripts. |\n\n4. doubletfinder\n\nThis section includes three parameters for doublet removal by DoubletFinder.\n\n| Parameter | Description |\n|-------|-------|\n| doubletfinder.findpK | To estimate the neighbor size (pK) by mean-variance bimodality coefficients if `true`. If set `false`, skip the estimation and use the preset pK value. |\n| doubletfinder.numthreads | Number of threads. |\n| doubletfinder.pK | A preset neighbor size (pK). Will be used if `doubletfinder.findpK=false`.|\n\n5. scpred\n\nA pre-trained classifier for cell-type annotation by scPred.\n\n| Parameter | Description |\n|-------|-------|\n| scpred.skip | Skip the automated cell type prediction by scPred if `true`. This is useful for a sample without a pre-trained reference. |\n| scpred.reference | The pre-trained reference classifier saved in a RDS file. See https://github.com/powellgenomicslab/scPred |\n| scpred.threshold | Threshold for a positive prediction. |\n\n### Result files\n\nThree result files are generated under a `result` directory. `result/*.h5seurat` and `result/*.h5ad` files are count matrices after processing with QC metrics such as \"pANN\" for proportion of artificial nearest neighbors, and/or \"scpred_prediction\" for predicted cell type. A report file `result/qc_report.html` is a summary of QC metrics.\n\n### An example\n\nThis example demonstrates the pipeline on two AMD samples. The test data consists of Cell Ranger output directories of two AMD samples, as well as a pretrained calssifier for cell-type annotation.\n\nhttps://bcm.box.com/s/nnlmgxh8avagje93cih20g1dsxx14if4\n\nBy feeding the file locations, below is an example configuration file `config.yaml` and a sample file `sample.txt`.\n\n```\n$ cat config.yaml\n# samples with Cell Ranger output directories\nsamples: /path/to/samples.txt\n\n## configuration for dropkick\ndropkick:\n  skip: true\n  method: multiotsu\n  numthreads: 1\n\n## Filter cells by nCount, nFeature, and mito\nfilterbycount:\n  mincount: 500\n  minfeature: 300\n  mito: 5\n\n## configuration for DoubletFinder\ndoubletfinder:\n  findpK: false\n  numthreads: 5\n  pK: 0.005\n\n## configuration for scPred\nscpred:\n  skip: false\n  reference: /path/to/scPred_reference.rds\n  threshold: 0.9\n```\n\n```\n$ cat sample.txt\nsample\tcellranger\nAMD1\t/path/to/cellqc_test_data/AMD1\nAMD2\t/path/to/cellqc_test_data/AMD2\n```\n\nBelow command is to run the pipeline by the installed entrypoint `cellqc`.\n\n```\n$ cellqc -c config.yaml\n```\n\nA directed acyclic graph (DAG) of jobs will be generated. For example,\n\n![DAG](docs/tests/dag.png)\n\nA report of result files will be also produced, such as [report.html](https://github.com/lijinbio/cellqc/blob/master/docs/tests/report.html).\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/lijinbio/cellqc",
+            "keywords": "",
+            "license": "MIT license",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "cellqc",
+            "package_url": "https://pypi.org/project/cellqc/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/cellqc/",
+            "project_urls": {
+                "Homepage": "https://github.com/lijinbio/cellqc"
+            },
+            "release_url": "https://pypi.org/project/cellqc/0.0.4/",
+            "requires_dist": [
+                "click",
+                "snakemake",
+                "pygraphviz",
+                "Jinja2"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "Cellqc standardizes the qualiy control of single-cell RNA-Seq (scRNA) data to render clean feature count matrices.",
+            "version": "0.0.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16128544,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "880dece4c398eefa791d852e32e435bc",
+                    "sha256": "4fb69f22d061f5373180efffe7368167b0b46eebad574a984b9a99ad143fa0b5"
+                },
+                "downloads": -1,
+                "filename": "cellqc-0.0.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "880dece4c398eefa791d852e32e435bc",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 23334,
+                "upload_time": "2022-12-16T17:11:21",
+                "upload_time_iso_8601": "2022-12-16T17:11:21.580953Z",
+                "url": "https://files.pythonhosted.org/packages/8c/56/d463dfb3cea88504f107a67a05b6b3b69e89fab3de9da0b8f9060f806be6/cellqc-0.0.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7e2aecf2b587030d44a4995d16e9bfc1",
+                    "sha256": "35fda6a1901e07d86303303f9364db81c664a8e069932ac551db54668e47cc72"
+                },
+                "downloads": -1,
+                "filename": "cellqc-0.0.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7e2aecf2b587030d44a4995d16e9bfc1",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 19423,
+                "upload_time": "2022-12-16T17:11:23",
+                "upload_time_iso_8601": "2022-12-16T17:11:23.141558Z",
+                "url": "https://files.pythonhosted.org/packages/9c/b1/e454288d231d1c80be065225920e727ce6e07583f14cf8fa1403f5311169/cellqc-0.0.4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

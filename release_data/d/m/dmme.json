@@ -5,7 +5,6 @@
             "author_email": "Chanhyuk Jung <urw7rs@stu.kmu.ac.kr>",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# Diffusion Models Made Easy\n\nDiffusion Models Made Easy(`dmme`) is a collection of easy to understand diffusion model implementations in Pytorch.\n\n# Getting Started\n\n## Installation\n\n```bash\npip install dmme\n```\n\ninstalling `dmme` in edit mode requires `pip>=22.3`, update pip by running `pip install -U pip`\n\n## Training\n\nTrain DDPM Using `LightningCLI` and `wandb` logger with mixed precision\n\n```bash\npython scripts/trainer.py fit --config configs/ddpm/cifar10.yaml\n```\n\nTrain DDPM from python using pytorch-lightning\n\n```python\nfrom pytorch_lightning import Trainer\n\nfrom pytorch_lightning.loggers import WandbLogger\nfrom pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint\n\nfrom dmme import LitDDPM, CIFAR10\nfrom dmme.ddpm import UNet\n\n\ndef main():\n    trainer = Trainer(\n        logger=WandbLogger(project=\"CIFAR10 Image Generation\", name=\"DDPM\"),\n        callbacks=[\n            ModelCheckpoint(save_last=True),\n            LearningRateMonitor(),\n        ],\n        gradient_clip_val=1.0,\n        auto_select_gpus=True,\n        accelerator=\"gpu\",\n        precision=16,\n        max_steps=800_000,\n    )\n\n    ddpm = LitDDPM(\n        decoder=UNet(in_channels=3),\n        lr=2e-4,\n        warmup=5000,\n        imgsize=(3, 32, 32),\n        timesteps=1000,\n    )\n    cifar10 = CIFAR10()\n\n    trainer.fit(ddpm, cifar10)\n\n\nif __name__ == \"__main__\":\n    main()\n```\n\nor use the `DDPMSampler` class to train using pytorch\n\nnote: does not include gradient clipping, logging and checkpointing\n\n```python\nfrom tqdm import tqdm\n\nimport torch\nfrom torch.optim import Adam\n\nfrom dmme import CIFAR10\n\nfrom dmme.ddpm import UNet, DDPMSampler\nfrom dmme.lr_scheduler import WarmupLR\nfrom dmme.noise_schedules import linear_schedule\n\n\ndef train(timesteps=1000, lr=2e-4, warmup=5000, max_steps=800_000):\n    device = torch.device(\"cuda\") if torch.cuda.is_available() else \"cpu\"\n\n    model = UNet()\n    beta = linear_schedule(timesteps=timesteps)\n    sampler = DDPMSampler(model, timesteps=timesteps, beta=beta)\n    sampler = sampler.to(device)\n\n    cifar10 = CIFAR10()\n    cifar10.prepare_data()\n    cifar10.setup(\"fit\")\n\n    train_dataloader = cifar10.train_dataloader()\n\n    optimizer = Adam(sampler.parameters(), lr=lr)\n    lr_scheduler = WarmupLR(optimizer, warmup=warmup)\n\n    steps = 0\n    while steps < max_steps:\n        prog_bar = tqdm(train_dataloader)\n        for x_0, _ in prog_bar:\n            x_0 = x_0.to(device)\n            with torch.autocast(\"cuda\" if device != \"cpu\" else \"cpu\"):\n                loss = sampler.compute_loss(x_0)\n\n            optimizer.zero_grad()\n            loss.backward()\n            optimizer.step()\n            lr_scheduler.step()\n\n            steps += 1\n\n            prog_bar.set_postfix({\"loss\": loss.cpu().item(), \"steps\": steps})\n\n            if steps == max_steps:\n                break\n\n\nif __name__ == \"__main__\":\n    train()\n```\n\n## Supported Diffusion Models\n- [DDPM](https://arxiv.org/abs/2006.11239)\n- Score Based Models comming soon...\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -45,7 +44,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16125678,
+        "last_serial": 16125859,
         "urls": [
             {
                 "comment_text": "",
@@ -84,6 +83,97 @@
                 "upload_time": "2022-12-16T12:18:22",
                 "upload_time_iso_8601": "2022-12-16T12:18:22.993575Z",
                 "url": "https://files.pythonhosted.org/packages/8b/48/73442346da245b1df5616e128af4817527ce70d4ea40076d6aa9fa120433/dmme-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.2": {
+        "info": {
+            "author": "",
+            "author_email": "Chanhyuk Jung <urw7rs@stu.kmu.ac.kr>",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# Diffusion Models Made Easy\n\nDiffusion Models Made Easy(`dmme`) is a collection of easy to understand diffusion model implementations in Pytorch.\n\n# Getting Started\n\n## Installation\n\n```bash\npip install dmme\n```\n\ninstalling `dmme` in edit mode requires `pip>=22.3`, update pip by running `pip install -U pip`\n\n## Training\n\nTrain DDPM Using `LightningCLI` and `wandb` logger with mixed precision\n\n```bash\npython scripts/trainer.py fit --config configs/ddpm/cifar10.yaml\n```\n\nTrain DDPM from python using pytorch-lightning\n\n```python\nfrom pytorch_lightning import Trainer\n\nfrom pytorch_lightning.loggers import WandbLogger\nfrom pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint\n\nfrom dmme import LitDDPM, CIFAR10\nfrom dmme.ddpm import UNet\n\n\ndef main():\n    trainer = Trainer(\n        logger=WandbLogger(project=\"CIFAR10 Image Generation\", name=\"DDPM\"),\n        callbacks=[\n            ModelCheckpoint(save_last=True),\n            LearningRateMonitor(),\n        ],\n        gradient_clip_val=1.0,\n        auto_select_gpus=True,\n        accelerator=\"gpu\",\n        precision=16,\n        max_steps=800_000,\n    )\n\n    ddpm = LitDDPM(\n        decoder=UNet(in_channels=3),\n        lr=2e-4,\n        warmup=5000,\n        imgsize=(3, 32, 32),\n        timesteps=1000,\n    )\n    cifar10 = CIFAR10()\n\n    trainer.fit(ddpm, cifar10)\n\n\nif __name__ == \"__main__\":\n    main()\n```\n\nor use the `DDPMSampler` class to train using pytorch\n\nnote: does not include gradient clipping, logging and checkpointing\n\n```python\nfrom tqdm import tqdm\n\nimport torch\nfrom torch.optim import Adam\n\nfrom dmme import CIFAR10\n\nfrom dmme.ddpm import UNet, DDPMSampler\nfrom dmme.lr_scheduler import WarmupLR\nfrom dmme.noise_schedules import linear_schedule\n\n\ndef train(timesteps=1000, lr=2e-4, warmup=5000, max_steps=800_000):\n    device = torch.device(\"cuda\") if torch.cuda.is_available() else \"cpu\"\n\n    model = UNet()\n    beta = linear_schedule(timesteps=timesteps)\n    sampler = DDPMSampler(model, timesteps=timesteps, beta=beta)\n    sampler = sampler.to(device)\n\n    cifar10 = CIFAR10()\n    cifar10.prepare_data()\n    cifar10.setup(\"fit\")\n\n    train_dataloader = cifar10.train_dataloader()\n\n    optimizer = Adam(sampler.parameters(), lr=lr)\n    lr_scheduler = WarmupLR(optimizer, warmup=warmup)\n\n    steps = 0\n    while steps < max_steps:\n        prog_bar = tqdm(train_dataloader)\n        for x_0, _ in prog_bar:\n            x_0 = x_0.to(device)\n            with torch.autocast(\"cuda\" if device != \"cpu\" else \"cpu\"):\n                loss = sampler.compute_loss(x_0)\n\n            optimizer.zero_grad()\n            loss.backward()\n            optimizer.step()\n            lr_scheduler.step()\n\n            steps += 1\n\n            prog_bar.set_postfix({\"loss\": loss.cpu().item(), \"steps\": steps})\n\n            if steps == max_steps:\n                break\n\n\nif __name__ == \"__main__\":\n    train()\n```\n\n## Supported Diffusion Models\n- [DDPM](https://arxiv.org/abs/2006.11239)\n- Score Based Models comming soon...\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "dmme",
+            "package_url": "https://pypi.org/project/dmme/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/dmme/",
+            "project_urls": {
+                "Homepage": "https://github.com/urw7rs/diffusion-models-made-easy"
+            },
+            "release_url": "https://pypi.org/project/dmme/0.0.2/",
+            "requires_dist": [
+                "torch",
+                "torchvision",
+                "einops",
+                "black ; extra == 'dev'",
+                "flake8 ; extra == 'dev'",
+                "pytest ; extra == 'tests'",
+                "pytorch-lightning ; extra == 'trainer'",
+                "jsonargparse[signatures] (>=4.12.0) ; extra == 'trainer'",
+                "torchmetrics[image] ; extra == 'trainer'",
+                "wandb ; extra == 'trainer'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Diffusion Models Made Easy",
+            "version": "0.0.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16125859,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f4d5e32f766b99d7337beecd1062ebef",
+                    "sha256": "5fbf5fd6ebab98929eb55b16da993bc1c5fd7bfb5901cf57af304428dc7a30e2"
+                },
+                "downloads": -1,
+                "filename": "dmme-0.0.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f4d5e32f766b99d7337beecd1062ebef",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 11538,
+                "upload_time": "2022-12-16T12:48:23",
+                "upload_time_iso_8601": "2022-12-16T12:48:23.880047Z",
+                "url": "https://files.pythonhosted.org/packages/fb/28/50ba61564d6623486cee53dde559370cdad14e6592ef375842aae296cf2d/dmme-0.0.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ea364658c0d1ce8018c7d81772686ee0",
+                    "sha256": "7709736cf36afa89f2e3d492b2b08d4bab6792f4cb3f83a20a4c3f4fdad1d98d"
+                },
+                "downloads": -1,
+                "filename": "dmme-0.0.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ea364658c0d1ce8018c7d81772686ee0",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 10101,
+                "upload_time": "2022-12-16T12:48:25",
+                "upload_time_iso_8601": "2022-12-16T12:48:25.682377Z",
+                "url": "https://files.pythonhosted.org/packages/d2/c3/7d860d599b00970f293326ca0c6c0be7ef7b905808c71b8dccc3e4307d98/dmme-0.0.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

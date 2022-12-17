@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16124826,
+        "last_serial": 16128317,
         "urls": [
             {
                 "comment_text": "",
@@ -100,7 +100,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# aiocomfoconnect\n\n`aiocomfoconnect` is an asyncio Python 3 library for communicating with a Zehnder ComfoAir Q350/450/600 ventilation system. It's the successor of\n[comfoconnect](https://github.com/michaelarnauts/comfoconnect).\n\n## Installation\n\n```shell\npip3 install aiocomfoconnect\n```\n\n## CLI Usage\n\n```shell\n$ python -m aiocomfoconnect --help\n\n$ python -m aiocomfoconnect discover\n\n$ python -m aiocomfoconnect register --host 192.168.1.213\n\n$ python -m aiocomfoconnect set-speed away --host 192.168.1.213\n$ python -m aiocomfoconnect set-speed low --host 192.168.1.213\n$ python -m aiocomfoconnect set-speed medium --host 192.168.1.213\n$ python -m aiocomfoconnect set-speed high --host 192.168.1.213\n\n$ python -m aiocomfoconnect show-sensors --host 192.168.1.213\n```\n\n## Available methods\n\n- `async connect()`: Connect to the bridge.\n- `async disconnect()`: Disconnect from the bridge.\n- `async register_sensor(sensor)`: Register a sensor.\n- `async deregister_sensor(sensor)`: Deregister a sensor.\n- `async get_mode()`: Get the ventilation mode.\n- `async set_mode(mode)`: Set the ventilation mode. (auto / manual)\n- `async get_speed()`: Get the ventilation speed.\n- `async set_speed(speed)`: Set the ventilation speed. (away / low / medium / high)\n- `async get_bypass()`: Get the bypass mode.\n- `async set_bypass(mode, timeout=-1)`: Set the bypass mode. (auto / on / off)\n- `async get_balance_mode()`: Get the balance mode.\n- `async set_balance_mode(mode, timeout=-1)`: Set the balance mode. (balance / supply only / exhaust only)\n- `async get_boost()`: Get the boost mode.\n- `async set_boost(mode, timeout=-1)`: Set the boost mode. (boolean)\n- `async get_away()`: Get the away mode.\n- `async set_away(mode, timeout=-1)`: Set the away mode. (boolean)\n- `async get_temperature_profile()`: Get the temperature profile.\n- `async set_temperature_profile(profile)`: Set the temperature profile. (warm / normal / cool)\n- `async get_sensor_ventmode_temperature_passive()`: Get the sensor based ventilation passive temperature control setting.\n- `async set_sensor_ventmode_temperature_passive(mode)`: Set the sensor based ventilation passive temperature control setting. (auto / on / off)\n- `async get_sensor_ventmode_humidity_comfort()`: Get the sensor based ventilation humidity comfort setting.\n- `async set_sensor_ventmode_humidity_comfort(mode)`: Set the sensor based ventilation humidity comfort setting. (auto / on / off)\n- `async get_sensor_ventmode_humidity_protection()`: Get the sensor based ventilation humidity protection setting.\n- `async set_sensor_ventmode_humidity_protection(mode)`: Set the sensor based ventilation humidity protection setting. (auto / on / off)\n\n### Low-level API\n\n- `async cmd_start_session()`: Start a session.\n- `async cmd_close_session()`: Close a session.\n- `async cmd_list_registered_apps()`: List registered apps.\n- `async cmd_register_app(uuid, device_name, pin)`: Register an app.\n- `async cmd_deregister_app(uuid)`: Deregister an app.\n- `async cmd_version_request()`: Request the bridge's version.\n- `async cmd_time_request()`: Request the bridge's time.\n- `async cmd_rmi_request(message, node_id)`: Send a RMI request.\n- `async cmd_rpdo_request(pdid, type, zone, timeout)`: Send a RPDO request.\n- `async cmd_keepalive()`: Send a keepalive message.\n\n## Examples\n\n### Discovery of ComfoConnect LAN C Bridges\n\n```python\nimport asyncio\n\nfrom aiocomfoconnect import discover_bridges\n\n\nasync def main():\n    \"\"\" ComfoConnect LAN C Bridge discovery example.\"\"\"\n\n    # Discover all ComfoConnect LAN C Bridges on the subnet.\n    bridges = await discover_bridges()\n    print(bridges)\n\n\nif __name__ == \"__main__\":\n    asyncio.run(main())\n```\n\n### Basic Example\n\n```python\nimport asyncio\n\nfrom aiocomfoconnect import ComfoConnect\nfrom aiocomfoconnect.const import VentilationSpeed\nfrom aiocomfoconnect.sensors import SENSORS\n\n\nasync def main(local_uuid, host, uuid):\n    \"\"\" Basic example.\"\"\"\n\n    def sensor_callback(sensor, value):\n        \"\"\" Print sensor updates. \"\"\"\n        print(f\"{sensor.name} = {value}\")\n\n    # Connect to the Bridge\n    comfoconnect = ComfoConnect(host, uuid, sensor_callback=sensor_callback)\n    await comfoconnect.connect(local_uuid)\n\n    # Register all sensors\n    for key in SENSORS:\n        await comfoconnect.register_sensor(SENSORS[key])\n\n    # Set speed to LOW\n    await comfoconnect.set_speed(VentilationSpeed.LOW)\n\n    # Wait 2 minutes so we can see some sensor updates\n    await asyncio.sleep(120)\n\n    # Disconnect from the bridge\n    await comfoconnect.disconnect()\n\n\nif __name__ == \"__main__\":\n    asyncio.run(main(local_uuid='00000000000000000000000000001337', host='192.168.1.20', uuid='00000000000000000000000000000055'))  # Replace with your bridge's IP and UUID\n```\n\n## Development Notes\n\n### Protocol Documentation\n\n- [ComfoConnect LAN C Protocol](docs/PROTOCOL.md)\n- [PDO Sensors](docs/PROTOCOL-PDO.md)\n- [RMI commands](docs/PROTOCOL-RMI.md)\n\n### Decode network traffic\n\nYou can use the `scripts/decode_pcap.py` file to decode network traffic between the Mobile App and the ComfoConnect LAN C. \nMake sure that the first TCP session in the capture is the connection between the bridge and the app. It's therefore recommended to start the capture before you open the app.\n\n```shell\n$ sudo tcpdump -i any -s 0 -w /tmp/capture.pcap tcp and port 56747\n$ python scripts/decode_pcap.py /tmp/capture.pcap\n```\n\n### Generate zehnder_pb2.py file\n\n```shell\npip3 install grpcio-tools\npython3 -m grpc_tools.protoc -Iprotobuf protobuf/nanopb.proto --python_out=aiocomfoconnect/protobuf\npython3 -m grpc_tools.protoc -Iprotobuf protobuf/zehnder.proto --python_out=aiocomfoconnect/protobuf\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -133,7 +132,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16124826,
+        "last_serial": 16128317,
         "urls": [
             {
                 "comment_text": "",
@@ -172,6 +171,96 @@
                 "upload_time": "2022-12-16T10:41:33",
                 "upload_time_iso_8601": "2022-12-16T10:41:33.101739Z",
                 "url": "https://files.pythonhosted.org/packages/04/e3/2ebf451359c5d8b849dd7ce01dc5dcb00f21ad95dcd24fb4a1d066409fae/aiocomfoconnect-0.1.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.3": {
+        "info": {
+            "author": "Micha\u00ebl Arnauts",
+            "author_email": "michael.arnauts@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# aiocomfoconnect\n\n`aiocomfoconnect` is an asyncio Python 3 library for communicating with a Zehnder ComfoAir Q350/450/600 ventilation system. It's the successor of\n[comfoconnect](https://github.com/michaelarnauts/comfoconnect).\n\n## Installation\n\n```shell\npip3 install aiocomfoconnect\n```\n\n## CLI Usage\n\n```shell\n$ python -m aiocomfoconnect --help\n\n$ python -m aiocomfoconnect discover\n\n$ python -m aiocomfoconnect register --host 192.168.1.213\n\n$ python -m aiocomfoconnect set-speed away --host 192.168.1.213\n$ python -m aiocomfoconnect set-speed low --host 192.168.1.213\n$ python -m aiocomfoconnect set-speed medium --host 192.168.1.213\n$ python -m aiocomfoconnect set-speed high --host 192.168.1.213\n\n$ python -m aiocomfoconnect show-sensors --host 192.168.1.213\n```\n\n## Available methods\n\n- `async connect()`: Connect to the bridge.\n- `async disconnect()`: Disconnect from the bridge.\n- `async register_sensor(sensor)`: Register a sensor.\n- `async deregister_sensor(sensor)`: Deregister a sensor.\n- `async get_mode()`: Get the ventilation mode.\n- `async set_mode(mode)`: Set the ventilation mode. (auto / manual)\n- `async get_speed()`: Get the ventilation speed.\n- `async set_speed(speed)`: Set the ventilation speed. (away / low / medium / high)\n- `async get_bypass()`: Get the bypass mode.\n- `async set_bypass(mode, timeout=-1)`: Set the bypass mode. (auto / on / off)\n- `async get_balance_mode()`: Get the balance mode.\n- `async set_balance_mode(mode, timeout=-1)`: Set the balance mode. (balance / supply only / exhaust only)\n- `async get_boost()`: Get the boost mode.\n- `async set_boost(mode, timeout=-1)`: Set the boost mode. (boolean)\n- `async get_away()`: Get the away mode.\n- `async set_away(mode, timeout=-1)`: Set the away mode. (boolean)\n- `async get_temperature_profile()`: Get the temperature profile.\n- `async set_temperature_profile(profile)`: Set the temperature profile. (warm / normal / cool)\n- `async get_sensor_ventmode_temperature_passive()`: Get the sensor based ventilation passive temperature control setting.\n- `async set_sensor_ventmode_temperature_passive(mode)`: Set the sensor based ventilation passive temperature control setting. (auto / on / off)\n- `async get_sensor_ventmode_humidity_comfort()`: Get the sensor based ventilation humidity comfort setting.\n- `async set_sensor_ventmode_humidity_comfort(mode)`: Set the sensor based ventilation humidity comfort setting. (auto / on / off)\n- `async get_sensor_ventmode_humidity_protection()`: Get the sensor based ventilation humidity protection setting.\n- `async set_sensor_ventmode_humidity_protection(mode)`: Set the sensor based ventilation humidity protection setting. (auto / on / off)\n\n### Low-level API\n\n- `async cmd_start_session()`: Start a session.\n- `async cmd_close_session()`: Close a session.\n- `async cmd_list_registered_apps()`: List registered apps.\n- `async cmd_register_app(uuid, device_name, pin)`: Register an app.\n- `async cmd_deregister_app(uuid)`: Deregister an app.\n- `async cmd_version_request()`: Request the bridge's version.\n- `async cmd_time_request()`: Request the bridge's time.\n- `async cmd_rmi_request(message, node_id)`: Send a RMI request.\n- `async cmd_rpdo_request(pdid, type, zone, timeout)`: Send a RPDO request.\n- `async cmd_keepalive()`: Send a keepalive message.\n\n## Examples\n\n### Discovery of ComfoConnect LAN C Bridges\n\n```python\nimport asyncio\n\nfrom aiocomfoconnect import discover_bridges\n\n\nasync def main():\n    \"\"\" ComfoConnect LAN C Bridge discovery example.\"\"\"\n\n    # Discover all ComfoConnect LAN C Bridges on the subnet.\n    bridges = await discover_bridges()\n    print(bridges)\n\n\nif __name__ == \"__main__\":\n    asyncio.run(main())\n```\n\n### Basic Example\n\n```python\nimport asyncio\n\nfrom aiocomfoconnect import ComfoConnect\nfrom aiocomfoconnect.const import VentilationSpeed\nfrom aiocomfoconnect.sensors import SENSORS\n\n\nasync def main(local_uuid, host, uuid):\n    \"\"\" Basic example.\"\"\"\n\n    def sensor_callback(sensor, value):\n        \"\"\" Print sensor updates. \"\"\"\n        print(f\"{sensor.name} = {value}\")\n\n    # Connect to the Bridge\n    comfoconnect = ComfoConnect(host, uuid, sensor_callback=sensor_callback)\n    await comfoconnect.connect(local_uuid)\n\n    # Register all sensors\n    for key in SENSORS:\n        await comfoconnect.register_sensor(SENSORS[key])\n\n    # Set speed to LOW\n    await comfoconnect.set_speed(VentilationSpeed.LOW)\n\n    # Wait 2 minutes so we can see some sensor updates\n    await asyncio.sleep(120)\n\n    # Disconnect from the bridge\n    await comfoconnect.disconnect()\n\n\nif __name__ == \"__main__\":\n    asyncio.run(main(local_uuid='00000000000000000000000000001337', host='192.168.1.20', uuid='00000000000000000000000000000055'))  # Replace with your bridge's IP and UUID\n```\n\n## Development Notes\n\n### Protocol Documentation\n\n- [ComfoConnect LAN C Protocol](docs/PROTOCOL.md)\n- [PDO Sensors](docs/PROTOCOL-PDO.md)\n- [RMI commands](docs/PROTOCOL-RMI.md)\n\n### Decode network traffic\n\nYou can use the `scripts/decode_pcap.py` file to decode network traffic between the Mobile App and the ComfoConnect LAN C. \nMake sure that the first TCP session in the capture is the connection between the bridge and the app. It's therefore recommended to start the capture before you open the app.\n\n```shell\n$ sudo tcpdump -i any -s 0 -w /tmp/capture.pcap tcp and port 56747\n$ python scripts/decode_pcap.py /tmp/capture.pcap\n```\n\n### Generate zehnder_pb2.py file\n\n```shell\npip3 install grpcio-tools\npython3 -m grpc_tools.protoc -Iprotobuf protobuf/nanopb.proto --python_out=aiocomfoconnect/protobuf\npython3 -m grpc_tools.protoc -Iprotobuf protobuf/zehnder.proto --python_out=aiocomfoconnect/protobuf\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/michaelarnauts/aiocomfoconnect",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "aiocomfoconnect",
+            "package_url": "https://pypi.org/project/aiocomfoconnect/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/aiocomfoconnect/",
+            "project_urls": {
+                "Homepage": "https://github.com/michaelarnauts/aiocomfoconnect"
+            },
+            "release_url": "https://pypi.org/project/aiocomfoconnect/0.1.3/",
+            "requires_dist": [
+                "aiohttp (>=3.8.0,<4.0.0)",
+                "protobuf (>=4.21.9,<5.0.0)",
+                "nanopb (>=0.4.6,<0.5.0)"
+            ],
+            "requires_python": ">=3.8,<4.0",
+            "summary": "aiocomfoconnect is an asyncio Python 3 library for communicating with a Zehnder ComfoAir Q350/450/600 ventilation system",
+            "version": "0.1.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16128317,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "43a536b6c77181383378bf99e39fe59b",
+                    "sha256": "4d0472800e544c93b0eb32c21bb645ff479fcbae74ea5b4fd72a5b689060a590"
+                },
+                "downloads": -1,
+                "filename": "aiocomfoconnect-0.1.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "43a536b6c77181383378bf99e39fe59b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<4.0",
+                "size": 27768,
+                "upload_time": "2022-12-16T16:41:10",
+                "upload_time_iso_8601": "2022-12-16T16:41:10.089582Z",
+                "url": "https://files.pythonhosted.org/packages/f4/31/2a77b32d08cb7fb82e31da1172125b1a936358226ec254eb1a2d2a96ffef/aiocomfoconnect-0.1.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "50fa8259d2b3e09f96ef8c480cb65286",
+                    "sha256": "6cd42793ff8723e68af599ce8e8bbcb6ad49b168a134b059c98c0c826f10bef7"
+                },
+                "downloads": -1,
+                "filename": "aiocomfoconnect-0.1.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "50fa8259d2b3e09f96ef8c480cb65286",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<4.0",
+                "size": 26208,
+                "upload_time": "2022-12-16T16:41:11",
+                "upload_time_iso_8601": "2022-12-16T16:41:11.702657Z",
+                "url": "https://files.pythonhosted.org/packages/f2/ac/0b580443d9a5994b09f66892bed30f0efd0dc1241325399341e62c5d6e78/aiocomfoconnect-0.1.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
