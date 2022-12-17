@@ -33,7 +33,7 @@
             "yanked": true,
             "yanked_reason": "Not working"
         },
-        "last_serial": 15824416,
+        "last_serial": 16134048,
         "urls": [
             {
                 "comment_text": "",
@@ -95,7 +95,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15824416,
+        "last_serial": 16134048,
         "urls": [
             {
                 "comment_text": "",
@@ -166,7 +166,6 @@
             "author_email": "",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# TODO Notifier\n\n- [TODO Notifier](#todo-notifier)\n  - [Description](#description)\n  - [How to use?](#how-to-use)\n    - [Method 1: As a pip package](#method-1-as-a-pip-package)\n    - [Method 2: Directly cloning from GitHub](#method-2-directly-cloning-from-github)\n  - [Accessing generated summaries](#accessing-generated-summaries)\n  - [Technical Details](#technical-details)\n    - [Working](#working)\n    - [Salient Features](#salient-features)\n    - [Other Salient Features](#other-salient-features)\n\n## Description\n\n> Find project on [GitHub](https://github.com/ashu-tosh-kumar/todo_notifier), [PyPi](https://pypi.org/project/todonotifier/)\n\nMore often than not, we put some TODO items in code and forget about them. Sometimes, we think of coming back to a TODO item by some date but miss it being too busy with some other development.\n\nTODO Notifier aims to solve this problem. It parses through any project, collects all the todo items, generates automated summaries and send automated reminders about them.\n\nRecommended format to write TODO items**\n\n`TODO {2022-05-22} @user_name msg`\n\nAbove format has following components\n\n- `TODO` in capital (though users can make it case insensitive by setting the same in  `config.py`). It need not to be starting word of the line. For a host of valid examples, please check `tests/sample_test_file.py` and `tests/sample_test_file2.py`\n- [Optional] TODO is followed a date in `YYYY-MM-DD` format within curly brackets. The respective TODO item is expected to be completed by end of this date\n- [Optional] Date is followed by a unique user name accompanied by `@`\n- [Optional] User name is followed by the usual message/comment of the respective TODO item\n\nHowever, the relative position of the `TODO` item, date inside `{}` brackets, username with `@` and message should be as recommended above.\n\nThe framework is robust in the sense that if the TODO item misses some data like date and/or message and/or username etc., the respective TODO item will still be picked up by the TODO Notifier. However without relevant information, certain functionalities may not work. For e.g. without date, it cannot know if the TODO item has overshoot its expected date of completion.\n\n## How to use?\n\nBefore running TODO Notifier, check out the sample summary files produced by the TODO Notifier in directory `sample_reports`. It generates three default summaries. For more information, check out point #3 in [Salient Features](#salient-features).\n\n### Method 1: As a pip package\n\nInstall TODO Notifier by running `pip install todonotifier`\n\nThen you can use below code to try the TODO Notifier.\n\n```python\nfrom todonotifier.config import DefaultConfig\nfrom todonotifier.connect import CONNECT_METHOD, Connect\nfrom todonotifier.driver import run as driver_run\n\ngit_url: str = \"\"  # Placeholder for HTTPS/SSH based git url. It could also be a local folder address\nproject_dir_name: str = \"\"  # Placeholder. Suggested to keep same as project name\nsender_email = \"\"\npassword = \"\"\nreceivers = []\nhost = \"smtp.gmail.com\"  # Change accordingly\nport = 465  # Change accordingly\nnotifier = EmailNotifier(sender_email, password, host, port, receivers)\nconfig = DefaultConfig(save_html_reports=True, ignore_todo_case=True, notifier=notifier)  # Change flags as per need\nconnect = Connect(connect_method=CONNECT_METHOD.GIT_CLONE, project_dir_name=project_dir_name, url=git_url, branch_name=\"production\")  # If using a local folder address in `git_url`, then change `connect_method` to `CONNECT_METHOD.DRY_RUN_DIR`\n\ndriver_run(connect=connect, config=config)\n```\n\nIt will generate three files by default in folder `.report` under current working directory.\n\n### Method 2: Directly cloning from GitHub\n\nClone using `git clone https://github.com/ashu-tosh-kumar/todo_notifier.git`\n\nThen you can use the `user_driver.py` file to run it. You can edit the `user_driver.py` to following to try running it on `tests/sample_test_file.py`.\n\n```python\ngit_url: str = \"tests/sample_test_file.py\"  # Placeholder for HTTPS/SSH based git url\nproject_dir_name: str = \"\"  # Placeholder. Suggested to keep same as project name\nsender_email = \"\"\npassword = \"\"\nreceivers = []\nhost = \"smtp.gmail.com\"\nport = 465\nnotifier = EmailNotifier(sender_email, password, host, port, receivers)\nconfig: BaseConfig = DefaultConfig(save_html_reports=True, ignore_todo_case=True, notifier=notifier)  # Change flags as per need\nconnect = Connect(connect_method=CONNECT_METHOD.DRY_RUN_FILE, project_dir_name=project_dir_name, url=git_url, branch_name=\"production\")  # If using a local folder address in `git_url`, then change `connect_method` to `CONNECT_METHOD.DRY_RUN_DIR`. For `CONNECT_METHOD.DRY_RUN_FILE` and `CONNECT_METHOD.DRY_RUN_DIR`, branch_name is not important\n\ndriver_run(connect=connect, config=config)\n```\n\nIt will generate three files by default in folder `.report` under the main project directory.\n\nThis method is however not recommended and there's always a risk of overriding any local changes made when pulling latest changes. Please use Method 1.\n\n## Accessing generated summaries\n\nAfter running above code to generate the summaries, the TODO Notifier stores these summaries as `.html` files if `save_html_reports=True` is passed in the configuration. All such reports are saved in directory `.report` in current working directory.\n\nTODO Notifier also sends automated emails about the same if setup in the configuration.\n\nHowever, if users require access to the generated summaries for some custom downstream integration, they can access the same as following:\n\n```python\n# Access all the summary generators\nconfig.config.summary_generators\n\n# Access summary from (say) ByModuleSummaryGenerator\nby_module_summary_generator = config.summary_generators[0]\n\n# Check name of the respective summary generator\nby_module_summary_generator.name\n\n# Generated `list` of `TODO` objects\nby_module_summary_generator.container\n\n# Generated html summary of `TODO` objects\nby_module_summary_generator.html\n```\n\n## Technical Details\n\n### Working\n\n- TODO Notifier copies/clones the respective repository into a temporary location to avoid the risk of modifying any file.\n- It then reads through all the files in the project and collects all the TODO items.\n- It then generates the summaries as specified in the configuration.\n- Finally it sends the notifications (only Email notifications are supported as of now) to the configured email id.\n\n### Salient Features\n\n- Allows excluding specific folders of the project via absolute address, relative address or regular expression from being scanned. It has a default list of folders that are not scanned: `DEFAULT_EXCLUDE_DIRS` in `constants.py`. But the same can be controlled using the flag `flag_default_exclude_dirs` in `config/DefaultConfig`\n\n- Allows excluding specific files of the project via absolute address, relative address or regular expression from being scanned. It has a default list of files that are not scanned: `DEFAULT_EXCLUDE_FILES` in `constants.py`. But the same can be controlled using the flag `flag_default_exclude_files` in `config/DefaultConfig`\n\n- Provides three default summary generators. Summaries are how TODO Notifier shares the information about TODO items. Each summary is essentially an HTML document that can be easily shared. The default summary generation can be controlled by flag: `flag_default_summary_generators` in `config/DefaultConfig`.\n  - Module wise list of all TODO items\n  - User wise list of TODO items expired already\n  - User wise list of TODO items that are supposed to expire in the upcoming week\n\n- Flag `save_html_reports` can be used to control whether to save the generated summaries as files. If yes, it will store all generated summaries in folder `.report` locally\n\n- Users can write their own summary generators and add pass the same in variable `summary_generators` in `config/DefaultConfig`. Each summary generator is a child of `BaseSummaryGenerator` in `summary_generators.py`\n\n- Provides default implementation of sending notifications via Email as `EmailNotifier` in `notifications.py`. More ways of notifications can be added easily by inheriting from `BaseNotifier`\n\n- Most of the features are configurable via configuration file. Configuration must be a child class of `BaseConfig` in `config.py`. It provides a default configuration class: `DefaultConfig` in `config.py` that can also be configured easily via various flag parameters. But users are free to write another configuration class or simply inherit from `DefaultConfig`\n\n- Provides two ways of dry running the code locally viz. `CONNECT_METHOD.DRY_RUN_FILE` to dry run on a single local file and `CONNECT.DRY_RUN_DIR` to dry run on an entire local directory/project.\n\n- `user_driver.py` provides examples on how to use. It can be modified accordingly to run the code.\n\n### Other Salient Features\n\n- All code in Python 3\n- Using following pre-commit hooks to keep code clean and nice during development\n  - black\n  - flake8\n  - isort\n  - requirements-txt-fixer\n- Almost 100% test coverage for whole repository and we intend to keep it that way\n- Integrated GitHub flows to keep repo clean and updated\n  - CodeQL\n  - OSSAR\n  - Python application\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -198,7 +197,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15824416,
+        "last_serial": 16134048,
         "urls": [
             {
                 "comment_text": "",
@@ -237,6 +236,90 @@
                 "upload_time": "2022-11-19T11:25:39",
                 "upload_time_iso_8601": "2022-11-19T11:25:39.876398Z",
                 "url": "https://files.pythonhosted.org/packages/bb/3e/e0d1a0618bb33da779d05e9ef88cdba72bd939653ebc31522c974e0a8945/todonotifier-1.2.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.2.1": {
+        "info": {
+            "author": "Ashutosh Kumar",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# TODO Notifier\n\n- [TODO Notifier](#todo-notifier)\n  - [Description](#description)\n  - [How to use?](#how-to-use)\n    - [Method 1: As a pip package](#method-1-as-a-pip-package)\n    - [Method 2: Directly cloning from GitHub](#method-2-directly-cloning-from-github)\n  - [Accessing generated summaries](#accessing-generated-summaries)\n  - [Technical Details](#technical-details)\n    - [Working](#working)\n    - [Salient Features](#salient-features)\n    - [Other Salient Features](#other-salient-features)\n\n## Description\n\n> Find project on [GitHub](https://github.com/ashu-tosh-kumar/todo_notifier), [PyPi](https://pypi.org/project/todonotifier/)\n\nMore often than not, we put some TODO items in code and forget about them. Sometimes, we think of coming back to a TODO item by some date but miss it being too busy with some other development.\n\nTODO Notifier aims to solve this problem. It parses through any project, collects all the todo items, generates automated summaries and send automated reminders about them.\n\nRecommended format to write TODO items**\n\n`TODO {2022-05-22} @user_name msg`\n\nAbove format has following components\n\n- `TODO` in capital (though users can make it case insensitive by setting the same in  `config.py`). It need not to be starting word of the line. For a host of valid examples, please check `tests/sample_test_file.py` and `tests/sample_test_file2.py`\n- [Optional] TODO is followed a date in `YYYY-MM-DD` format within curly brackets. The respective TODO item is expected to be completed by end of this date\n- [Optional] Date is followed by a unique user name accompanied by `@`\n- [Optional] User name is followed by the usual message/comment of the respective TODO item\n\nHowever, the relative position of the `TODO` item, date inside `{}` brackets, username with `@` and message should be as recommended above.\n\nThe framework is robust in the sense that if the TODO item misses some data like date and/or message and/or username etc., the respective TODO item will still be picked up by the TODO Notifier. However without relevant information, certain functionalities may not work. For e.g. without date, it cannot know if the TODO item has overshoot its expected date of completion.\n\n## How to use?\n\nBefore running TODO Notifier, check out the sample summary files produced by the TODO Notifier in directory `sample_reports`. It generates three default summaries. For more information, check out point #3 in [Salient Features](#salient-features).\n\n### Method 1: As a pip package\n\nInstall TODO Notifier by running `pip install todonotifier`\n\nThen you can use below code to try the TODO Notifier.\n\n```python\nfrom todonotifier.config import DefaultConfig\nfrom todonotifier.connect import CONNECT_METHOD, Connect\nfrom todonotifier.driver import run as driver_run\n\ngit_url: str = \"\"  # Placeholder for HTTPS/SSH based git url. It could also be a local folder address\nproject_dir_name: str = \"\"  # Placeholder. Suggested to keep same as project name\nsender_email = \"\"\npassword = \"\"\nreceivers = []\nhost = \"smtp.gmail.com\"  # Change accordingly\nport = 465  # Change accordingly\nnotifier = EmailNotifier(sender_email, password, host, port, receivers)\nconfig = DefaultConfig(save_html_reports=True, ignore_todo_case=True, notifier=notifier)  # Change flags as per need\nconnect = Connect(connect_method=CONNECT_METHOD.GIT_CLONE, project_dir_name=project_dir_name, url=git_url, branch_name=\"production\")  # If using a local folder address in `git_url`, then change `connect_method` to `CONNECT_METHOD.DRY_RUN_DIR`\n\ndriver_run(connect=connect, config=config)\n```\n\nIt will generate three files by default in folder `.report` under current working directory.\n\n### Method 2: Directly cloning from GitHub\n\nClone using `git clone https://github.com/ashu-tosh-kumar/todo_notifier.git`\n\nThen you can use the `user_driver.py` file to run it. You can edit the `user_driver.py` to following to try running it on `tests/sample_test_file.py`.\n\n```python\ngit_url: str = \"tests/sample_test_file.py\"  # Placeholder for HTTPS/SSH based git url\nproject_dir_name: str = \"\"  # Placeholder. Suggested to keep same as project name\nsender_email = \"\"\npassword = \"\"\nreceivers = []\nhost = \"smtp.gmail.com\"\nport = 465\nnotifier = EmailNotifier(sender_email, password, host, port, receivers)\nconfig: BaseConfig = DefaultConfig(save_html_reports=True, ignore_todo_case=True, notifier=notifier)  # Change flags as per need\nconnect = Connect(connect_method=CONNECT_METHOD.DRY_RUN_FILE, project_dir_name=project_dir_name, url=git_url, branch_name=\"production\")  # If using a local folder address in `git_url`, then change `connect_method` to `CONNECT_METHOD.DRY_RUN_DIR`. For `CONNECT_METHOD.DRY_RUN_FILE` and `CONNECT_METHOD.DRY_RUN_DIR`, branch_name is not important\n\ndriver_run(connect=connect, config=config)\n```\n\nIt will generate three files by default in folder `.report` under the main project directory.\n\nThis method is however not recommended and there's always a risk of overriding any local changes made when pulling latest changes. Please use Method 1.\n\n## Accessing generated summaries\n\nAfter running above code to generate the summaries, the TODO Notifier stores these summaries as `.html` files if `save_html_reports=True` is passed in the configuration. All such reports are saved in directory `.report` in current working directory.\n\nTODO Notifier also sends automated emails about the same if setup in the configuration.\n\nHowever, if users require access to the generated summaries for some custom downstream integration, they can access the same as following:\n\n```python\n# Access all the summary generators\nconfig.config.summary_generators\n\n# Access summary from (say) ByModuleSummaryGenerator\nby_module_summary_generator = config.summary_generators[0]\n\n# Check name of the respective summary generator\nby_module_summary_generator.name\n\n# Generated `list` of `TODO` objects\nby_module_summary_generator.container\n\n# Generated html summary of `TODO` objects\nby_module_summary_generator.html\n```\n\n## Technical Details\n\n### Working\n\n- TODO Notifier copies/clones the respective repository into a temporary location to avoid the risk of modifying any file.\n- It then reads through all the files in the project and collects all the TODO items.\n- It then generates the summaries as specified in the configuration.\n- Finally it sends the notifications (only Email notifications are supported as of now) to the configured email id.\n\n### Salient Features\n\n- Allows excluding specific folders of the project via absolute address, relative address or regular expression from being scanned. It has a default list of folders that are not scanned: `DEFAULT_EXCLUDE_DIRS` in `constants.py`. But the same can be controlled using the flag `flag_default_exclude_dirs` in `config/DefaultConfig`\n\n- Allows excluding specific files of the project via absolute address, relative address or regular expression from being scanned. It has a default list of files that are not scanned: `DEFAULT_EXCLUDE_FILES` in `constants.py`. But the same can be controlled using the flag `flag_default_exclude_files` in `config/DefaultConfig`\n\n- Provides three default summary generators. Summaries are how TODO Notifier shares the information about TODO items. Each summary is essentially an HTML document that can be easily shared. The default summary generation can be controlled by flag: `flag_default_summary_generators` in `config/DefaultConfig`.\n  - Module wise list of all TODO items\n  - User wise list of TODO items expired already\n  - User wise list of TODO items that are supposed to expire in the upcoming week\n\n- Flag `save_html_reports` can be used to control whether to save the generated summaries as files. If yes, it will store all generated summaries in folder `.report` locally\n\n- Users can write their own summary generators and add pass the same in variable `summary_generators` in `config/DefaultConfig`. Each summary generator is a child of `BaseSummaryGenerator` in `summary_generators.py`\n\n- Provides default implementation of sending notifications via Email as `EmailNotifier` in `notifications.py`. More ways of notifications can be added easily by inheriting from `BaseNotifier`\n\n- Most of the features are configurable via configuration file. Configuration must be a child class of `BaseConfig` in `config.py`. It provides a default configuration class: `DefaultConfig` in `config.py` that can also be configured easily via various flag parameters. But users are free to write another configuration class or simply inherit from `DefaultConfig`\n\n- Provides two ways of dry running the code locally viz. `CONNECT_METHOD.DRY_RUN_FILE` to dry run on a single local file and `CONNECT.DRY_RUN_DIR` to dry run on an entire local directory/project.\n\n- `user_driver.py` provides examples on how to use. It can be modified accordingly to run the code.\n\n### Other Salient Features\n\n- All code in Python 3\n- Using following pre-commit hooks to keep code clean and nice during development\n  - black\n  - flake8\n  - isort\n  - requirements-txt-fixer\n- Almost 100% test coverage for whole repository and we intend to keep it that way\n- Integrated GitHub flows to keep repo clean and updated\n  - CodeQL\n  - OSSAR\n  - Python application\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://pypi.org/project/todonotifier/",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/ashu-tosh-kumar/todo_notifier",
+            "keywords": "todo,notifier",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "todonotifier",
+            "package_url": "https://pypi.org/project/todonotifier/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/todonotifier/",
+            "project_urls": {
+                "Download": "https://pypi.org/project/todonotifier/",
+                "Homepage": "https://github.com/ashu-tosh-kumar/todo_notifier"
+            },
+            "release_url": "https://pypi.org/project/todonotifier/1.2.1/",
+            "requires_dist": [
+                "GitPython (==3.1.29)",
+                "python-dateutil (==2.8.2)"
+            ],
+            "requires_python": "",
+            "summary": "Library to setup automatic TODO Notifications in code",
+            "version": "1.2.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16134048,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "118992edade6a25f8a20d75667560e6c",
+                    "sha256": "ffccdb68be656175ca8dc8d259e3807edd8462389cf505d6ea4f9d43fcb6aa27"
+                },
+                "downloads": -1,
+                "filename": "todonotifier-1.2.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "118992edade6a25f8a20d75667560e6c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 4337,
+                "upload_time": "2022-12-17T11:14:25",
+                "upload_time_iso_8601": "2022-12-17T11:14:25.855442Z",
+                "url": "https://files.pythonhosted.org/packages/10/91/300130cc887ec4572fdea4e820a7cf3bc3a37e1976147bf1a3794331c8d5/todonotifier-1.2.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5ed391a65ec277124f77ce67c9500f8a",
+                    "sha256": "7328780b8eb309eb3f67a1ecd1c6a6493aaec8535d668d6c63090319ba2a8700"
+                },
+                "downloads": -1,
+                "filename": "todonotifier-1.2.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5ed391a65ec277124f77ce67c9500f8a",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 4850,
+                "upload_time": "2022-12-17T11:14:28",
+                "upload_time_iso_8601": "2022-12-17T11:14:28.658737Z",
+                "url": "https://files.pythonhosted.org/packages/37/d9/7f9898edae5cec23fb2d701e3c232f7ba4dd62d4a105a892a04d5da5eb8e/todonotifier-1.2.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
