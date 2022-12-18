@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16077680,
+        "last_serial": 16137406,
         "urls": [
             {
                 "comment_text": "",
@@ -138,7 +138,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16077680,
+        "last_serial": 16137406,
         "urls": [
             {
                 "comment_text": "",
@@ -230,7 +230,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16077680,
+        "last_serial": 16137406,
         "urls": [
             {
                 "comment_text": "",
@@ -327,7 +327,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16077680,
+        "last_serial": 16137406,
         "urls": [
             {
                 "comment_text": "",
@@ -387,7 +387,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# pgworkload - workload framework for the PostgreSQL protocol\n\n## Overview\n\nThe goal of `pgworkload` is to ease the creation of workload scripts by providing a framework with the most common functionality already implemented.\n\n`pgworkload` is run in conjunction with a user supplied Python `class`. This class defines the workload transactions and flow.\n\nThe user has complete control of what statements the transactions actually execute, and what transactions are executed in which order.\n\n`pgworkload` can seed a database with random generated data, whose definition is supplied in a YAML file.\n\nA .sql file can be supplied to create the schema and run any special queries, eg. Zone Configuration changes.\n\n## Example\n\nClass `Bank` in file `workloads/bank.py` is an example of one such user-created workload.\nThe class defines 3 simple transactions that have to be executed by `pgworkload`.\nHave a look at the `bank.py`, `bank.yaml` and `bank.sql` in the `workload` folder in this project.\n\nHead to file `workload/bank.sql` to see what the database schema look like. We have 2 tables:\n\n- the `transactions` table, where we record the bank payment transactions.\n- the `ref_data` table.\n\nTake a close look at this last table: each column represent a different type, which brings us to the next file.\n\nFile `bank.yaml` is the data generation definition file.\nFor each column of table `ref_data`, we deterministically generate random data.\nThis file is meant as a guide to show what type of data can be generated, and what args are required.\n\nFile `bank.py` defines the workload.\nThe workload is defined as a class object.\nThe class defines 3 methods: `init()`, `run()` and the constructor, `__init__()`.\nAll other methods are part of the application logic of the workload.\nRead the comments along the code for more information.\n\nLet's run the sample **Bank** workload.\n\n### Step 0 - Create Python env\n\n```bash\n# upgrade pip - must have pip version 20.3+ \npip3 install --upgrade pip\n\n# we're now inside our virtual env\npip3 install pgworkload\n\n# download the bank workload files\nmkdir workloads\n# the workload class\nwget -P workloads https://raw.githubusercontent.com/fabiog1901/pgworkload/main/workloads/bank.py\n# the schema file\nwget -P workloads https://raw.githubusercontent.com/fabiog1901/pgworkload/main/workloads/bank.sql\n# the data generation definition file\nwget -P workloads https://raw.githubusercontent.com/fabiog1901/pgworkload/main/workloads/bank.yaml\n# the arguments to pass at runtime, optional\nwget -P workloads https://raw.githubusercontent.com/fabiog1901/pgworkload/main/workloads/bank.args.yaml\n```\n\n### Step 1 - Init the workload\n\nWe assume that your **CockroachDB** cluster or **PostgreSQL** server is up and running.\n\nInit the **Bank** workload.\n\n```bash\n# CockroachDB\npgworkload init -w workloads/bank.py -c 8 --url 'postgres://localhost:26257/postgres?sslmode=disable'\n\n# PostgreSQL\npgworkload init --w workloads/bank.py -c 8 --url 'postgres://localhost:5432/postgres?sslmode=disable'\n```\n\nYou should see something like below\n\n```text\n2022-01-28 17:21:47,335 [INFO] (MainProcess 29422) URL: 'postgres://root@localhost:[5432|26257]/defaultdb?sslmode=disable&application_name=Bank'\n2022-01-28 17:21:47,480 [INFO] (MainProcess 29422) Database 'bank' created.\n2022-01-28 17:21:47,769 [INFO] (MainProcess 29422) Created workload schema\n2022-01-28 17:21:47,789 [INFO] (MainProcess 29422) Generating dataset for table 'ref_data'\n2022-01-28 17:22:07,088 [INFO] (MainProcess 29422) Importing data for table 'ref_data'\n2022-01-28 17:22:21,063 [INFO] (MainProcess 29422) Init completed. Please update your database connection url to 'postgres://root@localhost:26257/bank?sslmode=disable&application_name=Bank'\n```\n\n`pgworkload` has read file `bank.sql` and has created the database and its schema.\nIt has then read file `bank.yaml` and has generated the CSV files for the table `ref_data`.\nFinally, it imports the CSV files into database `bank`.\n\n### Step 2 - Run the workload\n\nRun the workload using 8 connections for 120 seconds or 100k cycles, whichever comes first.\n\n```bash\n# CockroachDB\npgworkload run -w workloads/bank.py -c 8 --url 'postgres://root@localhost:26257/bank?sslmode=disable&application_name=Bank' -d 120 -i 100000\n\n# PostgreSQL\npgworkload run -w workloads/bank.py -c 8 --url 'postgres://root@localhost:5432/bank?sslmode=disable&application_name=Bank' -d 120 -i 100000\n```\n\n`pgworkload` uses exclusively the excellent [Psycopg 3](https://www.psycopg.org/psycopg3/docs/) to connect.\nNo other ORMs or drivers/libraries are used.\nPsycopg has a very simple, neat way to [create connections and execute statements](https://www.psycopg.org/psycopg3/docs/basic/usage.html) and [transactions](https://www.psycopg.org/psycopg3/docs/basic/transactions.html).\n\n`pgworkload` will output something like below\n\n```text\n2022-01-28 17:22:43,893 [INFO] (MainProcess 29511) URL: 'postgres://root@localhost:26257/bank?sslmode=disable&application_name=Bank'\nid               elapsed    tot_ops    tot_ops/s    period_ops    period_ops/s    mean(ms)    p50(ms)    p90(ms)    p95(ms)    p99(ms)    pMax(ms)\n-------------  ---------  ---------  -----------  ------------  --------------  ----------  ---------  ---------  ---------  ---------  ----------\n__cycle__             10       1342       133.72          1342           134.2       54.9       35.76     165.94     192.89     245.42      333.6\nread                  10       1215       121.03          1215           121.5       41.11      19.58     113.21     146.79     208.86      291.02\ntxn1_new              10        130        12.95           130            13         48.29      53.81      74.7       90.84      95.66      108.37\ntxn2_verify           10        129        12.85           129            12.9       70.9       73.73      94.3       99.69     137.99      164.96\ntxn3_finalize         10        127        12.65           127            12.7       67.21      72.48      93.64     105.97     129.57      166 \n\n[...]\n\n2022-01-28 17:24:44,765 [INFO] (MainProcess 29511) Requested iteration/duration limit reached. Printing final stats\nid               elapsed    tot_ops    tot_ops/s    period_ops    period_ops/s    mean(ms)    p50(ms)    p90(ms)    p95(ms)    p99(ms)    pMax(ms)\n-------------  ---------  ---------  -----------  ------------  --------------  ----------  ---------  ---------  ---------  ---------  ----------\n__cycle__            121      14519       120.12            66             6.6       94.08      96.68     203.74     216.83     242.24      262.69\nread                 121      13050       107.96            54             5.4       70.6       62.7      127.88     151.29     203.52      203.62\ntxn1_new             121       1469        12.15             7             0.7       51.08      51.07      71.71      73.66      75.23       75.62\ntxn2_verify          121       1469        12.15            11             1.1       70.52      76.92     102.31     102.32     102.33      102.33\ntxn3_finalize        121       1469        12.15            12             1.2       81.19      98.97     103.88     103.97     103.98      103.98 \n```\n\nThere are many built-in options.\nCheck them out with\n\n```bash\npgworkload -h\n```\n\n## Concurrency - processes and threads\n\npgworkload uses both the `multiprocessing` and `threading` library to achieve high concurrency, that is, opening multiple connections to the DBMS.\n\nThere are 2 parameters that can be used to configure how many processes you want to create, and for each process, how many threads:\n\n- `--procs`, or `-x`, to configure the count of processes (defaults to the CPU count)\n- `--concurrency`, or `-c`, to configure the total number of executing workloads to run (also referred to as _executing threads_)\n\npgworkload will spread the load across the processes, so that each process has an even amount of threads.\n\nExample: if we set `--procs 4` and `--concurrency 10`, pgworkload will create as follows:\n\n- Process-1: MainThread + 2 extra threads. Total = 3\n- Process-2: MainThread + 2 extra threads. Total = 3\n- Process-3: MainThread + 1 extra thread.  Total = 2\n- Process-3: MainThread + 1 extra thread.  Total = 2\n\nTotal workloads = 10\n\nThis allows you to fine tune the count of Python processes and threads to fit your system.\n\n## Built-in Workloads\n\n`pgworkload` has the following workload already built-in and can be called without the need to pass a class file\n\n### Querybench\n\nQuerybench runs a list of SQL Statements sequentially and iteratively.\nIt assumes the schema and data have been created and loaded.\n\nSQL statements file `mystmts.sql`\n\n```sql\n-- Query 1\nselect 1;\nselect \n  version();\n-- select now();\n\n-- Query 2\nSELECT * FROM my_table \nWHERE id = 1234;\n```\n\nRun **Querybench** like this:\n\n```bash\npgworkload run --workload querybench --args mystmts.sql --url <conn-string>\n```\n\n### Hovr\n\nComing soon\n\n## Acknowledgments\n\nSome methods and classes have been taken and modified from, or inspired by, <https://github.com/cockroachdb/movr>\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -425,7 +424,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16077680,
+        "last_serial": 16137406,
         "urls": [
             {
                 "comment_text": "",
@@ -464,6 +463,105 @@
                 "upload_time": "2022-12-12T02:00:14",
                 "upload_time_iso_8601": "2022-12-12T02:00:14.988400Z",
                 "url": "https://files.pythonhosted.org/packages/dd/2a/73c5124f9581435a92878c5f493907342d5c5f95f302205173d4c8f4e80b/pgworkload-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.1": {
+        "info": {
+            "author": "Fabio Ghirardello",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+                "License :: Other/Proprietary License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# pgworkload - workload framework for the PostgreSQL protocol\n\n## Overview\n\nThe goal of `pgworkload` is to ease the creation of workload scripts by providing a framework with the most common functionality already implemented.\n\n`pgworkload` is run in conjunction with a user supplied Python `class`. This class defines the workload transactions and flow.\n\nThe user has complete control of what statements the transactions actually execute, and what transactions are executed in which order.\n\n`pgworkload` can seed a database with random generated data, whose definition is supplied in a YAML file.\n\nA .sql file can be supplied to create the schema and run any special queries, eg. Zone Configuration changes.\n\n## Example\n\nClass `Bank` in file `workloads/bank.py` is an example of one such user-created workload.\nThe class defines 3 simple transactions that have to be executed by `pgworkload`.\nHave a look at the `bank.py`, `bank.yaml` and `bank.sql` in the `workload` folder in this project.\n\nHead to file `workload/bank.sql` to see what the database schema look like. We have 2 tables:\n\n- the `transactions` table, where we record the bank payment transactions.\n- the `ref_data` table.\n\nTake a close look at this last table: each column represent a different type, which brings us to the next file.\n\nFile `bank.yaml` is the data generation definition file.\nFor each column of table `ref_data`, we deterministically generate random data.\nThis file is meant as a guide to show what type of data can be generated, and what args are required.\n\nFile `bank.py` defines the workload.\nThe workload is defined as a class object.\nThe class defines 3 methods: `init()`, `run()` and the constructor, `__init__()`.\nAll other methods are part of the application logic of the workload.\nRead the comments along the code for more information.\n\nLet's run the sample **Bank** workload.\n\n### Step 0 - Create Python env\n\n```bash\n# upgrade pip - must have pip version 20.3+ \npip3 install --upgrade pip\n\n# we're now inside our virtual env\npip3 install pgworkload\n\n# download the bank workload files\nmkdir workloads\n# the workload class\nwget -P workloads https://raw.githubusercontent.com/fabiog1901/pgworkload/main/workloads/bank.py\n# the schema file\nwget -P workloads https://raw.githubusercontent.com/fabiog1901/pgworkload/main/workloads/bank.sql\n# the data generation definition file\nwget -P workloads https://raw.githubusercontent.com/fabiog1901/pgworkload/main/workloads/bank.yaml\n# the arguments to pass at runtime, optional\nwget -P workloads https://raw.githubusercontent.com/fabiog1901/pgworkload/main/workloads/bank.args.yaml\n```\n\n### Step 1 - Init the workload\n\nWe assume that your **CockroachDB** cluster or **PostgreSQL** server is up and running.\n\nInit the **Bank** workload.\n\n```bash\n# CockroachDB\npgworkload init -w workloads/bank.py -c 8 --url 'postgres://localhost:26257/postgres?sslmode=disable'\n\n# PostgreSQL\npgworkload init --w workloads/bank.py -c 8 --url 'postgres://localhost:5432/postgres?sslmode=disable'\n```\n\nYou should see something like below\n\n```text\n2022-01-28 17:21:47,335 [INFO] (MainProcess 29422) URL: 'postgres://root@localhost:[5432|26257]/defaultdb?sslmode=disable&application_name=Bank'\n2022-01-28 17:21:47,480 [INFO] (MainProcess 29422) Database 'bank' created.\n2022-01-28 17:21:47,769 [INFO] (MainProcess 29422) Created workload schema\n2022-01-28 17:21:47,789 [INFO] (MainProcess 29422) Generating dataset for table 'ref_data'\n2022-01-28 17:22:07,088 [INFO] (MainProcess 29422) Importing data for table 'ref_data'\n2022-01-28 17:22:21,063 [INFO] (MainProcess 29422) Init completed. Please update your database connection url to 'postgres://root@localhost:26257/bank?sslmode=disable&application_name=Bank'\n```\n\n`pgworkload` has read file `bank.sql` and has created the database and its schema.\nIt has then read file `bank.yaml` and has generated the CSV files for the table `ref_data`.\nFinally, it imports the CSV files into database `bank`.\n\n### Step 2 - Run the workload\n\nRun the workload using 8 connections for 120 seconds or 100k cycles, whichever comes first.\n\n```bash\n# CockroachDB\npgworkload run -w workloads/bank.py -c 8 --url 'postgres://root@localhost:26257/bank?sslmode=disable&application_name=Bank' -d 120 -i 100000\n\n# PostgreSQL\npgworkload run -w workloads/bank.py -c 8 --url 'postgres://root@localhost:5432/bank?sslmode=disable&application_name=Bank' -d 120 -i 100000\n```\n\n`pgworkload` uses exclusively the excellent [Psycopg 3](https://www.psycopg.org/psycopg3/docs/) to connect.\nNo other ORMs or drivers/libraries are used.\nPsycopg has a very simple, neat way to [create connections and execute statements](https://www.psycopg.org/psycopg3/docs/basic/usage.html) and [transactions](https://www.psycopg.org/psycopg3/docs/basic/transactions.html).\n\n`pgworkload` will output something like below\n\n```text\n2022-01-28 17:22:43,893 [INFO] (MainProcess 29511) URL: 'postgres://root@localhost:26257/bank?sslmode=disable&application_name=Bank'\nid               elapsed    tot_ops    tot_ops/s    period_ops    period_ops/s    mean(ms)    p50(ms)    p90(ms)    p95(ms)    p99(ms)    pMax(ms)\n-------------  ---------  ---------  -----------  ------------  --------------  ----------  ---------  ---------  ---------  ---------  ----------\n__cycle__             10       1342       133.72          1342           134.2       54.9       35.76     165.94     192.89     245.42      333.6\nread                  10       1215       121.03          1215           121.5       41.11      19.58     113.21     146.79     208.86      291.02\ntxn1_new              10        130        12.95           130            13         48.29      53.81      74.7       90.84      95.66      108.37\ntxn2_verify           10        129        12.85           129            12.9       70.9       73.73      94.3       99.69     137.99      164.96\ntxn3_finalize         10        127        12.65           127            12.7       67.21      72.48      93.64     105.97     129.57      166 \n\n[...]\n\n2022-01-28 17:24:44,765 [INFO] (MainProcess 29511) Requested iteration/duration limit reached. Printing final stats\nid               elapsed    tot_ops    tot_ops/s    period_ops    period_ops/s    mean(ms)    p50(ms)    p90(ms)    p95(ms)    p99(ms)    pMax(ms)\n-------------  ---------  ---------  -----------  ------------  --------------  ----------  ---------  ---------  ---------  ---------  ----------\n__cycle__            121      14519       120.12            66             6.6       94.08      96.68     203.74     216.83     242.24      262.69\nread                 121      13050       107.96            54             5.4       70.6       62.7      127.88     151.29     203.52      203.62\ntxn1_new             121       1469        12.15             7             0.7       51.08      51.07      71.71      73.66      75.23       75.62\ntxn2_verify          121       1469        12.15            11             1.1       70.52      76.92     102.31     102.32     102.33      102.33\ntxn3_finalize        121       1469        12.15            12             1.2       81.19      98.97     103.88     103.97     103.98      103.98 \n```\n\nThere are many built-in options.\nCheck them out with\n\n```bash\npgworkload -h\n```\n\n## Concurrency - processes and threads\n\npgworkload uses both the `multiprocessing` and `threading` library to achieve high concurrency, that is, opening multiple connections to the DBMS.\n\nThere are 2 parameters that can be used to configure how many processes you want to create, and for each process, how many threads:\n\n- `--procs`, or `-x`, to configure the count of processes (defaults to the CPU count)\n- `--concurrency`, or `-c`, to configure the total number of executing workloads to run (also referred to as _executing threads_)\n\npgworkload will spread the load across the processes, so that each process has an even amount of threads.\n\nExample: if we set `--procs 4` and `--concurrency 10`, pgworkload will create as follows:\n\n- Process-1: MainThread + 2 extra threads. Total = 3\n- Process-2: MainThread + 2 extra threads. Total = 3\n- Process-3: MainThread + 1 extra thread.  Total = 2\n- Process-3: MainThread + 1 extra thread.  Total = 2\n\nTotal workloads = 10\n\nThis allows you to fine tune the count of Python processes and threads to fit your system.\n\n## Built-in Workloads\n\n`pgworkload` has the following workload already built-in and can be called without the need to pass a class file\n\n### Querybench\n\nQuerybench runs a list of SQL Statements sequentially and iteratively.\nIt assumes the schema and data have been created and loaded.\n\nSQL statements file `mystmts.sql`\n\n```sql\n-- Query 1\nselect 1;\nselect \n  version();\n-- select now();\n\n-- Query 2\nSELECT * FROM my_table \nWHERE id = 1234;\n```\n\nRun **Querybench** like this:\n\n```bash\npgworkload run --workload querybench --args mystmts.sql --url <conn-string>\n```\n\n### Hovr\n\nComing soon\n\n## Acknowledgments\n\nSome methods and classes have been taken and modified from, or inspired by, <https://github.com/cockroachdb/movr>\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/fabiog1901/pgworkload",
+            "keywords": "",
+            "license": "GPLv3+",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pgworkload",
+            "package_url": "https://pypi.org/project/pgworkload/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pgworkload/",
+            "project_urls": {
+                "Homepage": "https://github.com/fabiog1901/pgworkload",
+                "Repository": "https://github.com/fabiog1901/pgworkload"
+            },
+            "release_url": "https://pypi.org/project/pgworkload/0.1.1/",
+            "requires_dist": [
+                "psycopg (>=3.1.4,<4.0.0)",
+                "psycopg-binary (>=3.1.4,<4.0.0)",
+                "pandas (>=1.5.2,<2.0.0)",
+                "tabulate (>=0.9.0,<0.10.0)",
+                "numpy (>=1.23.5,<2.0.0)",
+                "prometheus-client (>=0.15.0,<0.16.0)",
+                "pyyaml (>=6.0,<7.0)",
+                "typer[all] (>=0.7.0,<0.8.0)"
+            ],
+            "requires_python": ">=3.8,<4.0",
+            "summary": "Workload framework for the PostgreSQL protocol",
+            "version": "0.1.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16137406,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e4faa327886e5e442cc31f87e9551d8e",
+                    "sha256": "87d5967ff4bd74ef2d862e64ee380fe0ab7c09aa6b132be5942970048a67a25f"
+                },
+                "downloads": -1,
+                "filename": "pgworkload-0.1.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "e4faa327886e5e442cc31f87e9551d8e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<4.0",
+                "size": 37669,
+                "upload_time": "2022-12-18T00:14:02",
+                "upload_time_iso_8601": "2022-12-18T00:14:02.227915Z",
+                "url": "https://files.pythonhosted.org/packages/d5/ff/378b6a44c14d350428c2f31c1364f2e62d0d4f27492c30c627de2a2f0159/pgworkload-0.1.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fd0429333b41c89b0f6d56d84f2dd6e4",
+                    "sha256": "61fceeed34a8885529424902dc1511225d990e9012227fa85fefd30885d2a531"
+                },
+                "downloads": -1,
+                "filename": "pgworkload-0.1.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "fd0429333b41c89b0f6d56d84f2dd6e4",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<4.0",
+                "size": 37371,
+                "upload_time": "2022-12-18T00:14:04",
+                "upload_time_iso_8601": "2022-12-18T00:14:04.020094Z",
+                "url": "https://files.pythonhosted.org/packages/20/2c/04ea705bdcaeb0e09e4ea131a3db759bd030b379026f11aa8e4cb62a2872/pgworkload-0.1.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
