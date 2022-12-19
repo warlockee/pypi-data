@@ -1,0 +1,977 @@
+{
+    "0.19.0.dev0": {
+        "info": {
+            "author": "Mathieu Poumeyrol, Sonos, and tract contributors",
+            "author_email": "mathieu@poumeyrol.fr",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Programming Language :: Rust",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence",
+                "Topic :: Scientific/Engineering :: Mathematics"
+            ],
+            "description": "![tract-logo](assets/tract-logo/PNG/tract-horizontal-blue.png)\n\n![rustc >= 1.65.0](https://img.shields.io/badge/rustc-%3E%3D1.65.0-brightgreen)\n![MIT/Apache 2](https://img.shields.io/crates/l/tract)\n[![Native Linux test status](https://github.com/snipsco/tract/workflows/Native%20Linux/badge.svg)](https://github.com/snipsco/tract/actions)\n[![Embedded targets status](https://github.com/snipsco/tract/workflows/Embedded%20targets/badge.svg)](https://github.com/snipsco/tract/actions)\n[![Doc](https://docs.rs/tract-core/badge.svg)](https://docs.rs/tract-core)\n\nSonos' Neural Network inference engine.\n\n_This project used to be called tfdeploy, or Tensorflow-deploy-rust._\n\n## What ?\n\n`tract` is a Neural Network inference toolkit. It can read Tensorflow 1, ONNX\nor NNEF, optimize them and run data through them.\n\n## Quick start\n\n* [MobileNet v2 with ONNX](examples/onnx-mobilenet-v2)\n* [BERT example with ONNX](examples/pytorch-albert-v2)\n* [MobileNet v2 with TensorFlow](examples/tensorflow-mobilenet-v2)\n* [From Keras and TensorFlow 1 in Jupyter to tract](examples/jupyter-keras-tract-tf1)\n* [From Keras and TensorFlow 2 in Jupyter to tract](examples/jupyter-keras-tract-tf2)\n* [ResNet with PyTorch](examples/pytorch-resnet)\n\nThere is also [some technical documentation](doc/) and [blog](https://tech-blog.sonos.com/posts/optimising-a-neural-network-for-inference/) posts.\n\n## Tract in the landscape\n\n### ONNX\n\nAs of today (October 2020), `tract` passes successfully about 85% of ONNX backends\ntests. All \"real life\" integration tests in Onnx test suite are passing: \nbvlc_alexnet, densenet121, inception_v1, inception_v2, resnet50, shufflenet,\nsqueezenet, vgg19, zfnet512.\n\nThe following operators are implemented and tested.\n\nAbs, Acos, Acosh, Add, And, ArgMax, ArgMin, ArrayFeatureExtractor, Asin, Asinh, Atan, Atanh, AveragePool, BatchNormalization, BitShift, Cast, CategoryMapper, Ceil, Clip, Compress, Concat, Constant, ConstantLike, ConstantOfShape, Conv, ConvInteger, ConvTranspose, Cos, Cosh, CumSum, DepthToSpace, DequantizeLinear, Div, Dropout, DynamicQuantizeLinear, Einsum, Elu, Equal, Erf, Exp, Expand, EyeLike, Flatten, Floor, GRU, Gather, GatherElements, GatherND, Gemm, GlobalAveragePool, GlobalLpPool, GlobalMaxPool, Greater, GreaterOrEqual, HardSigmoid, Hardmax, Identity, If, InstanceNormalization, IsInf, IsNaN, LRN, LSTM, LeakyRelu, Less, LessOrEqual, Log, LogSoftmax, MatMul, MatMulInteger, Max, MaxPool, Mean, Min, Mod, Mul, Neg, NonZero, Not, OneHot, Or, PRelu, Pad, ParametricSoftplus, Pow, QLinearConv, QLinearMatMul, QuantizeLinear, RNN, Range, Reciprocal, ReduceL1, ReduceL2, ReduceLogSum, ReduceLogSumExp, ReduceMax, ReduceMean, ReduceMin, ReduceProd, ReduceSum, ReduceSumSquare, Relu, Reshape, Resize, Round, Rsqrt, ScaledTanh, Scan, Scatter, ScatterElements, ScatterND, Selu, Shape, Shrink, Sigmoid, Sign, Sin, Sinh, Size, Slice, Softmax, Softplus, Softsign, SpaceToDepth, Split, Sqrt, Squeeze, Sub, Sum, Tan, Tanh, ThresholdedRelu, Tile, Transpose, TreeEnsembleClassifier, Unsqueeze, Where, Xor\n\nWe test these operators against Onnx 1.4.1 (operator set 9), Onnx 1.5.0\n(operator set 10), Onnx 1.6.0 (operator set 11), Onnx 1.7.0 (operator set\n12), Onnx 1.8.1 (operator set 13), Onnx 1.9.0 (operator set 14), and Onnx\n1.10.1 (operator set 15).\nMany networks in operator set 8 are also working.\n\n### TensorFlow 1.x\n\nEven if `tract` is very far from supporting any arbitrary model, it can run\nGoogle Inception v3 and Snips wake word models. Missing operators are relatively \neasy to add. The lack of easy to reuse test suite, and the wide diversity of \noperators in Tensorflow make it difficult to target a full support.\n\nThe following operators are implemented and tested:\n\nAbs, Add, AddN, AddV2, Assign, AvgPool, BatchToSpaceND, BiasAdd, BlockLSTM, Cast, Ceil, ConcatV2, Const, Conv2D, DepthwiseConv2dNative, Div, Enter, Equal, Exit, ExpandDims, FakeQuantWithMinMaxVars, Fill, FloorMod, FusedBatchNorm, GatherNd, GatherV2, Greater, GreaterEqual, Identity, Less, LessEqual, Log, LogicalAnd, LogicalOr, LoopCond, MatMul, Max, MaxPool, Maximum, Mean, Merge, Min, Minimum, Mul, Neg, NoOp, Pack, Pad, Placeholder, Pow, Prod, RandomUniform, RandomUniformInt, Range, RealDiv, Relu, Relu6, Reshape, Rsqrt, Shape, Sigmoid, Slice, Softmax, SpaceToBatchND, Squeeze, StridedSlice, Sub, Sum, Switch, Tanh, Tile, Transpose, VariableV2\n\nAdditionally, the complexity of TensorFlow 2 make it very unlikely that a direct\nsupport will ever exist in tract. Many TensorFlow 2 nets can be\nconverted to ONNX and loaded in tract.\n\n### NNEF\n\nLong story short, TensorFlow and Onnx formats are good for designing and\ntraining networks. They need to move fast to follow the research field, tend to\nintegrate new features and operators greedily. They also exhibit a high level\nof expressivity to facilitate network design.\n\nOn the other hand, only a subset of operators and network features actually\nreach production, so systems running production network do not have to deal\nwith so many operators. Furthermore, some information required for training can\nbe stripped from the network before going to production for prediction.\n\nNNEF tries to bridge the gap between training frameworks and inference by\nproposing a format dedicated to production and prediction.\n\nTract supports NNEF:\n\n* tract_nnef can load and execute NNEF networks\n* tract supports most of the NNEF specification, the most notable exception\n    being the ROI operators\n* tract introduces tract-OPL, a series of NNEF extensions to support other\n    operators (or extend some operators semantics) in order to represent the\n    full range of tract-core neural network support: any network understood by\n    tract should be serializable to tract-OPL. This is a work in progress.\n* tract command line can translate networks from TensorFlow or ONNX to NNEF/OPL.\n\n### tract-opl version compatibility\n\nA remainder: NNEF is not expressive enough to represent all ONNX. tract-OPL extends\nNNEF using proprietary to support what is missing. Notable extensions are pulse\noperators, recurring operators (as Scan) and symbolic extensions.\n\nThere is no stricts check in place here, so... implementation is not bullet proof.\n* NNEF part aims at being very stable. It is strongly constrained with compatibility\nwith NNEF specification.\n* tract-opl is a bit more in flux. Nevertheless we try to maintain the following\ngolden rule:\n\n     `models serialized with tract 0.x.y should work with tract 0.x.z where z >= y`\n\n* in practise, breaking changes have been relatively rare so far. Most models are\nforward and retro compatible from when tract has acquired NNEF support.\n\nNotable breakage occured:\n* 0.16.3 (forward compatible) on Scan operator\n* 0.17.0 for binary decision tree classifier\n\nStarting with `0.17.0`, a model property is injected in tract-opl files (`tract_nnef_ser_version`)\nto tag which version of tract generated the file. As most models will remain compatible,\ntract will not do any version check. It is up to the application developper to do so.\n\nA softer version tag exists as `tract_nnef_format_version`. pre-0.17.0 version set it to\n`alpha1`, post-0.17.0 set it `beta1`. Don't put too much emphasis into the \"alpha-ness\" naming \nof versions here.\n\n## Example of supported networks\n\nThese models among others, are used to track tract performance evolution as\npart of the Continuous Integration jobs. See [.travis/README.md](readme) and \n[.travis/bundle-entrypoint.sh](.travis/bundle-entrypoint.sh) for more\ninformation.\n\n### Keyword spotting on Arm Cortex-M Microcontrollers\n\nhttps://github.com/ARM-software/ML-KWS-for-MCU\n\nARM demonstrated the capabilited of the Cortex-M family by providing\ntutorials and pre-trained models for keyword spotting. While the exercise\nis ultimately meant for micro-controllers, `tract` can run the intermediate\nTensorFlow models.\n\nFor instance, on a Rasperry Pi Zero, the \"CNN M\" model runs in about 70\nmicro-seconds, and 11 micro-seconds on a Raspberry Pi 3.\n\n### Snips wake word models\n\nhttps://arxiv.org/abs/1811.07684\n\nSnips uses `tract` to run the wake word detectors. While earlier models were\nclass-based and did not require any special treatment, `tract` pulsing\ncapabilities made it possible to run WaveNet models efficiently enough for a\nRaspberry Pi Zero.\n\n### Inception v3\n\n|      Device         |      Family    |  TensorFlow-lite  |  tract  |\n|---------------------|----------------|-------------------|---------|\n|  Raspberry Pi Zero  |    Armv6 VFP   |        113s       |   39s   |\n|  Raspberry Pi 2     |    Armv7 NEON  |         25s       |    7s   |\n|  Raspberry Pi 3     |  aarch32 NEON  |          5s       |    5s   |\n\nNotes:\n\n * while the Raspberry Pi 3 is an Armv8 device, this bench is running\n     on Raspbian, an armv6 operating system, crippling the performance\n     of both benches\n * there exists other benches on the internet that show better\n     performance results for TensorFlow (not -Lite) on the Pi 3.\n     They use all four cores of the device. Both TensorFlow-Lite and tract\n     here have been made to run on a single-core.\n\n# License\n\nNote: files in the `tensorflow/protos` directory are copied from the\n[TensorFlow](https://github.com/tensorflow/tensorflow) project and are not\ncovered by the following licence statement.\n\nNote: files in the `onnx/protos` directory are copied from the\n[ONNX](https://github.com/onnx/onnx) project and are not\ncovered by the following licence statement.\n\n## Apache 2.0/MIT\n\nAll original work licensed under either of\n * Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)\n * MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)\nat your option.\n\n## Contribution\n\nUnless you explicitly state otherwise, any contribution intentionally submitted\nfor inclusion in the work by you, as defined in the Apache-2.0 license, shall\nbe dual licensed as above, without any additional terms or conditions.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "onnx tensorflow nnef runtime neural network",
+            "license": "Apache License, Version 2.0 OR MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "tract",
+            "package_url": "https://pypi.org/project/tract/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/tract/",
+            "project_urls": {
+                "Documentation": "https://github.com/sonos/tract",
+                "Source": "https://github.com/Garvys/rustfs"
+            },
+            "release_url": "https://pypi.org/project/tract/0.19.0.dev0/",
+            "requires_dist": [
+                "numpy"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Python bindings for tract, a neural network inference engine",
+            "version": "0.19.0.dev0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16142908,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "20513c628a17baef1f41f292c3277267",
+                    "sha256": "88e1f4cecdd1f1c84635ec1bb5f337294c1a1d180415571e74c7e8d958407458"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp310-cp310-macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "20513c628a17baef1f41f292c3277267",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 9316003,
+                "upload_time": "2022-12-18T21:15:37",
+                "upload_time_iso_8601": "2022-12-18T21:15:37.542297Z",
+                "url": "https://files.pythonhosted.org/packages/5e/54/90673f002cce2571e3475118fe540680197f1fe04cb65c29c2196f4c8893/tract-0.19.0.dev0-cp310-cp310-macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3f68b8dee5566ab6e1a57e4004170f2c",
+                    "sha256": "dea67f01a6c01a380c8478314609357cd653e074f418a9fc5b72b69edf067e2a"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp310-cp310-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "3f68b8dee5566ab6e1a57e4004170f2c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 4927559,
+                "upload_time": "2022-12-18T21:15:40",
+                "upload_time_iso_8601": "2022-12-18T21:15:40.051593Z",
+                "url": "https://files.pythonhosted.org/packages/b7/5c/6c0c7a9ef56eb73da87902d6391b86e896206bc8559787719c41ffcd5e59/tract-0.19.0.dev0-cp310-cp310-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "078543459c1047e42684635bfffca005",
+                    "sha256": "bb059d5230333ab9b7417c5288d95c37bafe9b16e60c649f0418c703b3059d8e"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp310-cp310-macosx_11_0_arm64.whl",
+                "has_sig": false,
+                "md5_digest": "078543459c1047e42684635bfffca005",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 4394380,
+                "upload_time": "2022-12-18T21:15:41",
+                "upload_time_iso_8601": "2022-12-18T21:15:41.581452Z",
+                "url": "https://files.pythonhosted.org/packages/d4/37/7daaa06af72d57332ea312315988e1ea4f98dcf7ea471541783ef3b2e68c/tract-0.19.0.dev0-cp310-cp310-macosx_11_0_arm64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "50435a18f1c24a9f6783328b337a4e3c",
+                    "sha256": "73d86ed708bd18b146d8d9d59f8996c36892cea0c6f0267a1d95cb124abc2157"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "50435a18f1c24a9f6783328b337a4e3c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 5227446,
+                "upload_time": "2022-12-18T21:15:43",
+                "upload_time_iso_8601": "2022-12-18T21:15:43.233170Z",
+                "url": "https://files.pythonhosted.org/packages/4e/ff/4c6a0bde6d7f05e9ae249ea2aed1aff7d9f6ec83032e3632f3e890e1978d/tract-0.19.0.dev0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5c3f0991ff3b1bccc8c8ce9e3f3e7027",
+                    "sha256": "22c33e05cd67ef19860664559cc0a38f3cde66fee810c6437955d6ce54fe903c"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "5c3f0991ff3b1bccc8c8ce9e3f3e7027",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 5139515,
+                "upload_time": "2022-12-18T21:15:44",
+                "upload_time_iso_8601": "2022-12-18T21:15:44.792368Z",
+                "url": "https://files.pythonhosted.org/packages/f7/7b/0ea076d97618c911637fc866fdd310e26640977eacb0bedcd5bf1ef04db4/tract-0.19.0.dev0-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1224417fb0da0ab1c1bfd1452c8b6644",
+                    "sha256": "6f65bc51d5867c8cc13c57ce8c2099b0718ea394145bfa44a8fdf974937108b3"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp310-cp310-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "1224417fb0da0ab1c1bfd1452c8b6644",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 5258637,
+                "upload_time": "2022-12-18T21:15:46",
+                "upload_time_iso_8601": "2022-12-18T21:15:46.202430Z",
+                "url": "https://files.pythonhosted.org/packages/37/ad/88967d22b95759fcdeb9f109415a79388c8444049f6b02634fc85f2a07f8/tract-0.19.0.dev0-cp310-cp310-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9156fb04786dbbc328a45aecd734a634",
+                    "sha256": "28add7d28863832f9bebe55dcd7c99b4fb87bd5058fb85e59118d848307b5809"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp310-cp310-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "9156fb04786dbbc328a45aecd734a634",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 4630977,
+                "upload_time": "2022-12-18T21:15:48",
+                "upload_time_iso_8601": "2022-12-18T21:15:48.124238Z",
+                "url": "https://files.pythonhosted.org/packages/14/f3/b965790a6cc8de9dbc2aad623156d0a9efb46ae07eaa1d1678ac2ac4a64c/tract-0.19.0.dev0-cp310-cp310-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f3b34dfc3783c7400dd8a311e1b00c58",
+                    "sha256": "0c313b8145059e8476e7bccb2516f9c96f28c1379356a42c5060ff29eec7c818"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp311-cp311-macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "f3b34dfc3783c7400dd8a311e1b00c58",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 9316005,
+                "upload_time": "2022-12-18T21:15:49",
+                "upload_time_iso_8601": "2022-12-18T21:15:49.669733Z",
+                "url": "https://files.pythonhosted.org/packages/f5/07/dc8ad2e28e98fee8a10359fe06b78f0d49012dfb2f6150ee96d068eea53a/tract-0.19.0.dev0-cp311-cp311-macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "20ce785fccb3fa233ed53da81361060b",
+                    "sha256": "404f43ed8c9783f1e7b571aee1cba35911bbcba3052f8b519654b38c97a35ca5"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp311-cp311-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "20ce785fccb3fa233ed53da81361060b",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 4927559,
+                "upload_time": "2022-12-18T21:15:51",
+                "upload_time_iso_8601": "2022-12-18T21:15:51.311581Z",
+                "url": "https://files.pythonhosted.org/packages/c1/58/f748d4b230b18335549d668fb37f79b7b59c073d565d9a9478b8fabad87f/tract-0.19.0.dev0-cp311-cp311-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b5b8b156c6f63bd5609d9a7525add6e6",
+                    "sha256": "54e435243e36d0f89ca5833e774c3a7a4c81d7506a157d0cc307bbc106aa3b6d"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp311-cp311-macosx_11_0_arm64.whl",
+                "has_sig": false,
+                "md5_digest": "b5b8b156c6f63bd5609d9a7525add6e6",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 4394379,
+                "upload_time": "2022-12-18T21:15:52",
+                "upload_time_iso_8601": "2022-12-18T21:15:52.992561Z",
+                "url": "https://files.pythonhosted.org/packages/41/43/0de7fd852afcdd5acce24b5a3e340c5f4a77f015adc3e5c931ef1b686b7c/tract-0.19.0.dev0-cp311-cp311-macosx_11_0_arm64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "14fca92be0b5e672497ab9640e1d0d5e",
+                    "sha256": "19ece575a864329bf0d1b380ed377718f111fa44daaa39d8631c28c3fdfd260a"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "14fca92be0b5e672497ab9640e1d0d5e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 5227447,
+                "upload_time": "2022-12-18T21:15:54",
+                "upload_time_iso_8601": "2022-12-18T21:15:54.556666Z",
+                "url": "https://files.pythonhosted.org/packages/58/79/0e108040b2bcb41d972bfdf0968a31b93c57cb1a2ae5c73a7912d7e402ea/tract-0.19.0.dev0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "03bc9f2bc816384e0217b1fa64e7a454",
+                    "sha256": "7b7d55c0527ee4880f1a61815956ac5b03c8ce8d5125e4adcc1b3f23df6e1ae2"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "03bc9f2bc816384e0217b1fa64e7a454",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 5139514,
+                "upload_time": "2022-12-18T21:15:56",
+                "upload_time_iso_8601": "2022-12-18T21:15:56.595531Z",
+                "url": "https://files.pythonhosted.org/packages/b9/5f/f973569da835b2d33b8615c0ff1534e8e0d5d1834dd8c0eb88495ec2e481/tract-0.19.0.dev0-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cdbea23c4ed2d682bade798bb4a23635",
+                    "sha256": "2dc39cfaf4dfff538511b6867a2d9055e576bd0a24639fe66a569e899f209e38"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp311-cp311-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "cdbea23c4ed2d682bade798bb4a23635",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 5258640,
+                "upload_time": "2022-12-18T21:15:58",
+                "upload_time_iso_8601": "2022-12-18T21:15:58.389388Z",
+                "url": "https://files.pythonhosted.org/packages/57/27/fda2afe7aa115b8747e835cffe8b8dacd1bd5c3dc232f059b614e7c0b654/tract-0.19.0.dev0-cp311-cp311-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6acbd436c1996811f3d883bec691032a",
+                    "sha256": "f2a24136d2970034ffb1a74e47617a8866ddf92af231d19496f2f0c3612a951e"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp311-cp311-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "6acbd436c1996811f3d883bec691032a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 4630977,
+                "upload_time": "2022-12-18T21:15:59",
+                "upload_time_iso_8601": "2022-12-18T21:15:59.865561Z",
+                "url": "https://files.pythonhosted.org/packages/87/81/0b0c5243cc906e538f276a2343fa28e7bcfca7a73010ef01be92cf0db80a/tract-0.19.0.dev0-cp311-cp311-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "503fabeb1704a0f6e8e87fc6e4273733",
+                    "sha256": "6a98bb56c70ef22968094c1f309d8c9326e232ad58f490d1a3155632ceb83233"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp37-cp37m-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "503fabeb1704a0f6e8e87fc6e4273733",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 4918413,
+                "upload_time": "2022-12-18T21:16:01",
+                "upload_time_iso_8601": "2022-12-18T21:16:01.561378Z",
+                "url": "https://files.pythonhosted.org/packages/35/90/3db281f77aa61648dd3fe040ea1b674a0be2dd6ce5b2cc3fd7022ee050b5/tract-0.19.0.dev0-cp37-cp37m-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f84d702eefde858d6a775e2cf6af1334",
+                    "sha256": "b1325a14cff6e81e40e2f3db8b598c65b285636dba49c88c4071b7b76ddf4669"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "f84d702eefde858d6a775e2cf6af1334",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 5227446,
+                "upload_time": "2022-12-18T21:16:04",
+                "upload_time_iso_8601": "2022-12-18T21:16:04.678874Z",
+                "url": "https://files.pythonhosted.org/packages/6f/56/26d3ab99c1a4af8c54908dbd86a7a33ace9288fd5bb8cd3fed8d32cae695/tract-0.19.0.dev0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bff3e1f3f99deb24f4b0b9755efb7c1f",
+                    "sha256": "f6321fd3965429df6350b0abcee0624e318b3051c2522a63f85b8fa534852695"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "bff3e1f3f99deb24f4b0b9755efb7c1f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 5139513,
+                "upload_time": "2022-12-18T21:16:06",
+                "upload_time_iso_8601": "2022-12-18T21:16:06.595330Z",
+                "url": "https://files.pythonhosted.org/packages/b0/5b/d7b06e5d729ad12bc3bef89a9ccbc26004166acb2f8c785335db3267635c/tract-0.19.0.dev0-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bf63e7916b888b17b8ef1e6d5461f5b2",
+                    "sha256": "57244c33f0d6d01709f526aca345e791bc273411aa3a971edfa660b015ee7ff2"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp37-cp37m-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "bf63e7916b888b17b8ef1e6d5461f5b2",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 5258639,
+                "upload_time": "2022-12-18T21:16:08",
+                "upload_time_iso_8601": "2022-12-18T21:16:08.603618Z",
+                "url": "https://files.pythonhosted.org/packages/27/1d/ad2f4427b353636a9c18a296c19eb9c5ae75da0d752739fdac14789d5cc0/tract-0.19.0.dev0-cp37-cp37m-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "346ac996c8582893eadd3cd07c975476",
+                    "sha256": "cf95c75753c84ec6ffcbb0f2a2d58d2679459d594834aac6c95ee846379a51bc"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp37-cp37m-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "346ac996c8582893eadd3cd07c975476",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 4630974,
+                "upload_time": "2022-12-18T21:16:10",
+                "upload_time_iso_8601": "2022-12-18T21:16:10.132410Z",
+                "url": "https://files.pythonhosted.org/packages/98/29/f3861510bc7d98e6a81c4b6da72a28d20a6022f611a881ae9088e3961f4f/tract-0.19.0.dev0-cp37-cp37m-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b0412d47354e4eb2b002f09b7d80ab39",
+                    "sha256": "b4432e560354b56c3e016d3d6e71d84b0b0546092b9da66387254725dd8dd67f"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp38-cp38-macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "b0412d47354e4eb2b002f09b7d80ab39",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 9315984,
+                "upload_time": "2022-12-18T21:16:12",
+                "upload_time_iso_8601": "2022-12-18T21:16:12.081335Z",
+                "url": "https://files.pythonhosted.org/packages/1d/4b/fccf71f65597786a1dd815e54f077045664062358b02178f795046ff9d75/tract-0.19.0.dev0-cp38-cp38-macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d4e668b753af6262d12f0ad616dac492",
+                    "sha256": "778cba4d1c1480ac423880ef683980d3f0787782612221550347ab661cb34cc6"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp38-cp38-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d4e668b753af6262d12f0ad616dac492",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 4927562,
+                "upload_time": "2022-12-18T21:16:13",
+                "upload_time_iso_8601": "2022-12-18T21:16:13.865354Z",
+                "url": "https://files.pythonhosted.org/packages/5f/c1/ebde54cedef09943c1725e16182b3eff8865fc7845d244cca8328e50ee6c/tract-0.19.0.dev0-cp38-cp38-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2c8016c51cbce9d47697ac8c84c0446e",
+                    "sha256": "977c3b1bf697ea2a8248bad10c71f11c366462a0db57f68e29a660581965aba3"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp38-cp38-macosx_11_0_arm64.whl",
+                "has_sig": false,
+                "md5_digest": "2c8016c51cbce9d47697ac8c84c0446e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 4394374,
+                "upload_time": "2022-12-18T21:16:15",
+                "upload_time_iso_8601": "2022-12-18T21:16:15.964659Z",
+                "url": "https://files.pythonhosted.org/packages/67/b7/e3d6a661def12425a3968da7ac49664b8201f473fbd1793f87947bac4b16/tract-0.19.0.dev0-cp38-cp38-macosx_11_0_arm64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "51e72e4bf0f0d2e00bf58b1fd812fd25",
+                    "sha256": "dd0dd46568bcaf895e891f67609727c1f4fe15bf141e89276dc2b34e6f6bf667"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "51e72e4bf0f0d2e00bf58b1fd812fd25",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 5227442,
+                "upload_time": "2022-12-18T21:16:17",
+                "upload_time_iso_8601": "2022-12-18T21:16:17.653558Z",
+                "url": "https://files.pythonhosted.org/packages/d4/75/450450f5c6e0822a1f2592081080873706aea3508c7ddc18024503bbfb0a/tract-0.19.0.dev0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e9e5e65eb0a2a9da2752a6139cdc7806",
+                    "sha256": "590991afa58776ef92eec0b61476c71046b706010703b76da7f2439c790d0409"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "e9e5e65eb0a2a9da2752a6139cdc7806",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 5139511,
+                "upload_time": "2022-12-18T21:16:19",
+                "upload_time_iso_8601": "2022-12-18T21:16:19.152188Z",
+                "url": "https://files.pythonhosted.org/packages/ff/78/df6f0c55a6f3cfbeda0ad5d034378a0f87837cb3952e306ce27c3b4680c2/tract-0.19.0.dev0-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "448b174718d78d9c8dbd8264d0946ebb",
+                    "sha256": "a0ddbb5932b67a24619dc5398ab3f3d90ddf07922612f11e97ac101b517f6337"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp38-cp38-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "448b174718d78d9c8dbd8264d0946ebb",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 5258634,
+                "upload_time": "2022-12-18T21:16:21",
+                "upload_time_iso_8601": "2022-12-18T21:16:21.182046Z",
+                "url": "https://files.pythonhosted.org/packages/3d/df/349a290f66e9a99c09400f5968e1babed12ce22f33d80e6cc2501b74b7b7/tract-0.19.0.dev0-cp38-cp38-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0f97ebeb154c476413d78f97cfbce10f",
+                    "sha256": "9920cc235dfcb713f6a7443f5c5643ea9be55670815513d44017c15beb091e39"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp38-cp38-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "0f97ebeb154c476413d78f97cfbce10f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 4630972,
+                "upload_time": "2022-12-18T21:16:22",
+                "upload_time_iso_8601": "2022-12-18T21:16:22.771566Z",
+                "url": "https://files.pythonhosted.org/packages/af/7f/e3e706712de05c112b8143bd01ec94e41ab396369db2a7eef4ec627b0de7/tract-0.19.0.dev0-cp38-cp38-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d369e9019e00047016692415798951d4",
+                    "sha256": "d04d772e1f240ad6fa17562e03bcbe85c7b6fdd0e76ad6d4474367c4a53c54d3"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp39-cp39-macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "d369e9019e00047016692415798951d4",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 9315989,
+                "upload_time": "2022-12-18T21:16:24",
+                "upload_time_iso_8601": "2022-12-18T21:16:24.429051Z",
+                "url": "https://files.pythonhosted.org/packages/8a/36/17d00905de48024e1249465c85c946cf1d2d370d09c8a303cf711ddf6d05/tract-0.19.0.dev0-cp39-cp39-macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d70e18ee4dbe5b43b09a465d6b881279",
+                    "sha256": "897be30bbdc65788fcd66dbe36e39b5f932c7807f4666bed5b2abff8a17f5eda"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp39-cp39-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d70e18ee4dbe5b43b09a465d6b881279",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 4927563,
+                "upload_time": "2022-12-18T21:16:26",
+                "upload_time_iso_8601": "2022-12-18T21:16:26.390050Z",
+                "url": "https://files.pythonhosted.org/packages/00/c1/bc3a032d2156d0b0c73b58c395d1a9b98dd48127c5d5b749f027a2207f54/tract-0.19.0.dev0-cp39-cp39-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ca4d6a139ca50e351b415d384a0c7209",
+                    "sha256": "59a3f82b54e93ef270aa25859ee4245c6b9075fc59857386d9973cf81123852d"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp39-cp39-macosx_11_0_arm64.whl",
+                "has_sig": false,
+                "md5_digest": "ca4d6a139ca50e351b415d384a0c7209",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 4394379,
+                "upload_time": "2022-12-18T21:16:27",
+                "upload_time_iso_8601": "2022-12-18T21:16:27.934946Z",
+                "url": "https://files.pythonhosted.org/packages/9c/91/f197d274577b12d9390fc1e860b48ed2beb9b95228bef896b91ecd743024/tract-0.19.0.dev0-cp39-cp39-macosx_11_0_arm64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4f6e7db3d28a5b9d52ab4078c80ea184",
+                    "sha256": "c6530c53b5d88a1d4379f32ee957bd902e594e48632a58c36bff59afd0694086"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "4f6e7db3d28a5b9d52ab4078c80ea184",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 5227441,
+                "upload_time": "2022-12-18T21:16:29",
+                "upload_time_iso_8601": "2022-12-18T21:16:29.490687Z",
+                "url": "https://files.pythonhosted.org/packages/a1/1c/34f32ac5f989fbf88ca53153b93256ed1284b3a81980cd8a8e9f2263168b/tract-0.19.0.dev0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f7313e117922423a46fe530f5c1dea5d",
+                    "sha256": "4c2dabffecd3d53b68c34986232590e4592f9775eac425502020790a7d2771e9"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "f7313e117922423a46fe530f5c1dea5d",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 5139509,
+                "upload_time": "2022-12-18T21:16:30",
+                "upload_time_iso_8601": "2022-12-18T21:16:30.966898Z",
+                "url": "https://files.pythonhosted.org/packages/9e/42/2d35552eeb5ec4546591e592d365112d43baeadbe778755237cadad0276f/tract-0.19.0.dev0-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d7d1a93c83b42a5cf3ed003983f4ec54",
+                    "sha256": "5fb778e3611daddd75fde021be8fad871039bf856a00d77c6f2e75ef7cfd038f"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp39-cp39-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d7d1a93c83b42a5cf3ed003983f4ec54",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 5258634,
+                "upload_time": "2022-12-18T21:16:32",
+                "upload_time_iso_8601": "2022-12-18T21:16:32.788022Z",
+                "url": "https://files.pythonhosted.org/packages/0e/03/da13420f9f17ffe7abe1744535959907ff81f836501673783a8acd2a2b00/tract-0.19.0.dev0-cp39-cp39-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6de5a67b5537ca1803322cf7790500ab",
+                    "sha256": "e363884cfba0c15e7587e313aba29b8648e866e8e776b323b8be62ab7acbe9a3"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-cp39-cp39-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "6de5a67b5537ca1803322cf7790500ab",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 4630973,
+                "upload_time": "2022-12-18T21:16:34",
+                "upload_time_iso_8601": "2022-12-18T21:16:34.353850Z",
+                "url": "https://files.pythonhosted.org/packages/ac/7d/9c9fa4f3f96eac55d9d7ca47d3bc86ed4d0d33ecc81ccf97903330945166/tract-0.19.0.dev0-cp39-cp39-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "39a151c97b070414a92b4e3aaf610b2b",
+                    "sha256": "2d433e6d59bbeace2250dd09d74a8a27fbf324b636e595e00ea753908a485da6"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp37-pypy37_pp73-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "39a151c97b070414a92b4e3aaf610b2b",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp37",
+                "requires_python": ">=3.7",
+                "size": 4918418,
+                "upload_time": "2022-12-18T21:16:35",
+                "upload_time_iso_8601": "2022-12-18T21:16:35.924323Z",
+                "url": "https://files.pythonhosted.org/packages/8e/30/8a214d539bafd7ab427e67c20f0569c726bb61d83182ce9d0868fa15099f/tract-0.19.0.dev0-pp37-pypy37_pp73-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "84c886a86dd8f338355621dc2327d9e9",
+                    "sha256": "1bbe6cd295c19220e4086a157c4459b20d03c6601761673725ffa9cab14f3770"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "84c886a86dd8f338355621dc2327d9e9",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp37",
+                "requires_python": ">=3.7",
+                "size": 5227450,
+                "upload_time": "2022-12-18T21:16:37",
+                "upload_time_iso_8601": "2022-12-18T21:16:37.379854Z",
+                "url": "https://files.pythonhosted.org/packages/18/7b/a02493f76aa9e8a1579fbea89d82e1fdd4ac6adac40399a4acc92f69e367/tract-0.19.0.dev0-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "dc092403c2070215501e5cfcb2f69688",
+                    "sha256": "cd2dd46f5e45b7ac1e6d328c9cb65d5e6ea6b0a8edcf065674c2c2aa7f8ce6ce"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp37-pypy37_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "dc092403c2070215501e5cfcb2f69688",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp37",
+                "requires_python": ">=3.7",
+                "size": 5139514,
+                "upload_time": "2022-12-18T21:16:38",
+                "upload_time_iso_8601": "2022-12-18T21:16:38.945557Z",
+                "url": "https://files.pythonhosted.org/packages/ac/23/3966adbab0af93e123b40c9af8fa5e06f7fe8ef8773e56039b6cb0b2d8a1/tract-0.19.0.dev0-pp37-pypy37_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2110c7f095b7c435712c393907085675",
+                    "sha256": "12f66b31741312c4444f3ace1433676940f48b5ddce64f05c0bf520dd2000821"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp37-pypy37_pp73-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "2110c7f095b7c435712c393907085675",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp37",
+                "requires_python": ">=3.7",
+                "size": 4631005,
+                "upload_time": "2022-12-18T21:16:40",
+                "upload_time_iso_8601": "2022-12-18T21:16:40.481279Z",
+                "url": "https://files.pythonhosted.org/packages/e9/9d/af0bb1c995b9a5cdc8f5603d13ffb82356270c26a54be9fe9c13215b25fc/tract-0.19.0.dev0-pp37-pypy37_pp73-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "abdb87149ffcad93b8db31d9d4f12ab9",
+                    "sha256": "46086c71b5c2a6ac7db08a31ec14fa37588b4ef517427f22345fa54d694a2e0a"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp38-pypy38_pp73-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "abdb87149ffcad93b8db31d9d4f12ab9",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp38",
+                "requires_python": ">=3.7",
+                "size": 4927564,
+                "upload_time": "2022-12-18T21:16:41",
+                "upload_time_iso_8601": "2022-12-18T21:16:41.947320Z",
+                "url": "https://files.pythonhosted.org/packages/5c/bc/dfb8805b27831ff1986dd037b720ecb819e86ddc9005f9caecc21bc34a02/tract-0.19.0.dev0-pp38-pypy38_pp73-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f9caf8df5705fe937a5e51a61b5fe2ad",
+                    "sha256": "30f95b970b66c8b2e667fdc0df4a1c0555d6abeaf5714344a0866c9130517323"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "f9caf8df5705fe937a5e51a61b5fe2ad",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp38",
+                "requires_python": ">=3.7",
+                "size": 5227452,
+                "upload_time": "2022-12-18T21:16:43",
+                "upload_time_iso_8601": "2022-12-18T21:16:43.484121Z",
+                "url": "https://files.pythonhosted.org/packages/5b/db/4c2842a227b15a6ad5389e21caadb6b7ffd140314639e22fe49fecf6bf51/tract-0.19.0.dev0-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e864c822f5c76bbc3dcce0549cacfd17",
+                    "sha256": "ecc601d2c6baf0e0d9fc8dd913b431108153af8aa423c7fca7c81409568bb323"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp38-pypy38_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "e864c822f5c76bbc3dcce0549cacfd17",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp38",
+                "requires_python": ">=3.7",
+                "size": 5139514,
+                "upload_time": "2022-12-18T21:16:45",
+                "upload_time_iso_8601": "2022-12-18T21:16:45.043478Z",
+                "url": "https://files.pythonhosted.org/packages/6d/e3/bb145862083f202855488767c93c9cfc4a1d32c58df1731b1e852c340d93/tract-0.19.0.dev0-pp38-pypy38_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c9cafa1dc07447e590572e36d55bdcfe",
+                    "sha256": "be4ff0e83958d561fda77abccd5536efe0d1697808ab82072cb213838e121459"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp38-pypy38_pp73-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "c9cafa1dc07447e590572e36d55bdcfe",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp38",
+                "requires_python": ">=3.7",
+                "size": 4631005,
+                "upload_time": "2022-12-18T21:16:46",
+                "upload_time_iso_8601": "2022-12-18T21:16:46.519429Z",
+                "url": "https://files.pythonhosted.org/packages/99/28/306f0266a4e82b66563d169aaffcbc0a9552ef247b7bdf41ca8bb18c9419/tract-0.19.0.dev0-pp38-pypy38_pp73-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "442d3180b15ae0dbb7b011f10e53213a",
+                    "sha256": "7204c8387be70d1808053050be644401db5911b1adc0d6e6356002e20d976d73"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp39-pypy39_pp73-macosx_10_9_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "442d3180b15ae0dbb7b011f10e53213a",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp39",
+                "requires_python": ">=3.7",
+                "size": 4927565,
+                "upload_time": "2022-12-18T21:16:48",
+                "upload_time_iso_8601": "2022-12-18T21:16:48.521224Z",
+                "url": "https://files.pythonhosted.org/packages/cb/5e/2bfaed9142b673d27047472c172384c9a33fe82c1cb45e16fba678155282/tract-0.19.0.dev0-pp39-pypy39_pp73-macosx_10_9_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3b8cc3c0a8137d7f02191006b56a14a3",
+                    "sha256": "d39c2a2372cc8366aac47b26d73c6f6bb503459ef32a7dca47d7f47a750ceb11"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "3b8cc3c0a8137d7f02191006b56a14a3",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp39",
+                "requires_python": ">=3.7",
+                "size": 5227454,
+                "upload_time": "2022-12-18T21:16:50",
+                "upload_time_iso_8601": "2022-12-18T21:16:50.020504Z",
+                "url": "https://files.pythonhosted.org/packages/9d/c0/16637718aed0eff558664a117fa30b87ee5e2cf8d7d9fb07fc1475212751/tract-0.19.0.dev0-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "130509e823c4fa2463e61e5cba24052a",
+                    "sha256": "2437c6cb6d0ac90e8dc3df2b7a8c15123169bcbaec97ac7875a4e8e631605107"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp39-pypy39_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "130509e823c4fa2463e61e5cba24052a",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp39",
+                "requires_python": ">=3.7",
+                "size": 5139516,
+                "upload_time": "2022-12-18T21:16:51",
+                "upload_time_iso_8601": "2022-12-18T21:16:51.590399Z",
+                "url": "https://files.pythonhosted.org/packages/3e/b5/c24edc4189e987e7581d5258b74add86aa1aeed7e5cc90fd17dd28ca055b/tract-0.19.0.dev0-pp39-pypy39_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "89b5c867977340e6075d9319fa074db6",
+                    "sha256": "4957a58784ae3e389fa05f648af7401727ea00f809f6bceb39708fe87f971745"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0-pp39-pypy39_pp73-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "89b5c867977340e6075d9319fa074db6",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp39",
+                "requires_python": ">=3.7",
+                "size": 4631004,
+                "upload_time": "2022-12-18T21:16:53",
+                "upload_time_iso_8601": "2022-12-18T21:16:53.097481Z",
+                "url": "https://files.pythonhosted.org/packages/25/0d/663215f4d956fe8a85949e4eb814bcca512fe3b9ab6a6579745c9b8cc205/tract-0.19.0.dev0-pp39-pypy39_pp73-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a50505fd8e49d77d42debdd49079c444",
+                    "sha256": "750d5611d2d0983917d1e0c133744fb377bd0a6e91b0458061d4bb029ef78f6e"
+                },
+                "downloads": -1,
+                "filename": "tract-0.19.0.dev0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a50505fd8e49d77d42debdd49079c444",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 7959,
+                "upload_time": "2022-12-18T21:16:54",
+                "upload_time_iso_8601": "2022-12-18T21:16:54.539620Z",
+                "url": "https://files.pythonhosted.org/packages/6a/34/f9a58b2d98e1402ee1610e551abd238102b5860292d6f151dc389129255d/tract-0.19.0.dev0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

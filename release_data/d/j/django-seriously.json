@@ -55,7 +55,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14670276,
+        "last_serial": 16143484,
         "urls": [
             {
                 "comment_text": "",
@@ -156,7 +156,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14670276,
+        "last_serial": 16143484,
         "urls": [
             {
                 "comment_text": "",
@@ -257,7 +257,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14670276,
+        "last_serial": 16143484,
         "urls": [
             {
                 "comment_text": "",
@@ -359,7 +359,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14670276,
+        "last_serial": 16143484,
         "urls": [
             {
                 "comment_text": "",
@@ -427,7 +427,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Internet :: WWW/HTTP"
             ],
-            "description": "================\ndjango-seriously\n================\n\n|build-status| |pypi-version|\n\n    ... wait what? no seriously, why isn't that part of Django/DRF?\n\nOpinionated collection of `Django`_ and `Django REST framework`_ tools that came in handy time and again.\n\n- ``AdminItemAction``\n    - Allow triggering context-aware custom admin operations in model list views.\n\n- ``admin_navigation_link``\n    - Allow navigation from the admin list view to other related models via links.\n\n- ``MinimalUser`` (abstract model)\n    - Bare minimum user model ready for customization.\n    - Removes the username and auxiliary fields like ``first_name`` and ``last_name``.\n    - Allow creating users without a valid password (unusable password)\n    - Abstract since its highly recommended to subclass the user model anyway.\n\n- ``ValidatedJSONField`` (model field)\n    - validate the structure of JSON fields with Pydantic models.\n\n- ``TokenAuthentication``\n    - When OAuth2 adds too much complexity, DRF's TokenAuthentication is too simple, and\n      `django-rest-knox`_ does not quite fit the permissioning.\n    - No plain passwords in database (PBKDF2, i.e. hashed and salted)\n    - Enabled for permission scoping\n    - Easy (one-time-view) token creation in Django admin\n\n- ``BaseModel`` (abstract model)\n    - Reusable base model with automatic ``created_at``, ``updated_at`` fields.\n    - Primary key is a random UUID (``uuid4``).\n    - Ensure validation logic (``full_clean()``) always runs, not just in a subset of cases.\n\n- ``AppSettings``\n    - A settings container with defaults and string importing inspired by DRF's ``APISettings``\n\n\nLicense\n-------\n\nProvided by `T. Franzel <https://github.com/tfranzel>`_, `Licensed under 3-Clause BSD <https://github.com/tfranzel/django-seriously/blob/master/LICENSE>`_.\n\nRequirements\n------------\n\n-  Python >= 3.6\n-  Django >= 3.0\n-  Django REST Framework (optional)\n\nInstallation\n------------\n\n.. code:: bash\n\n    $ pip install django-seriously\n\n\nDemo\n----\n\nShowcasing ``AdminItemAction``, ``admin_navigation_link``, ``MinimalUser`` and ``TokenAuthentication``\n\n.. image:: https://github.com/tfranzel/django-seriously/blob/master/docs/demo.gif\n\nUsage\n-----\n\n``AdminItemAction``\n===================\n\n.. code:: python\n\n    # admin.py\n    from django_seriously.utils.admin import AdminItemAction\n\n\n    class UserAdminAction(AdminItemAction[User]):\n        model_cls = User\n        actions = [\n            (\"reset_invitation\", \"Reset Invitation\"),\n        ]\n\n        @classmethod\n        def is_actionable(cls, obj: User, action: str) -> bool:\n            # check whether action should be shown for this item\n            if action == \"reset_invitation\":\n                return is_user_resettable_check(obj) # your code\n            return False\n\n        def perform_action(self, obj: User, action: str) -> Any:\n            # perform the action on the item\n            if action == \"reset_invitation\":\n                perform_your_resetting(obj)  # your code\n                obj.save()\n\n\n    @admin.register(User)\n    class UserAdmin(ModelAdmin):\n        # insert item actions into a list view column\n        list_display = (..., \"admin_actions\")\n\n        def admin_actions(self, obj: User):\n            return UserAdminAction.action_markup(obj)\n\n.. code:: python\n\n    # urls.py\n    from django_seriously.utils.admin import AdminItemAction\n\n    urlpatterns = [\n        ...\n        # item actions must precede regular admin endpoints\n        path(\"admin/\", AdminItemAction.urls()),\n        path(\"admin/\", admin.site.urls),\n    ]\n\n\n``admin_navigation_link``\n=========================\n\n.. code:: python\n\n    # admin.py\n    from django_seriously.utils.admin import admin_navigation_link\n\n    @admin.register(Article)\n    class ArticleAdmin(ModelAdmin):\n        # insert item actions into a list view column\n        list_display = ('id', \"name\", \"author_link\")\n\n        def author_link(self, obj: Article):\n            return admin_navigation_link(obj.author, obj.author.name)\n\n\n``TokenAuthentication``\n=======================\n\n.. code:: python\n\n    # settings.py\n    INSTALLED_APPS = [\n        ...\n        # only required if auth token is not extended by you\n        'django_seriously.authtoken',\n        ...\n    ]\n\n    SERIOUSLY_SETTINGS = {\n        \"AUTH_TOKEN_SCOPES\": [\"test-scope\", \"test-scope2\"]\n    }\n\n    # views.py\n    from django_seriously.authtoken.authentication import TokenAuthentication, TokenHasScope\n\n    class TestViewSet(viewsets.ModelViewSet):\n        ...\n        permission_classes = [TokenHasScope]\n        authentication_classes = [TokenAuthentication]\n        required_scopes = ['test-scope']\n\n\n``MinimalUser``\n===============\n\n.. code:: python\n\n    # models.py\n    from django_seriously.minimaluser.models import MinimalAbstractUser\n    from django_seriously.utils.models import BaseModel\n\n    # BaseModel is optional but adds useful uuid, created_at, updated_at\n    class User(BaseModel, MinimalAbstractUser):\n        pass\n\n    # admin.py\n    from django_seriously.minimaluser.admin import MinimalUserAdmin\n\n    @admin.register(User)\n    class UserAdmin(MinimalUserAdmin):\n        pass\n\n\n.. _Django: https://www.djangoproject.com/\n.. _Django REST framework: https://www.django-rest-framework.org/\n.. _django-rest-knox: https://github.com/James1345/django-rest-knox\n\n.. |pypi-version| image:: https://img.shields.io/pypi/v/django-seriously.svg\n   :target: https://pypi.python.org/pypi/django-seriously\n.. |build-status| image:: https://github.com/tfranzel/django-seriously/actions/workflows/ci.yml/badge.svg\n   :target: https://github.com/tfranzel/django-seriously/actions/workflows/ci.yml\n\n",
             "description_content_type": "text/x-rst",
             "docs_url": null,
             "download_url": "",
@@ -462,7 +461,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 14670276,
+        "last_serial": 16143484,
         "urls": [
             {
                 "comment_text": "",
@@ -501,6 +500,109 @@
                 "upload_time": "2022-08-05T21:30:19",
                 "upload_time_iso_8601": "2022-08-05T21:30:19.530438Z",
                 "url": "https://files.pythonhosted.org/packages/f5/68/0fe1e65220a83a8225253233561e18fc34f11cb6bafd41b9e89aa5ab6716/django-seriously-0.3.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.0": {
+        "info": {
+            "author": "T. Franzel",
+            "author_email": "tfranzel@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Web Environment",
+                "Framework :: Django",
+                "Framework :: Django :: 3.2",
+                "Framework :: Django :: 4.0",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Natural Language :: English",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Internet :: WWW/HTTP"
+            ],
+            "description": "================\ndjango-seriously\n================\n\n|build-status| |pypi-version|\n\n    ... wait what? no seriously, why isn't that part of Django/DRF?\n\nOpinionated collection of `Django`_ and `Django REST framework`_ tools that came in handy time and again.\n\n- ``AdminItemAction``\n    - Allow triggering context-aware custom admin operations in model list views.\n\n- ``admin_navigation_link``\n    - Allow navigation from the admin list view to other related models via links.\n\n- ``MinimalUser`` (abstract model)\n    - Bare minimum user model ready for customization.\n    - Removes the username and auxiliary fields like ``first_name`` and ``last_name``.\n    - Allow creating users without a valid password (unusable password)\n    - Abstract since its highly recommended to subclass the user model anyway.\n\n- ``ValidatedJSONField`` (model field)\n    - validate the structure of JSON fields with Pydantic models.\n\n- ``TokenAuthentication``\n    - When OAuth2 adds too much complexity, DRF's TokenAuthentication is too simple, and\n      `django-rest-knox`_ does not quite fit the permissioning.\n    - No plain passwords in database (PBKDF2, i.e. hashed and salted)\n    - Enabled for permission scoping\n    - Easy (one-time-view) token creation in Django admin\n\n- ``BaseModel`` (abstract model)\n    - Reusable base model with automatic ``created_at``, ``updated_at`` fields.\n    - Primary key is a random UUID (``uuid4``).\n    - Ensure validation logic (``full_clean()``) always runs, not just in a subset of cases.\n\n- ``AppSettings``\n    - A settings container with defaults and string importing inspired by DRF's ``APISettings``\n\n\nLicense\n-------\n\nProvided by `T. Franzel <https://github.com/tfranzel>`_, `Licensed under 3-Clause BSD <https://github.com/tfranzel/django-seriously/blob/master/LICENSE>`_.\n\nRequirements\n------------\n\n-  Python >= 3.6\n-  Django >= 3.0\n-  Django REST Framework (optional)\n\nInstallation\n------------\n\n.. code:: bash\n\n    $ pip install django-seriously\n\n\nDemo\n----\n\nShowcasing ``AdminItemAction``, ``admin_navigation_link``, ``MinimalUser`` and ``TokenAuthentication``\n\n.. image:: https://github.com/tfranzel/django-seriously/blob/master/docs/demo.gif\n\nUsage\n-----\n\n``AdminItemAction``\n===================\n\n.. code:: python\n\n    # admin.py\n    from django_seriously.utils.admin import AdminItemAction\n\n\n    class UserAdminAction(AdminItemAction[User]):\n        model_cls = User\n        actions = [\n            (\"reset_invitation\", \"Reset Invitation\"),\n        ]\n\n        @classmethod\n        def is_actionable(cls, obj: User, action: str) -> bool:\n            # check whether action should be shown for this item\n            if action == \"reset_invitation\":\n                return is_user_resettable_check(obj) # your code\n            return False\n\n        def perform_action(self, obj: User, action: str) -> Any:\n            # perform the action on the item\n            if action == \"reset_invitation\":\n                perform_your_resetting(obj)  # your code\n                obj.save()\n\n\n    @admin.register(User)\n    class UserAdmin(ModelAdmin):\n        # insert item actions into a list view column\n        list_display = (..., \"admin_actions\")\n\n        def admin_actions(self, obj: User):\n            return UserAdminAction.action_markup(obj)\n\n.. code:: python\n\n    # urls.py\n    from django_seriously.utils.admin import AdminItemAction\n\n    urlpatterns = [\n        ...\n        # item actions must precede regular admin endpoints\n        path(\"admin/\", AdminItemAction.urls()),\n        path(\"admin/\", admin.site.urls),\n    ]\n\n\n``admin_navigation_link``\n=========================\n\n.. code:: python\n\n    # admin.py\n    from django_seriously.utils.admin import admin_navigation_link\n\n    @admin.register(Article)\n    class ArticleAdmin(ModelAdmin):\n        # insert item actions into a list view column\n        list_display = ('id', \"name\", \"author_link\")\n\n        def author_link(self, obj: Article):\n            return admin_navigation_link(obj.author, obj.author.name)\n\n\n``TokenAuthentication``\n=======================\n\n.. code:: python\n\n    # settings.py\n    INSTALLED_APPS = [\n        ...\n        # only required if auth token is not extended by you\n        'django_seriously.authtoken',\n        ...\n    ]\n\n    SERIOUSLY_SETTINGS = {\n        \"AUTH_TOKEN_SCOPES\": [\"test-scope\", \"test-scope2\"]\n    }\n\n    # views.py\n    from django_seriously.authtoken.authentication import TokenAuthentication, TokenHasScope\n\n    class TestViewSet(viewsets.ModelViewSet):\n        ...\n        permission_classes = [TokenHasScope]\n        authentication_classes = [TokenAuthentication]\n        required_scopes = ['test-scope']\n\n\n``MinimalUser``\n===============\n\n.. code:: python\n\n    # models.py\n    from django_seriously.minimaluser.models import MinimalAbstractUser\n    from django_seriously.utils.models import BaseModel\n\n    # BaseModel is optional but adds useful uuid, created_at, updated_at\n    class User(BaseModel, MinimalAbstractUser):\n        pass\n\n    # admin.py\n    from django_seriously.minimaluser.admin import MinimalUserAdmin\n\n    @admin.register(User)\n    class UserAdmin(MinimalUserAdmin):\n        pass\n\n\n.. _Django: https://www.djangoproject.com/\n.. _Django REST framework: https://www.django-rest-framework.org/\n.. _django-rest-knox: https://github.com/James1345/django-rest-knox\n\n.. |pypi-version| image:: https://img.shields.io/pypi/v/django-seriously.svg\n   :target: https://pypi.python.org/pypi/django-seriously\n.. |build-status| image:: https://github.com/tfranzel/django-seriously/actions/workflows/ci.yml/badge.svg\n   :target: https://github.com/tfranzel/django-seriously/actions/workflows/ci.yml\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/tfranzel/django-seriously",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "django-seriously",
+            "package_url": "https://pypi.org/project/django-seriously/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/django-seriously/",
+            "project_urls": {
+                "Homepage": "https://github.com/tfranzel/django-seriously",
+                "Source": "https://github.com/tfranzel/django-seriously"
+            },
+            "release_url": "https://pypi.org/project/django-seriously/0.4.0/",
+            "requires_dist": [
+                "Django (>=3.2)",
+                "djangorestframework (>=3.12.0)",
+                "typing-extensions (>=3.10.0.2)",
+                "pydantic (>=1.8.2)"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "Opinionated collection of Django and DRF tools that came in handy time and again.",
+            "version": "0.4.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16143484,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4aeecc2865ef039976cf227953e9fba1",
+                    "sha256": "3143c6d397ac82803a8890247c52466a70863c8dbb59065888ebd2c6d10cec8c"
+                },
+                "downloads": -1,
+                "filename": "django_seriously-0.4.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "4aeecc2865ef039976cf227953e9fba1",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 21267,
+                "upload_time": "2022-12-18T23:14:17",
+                "upload_time_iso_8601": "2022-12-18T23:14:17.886899Z",
+                "url": "https://files.pythonhosted.org/packages/0a/fd/f6930083f1753b49c27bd938474841d1a028b2ab224d4d5867100d89ab95/django_seriously-0.4.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "63dec59758d5e935e6d2adf17a89dc78",
+                    "sha256": "e20e06b33894cfd8d58370aca9a0c8a991080d71186a841454a16dc192b66a53"
+                },
+                "downloads": -1,
+                "filename": "django-seriously-0.4.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "63dec59758d5e935e6d2adf17a89dc78",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 21248,
+                "upload_time": "2022-12-18T23:14:19",
+                "upload_time_iso_8601": "2022-12-18T23:14:19.404314Z",
+                "url": "https://files.pythonhosted.org/packages/28/f5/ed9d65fcf90734542fc0073ebd14063b577de526d1593e62239d96351722/django-seriously-0.4.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
