@@ -57,7 +57,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15504210,
+        "last_serial": 16145953,
         "urls": [
             {
                 "comment_text": "",
@@ -161,7 +161,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15504210,
+        "last_serial": 16145953,
         "urls": [
             {
                 "comment_text": "",
@@ -265,7 +265,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15504210,
+        "last_serial": 16145953,
         "urls": [
             {
                 "comment_text": "",
@@ -369,7 +369,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15504210,
+        "last_serial": 16145953,
         "urls": [
             {
                 "comment_text": "",
@@ -429,7 +429,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Topic :: Scientific/Engineering :: Bio-Informatics"
             ],
-            "description": "# sci-RegulatoryClusteringModel\n[![PyPI](https://img.shields.io/pypi/v/scircm)](https://pypi.org/project/scircm/)\n\n## Python version\nThis is all for the python version of our package, if you are interested in the R version please go here: https://github.com/ArianeMora/SiRCleR\n\nIf you want to read more about how SiRCle works, please check out our paper: https://www.biorxiv.org/content/10.1101/2022.07.02.498058v1 \n\n## Install\nOptionally create a new conda env.\n```\nconda create --name scircm python=3.8\nconda activate scircm\n```\n\n``` \npip install scircm\n```\n\n### Note on Mac M1\nUnfortunately, the Mac M1 has some issues with tensorflow, so we have not been able to get our package to work on a M1 \nmac yet. If you get it working please let us know your solution as others may benefit! We have a partial M1 version\n(that covers the regulatory clustering) but doesn't enable the group statistics, if you are only interested in part 1 \nof SiRCle please go here: https://github.com/ArianeMora/SiRCle_M1\n\n### Note on Windows\nWe have tested our code on Windows (10) and Mac (pro) computers, I'm not sure how it would go on a Windows 7 machine so \nif you have issues post an issue.\n\n### Note on libraries/dependenices\nIf you find that things don't install please let us know! We've done our best to make it reproducible but different \nenvironments may mess things up so we're happy to help you debug, just post an issue on the github.\n\nNote we expect python 3.8 so if things don't work first time, check you're running python 3.8 and then try again :) \n\n## Run\nSee the examples folder for a proper tutorial with data included that you can run!\n\n*If you have any troubles running the tutorial on a windows machine, please let us know and we can help to sort out any issues. \n\n#### Quick version\n```\nfrom scircm import SciRCM\n# FORMAT must be csv :) \nprot_file = f'path to the output from protein differential abundence file'\nrna_file = f'path to the output from differential expression analysis file'\nmeth_file = f'path to the output from methylation DCpG analysis file'\n\n# Note we assume your methylation CpGs map to a single gene, if they don't see the section below.\n# logFC_rna = column name in your RNA file that has your RNA logFC (same for the protein and CpG)\n# padj_rna = column name in your RNA file that has your padj value (same for protein and CpG)\n# NOTE: these need to be unique from one another since we merge the datasets, if they aren't, you need\n# to update your csv files.\n# Lastly: ensembl_gene_id this is the gene ID column, All must use the same identifier, and this must be\n# labelled the same in each file, if it isn't, update your column names before running.\n\nrcm = SciRCM(meth_file, rna_file, prot_file, \n             \"logFC_rna\", \"padj_rna\", \"CpG_Beta_diff\", \"padj_meth\", \"logFC_protein\", \"padj_protein\",\n             \"ensembl_gene_id\", sep=',',\n             rna_padj_cutoff=0.05, \n             prot_padj_cutoff=0.05, \n             meth_padj_cutoff=0.05,\n             rna_logfc_cutoff=1.0, \n             prot_logfc_cutoff=0.5, \n             meth_diff_cutoff=0.1, \n             output_dir='',\n             non_coding_genes=['None'],\n             output_filename='RCM_Output.csv',\n             bg_type = '(P&M)|(P&R)|(M&R)'\n         )\nrcm.run()\ndf = rcm.get_df()\n# That DF now has your rcm clustering results, how easy was that :D\n```\n#### Making your CpGs map to a single gene version\n```\nfrom scircm import filter_methylation_data_by_genes\nmeth_df = pd.read_csv(f'path to the output from methylation DCpG analysis file')\n# Note: you need to pass it: \n# 1) the gene ID column, here it is 'ensembl_gene_id'\n# 2) the padj column: here it is 'padj_meth'\n# 3) the logFC or test statistic column: here it is 'CpG_Beta_diff'\nfiltered_meth_df = filter_methylation_data_by_genes(meth_df, 'ensembl_gene_id', 'padj_meth', 'CpG_Beta_diff')\n```\nNow you can run the first version :) \n\n\n#### R version\nFirst install Rtools if you haven't done this yet. There are different versions (windows: https://cran.r-project.org/bin/windows/Rtools/, macOS: https://cran.r-project.org/bin/macosx/tools/)\n\nIf you don't have conda, you'll need to do the below, first make sure you have reticulate installed.\n\n```\ninstall.packages('reticulate')\n```\nCreate a new environment and install scircm.\n```\nvirtualenv_create(\n      envname = \"ml\",\n      python = NULL,\n      packages = \"scircm\",\n      system_site_packages = getOption(\"reticulate.virtualenv.system_site_packages\",\n                                       default = FALSE)\n    )\n```\nThen run the following script!\n\n```\nlibrary(tidyverse) # install these if you don't have them\nlibrary(dplyr)\nlibrary(reticulate)\n\n# If things fail here it's because you need to the steps above\nuse_condaenv(\"ml\", required = TRUE) # OR use_virtualenv(\"ml\", required = TRUE)  # depending on how you installed it!\nscircm <<- import(\"scircm\")    # Make global\n\nprot_file <- 'path to the output from protein differential abundence file'\nrna_file <- 'path to the output from differential expression analysis file'\nmeth_file <- 'path to the output from methylation DCpG analysis file'\n\nrcm = scircm$SciRCM(meth_file, rna_file, prot_file, \n             \"logFC_rna\", \"padj_rna\", \"CpG_Beta_diff\", \"padj_meth\", \"logFC_protein\", \"padj_protein\",\n             \"ensembl_gene_id\", sep=',',\n             rna_padj_cutoff=0.05, \n             prot_padj_cutoff=0.05, \n             meth_padj_cutoff=0.05,\n             rna_logfc_cutoff=1.0, \n             prot_logfc_cutoff=0.5, \n             meth_diff_cutoff=0.1, \n             output_dir='',\n             non_coding_genes=['None'],\n             output_filename='RCM_Output.csv',\n             bg_type = '(P&M)|(P&R)|(M&R)'\n         )\nrcm$run()\ndf <- rcm$get_df()\n```\n\n## Regulatory clustering model \n\nThe general table of how we define regulatory clusters.\n\n| Methylation      | RNAseq    | Proteomics | Regulation driver_1          | Regulation driver_2     | Regulation_Grouping1 | Regulation_Grouping2 | Regulation_Grouping3 |\n|------------------|-----------|------------|------------------------------|-------------------------|----------------------|----------------------|----------------------|\n| Hypermethylation | DOWN      | DOWN       | Methylation increase (MDS)   | None                    | MDS                  | MDS                  | MDS                  |\n| Hypermethylation | UP        | DOWN       | mRNA increase (TPDE)         | Protein decrease (TMDS) | TPDE+TMDS            | TPDE+TMDS            | TMDS                 |\n| Hypermethylation | UP        | UP         | mRNA increase (TPDE)         | None                    | TPDE                 | TPDE                 | TPDE                 |\n| Hypermethylation | DOWN      | UP         | Methylation increase (MDS)   | Protein increase (TMDE) | MDS+TMDE             | TMDE                 | TMDE                 |\n| Hypermethylation | No Change | UP         | mRNA increase (TPDE)         | Protein increase (TMDE) | TPDE+TMDE            | TMDE                 | TMDE                 |\n| Hypermethylation | No Change | DOWN       | mRNA increase (TPDE)         | Protein decrease (TMDS) | TPDE+TMDS            | TMDS                 | TMDS                 |\n| Hypermethylation | UP        | No Change  | mRNA increase (TPDE)         | Protein decrease (TMDS) | TPDE+TMDS            | TPDE+TMDS            | TMDS                 |\n| Hypermethylation | DOWN      | No Change  | Methylation increase (MDS)   | Protein increase (TMDE) | MDS+TMDE             | MDS+TMDE             | TMDE                 |\n| Hypermethylation | No Change | No Change  | Methylation increase (ncRNA) | None                    | MDS-ncRNA            | MDS_ncRNA            | MDS_ncRNA            |\n| Hypomethylation  | DOWN      | DOWN       | mRNA decrease (TPDS)         | None                    | TPDS                 | TPDS                 | TPDS                 |\n| Hypomethylation  | UP        | DOWN       | Methylation decrease (MDE)   | Protein decrease (TMDS) | MDE+TMDS             | TMDS                 | TMDS                 |\n| Hypomethylation  | UP        | UP         | Methylation decrease (MDE)   | None                    | MDE                  | MDE                  | MDE                  |\n| Hypomethylation  | DOWN      | UP         | mRNA decrease (TPDS)         | Protein increase (TMDE) | TPDS+TMDE            | TPDS+TMDE            | TMDE                 |\n| Hypomethylation  | No Change | UP         | mRNA decrease (TPDS)         | Protein increase (TMDE) | TPDS+TMDE            | TMDE                 | TMDE                 |\n| Hypomethylation  | No Change | DOWN       | mRNA decrease (TPDS)         | Protein decrease (TMDS) | TPDS+TMDS            | TMDS                 | TMDS                 |\n| Hypomethylation  | UP        | No Change  | Methylation decrease (MDE)   | Protein decrease (TMDS) | MDE+TMDS             | MDE+TMDS             | TMDS                 |\n| Hypomethylation  | DOWN      | No Change  | mRNA decrease (TPDS)         | Protein increase (TMDE) | TPDS+TMDE            | TPDS+TMDE            | TMDE                 |\n| Hypomethylation  | No Change | No Change  | Methylation decrease (ncRNA) | None                    | MDE+ncRNA            | MDE_ncRNA            | MDE_ncRNA            |\n| No Change        | DOWN      | UP         | mRNA decrease (TPDS)         | Protein increase (TMDE) | TPDS+TMDE            | TPDS+TMDE            | TMDE                 |\n| No Change        | UP        | DOWN       | mRNA increase (TPDE)         | Protein decrease (TMDS) | TPDE+TMDS            | TPDE+TMDS            | TMDS                 |\n| No Change        | DOWN      | DOWN       | mRNA decrease (TPDS)         | None                    | TPDS                 | TPDS                 | TPDS                 |\n| No Change        | UP        | UP         | mRNA increase (TPDE)         | None                    | TPDE                 | TPDE                 | TPDE                 |\n| No Change        | No Change | UP         | Protein increase (TMDE)      | None                    | TMDE                 | TMDE                 | TMDE                 |\n| No Change        | No Change | DOWN       | Protein decrease (TMDS)      | None                    | TMDS                 | TMDS                 | TMDS                 |\n| No Change        | UP        | No Change  | mRNA increase (TPDE)         | Protein decrease (TMDS) | TPDE+TMDS            | TPDE+TMDS            | TMDS                 |\n| No Change        | DOWN      | No Change  | mRNA decrease (TPDS)         | Protein increase (TMDE) | TPDS+TMDE            | TPDS+TMDE            | TMDE                 |\n| No Change        | No Change | No Change  | NoChange                     | NoChange                | NoChange             | NoChange             | NoChange             |\n\nPlease post questions and issues related to sci-rcm on the `Issues <https://github.com/ArianeMora/scircm/issues>`_  section of the GitHub repository.\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -474,7 +473,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15504210,
+        "last_serial": 16145953,
         "urls": [
             {
                 "comment_text": "",
@@ -513,6 +512,111 @@
                 "upload_time": "2022-10-23T23:58:40",
                 "upload_time_iso_8601": "2022-10-23T23:58:40.474871Z",
                 "url": "https://files.pythonhosted.org/packages/23/eb/f714c74932f07fb223a15fc72a709b6558e180a6cd75a8bd5b518cd16792/scircm-1.0.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.1.3": {
+        "info": {
+            "author": "Ariane Mora",
+            "author_email": "ariane.n.mora@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Natural Language :: English",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Topic :: Scientific/Engineering :: Bio-Informatics"
+            ],
+            "description": "# sci-RegulatoryClusteringModel\n[![PyPI](https://img.shields.io/pypi/v/scircm)](https://pypi.org/project/scircm/)\n\n## Python version\nThis is all for the python version of our package, if you are interested in the R version please go here: https://github.com/ArianeMora/SiRCleR\nIf you have issues installing, please try the simple version (which doesn't have the VAE) here: https://github.com/ArianeMora/SiRClePy\n\nIf you want to read more about how SiRCle works, please check out our paper: https://www.biorxiv.org/content/10.1101/2022.07.02.498058v1 \n\nWebsite is available at: https://arianemora-sircle-web-app-ndu996.streamlit.app it is under active development and currently in Beta mode - let us know if you have any issues :) \nNote the website is only for the first bit of the regulatory clustering.\n\n## Install\nOptionally create a new conda env.\n```\nconda create --name scircm python=3.8\nconda activate scircm\n```\n\n``` \npip install scircm\n```\n\n## Run\nSee the examples folder for a proper tutorial with data included that you can run!\n\n*If you have any troubles running the tutorial on a windows machine, please let us know and we can help to sort out any issues. \n\n#### Quick version\n```\nfrom scircm import SciRCM\n# FORMAT must be csv :) \nprot_file = f'path to the output from protein differential abundence file'\nrna_file = f'path to the output from differential expression analysis file'\nmeth_file = f'path to the output from methylation DCpG analysis file'\n\n# Note we assume your methylation CpGs map to a single gene, if they don't see the section below.\n# logFC_rna = column name in your RNA file that has your RNA logFC (same for the protein and CpG)\n# padj_rna = column name in your RNA file that has your padj value (same for protein and CpG)\n# NOTE: these need to be unique from one another since we merge the datasets, if they aren't, you need\n# to update your csv files.\n# Lastly: ensembl_gene_id this is the gene ID column, All must use the same identifier, and this must be\n# labelled the same in each file, if it isn't, update your column names before running.\n\nrcm = SciRCM(meth_file, rna_file, prot_file, \n             \"logFC_rna\", \"padj_rna\", \"CpG_Beta_diff\", \"padj_meth\", \"logFC_protein\", \"padj_protein\",\n             \"ensembl_gene_id\", sep=',',\n             rna_padj_cutoff=0.05, \n             prot_padj_cutoff=0.05, \n             meth_padj_cutoff=0.05,\n             rna_logfc_cutoff=1.0, \n             prot_logfc_cutoff=0.5, \n             meth_diff_cutoff=0.1, \n             output_dir='',\n             non_coding_genes=['None'],\n             output_filename='RCM_Output.csv',\n             bg_type = '(P&M)|(P&R)|(M&R)'\n         )\nrcm.run()\ndf = rcm.get_df()\n# That DF now has your rcm clustering results, how easy was that :D\n```\n\n#### Making your CpGs map to a single gene version\n```\nfrom scircm import filter_methylation_data_by_genes\nmeth_df = pd.read_csv(f'path to the output from methylation DCpG analysis file')\n# Note: you need to pass it: \n# 1) the gene ID column, here it is 'ensembl_gene_id'\n# 2) the padj column: here it is 'padj_meth'\n# 3) the logFC or test statistic column: here it is 'CpG_Beta_diff'\nfiltered_meth_df = filter_methylation_data_by_genes(meth_df, 'ensembl_gene_id', 'padj_meth', 'CpG_Beta_diff')\n```\nNow you can run the first version :)\n\n## Quick guide on the regulation grouping levels\n\nWe have four levels of regulation grouping, each encoding a different level of clustering, the excel spreadsheet in examples \nhas all these written explicitly. We include four levels so that depending on the experiment types and specific data \nused (e.g. type of proteomics) the user can choose the right granularity.\n\n1. Regulation Grouping All: All 54 levels where the labels are just the level of DNA methylation, RNA and protein.\n2. Regulation Grouping Change: 54 groups consolidated to 10 such that we prioritise \"changes\" in the system. For example, an \"UP\" on RNA followed by \"Not significant\" or not meeting the threshold will consider that a \"double regulation\", namely, an \"increase\" on the RNA level followed by a suppresion on the translational level (because it didn't meet the threshold).\n3. Regulation Grouping Detection: 54 groups consolidated to 10 such that we prioritise the central dogma and \"stop\" the labelling at the last significant change. For example, the above example (\"UP\" on RNA followed by \"NS\" on protein) would just be Transcription driven increase (TPDE).\n4. Regulation Grouping Protein: 54 groups consolidated to 6 clusters, such that we only consider one layer of regulation (no double groups) and that if there are two opposing changes (for example \"UP\" on the transcriptional layer followed by \"DOWN\" on the protein, it would be labelled via the \"DOWN\" on the protein layer (i.e. TMDS)\n\n\n## Quick guide on the background filter\nTo compensate for detection thresholds (e.g. the protein layer having much less than RNA or Methylation) we include a background filter that \"Nones\" labels that don't meet the threshold.\n\nThe background options included are:\n1. 'P&R': Protein and RNA exist for that gene, this is the recommended level of background as it avoids confusion with detection limits.\n2. '(P&M)|(P&R)|(M&R)': Protein and DNA methylation, or, Protein and RNA, or Methylation and RNA exist in the datasets for that gene. This is recommended for if you are interested in layers that may not have protein, for example including non-coding genes or have poor detection on the protein level.\n3. '*': No filter\n4. 'P&M&R': The strictest one, the gene must have Protein and RNA and DNA methylation (this one is only recomended if you really want the impact of DNA methylation to be the focus)\n5. 'P|M|R': Akin to \"*\" unless an added statistical filter is added (see footnote)\n6. '(P&M)|(P&R)':  Protein and Methylation or protein and RNA.\n7. 'P|(M&R)': Protein or RNA and Methylation exist.\n8. 'P|R': Protein or RNA exists in the dataset.\n\n* Note, when running the function `run_rcm(self, methylation_background=1.0, rna_background=1.0, protein_background=1.0)` you can pass different thresholds to the background filter, the current filter is just that the p.adj exists (i.e. is not None), however, one could pass 0.05 if one wanted the background to only consider genes with a significant change.\n\n## Issues\n\n### Note on Mac M1\nUnfortunately, the Mac M1 has some issues with tensorflow, so we have not been able to get our package to work on a M1 \nmac yet. If you get it working please let us know your solution as others may benefit! We have a partial M1 version\n(that covers the regulatory clustering) but doesn't enable the group statistics, if you are only interested in part 1 \nof SiRCle please go here: https://github.com/ArianeMora/SiRCle_M1\n\n### Note on Windows\nWe have tested our code on Windows (10) and Mac (pro) computers, I'm not sure how it would go on a Windows 7 machine so \nif you have issues post an issue.\n\n### Note on libraries/dependenices\nIf you find that things don't install please let us know! We've done our best to make it reproducible but different \nenvironments may mess things up so we're happy to help you debug, just post an issue on the github.\n\nNote we expect python 3.8 so if things don't work first time, check you're running python 3.8 and then try again :) \n\n#### Things to note\n\n- As at 27/11 we updated the names of the clusters and included an extra level of grouping that explicitly takes into account whether the protein was detected or not\n\n\n## Regulatory clustering model \n\nThe general table of how we define regulatory clusters.\n\nPlease post questions and issues related to sci-rcm on the `Issues <https://github.com/ArianeMora/scircm/issues>`_  section of the GitHub repository.\n\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/ArianeMora/scircm",
+            "keywords": "epigenetics,bioinformatics",
+            "license": "GPL3",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "scircm",
+            "package_url": "https://pypi.org/project/scircm/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/scircm/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/ArianeMora/scircm/issues",
+                "Documentation": "https://github.com/ArianeMora/scircm",
+                "Homepage": "https://github.com/ArianeMora/scircm",
+                "Source Code": "https://github.com/ArianeMora/scircm"
+            },
+            "release_url": "https://pypi.org/project/scircm/1.1.3/",
+            "requires_dist": [
+                "pandas",
+                "numpy",
+                "scibiomart",
+                "sciutil (>=1.0.3)",
+                "scivae",
+                "scikit-learn",
+                "sciviso",
+                "seaborn",
+                "stats",
+                "matplotlib-venn",
+                "scimotf",
+                "scie2g"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "",
+            "version": "1.1.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16145953,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "88982ca9513c1368569c2c01a9fd74bc",
+                    "sha256": "f28c1e3c2bf77c7654dbc2798be512e83aad4aafbc9c298b55d8ab5a4b377387"
+                },
+                "downloads": -1,
+                "filename": "scircm-1.1.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "88982ca9513c1368569c2c01a9fd74bc",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 74135,
+                "upload_time": "2022-12-19T05:31:00",
+                "upload_time_iso_8601": "2022-12-19T05:31:00.224778Z",
+                "url": "https://files.pythonhosted.org/packages/70/1b/1a29e0afbd9ffbb3c5185ce6bba32360b75ccc2aa5637bc811d0d8a1f706/scircm-1.1.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c555622d16f4b3683eeffe0456a22948",
+                    "sha256": "847cd71122eae74b10b3f247ec7b3df75af335a698b28f64f313749648406314"
+                },
+                "downloads": -1,
+                "filename": "scircm-1.1.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c555622d16f4b3683eeffe0456a22948",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 45217,
+                "upload_time": "2022-12-19T05:31:02",
+                "upload_time_iso_8601": "2022-12-19T05:31:02.543497Z",
+                "url": "https://files.pythonhosted.org/packages/92/ea/076732cdfdda7d00e09805cb8d6e0c90e54cc3b824c165a8128104bf335f/scircm-1.1.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
