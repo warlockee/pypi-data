@@ -39,7 +39,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16128092,
+        "last_serial": 16160175,
         "urls": [
             {
                 "comment_text": "",
@@ -144,7 +144,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16128092,
+        "last_serial": 16160175,
         "urls": [
             {
                 "comment_text": "",
@@ -249,7 +249,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16128092,
+        "last_serial": 16160175,
         "urls": [
             {
                 "comment_text": "",
@@ -354,7 +354,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16128092,
+        "last_serial": 16160175,
         "urls": [
             {
                 "comment_text": "",
@@ -429,7 +429,6 @@
                 "Programming Language :: Python :: Implementation :: PyPy",
                 "Programming Language :: Rust"
             ],
-            "description": "# Findex &emsp; [![Build Status]][actions] [![Latest Version]][crates.io]\n\n[build status]: https://img.shields.io/github/workflow/status/Cosmian/findex/CI%20checks/main\n[actions]: https://github.com/Cosmian/findex/actions?query=branch%3Amain\n[latest version]: https://img.shields.io/crates/v/cosmian_findex.svg\n[crates.io]: https://crates.io/crates/cosmian_findex\n\nFindex is a cryptographic protocol designed to securely make search queries on\nan untrusted cloud server. Thanks to its encrypted indexes, large databases can\nsecurely be outsourced without compromising usability.\n\nFindex is part of Cosmian Cloudproof Encryption.\n\n<!-- toc -->\n\n- [Getting started](#getting-started)\n- [Building and testing](#building-and-testing)\n- [Features and Benchmarks](#features-and-benchmarks)\n  - [Index tables](#index-tables)\n  - [Findex callbacks](#findex-callbacks)\n  - [Findex search](#findex-search)\n  - [Findex upsert](#findex-upsert)\n  - [Findex compact](#findex-compact)\n- [Documentation](#documentation)\n\n<!-- tocstop -->\n\n## Getting started\n\nFindex allows to index values by keywords. These values can be locations (UIDs\nin an encrypted database, URLs etc.) or other keywords. This allows creating\ngraphs of keywords as described in the section [Two indexing\nstrategies](#two-indexing-strategies).\n\nFindex delegates to the user the implementation of *callbacks* to manipulate\nthe indexes. This makes Findex compatible with any database technology since\nno database-specific code is part of it. These callbacks need to be implemented\nthrough the trait `FindexCallbacks`. See the section\n[Callbacks](#findex-callbacks) for an implementation example.\n\nThe main Findex traits can be derived automatically (see\n[`ffi/core/traits.rs`](./src/interfaces/ffi/core/traits.rs#L254-297) for an\nexample).\n\nThe generics used by Findex are defined in [`generic_parameters.rs`](./src/interfaces/generic_parameters.rs).\nTheir values allow using AES-256-GCM and KMAC128 and minimizing the size of the indexes.\n\n## Building and testing\n\nTo build Findex without the interfaces, run:\n\n```bash\ncargo build --release\n```\n\nTo build the FFI interface, run:\n\n```bash\ncargo build --release --features ffi\n```\n\nTo build the WebAssembly interface, run:\n\n```bash\ncargo build --release --features wasm_bindgen\n```\n\nTo build the Python interface, run:\n\n```bash\nmaturin build --release --features python\n```\n\n**Note**: when a new function or class is added to the PyO3 interface, its\nsignature needs to be added to [`__init__.pyi`](./python/cosmian_findex/__init__.pyi).\n\nTo run tests on the Python interface, run:\n\n```bash\n./python/scripts/test.sh\n```\n\nAnd finally, to build everything and test it, run:\n\n```bash\ncargo build --release --all-features\ncargo test --release --all-features\n```\n\n## Features and benchmarks\n\n### Index tables\n\nFindex relies on two server-side indexes - Entry Table and Chain Table - to\nsolve the following search problem:\n\n> How to securely recover the UIDs of DB Table to obtain the matching lines\n> from a given keyword?\n\n- Entry Table: provides the mandatory values to access the Chain Table.\n- Chain Table: securely stores the indexed values. In the case this solution is\n  built on top of an encrypted database, the Chain Table would store  UIDs of\n  this table, but Findex can be used to index any kind of value (URL, path...).\n\nEach index table contains two columns: the `uid` and `value` columns:\n\n|              | uid        | value     |\n| ------------ | ---------- | --------- |\n| Size (bytes) | UID_LENGTH | see below |\n\nWhere `UID_LENGTH = 32`. The table values contain encrypted data:\n\n|              | AES-GCM encrypted data  | MAC | Nonce |\n| ------------ | ------------------------| --- | ----- |\n| Size (bytes) | see below               | 16  | 12    |\n\nThe encrypted data for the Index Entry Table is:\n\n|              | Entry Table encrypted data                    |\n| ------------ | --------------------------------------------- |\n| Size (bytes) | KWI_LENGTH + UID_LENGTH + KEYWORD_HASH_LENGTH |\n\nwhere `KWI_LENGTH = 16` and `KEYWORD_HASH_LENGTH = 32`. The encrypted data for\nthe Chain Table is:\n\n|              | Chain Table encrypted data  |\n| ------------ | --------------------------- |\n| Size (bytes) | TABLE_WIDTH \\* BLOCK_LENGTH |\n\nwhere `TABLE_WIDTH = 5`, and `BLOCK_LENGTH = 32`.\n\nTherefore, given `N` the number of indexing keywords, the size of the Entry\nTable in bytes is given by:\n\n``` text\nN * (UID_LENGTH + ENCRYPTION_OVERHEAD + KWI_LENGTH + UID_LENGTH + KEYWORD_HASH_LENGTH)\n= N * 140\n```\n\nGiven `M` the average number of values indexed by keyword, the size of the\ncompacted Chain Table in bytes is given by:\n\n``` text\nN * ceil(M / TABLE_WIDTH) * (UID_LENGTH + ENCRYPTION_OVERHEAD + TABLE_WIDTH * BLOCK_LENGTH)\n= N * ceil(M / 5) * 220\n```\n\nwhere `ceil()` is the ceiling function that maps x to the least integer greater\nthan or equal to x.\n\n### Findex callbacks\n\nFindex implementation uses callback functions. The signature of these callbacks\nand a detailed description of the functionalities they need to implement is\ngiven in the core [`callbacks.rs`](./src/core/callbacks.rs).\n\nAn example implementation of the Findex callbacks in Rust for an SQLite\ndatabase is available in [`findex.rs`](./src/interfaces/sqlite/findex.rs).\n\n**Note**: for the FFI interface, serialization is needed and a pagination\nshould be implemented to fetch the entire Entry Table in `fetch_entry_table()`.\nA detailed documentation of the serialization is given in the FFI\n[`callbacks.rs`](./src/interfaces/ffi/core/callbacks.rs). The following figure\nsummarizes the serialization process in FFI callbacks.\n\n```mermaid\nsequenceDiagram\n    participant C as FFI Client\n    participant R as Rust Findex\n    C->>+R: FFI function call\n    R->>R: allocate Rust memory for callback output\n    R->>R: serialize callback input\n    R->>+C: callback call\n    C->>C: deserialize data\n    C->>C: process data\n    C->>C: serialize result\n    C->>C: write serialized result to Rust output buffer\n    C->>-R: callback return\n    R->>R: check returned code\n    R->>R: deserialize output data\n    R->>-C: FFI function return\n```\n\n### Findex search\n\nSearching Findex indexes for keywords is done through the method `search`\nimplemented by the trait `FindexSearch`. When some searched keywords index\nother keywords, `search` recursively follows these indexations until a location\nis found or the maximum recursion level is reached depending on whichever comes\nfirst.\n\nParameter documentation and method signature can be found in\n[`search.rs`](./src/core/search.rs#L133-156).\n\n#### Implementation details\n\nThe following sequence diagram illustrates the `search` process.\n\n```mermaid\nsequenceDiagram\n    participant C as Client\n    participant R as Rust\n    C->>+R: search call\n    loop while keywords are found or the max recursion depth is not reached\n    R->>R: get the Entry Table UIDs corresponding to the keywords\n    R->>+C: fetch_entry call\n    C->>C: SELECT (uid, value) FROM entry_table WHERE uid IN (?, ..., ?)\n    C->>-R: fetch_entry return\n    R->>R: get the Chain Table UIDs corresponding to the Entry Table values\n    loop for each Chain Table UID\n    R->>+C: fetch_chain call\n    C->>C: SELECT (uid, value) FROM chain_table WHERE uid IN (?)\n    C->>-R: fetch_chain return\n    end\n    R->>R: sort values between locations and keywords\n    Note right of R: search is called for the remaining keywords\n    end\n    R->>-C: search return\n```\n\n### Findex upsert\n\nIndexing values is done through the method `upsert` implemented by th trait\n`FindexUpsert`. It allows indexing values (locations or keywords) by a set of\nkeywords.\n\nParameter documentation and method signature can be found in\n[`upsert.rs`](./src/core/upsert.rs#L35-50).\n\n#### Implementation details\n\nThe following sequence diagram illustrates the `upsert` process.\n\n```mermaid\n    sequenceDiagram\n    participant C as Client\n    participant R as Rust\n    C->>+R: upsert call\n    loop while there are values to upsert\n    R->>R: get the Entry Table UIDs corresponding to the keywords\n    R->>+C: `fetch_entry` call\n    C->>C: SELECT (uid, value) FROM entry_table WHERE uid IN (?,...,?)\n    C->>R: fetch_entry return\n    R->>R: Create new Findex indexes\n    R->>+C: `upsert_entry`\n    C->>C: INSERT (uid, new_value) INTO entry_table<br/>ON CONFLICT uid DO UPDATE<br/>SET value = new_value WHERE value = old_value\n    C->>C: get Entry Table UIDs of the failed insertions\n    C->>C: SELECT (uid, value) FROM entry_table WHERE uid IN (?,...,?)\n    C->>-R: `upsert_entry` return\n    R->>R: get Chain Table UIDs corresponding to the successful upserts\n    R->>+C: `insert_chain` call\n    C->>C: BULK INSERT INTO chain_table (uid, value) VALUES (?, ?)\n    C->>-R: `insert_chain` return\n    Note right of R: failed upserts are retried\n    end\n    R->>-C: upsert return\n```\n\n#### Two indexing strategies\n\nNaive (locations are indexed for all possible slices):\n\n- `mar` -> {locations}\n- `mart` -> {locations}\n- `marti` -> {locations}\n- `martin` -> {locations}\n- `martine` -> {locations}\n\nGraph:\n\n- `mar` -> `mart`\n- `mart` -> `marti`\n- `marti` -> `martin`\n- `martin` -> `martine`\n- `martine` -> {locations}\n\nDisadvantage of graphs: more interactions between client and server: 4 average\ncompared to 1 for the naive solution.\n\nAdvantage of graphs: optimal storage of the locations info since they are not\nrepeated in the chain table.\n\nTODO: what does the `size` represent?\n\n| Avg locations | #records graphs | #records naive | ratio | size (kb) graphs | size (kb) naive | ratio |\n| ------------- | --------------- | -------------- | ----- | ---------------- | --------------- | ----- |\n| 1             | 86018           | 86018          | 1.00  | 5605             | 5704            | 1.01  |\n| 2             | 105966          | 172036         | 1.62  | 6994             | 11745           | 1.68  |\n| 3             | 125914          | 258054         | 2.04  | 8344             | 17618           | 2.11  |\n| 4             | 145862          | 244072         | 2.35  | 9694             | 23491           | 2.42  |\n| 5             | 165810          | 430090         | 2.59  | 11044            | 29364           | 2.65  |\n\n### Findex compact\n\nWith the time, some indexed locations will become obsolete. Moreover,\nsuccessive upserts start adding values to the chains in a new line while the\nprevious line may not be full. Therefore, after some location deletions and\nsome upserts, indexes may waste a lot of space. This is why a compacting\noperation is needed.\n\nParameter documentation and method signature can be found in\n[`compact.rs`](./src/core/compact.rs#L39-67).\n\n#### Implementation details\n\nA compacting operation fetches the entire Entry Table and decrypts it. A\nrandom subset of this table is then selected and the corresponding chains are\nfetched from the Chain Table and recomputed from a new random `Kwi`. This\nallows removing obsolete locations and avoiding useless padding in the Chain\nTable values. Only the last Chain Table value in a chain may need padding. The\nEntry Table values of the selected subset are updated with the new `Kwi` and\nlast chain UID. The UIDs of the entire Entry Table are rederived from a new key\nand a label, and the table is encrypted using a key derived from this new key.\nThe chains are encrypted using a key derived from the new `Kwi`s. The old\nchains are removed from the Chain Table, the new chains are added, and the new\nEntry Table replaces the old one.\n\nThe following sequence diagram illustrates the `compact` process.\n\n```mermaid\nsequenceDiagram\n    participant C as Client\n    participant R as Rust\n    C->>+R: compact call\n    R->>+C: fetch_entry call\n    C->>C: SELECT (uid, value) FROM entry_table\n    C->>-R: fetch_entry return\n    R->>R: select random UIDs in the Entry Table\n    R->>R: get associated Chain Table UIDs\n    R->>+C: fetch_chain call\n    C->>C: SELECT (uid, value) FROM chain_table WHERE uid IN (?,...,?)\n    C->>-R: fetch_chain return\n    R->>R: get associated indexed locations\n    R->>+C: list_removed_location call\n    C->>C: filter out existing locations\n    C->>-R: list_removed_locations return\n    R->>R: drop chains indexing removed locations only\n    R->>R: recompute remaining chains\n    R->>R: recompute Entry Table\n    R->>+C: update_lines call\n    C->>C: update indexes\n    C->>-R: update_lines return\n    R->>-C: compact return\n```\n\n### Benchmarks\n\nTODO\n\n## Documentation\n\nFindex technical documentation can be found here: TODO\n\n",
             "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
             "docs_url": null,
             "download_url": "",
@@ -460,7 +459,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16128092,
+        "last_serial": 16160175,
         "urls": [
             {
                 "comment_text": "",
@@ -519,6 +518,112 @@
                 "upload_time": "2022-12-16T16:20:09",
                 "upload_time_iso_8601": "2022-12-16T16:20:09.153063Z",
                 "url": "https://files.pythonhosted.org/packages/b3/41/ea2219ded1a2229f0c547b31f03c75abbf049a38a0c7a022976b900b5dad/findex-1.0.0-cp37-abi3-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.1": {
+        "info": {
+            "author": "Chlo\u00e9 H\u00e9bant <chloe.hebant@cosmian.com>, Bruno Grieder <bruno.grieder@cosmian.com>, C\u00e9lia Corsin <celia.corsin@cosmian.com>, Emmanuel Coste <emmanuel.coste@cosmian.com>",
+            "author_email": "Chlo\u00e9 H\u00e9bant <chloe.hebant@cosmian.com>, Bruno Grieder <bruno.grieder@cosmian.com>, C\u00e9lia Corsin <celia.corsin@cosmian.com>, Emmanuel Coste <emmanuel.coste@cosmian.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Python :: Implementation :: PyPy",
+                "Programming Language :: Rust"
+            ],
+            "description": "# Findex &emsp; [![Build Status]][actions] [![Latest Version]][crates.io]\n\n[build status]: https://img.shields.io/github/workflow/status/Cosmian/findex/CI%20checks/main\n[actions]: https://github.com/Cosmian/findex/actions?query=branch%3Amain\n[latest version]: https://img.shields.io/crates/v/cosmian_findex.svg\n[crates.io]: https://crates.io/crates/cosmian_findex\n\nFindex is a cryptographic protocol designed to securely make search queries on\nan untrusted cloud server. Thanks to its encrypted indexes, large databases can\nsecurely be outsourced without compromising usability.\n\nFindex is part of Cosmian Cloudproof Encryption.\n\n<!-- toc -->\n\n- [Getting started](#getting-started)\n- [Building and testing](#building-and-testing)\n- [Features and Benchmarks](#features-and-benchmarks)\n  - [Index tables](#index-tables)\n  - [Findex callbacks](#findex-callbacks)\n  - [Findex search](#findex-search)\n  - [Findex upsert](#findex-upsert)\n  - [Findex compact](#findex-compact)\n- [Documentation](#documentation)\n\n<!-- tocstop -->\n\n## Getting started\n\nFindex allows to index values by keywords. These values can be locations (UIDs\nin an encrypted database, URLs etc.) or other keywords. This allows creating\ngraphs of keywords as described in the section [Two indexing\nstrategies](#two-indexing-strategies).\n\nFindex delegates to the user the implementation of *callbacks* to manipulate\nthe indexes. This makes Findex compatible with any database technology since\nno database-specific code is part of it. These callbacks need to be implemented\nthrough the trait `FindexCallbacks`. See the section\n[Callbacks](#findex-callbacks) for an implementation example.\n\nThe main Findex traits can be derived automatically (see\n[`ffi/core/traits.rs`](./src/interfaces/ffi/core/traits.rs#L254-297) for an\nexample).\n\nThe generics used by Findex are defined in [`generic_parameters.rs`](./src/interfaces/generic_parameters.rs).\nTheir values allow using AES-256-GCM and KMAC128 and minimizing the size of the indexes.\n\n## Building and testing\n\nTo build Findex without the interfaces, run:\n\n```bash\ncargo build --release\n```\n\nTo build the FFI interface, run:\n\n```bash\ncargo build --release --features ffi\n```\n\nTo build the WebAssembly interface, run:\n\n```bash\ncargo build --release --features wasm_bindgen\n```\n\nTo build the Python interface, run:\n\n```bash\nmaturin build --release --features python\n```\n\n**Note**: when a new function or class is added to the PyO3 interface, its\nsignature needs to be added to [`__init__.pyi`](./python/cosmian_findex/__init__.pyi).\n\nTo run tests on the Python interface, run:\n\n```bash\n./python/scripts/test.sh\n```\n\nAnd finally, to build everything and test it, run:\n\n```bash\ncargo build --release --all-features\ncargo test --release --all-features\n```\n\n## Features and benchmarks\n\n### Index tables\n\nFindex relies on two server-side indexes - Entry Table and Chain Table - to\nsolve the following search problem:\n\n> How to securely recover the UIDs of DB Table to obtain the matching lines\n> from a given keyword?\n\n- Entry Table: provides the mandatory values to access the Chain Table.\n- Chain Table: securely stores the indexed values. In the case this solution is\n  built on top of an encrypted database, the Chain Table would store  UIDs of\n  this table, but Findex can be used to index any kind of value (URL, path...).\n\nEach index table contains two columns: the `uid` and `value` columns:\n\n|              | uid        | value     |\n| ------------ | ---------- | --------- |\n| Size (bytes) | UID_LENGTH | see below |\n\nWhere `UID_LENGTH = 32`. The table values contain encrypted data:\n\n|              | AES-GCM encrypted data  | MAC | Nonce |\n| ------------ | ------------------------| --- | ----- |\n| Size (bytes) | see below               | 16  | 12    |\n\nThe encrypted data for the Index Entry Table is:\n\n|              | Entry Table encrypted data                    |\n| ------------ | --------------------------------------------- |\n| Size (bytes) | KWI_LENGTH + UID_LENGTH + KEYWORD_HASH_LENGTH |\n\nwhere `KWI_LENGTH = 16` and `KEYWORD_HASH_LENGTH = 32`. The encrypted data for\nthe Chain Table is:\n\n|              | Chain Table encrypted data  |\n| ------------ | --------------------------- |\n| Size (bytes) | TABLE_WIDTH \\* BLOCK_LENGTH |\n\nwhere `TABLE_WIDTH = 5`, and `BLOCK_LENGTH = 32`.\n\nTherefore, given `N` the number of indexing keywords, the size of the Entry\nTable in bytes is given by:\n\n``` text\nN * (UID_LENGTH + ENCRYPTION_OVERHEAD + KWI_LENGTH + UID_LENGTH + KEYWORD_HASH_LENGTH)\n= N * 140\n```\n\nGiven `M` the average number of values indexed by keyword, the size of the\ncompacted Chain Table in bytes is given by:\n\n``` text\nN * ceil(M / TABLE_WIDTH) * (UID_LENGTH + ENCRYPTION_OVERHEAD + TABLE_WIDTH * BLOCK_LENGTH)\n= N * ceil(M / 5) * 220\n```\n\nwhere `ceil()` is the ceiling function that maps x to the least integer greater\nthan or equal to x.\n\n### Findex callbacks\n\nFindex implementation uses callback functions. The signature of these callbacks\nand a detailed description of the functionalities they need to implement is\ngiven in the core [`callbacks.rs`](./src/core/callbacks.rs).\n\nAn example implementation of the Findex callbacks in Rust for an SQLite\ndatabase is available in [`findex.rs`](./src/interfaces/sqlite/findex.rs).\n\n**Note**: for the FFI interface, serialization is needed and a pagination\nshould be implemented to fetch the entire Entry Table in `fetch_entry_table()`.\nA detailed documentation of the serialization is given in the FFI\n[`callbacks.rs`](./src/interfaces/ffi/core/callbacks.rs). The following figure\nsummarizes the serialization process in FFI callbacks.\n\n```mermaid\nsequenceDiagram\n    participant C as FFI Client\n    participant R as Rust Findex\n    C->>+R: FFI function call\n    R->>R: allocate Rust memory for callback output\n    R->>R: serialize callback input\n    R->>+C: callback call\n    C->>C: deserialize data\n    C->>C: process data\n    C->>C: serialize result\n    C->>C: write serialized result to Rust output buffer\n    C->>-R: callback return\n    R->>R: check returned code\n    R->>R: deserialize output data\n    R->>-C: FFI function return\n```\n\n### Findex search\n\nSearching Findex indexes for keywords is done through the method `search`\nimplemented by the trait `FindexSearch`. When some searched keywords index\nother keywords, `search` recursively follows these indexations until a location\nis found or the maximum recursion level is reached depending on whichever comes\nfirst.\n\nParameter documentation and method signature can be found in\n[`search.rs`](./src/core/search.rs#L133-156).\n\n#### Implementation details\n\nThe following sequence diagram illustrates the `search` process.\n\n```mermaid\nsequenceDiagram\n    participant C as Client\n    participant R as Rust\n    C->>+R: search call\n    loop while keywords are found or the max recursion depth is not reached\n    R->>R: get the Entry Table UIDs corresponding to the keywords\n    R->>+C: fetch_entry call\n    C->>C: SELECT (uid, value) FROM entry_table WHERE uid IN (?, ..., ?)\n    C->>-R: fetch_entry return\n    R->>R: get the Chain Table UIDs corresponding to the Entry Table values\n    loop for each Chain Table UID\n    R->>+C: fetch_chain call\n    C->>C: SELECT (uid, value) FROM chain_table WHERE uid IN (?)\n    C->>-R: fetch_chain return\n    end\n    R->>R: sort values between locations and keywords\n    Note right of R: search is called for the remaining keywords\n    end\n    R->>-C: search return\n```\n\n### Findex upsert\n\nIndexing values is done through the method `upsert` implemented by th trait\n`FindexUpsert`. It allows indexing values (locations or keywords) by a set of\nkeywords.\n\nParameter documentation and method signature can be found in\n[`upsert.rs`](./src/core/upsert.rs#L35-50).\n\n#### Implementation details\n\nThe following sequence diagram illustrates the `upsert` process.\n\n```mermaid\n    sequenceDiagram\n    participant C as Client\n    participant R as Rust\n    C->>+R: upsert call\n    loop while there are values to upsert\n    R->>R: get the Entry Table UIDs corresponding to the keywords\n    R->>+C: `fetch_entry` call\n    C->>C: SELECT (uid, value) FROM entry_table WHERE uid IN (?,...,?)\n    C->>R: fetch_entry return\n    R->>R: Create new Findex indexes\n    R->>+C: `upsert_entry`\n    C->>C: INSERT (uid, new_value) INTO entry_table<br/>ON CONFLICT uid DO UPDATE<br/>SET value = new_value WHERE value = old_value\n    C->>C: get Entry Table UIDs of the failed insertions\n    C->>C: SELECT (uid, value) FROM entry_table WHERE uid IN (?,...,?)\n    C->>-R: `upsert_entry` return\n    R->>R: get Chain Table UIDs corresponding to the successful upserts\n    R->>+C: `insert_chain` call\n    C->>C: BULK INSERT INTO chain_table (uid, value) VALUES (?, ?)\n    C->>-R: `insert_chain` return\n    Note right of R: failed upserts are retried\n    end\n    R->>-C: upsert return\n```\n\n#### Two indexing strategies\n\nNaive (locations are indexed for all possible slices):\n\n- `mar` -> {locations}\n- `mart` -> {locations}\n- `marti` -> {locations}\n- `martin` -> {locations}\n- `martine` -> {locations}\n\nGraph:\n\n- `mar` -> `mart`\n- `mart` -> `marti`\n- `marti` -> `martin`\n- `martin` -> `martine`\n- `martine` -> {locations}\n\nDisadvantage of graphs: more interactions between client and server: 4 average\ncompared to 1 for the naive solution.\n\nAdvantage of graphs: optimal storage of the locations info since they are not\nrepeated in the chain table.\n\nTODO: what does the `size` represent?\n\n| Avg locations | #records graphs | #records naive | ratio | size (kb) graphs | size (kb) naive | ratio |\n| ------------- | --------------- | -------------- | ----- | ---------------- | --------------- | ----- |\n| 1             | 86018           | 86018          | 1.00  | 5605             | 5704            | 1.01  |\n| 2             | 105966          | 172036         | 1.62  | 6994             | 11745           | 1.68  |\n| 3             | 125914          | 258054         | 2.04  | 8344             | 17618           | 2.11  |\n| 4             | 145862          | 244072         | 2.35  | 9694             | 23491           | 2.42  |\n| 5             | 165810          | 430090         | 2.59  | 11044            | 29364           | 2.65  |\n\n### Findex compact\n\nWith the time, some indexed locations will become obsolete. Moreover,\nsuccessive upserts start adding values to the chains in a new line while the\nprevious line may not be full. Therefore, after some location deletions and\nsome upserts, indexes may waste a lot of space. This is why a compacting\noperation is needed.\n\nParameter documentation and method signature can be found in\n[`compact.rs`](./src/core/compact.rs#L39-67).\n\n#### Implementation details\n\nA compacting operation fetches the entire Entry Table and decrypts it. A\nrandom subset of this table is then selected and the corresponding chains are\nfetched from the Chain Table and recomputed from a new random `Kwi`. This\nallows removing obsolete locations and avoiding useless padding in the Chain\nTable values. Only the last Chain Table value in a chain may need padding. The\nEntry Table values of the selected subset are updated with the new `Kwi` and\nlast chain UID. The UIDs of the entire Entry Table are rederived from a new key\nand a label, and the table is encrypted using a key derived from this new key.\nThe chains are encrypted using a key derived from the new `Kwi`s. The old\nchains are removed from the Chain Table, the new chains are added, and the new\nEntry Table replaces the old one.\n\nThe following sequence diagram illustrates the `compact` process.\n\n```mermaid\nsequenceDiagram\n    participant C as Client\n    participant R as Rust\n    C->>+R: compact call\n    R->>+C: fetch_entry call\n    C->>C: SELECT (uid, value) FROM entry_table\n    C->>-R: fetch_entry return\n    R->>R: select random UIDs in the Entry Table\n    R->>R: get associated Chain Table UIDs\n    R->>+C: fetch_chain call\n    C->>C: SELECT (uid, value) FROM chain_table WHERE uid IN (?,...,?)\n    C->>-R: fetch_chain return\n    R->>R: get associated indexed locations\n    R->>+C: list_removed_location call\n    C->>C: filter out existing locations\n    C->>-R: list_removed_locations return\n    R->>R: drop chains indexing removed locations only\n    R->>R: recompute remaining chains\n    R->>R: recompute Entry Table\n    R->>+C: update_lines call\n    C->>C: update indexes\n    C->>-R: update_lines return\n    R->>-C: compact return\n```\n\n### Benchmarks\n\nTODO\n\n## Documentation\n\nFindex technical documentation can be found here: TODO\n\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "SSE",
+            "license": "MIT/Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "findex",
+            "package_url": "https://pypi.org/project/findex/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/findex/",
+            "project_urls": {
+                "Source Code": "https://github.com/Cosmian/findex/"
+            },
+            "release_url": "https://pypi.org/project/findex/1.0.1/",
+            "requires_dist": [
+                "cffi"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Symmetric Searchable Encryption",
+            "version": "1.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16160175,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c604608e57d60f8cdb057ad6543f0367",
+                    "sha256": "7039a9bf9cb47ed505f73d8f20c167bd717b79e6ded336b34d95a84477fa5341"
+                },
+                "downloads": -1,
+                "filename": "findex-1.0.1-cp37-abi3-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "c604608e57d60f8cdb057ad6543f0367",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 354589,
+                "upload_time": "2022-12-20T10:49:49",
+                "upload_time_iso_8601": "2022-12-20T10:49:49.539018Z",
+                "url": "https://files.pythonhosted.org/packages/35/f4/9c453bd8021bbb9aa3eff9468635884f2e53b27b95e1c0d55ce8b579e6c4/findex-1.0.1-cp37-abi3-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ef5250a149ea9ae5ab3936cbaeda5902",
+                    "sha256": "be5c5c441536336579da31834e1c944ed924c0ed45e2a2d6ed8c9e71829ce53b"
+                },
+                "downloads": -1,
+                "filename": "findex-1.0.1-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "ef5250a149ea9ae5ab3936cbaeda5902",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 365831,
+                "upload_time": "2022-12-20T10:49:52",
+                "upload_time_iso_8601": "2022-12-20T10:49:52.045195Z",
+                "url": "https://files.pythonhosted.org/packages/f4/28/2ea315462b47a55767421dfc3c33121c8685580a50395ab7cb0af30fb11d/findex-1.0.1-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "318295d39b863d98426cbf6d87de2b65",
+                    "sha256": "cc4e6977270ef40797c818bf3d30011dfc3738e0748121c4b75e8bd98331157f"
+                },
+                "downloads": -1,
+                "filename": "findex-1.0.1-cp37-abi3-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "318295d39b863d98426cbf6d87de2b65",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 921388,
+                "upload_time": "2022-12-20T10:49:54",
+                "upload_time_iso_8601": "2022-12-20T10:49:54.094636Z",
+                "url": "https://files.pythonhosted.org/packages/ab/12/5c3e837f21031ece2e87f342a6b01d09afe501a8bb3af16cd99d2121f89d/findex-1.0.1-cp37-abi3-win_amd64.whl",
                 "yanked": false,
                 "yanked_reason": null
             }
