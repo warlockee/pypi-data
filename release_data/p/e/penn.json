@@ -1,0 +1,92 @@
+{
+    "0.0.0": {
+        "info": {
+            "author": "Max Morrison, Caedon Hsieh, Nathan Pruyne, and Bryan Pardo",
+            "author_email": "interactiveaudiolab@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License"
+            ],
+            "description": "<h1 align=\"center\">Pitch-Estimating Neural Networks (PENN)</h1>\n<div align=\"center\">\n\n[![PyPI](https://img.shields.io/pypi/v/penn.svg)](https://pypi.python.org/pypi/penn)\n[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)\n[![Downloads](https://pepy.tech/badge/penn)](https://pepy.tech/project/penn)\n\n</div>\n\nTraining, evaluation, and inference of neural pitch and periodicity estimators in PyTorch. Includes the original code for the paper \"Cross-domain Neural Pitch and Periodicity Estimation\".\n\n\n## Table of contents\n\n- [Installation](#installation)\n- [Inference](#inference)\n    * [Application programming interface](#application-programming-interface)\n        * [`penn.from_audio`](#pennfrom_audio)\n        * [`penn.from_file`](#pennfrom_file)\n        * [`penn.from_file_to_file`](#pennfrom_file_to_file)\n        * [`penn.from_files_to_files`](#pennfrom_files_to_files)\n    * [Command-line interface](#command-line-interface)\n- [Training](#training)\n    * [Download](#download)\n    * [Preprocess](#preprocess)\n    * [Partition](#partition)\n    * [Train](#train)\n    * [Monitor](#monitor)\n- [Evaluation](#reproducing-results)\n    * [Evaluate](#evaluate)\n    * [Analyze](#analyze)\n    * [Plot](#plot)\n- [Citation](#citation)\n\n\n## Installation\n\nIf you want to perform pitch estimation using a pretrained FCNF0++ model, run\n`pip install penn`\n\nIf you want to train or use your own models, clone this repo, navigate to the\nroot directory of the folder and run `pip install -e .`\n\n\n## Inference\n\nPerform inference using FCNF0++\n\n```\nimport penn\n\n# Load audio at the correct sample rate\naudio = penn.load.audio('test/assets/gershwin.wav')\n\n# Here we'll use a 10 millisecond hopsize\nhopsize = .01\n\n# Provide a sensible frequency range given your domain and model\nfmin = 30.\nfmax = 1000.\n\n# Choose a gpu index to use for inference. Set to None to use cpu.\ngpu = 0\n\n# If you are using a gpu, pick a batch size that doesn't cause memory errors\n# on your gpu\nbatch_size = 2048\n\n# Select a checkpoint to use for inference. The default checkpoint will\n# download and use FCNF0++ pretrained on MDB-stem-synth and PTDB\ncheckpoint = penn.DEFAULT_CHECKPOINT\n\n# Infer pitch and periodicity\npitch, periodicity = penn.from_audio(\n    audio,\n    penn.SAMPLE_RATE,\n    hopsize=hopsize,\n    fmin=fmin,\n    fmax=fmax,\n    checkpoint=checkpoint,\n    batch_size=batch_size,\n    gpu=gpu)\n```\n\n\n### Application programming interface\n\n#### `penn.from_audio`\n\n```\n\"\"\"Perform pitch and periodicity estimation\n\nArgs:\n    audio: The audio to extract pitch and periodicity from\n    sample_rate: The audio sample rate\n    hopsize: The hopsize in seconds\n    fmin: The minimum allowable frequency in Hz\n    fmax: The maximum allowable frequency in Hz\n    checkpoint: The checkpoint file\n    batch_size: The number of frames per batch\n    gpu: The index of the gpu to run inference on\n\nReturns:\n    pitch: torch.tensor(\n        shape=(1, int(samples // penn.seconds_to_sample(hopsize))))\n    periodicity: torch.tensor(\n        shape=(1, int(samples // penn.seconds_to_sample(hopsize))))\n\"\"\"\n```\n\n\n#### `penn.from_file`\n\n```\n\"\"\"Perform pitch and periodicity estimation from audio on disk\n\nArgs:\n    file: The audio file\n    hopsize: The hopsize in seconds\n    fmin: The minimum allowable frequency in Hz\n    fmax: The maximum allowable frequency in Hz\n    checkpoint: The checkpoint file\n    batch_size: The number of frames per batch\n    gpu: The index of the gpu to run inference on\n\nReturns:\n    pitch: torch.tensor(shape=(1, int(samples // hopsize)))\n    periodicity: torch.tensor(shape=(1, int(samples // hopsize)))\n\"\"\"\n```\n\n\n#### `penn.from_file_to_file`\n\n```\n\"\"\"Perform pitch and periodicity estimation from audio on disk and save\n\nArgs:\n    file: The audio file\n    output_prefix: The file to save pitch and periodicity without extension\n    hopsize: The hopsize in seconds\n    fmin: The minimum allowable frequency in Hz\n    fmax: The maximum allowable frequency in Hz\n    checkpoint: The checkpoint file\n    batch_size: The number of frames per batch\n    gpu: The index of the gpu to run inference on\n\"\"\"\n```\n\n\n#### `penn.from_files_to_files`\n\n```\n\"\"\"Perform pitch and periodicity estimation from files on disk and save\n\nArgs:\n    files: The audio files\n    output_prefixes: Files to save pitch and periodicity without extension\n    hopsize: The hopsize in seconds\n    fmin: The minimum allowable frequency in Hz\n    fmax: The maximum allowable frequency in Hz\n    checkpoint: The checkpoint file\n    batch_size: The number of frames per batch\n    gpu: The index of the gpu to run inference on\n\"\"\"\n```\n\n\n### Command-line interface\n\n```\npython -m penn\n    --audio_files AUDIO_FILES [AUDIO_FILES ...]\n    [-h]\n    [--config CONFIG]\n    [--output_prefixes OUTPUT_PREFIXES [OUTPUT_PREFIXES ...]]\n    [--hopsize HOPSIZE]\n    [--fmin FMIN]\n    [--fmax FMAX]\n    [--checkpoint CHECKPOINT]\n    [--batch_size BATCH_SIZE]\n    [--gpu GPU]\n\nrequired arguments:\n    --audio_files AUDIO_FILES [AUDIO_FILES ...]\n        The audio files to process\n\noptional arguments:\n    -h, --help\n        show this help message and exit\n    --config CONFIG\n        The configuration file. Defaults to using FCNF0++.\n    --output_prefixes OUTPUT_PREFIXES [OUTPUT_PREFIXES ...]\n        The files to save pitch and periodicity without extension.\n        Defaults to audio_files without extensions.\n    --hopsize HOPSIZE\n        The hopsize in seconds. Defaults to 0.01 seconds.\n    --fmin FMIN\n        The minimum frequency allowed in Hz. Defaults to 31.0 Hz.\n    --fmax FMAX\n        The maximum frequency allowed in Hz. Defaults to 1984.0 Hz.\n    --checkpoint CHECKPOINT\n        The model checkpoint file. Defaults to ./penn/assets/checkpoints/fcnf0++.pt.\n    --batch_size BATCH_SIZE\n        The number of frames per batch. Defaults to 2048.\n    --gpu GPU\n        The index of the gpu to perform inference on. Defaults to CPU.\n```\n\n\n## Training\n\n### Download\n\n`python -m penn.data.download`\n\nDownloads and uncompresses the `mdb` and `ptdb` datasets used for training.\n\n\n### Preprocess\n\n`python -m penn.data.preprocess --config <config>`\n\nConverts each dataset to a common format on disk ready for training. You\ncan optionally pass a configuration file to override the default configuration.\n\n\n### Partition\n\n`python -m penn.partition`\n\nGenerates `train`, `valid`, and `test` partitions for `mdb` and `ptdb`.\nPartitioning is deterministic given the same random seed. You do not need to\nrun this step, as the original partitions are saved in\n`penn/assets/partitions`.\n\n\n### Train\n\n`python -m penn.train --config <config> --gpus <gpus>`\n\nTrains a model according to a given configuration on the `mdb` and `ptdb`\ndatasets. Uses a list of GPU indices as an argument, and uses distributed\ndata parallelism (DDP) if more than one index is given. For example,\n`--gpus 0 3` will train using DDP on GPUs `0` and `3`.\n\n\n### Monitor\n\nRun `tensorboard --logdir runs/`. If you are running training remotely, you\nmust create a SSH connection with port forwarding to view Tensorboard.\nThis can be done with `ssh -L 6006:localhost:6006 <user>@<server-ip-address>`.\nThen, open `localhost:6006` in your browser.\n\n\n## Evaluation\n\n### Evaluate\n\n```\npython -m penn.evaluate \\\n    --config <config> \\\n    --checkpoint <checkpoint> \\\n    --gpu <gpu>\n```\n\nEvaluate a model. `<checkpoint>` is the checkpoint file to evaluate and `<gpu>`\nis the GPU index.\n\n\n### Plot\n\n```\npython -m penn.plot.density \\\n    --config <config> \\\n    --true_datasets <true_datasets> \\\n    --inference_datasets <inference_datasets> \\\n    --output_file <output_file> \\\n    --checkpoint <checkpoint> \\\n    --gpu <gpu>\n```\n\nPlot the data distribution and inferred distribution for a given dataset and\nsave to a jpg file.\n\n```\npython -m penn.plot.logits \\\n    --config <config> \\\n    --audio_file <audio_file> \\\n    --output_file <output_file> \\\n    --checkpoint <checkpoint> \\\n    --gpu <gpu>\n```\n\nPlot the pitch posteriorgram of an audio file and save to a jpg file.\n\n```\npython -m penn.plot.thresholds \\\n    --names <names> \\\n    --evaluations <evaluations> \\\n    --output_file <output_file>\n```\n\nPlot the periodicity performance (voiced/unvoiced F1) over mdb and ptdb as a\nfunction of the voiced/unvoiced threshold. `names` are the plot labels to give\neach evaluation. `evaluations` are the names of the evaluations to plot.\n\n\n## Citation\n\n### IEEE\nM. Morrison, C. Hsieh, N. Pruyne, and B. Pardo, \"Cross-domain Neural Pitch and Periodicity Estimation,\" IEEE Transactions on Speech and Audio Processing, <TODO - month> 2023.\n\n\n### BibTex\n\n```\n@inproceedings{morrison2023cross,\n    title={Cross-domain Neural Pitch and Periodicity Estimation},\n    author={Morrison, Max and Hsieh, Caedon and Pruyne, Nathan and Pardo, Bryan},\n    booktitle={IEEE Transactions on Speech and Audio Processing},\n    month={TODO},\n    year={2023}\n}\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/interactiveaudiolab/penn",
+            "keywords": "audio,frequency,music,periodicity,pitch,speech",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "penn",
+            "package_url": "https://pypi.org/project/penn/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/penn/",
+            "project_urls": {
+                "Homepage": "https://github.com/interactiveaudiolab/penn"
+            },
+            "release_url": "https://pypi.org/project/penn/0.0.0/",
+            "requires_dist": [
+                "huggingface-hub",
+                "numpy",
+                "scipy",
+                "torch",
+                "tqdm",
+                "torchaudio",
+                "yapecs"
+            ],
+            "requires_python": "",
+            "summary": "Pitch Estimating Neural Networks (PENN)",
+            "version": "0.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16153296,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c218d0c8d3d083652ef8534babd8fedb",
+                    "sha256": "c23c4047d0210e862d7dc56853027ac742c44a14c4ae82c48a96523aba00dea3"
+                },
+                "downloads": -1,
+                "filename": "penn-0.0.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c218d0c8d3d083652ef8534babd8fedb",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 4140,
+                "upload_time": "2022-12-19T18:24:55",
+                "upload_time_iso_8601": "2022-12-19T18:24:55.675810Z",
+                "url": "https://files.pythonhosted.org/packages/ad/41/fb37904b579280a6b3f7f7a4231cfa0259446a1328e9c95114e106ad9c39/penn-0.0.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "34ef072f6dad40882066636db88bb518",
+                    "sha256": "6b32f1383b7f80a28b931bec107e0a2141c819513cec5af0912faba8ac76fa1b"
+                },
+                "downloads": -1,
+                "filename": "penn-0.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "34ef072f6dad40882066636db88bb518",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 4424,
+                "upload_time": "2022-12-19T18:24:57",
+                "upload_time_iso_8601": "2022-12-19T18:24:57.301966Z",
+                "url": "https://files.pythonhosted.org/packages/9e/0a/e35cb49b0796c89aa871da88a82514a9c5fe979f414e33674e4cdf37e20d/penn-0.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

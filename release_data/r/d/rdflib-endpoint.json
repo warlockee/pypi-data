@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12883542,
+        "last_serial": 16152589,
         "urls": [
             {
                 "comment_text": "",
@@ -132,7 +132,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12883542,
+        "last_serial": 16152589,
         "urls": [
             {
                 "comment_text": "",
@@ -222,7 +222,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12883542,
+        "last_serial": 16152589,
         "urls": [
             {
                 "comment_text": "",
@@ -316,7 +316,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12883542,
+        "last_serial": 16152589,
         "urls": [
             {
                 "comment_text": "",
@@ -410,7 +410,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12883542,
+        "last_serial": 16152589,
         "urls": [
             {
                 "comment_text": "",
@@ -504,7 +504,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12883542,
+        "last_serial": 16152589,
         "urls": [
             {
                 "comment_text": "",
@@ -561,7 +561,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# \u2728 SPARQL endpoint for RDFLib\n\n[![Version](https://img.shields.io/pypi/v/rdflib-endpoint)](https://pypi.org/project/rdflib-endpoint) [![Python versions](https://img.shields.io/pypi/pyversions/rdflib-endpoint)](https://pypi.org/project/rdflib-endpoint)\n\n[![Run tests](https://github.com/vemonet/rdflib-endpoint/actions/workflows/run-tests.yml/badge.svg)](https://github.com/vemonet/rdflib-endpoint/actions/workflows/run-tests.yml) [![Publish to PyPI](https://github.com/vemonet/rdflib-endpoint/actions/workflows/publish-package.yml/badge.svg)](https://github.com/vemonet/rdflib-endpoint/actions/workflows/publish-package.yml) [![CodeQL](https://github.com/vemonet/rdflib-endpoint/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/vemonet/rdflib-endpoint/actions/workflows/codeql-analysis.yml) [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=vemonet_rdflib-endpoint&metric=coverage)](https://sonarcloud.io/dashboard?id=vemonet_rdflib-endpoint)\n\n`rdflib-endpoint` is a SPARQL endpoint based on RDFLib to easily serve RDF files, machine learning models, or any other logic implemented in Python via **custom SPARQL functions**. \n\nIt aims to enable python developers to easily deploy functions that can be queried in a federated fashion using SPARQL. For example: using a python function to resolve labels for specific identifiers, or run a classifier given entities retrieved using a `SERVICE` query to another SPARQL endpoint.\n\n> Feel free to create an [issue](/issues), or send a pull request if you are facing issues or would like to see a feature implemented.\n\n## \ud83e\uddd1\u200d\ud83c\udfeb How it works\n\nThe user defines and registers custom SPARQL functions using Python, and/or populate the RDFLib Graph, then the endpoint is started using `uvicorn`. \n\nThe deployed SPARQL endpoint can be used as a `SERVICE` in a federated SPARQL query from regular triplestores SPARQL endpoints. Tested on OpenLink Virtuoso (Jena based) and Ontotext GraphDB (rdf4j based). The endpoint is CORS enabled by default.\n\n`rdflib-endpoint` can also be used directly from the terminal to quickly serve a RDF file as a SPARQL endpoint.\n\nBuilt with [RDFLib](https://github.com/RDFLib/rdflib) and [FastAPI](https://fastapi.tiangolo.com/). Tested for Python 3.7, 3.8 and 3.9\n\n## \ud83d\udce5 Install the package\n\nInstall the package from [PyPI](https://pypi.org/project/rdflib-endpoint/):\n\n```bash\npip install rdflib-endpoint\n```\n\n## \u26a1\ufe0f Quickly serve RDF files via a SPARQL endpoint\n\nUse `rdflib-endpoint` as a command line interface (CLI) in your terminal to quickly serve one or multiple RDF files as a SPARQL endpoint, with YASGUI interface available on http://0.0.0.0:8000\n\nYou can use wildcard and provide multiple files, for example to serve all turtle, JSON-LD and nquads files in the current folder:\n\n```bash\nrdflib-endpoint serve *.ttl *.jsonld *.nq\n```\n\n## \ud83d\udc0d SPARQL endpoint with custom functions\n\nCheckout the [`example`](https://github.com/vemonet/rdflib-endpoint/tree/main/example) folder for a complete working app example to get started, including a docker deployment. A good way to create a new SPARQL endpoint is to copy this `example` folder, and start from it.\n\n### \ud83d\udcdd Define custom SPARQL functions\n\nThis option makes it easier to define functions in your SPARQL endpoint, e.g. `BIND(myfunction:custom_concat(\"start\", \"end\") AS ?concat)`\n\nCreate a `app/main.py` file in your project folder with your custom SPARQL functions, and endpoint parameters:\n\n````python\nfrom rdflib_endpoint import SparqlEndpoint\nimport rdflib\nfrom rdflib.plugins.sparql.evalutils import _eval\n\ndef custom_concat(query_results, ctx, part, eval_part):\n    \"\"\"Concat 2 strings in the 2 senses and return the length as additional Length variable\n    \"\"\"\n    # Retrieve the 2 input arguments\n    argument1 = str(_eval(part.expr.expr[0], eval_part.forget(ctx, _except=part.expr._vars)))\n    argument2 = str(_eval(part.expr.expr[1], eval_part.forget(ctx, _except=part.expr._vars)))\n    evaluation = []\n    scores = []\n    # Prepare the 2 result string, 1 for eval, 1 for scores\n    evaluation.append(argument1 + argument2)\n    evaluation.append(argument2 + argument1)\n    scores.append(len(argument1 + argument2))\n    scores.append(len(argument2 + argument1))\n    # Append the results for our custom function\n    for i, result in enumerate(evaluation):\n        query_results.append(eval_part.merge({\n            part.var: rdflib.Literal(result),\n            # With an additional custom var for the length\n            rdflib.term.Variable(part.var + 'Length'): rdflib.Literal(scores[i])\n        }))\n    return query_results, ctx, part, eval_part\n\n# Start the SPARQL endpoint based on a RDFLib Graph and register your custom functions\ng = rdflib.graph.ConjunctiveGraph()\napp = SparqlEndpoint(\n    graph=g,\n    # Register the functions:\n    functions={\n        'https://w3id.org/um/sparql-functions/custom_concat': custom_concat\n    },\n    cors_enabled=True,\n    # Metadata used for the SPARQL service description and Swagger UI:\n    title=\"SPARQL endpoint for RDFLib graph\", \n    description=\"A SPARQL endpoint to serve machine learning models, or any other logic implemented in Python. \\n[Source code](https://github.com/vemonet/rdflib-endpoint)\",\n    version=\"0.1.0\",\n    public_url='https://your-endpoint-url/sparql',\n    # Example queries displayed in the Swagger UI to help users try your function\n    example_query=\"\"\"Example query:\\n\n```\nPREFIX myfunctions: <https://w3id.org/um/sparql-functions/>\nSELECT ?concat ?concatLength WHERE {\n    BIND(\"First\" AS ?first)\n    BIND(myfunctions:custom_concat(?first, \"last\") AS ?concat)\n}\n```\"\"\"\n)\n````\n\n### \ud83d\udcdd Or directly define the custom evaluation\n\nYou can also directly provide the custom evaluation function, this will override the `functions`.\n\nRefer to the [RDFLib documentation](https://rdflib.readthedocs.io/en/stable/_modules/examples/custom_eval.html) to define the custom evaluation function. Then provide it when instantiating the SPARQL endpoint:\n\n```python\nimport rdflib\nfrom rdflib.plugins.sparql.evaluate import evalBGP\nfrom rdflib.namespace import FOAF, RDF, RDFS\n\ndef customEval(ctx, part):\n    \"\"\"Rewrite triple patterns to get super-classes\"\"\"\n    if part.name == \"BGP\":\n        # rewrite triples\n        triples = []\n        for t in part.triples:\n            if t[1] == RDF.type:\n                bnode = rdflib.BNode()\n                triples.append((t[0], t[1], bnode))\n                triples.append((bnode, RDFS.subClassOf, t[2]))\n            else:\n                triples.append(t)\n        # delegate to normal evalBGP\n        return evalBGP(ctx, triples)\n    raise NotImplementedError()\n\napp = SparqlEndpoint(\n    graph=g,\n    custom_eval=customEval\n)\n```\n\n### \ud83e\udd84 Run the SPARQL endpoint\n\nYou can then run the SPARQL endpoint server from the `example` folder on http://localhost:8000/sparql with `uvicorn`\n\n```bash\ncd example\nuvicorn main:app --app-dir app --reload\n```\n\nYou can access the YASGUI interface to easily query the SPARQL endpoint on http://localhost:8000\n\n> Checkout in the `example/README.md` for more details, such as deploying it with docker.\n\n## \ud83e\uddd1\u200d\ud83d\udcbb Development\n\n### \ud83d\udce5 Install for development\n\nInstall from the latest GitHub commit to make sure you have the latest updates:\n\n```bash\npip install rdflib-endpoint@git+https://github.com/vemonet/rdflib-endpoint@main\n```\n\nOr clone and install locally for development:\n\n```bash\ngit clone https://github.com/vemonet/rdflib-endpoint\ncd rdflib-endpoint\npip install -e .\n```\n\nYou can use a virtual environment to avoid conflicts:\n\n```bash\n# Create the virtual environment folder in your workspace\npython3 -m venv .venv\n# Activate it using a script in the created folder\nsource .venv/bin/activate\n```\n\n### \u2705\ufe0f Run the tests\n\nInstall additional dependencies for testing:\n\n```bash\npip install pytest requests\n```\n\nRun the tests locally (from the root folder) and display prints:\n\n```bash\npytest -s\n```\n\n## \ud83d\udcc2 Projects using rdflib-endpoint\n\nHere are some projects using `rdflib-endpoint` to deploy custom SPARQL endpoints with python:\n\n* https://github.com/MaastrichtU-IDS/rdflib-endpoint-sparql-service\n  * Serve predicted biomedical entities associations (e.g. disease treated by drug) using the rdflib-endpoint classifier\n* https://github.com/vemonet/translator-sparql-service\n  * A SPARQL endpoint to serve NCATS Translator services as SPARQL custom functions.\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -600,7 +599,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12883542,
+        "last_serial": 16152589,
         "urls": [
             {
                 "comment_text": "",
@@ -639,6 +638,342 @@
                 "upload_time": "2022-02-14T11:06:01",
                 "upload_time_iso_8601": "2022-02-14T11:06:01.972158Z",
                 "url": "https://files.pythonhosted.org/packages/ac/92/9130a886e08863312a6188a4a021b778971c26fa3b90144263e5077868c9/rdflib-endpoint-0.1.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.3": {
+        "info": {
+            "author": "",
+            "author_email": "Vincent Emonet <vincent.emonet@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "Python",
+            "license": "MIT License  Copyright (c) 2022-present Vincent Emonet <vincent.emonet@gmail.com>  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
+            "maintainer": "",
+            "maintainer_email": "Vincent Emonet <vincent.emonet@gmail.com>",
+            "name": "rdflib-endpoint",
+            "package_url": "https://pypi.org/project/rdflib-endpoint/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/rdflib-endpoint/",
+            "project_urls": {
+                "Documentation": "https://github.com/vemonet/rdflib-endpoint",
+                "History": "https://github.com/vemonet/rdflib-endpoint/releases",
+                "Homepage": "https://github.com/vemonet/rdflib-endpoint",
+                "Source": "https://github.com/vemonet/rdflib-endpoint",
+                "Tracker": "https://github.com/vemonet/rdflib-endpoint/issues"
+            },
+            "release_url": "https://pypi.org/project/rdflib-endpoint/0.2.3/",
+            "requires_dist": [
+                "click",
+                "fastapi>=0.51.0",
+                "rdflib>=6.0.0",
+                "uvicorn[standard]>=0.12.0",
+                "autoflake>=1.0.0; extra == 'dev'",
+                "pre-commit>=2.17.0; extra == 'dev'",
+                "black>=22.8.0; extra == 'test'",
+                "coveralls>=3.3.0; extra == 'test'",
+                "flake8-pyproject>=1.2.2; extra == 'test'",
+                "flake8>=5.0.0; extra == 'test'",
+                "httpx; extra == 'test'",
+                "isort>=5.11.0; extra == 'test'",
+                "mypy>=0.991; extra == 'test'",
+                "pytest-cov>=3.0.0; extra == 'test'",
+                "pytest>=7.1.3; extra == 'test'",
+                "types-pyyaml; extra == 'test'",
+                "types-setuptools; extra == 'test'",
+                "types-ujson; extra == 'test'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "A package to deploy SPARQL endpoint to serve local RDF files, machine learning models, or any other logic implemented in Python, using RDFLib and FastAPI.",
+            "version": "0.2.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16152589,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "71aa279d1a35992e36078736e9d73a0d",
+                    "sha256": "a63efcf568e3714d4514352a02f49624b0ee1e7cc3fe1b92b4855e4a58308da7"
+                },
+                "downloads": -1,
+                "filename": "rdflib_endpoint-0.2.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "71aa279d1a35992e36078736e9d73a0d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 13080,
+                "upload_time": "2022-12-19T12:45:17",
+                "upload_time_iso_8601": "2022-12-19T12:45:17.876180Z",
+                "url": "https://files.pythonhosted.org/packages/3f/d8/92e9419fbbe9db9db2657efb9fbb28f9bc783f268c308922630af9a55e8c/rdflib_endpoint-0.2.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "90c01bcba11b88b10110678df0292395",
+                    "sha256": "48cb92afcb210c38f48ab882d7814d842ca3e06e6d3b5af3c4049214b5a9e8b6"
+                },
+                "downloads": -1,
+                "filename": "rdflib_endpoint-0.2.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "90c01bcba11b88b10110678df0292395",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 18943,
+                "upload_time": "2022-12-19T12:45:19",
+                "upload_time_iso_8601": "2022-12-19T12:45:19.510258Z",
+                "url": "https://files.pythonhosted.org/packages/85/70/b4aa9aefe3faf4bf3a97421e172462f197d50b60d0f9836aee94a4aff261/rdflib_endpoint-0.2.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.5": {
+        "info": {
+            "author": "",
+            "author_email": "Vincent Emonet <vincent.emonet@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "Python",
+            "license": "MIT License  Copyright (c) 2022-present Vincent Emonet <vincent.emonet@gmail.com>  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
+            "maintainer": "",
+            "maintainer_email": "Vincent Emonet <vincent.emonet@gmail.com>",
+            "name": "rdflib-endpoint",
+            "package_url": "https://pypi.org/project/rdflib-endpoint/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/rdflib-endpoint/",
+            "project_urls": {
+                "Documentation": "https://github.com/vemonet/rdflib-endpoint",
+                "History": "https://github.com/vemonet/rdflib-endpoint/releases",
+                "Homepage": "https://github.com/vemonet/rdflib-endpoint",
+                "Source": "https://github.com/vemonet/rdflib-endpoint",
+                "Tracker": "https://github.com/vemonet/rdflib-endpoint/issues"
+            },
+            "release_url": "https://pypi.org/project/rdflib-endpoint/0.2.5/",
+            "requires_dist": [
+                "click",
+                "fastapi>=0.51.0",
+                "rdflib>=6.0.0",
+                "uvicorn[standard]>=0.12.0",
+                "autoflake>=1.0.0; extra == 'dev'",
+                "pre-commit>=2.17.0; extra == 'dev'",
+                "oxrdflib; extra == 'oxigraph'",
+                "black>=22.8.0; extra == 'test'",
+                "coveralls>=3.3.0; extra == 'test'",
+                "flake8-pyproject>=1.2.2; extra == 'test'",
+                "flake8>=5.0.0; extra == 'test'",
+                "httpx; extra == 'test'",
+                "isort>=5.11.0; extra == 'test'",
+                "mypy>=0.991; extra == 'test'",
+                "pytest-cov>=3.0.0; extra == 'test'",
+                "pytest>=7.1.3; extra == 'test'",
+                "types-pyyaml; extra == 'test'",
+                "types-setuptools; extra == 'test'",
+                "types-ujson; extra == 'test'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "A package to deploy SPARQL endpoint to serve local RDF files, machine learning models, or any other logic implemented in Python, using RDFLib and FastAPI.",
+            "version": "0.2.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16152589,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fd62a71b97422f99188124889d617dd3",
+                    "sha256": "22065fd6f68da65c57d07820a46311e2e1aeb8f82ff69fa2eee6c8f0f87602f6"
+                },
+                "downloads": -1,
+                "filename": "rdflib_endpoint-0.2.5-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "fd62a71b97422f99188124889d617dd3",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 13354,
+                "upload_time": "2022-12-19T15:55:33",
+                "upload_time_iso_8601": "2022-12-19T15:55:33.242938Z",
+                "url": "https://files.pythonhosted.org/packages/8e/36/fd6b69e2c980b61f12e9a960252fb00a36e739e009d9393803fad30779ec/rdflib_endpoint-0.2.5-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "be4c94e997f6cd9b147056c9f642f3ad",
+                    "sha256": "ebc7d58165af60484d7af276091ccefef83289327ac0851c2e9223bb3573fffc"
+                },
+                "downloads": -1,
+                "filename": "rdflib_endpoint-0.2.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "be4c94e997f6cd9b147056c9f642f3ad",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 19675,
+                "upload_time": "2022-12-19T15:55:34",
+                "upload_time_iso_8601": "2022-12-19T15:55:34.960597Z",
+                "url": "https://files.pythonhosted.org/packages/7c/13/518c4d0ef004aab3fe3828805ba2daddda3d6c4ffab5f2bdb8b454fc6896/rdflib_endpoint-0.2.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.6": {
+        "info": {
+            "author": "",
+            "author_email": "Vincent Emonet <vincent.emonet@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "<div align=\"center\">\n\n# \u2728 SPARQL endpoint for RDFLib\n\n[![PyPI - Version](https://img.shields.io/pypi/v/rdflib-endpoint.svg?logo=pypi&label=PyPI&logoColor=silver)](https://pypi.org/project/rdflib-endpoint/)\n[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/rdflib-endpoint.svg?logo=python&label=Python&logoColor=silver)](https://pypi.org/project/rdflib-endpoint/)\n\n[![Test package](https://github.com/vemonet/rdflib-endpoint/actions/workflows/test.yml/badge.svg)](https://github.com/vemonet/rdflib-endpoint/actions/workflows/test.yml)\n[![Publish package](https://github.com/vemonet/rdflib-endpoint/actions/workflows/publish.yml/badge.svg)](https://github.com/vemonet/rdflib-endpoint/actions/workflows/publish.yml)\n[![Test coverage](https://sonarcloud.io/api/project_badges/measure?project=vemonet_rdflib-endpoint&metric=coverage)](https://sonarcloud.io/dashboard?id=vemonet_rdflib-endpoint)\n\n[![license](https://img.shields.io/pypi/l/rdflib-endpoint.svg?color=%2334D058)](https://github.com/vemonet/rdflib-endpoint/blob/main/LICENSE.txt)\n[![code style - black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)\n[![types - Mypy](https://img.shields.io/badge/types-mypy-blue.svg)](https://github.com/python/mypy)\n\n</div>\n\n`rdflib-endpoint` is a SPARQL endpoint based on RDFLib to **easily serve RDF files locally**, machine learning models, or any other logic implemented in Python via **custom SPARQL functions**.\n\nIt aims to enable python developers to easily deploy functions that can be queried in a federated fashion using SPARQL. For example: using a python function to resolve labels for specific identifiers, or run a classifier given entities retrieved using a `SERVICE` query to another SPARQL endpoint.\n\n> Feel free to create an [issue](/issues), or send a pull request if you are facing issues or would like to see a feature implemented.\n\n## \u2139\ufe0f How it works\n\n`rdflib-endpoint` can be used directly from the terminal to quickly serve RDF files through a SPARQL endpoint automatically deployed locally.\n\nIt can also be used to define custom SPARQL functions: the user defines and registers custom SPARQL functions using Python, and/or populate the RDFLib Graph, then the endpoint is started using `uvicorn`.\n\nThe deployed SPARQL endpoint can be used as a `SERVICE` in a federated SPARQL query from regular triplestores SPARQL endpoints. Tested on OpenLink Virtuoso (Jena based) and Ontotext GraphDB (rdf4j based). The endpoint is CORS enabled by default.\n\nBuilt with [RDFLib](https://github.com/RDFLib/rdflib) and [FastAPI](https://fastapi.tiangolo.com/).\n\n## \ud83d\udce6\ufe0f Installation\n\nThis package requires Python >=3.7, simply install it  from [PyPI](https://pypi.org/project/rdflib-endpoint/) with:\n\n```shell\npip install rdflib-endpoint\n```\n\nIf you want to use [oxigraph](https://github.com/oxigraph/oxigraph) as backend you can install with the optional dependency:\n\n```bash\npip install \"rdflib-endpoint[oxigraph]\"\n```\n\n> \u26a0\ufe0f Oxigraph and oxrdflib do not support custom functions, so it can be only used to deploy graphs without custom functions.\n\n## \u26a1\ufe0f Quickly serve RDF files via a SPARQL endpoint\n\nUse `rdflib-endpoint` as a command line interface (CLI) in your terminal to quickly serve one or multiple RDF files as a SPARQL endpoint.\n\nYou can use wildcard and provide multiple files, for example to serve all turtle, JSON-LD and nquads files in the current folder:\n\n```bash\nrdflib-endpoint serve *.ttl *.jsonld *.nq\n```\n\n> Access the YASGUI SPARQL editor on http://localhost:8000\n\nIf you installed oxigraph you can use it as backend triplestore, it is faster and supports some functions that are not supported by the RDFLib query engine (such as `COALESCE()`):\n\n```bash\nrdflib-endpoint serve --store Oxigraph \"*.ttl\" \"*.jsonld\" \"*.nq\"\n```\n\n## \ud83d\udc0d SPARQL endpoint with custom functions\n\nCheckout the [`example`](https://github.com/vemonet/rdflib-endpoint/tree/main/example) folder for a complete working app example to get started, including a docker deployment. A good way to create a new SPARQL endpoint is to copy this `example` folder, and start from it.\n\n### \ud83d\udcdd Define custom SPARQL functions\n\nThis option makes it easier to define functions in your SPARQL endpoint, e.g. `BIND(myfunction:custom_concat(\"start\", \"end\") AS ?concat)`\n\nCreate a `app/main.py` file in your project folder with your custom SPARQL functions, and endpoint parameters:\n\n````python\nfrom rdflib_endpoint import SparqlEndpoint\nimport rdflib\nfrom rdflib.plugins.sparql.evalutils import _eval\n\ndef custom_concat(query_results, ctx, part, eval_part):\n    \"\"\"Concat 2 strings in the 2 senses and return the length as additional Length variable\n    \"\"\"\n    # Retrieve the 2 input arguments\n    argument1 = str(_eval(part.expr.expr[0], eval_part.forget(ctx, _except=part.expr._vars)))\n    argument2 = str(_eval(part.expr.expr[1], eval_part.forget(ctx, _except=part.expr._vars)))\n    evaluation = []\n    scores = []\n    # Prepare the 2 result string, 1 for eval, 1 for scores\n    evaluation.append(argument1 + argument2)\n    evaluation.append(argument2 + argument1)\n    scores.append(len(argument1 + argument2))\n    scores.append(len(argument2 + argument1))\n    # Append the results for our custom function\n    for i, result in enumerate(evaluation):\n        query_results.append(eval_part.merge({\n            part.var: rdflib.Literal(result),\n            # With an additional custom var for the length\n            rdflib.term.Variable(part.var + 'Length'): rdflib.Literal(scores[i])\n        }))\n    return query_results, ctx, part, eval_part\n\n# Start the SPARQL endpoint based on a RDFLib Graph and register your custom functions\ng = rdflib.graph.ConjunctiveGraph()\napp = SparqlEndpoint(\n    graph=g,\n    # Register the functions:\n    functions={\n        'https://w3id.org/um/sparql-functions/custom_concat': custom_concat\n    },\n    cors_enabled=True,\n    # Metadata used for the SPARQL service description and Swagger UI:\n    title=\"SPARQL endpoint for RDFLib graph\",\n    description=\"A SPARQL endpoint to serve machine learning models, or any other logic implemented in Python. \\n[Source code](https://github.com/vemonet/rdflib-endpoint)\",\n    version=\"0.1.0\",\n    public_url='https://your-endpoint-url/sparql',\n    # Example queries displayed in the Swagger UI to help users try your function\n    example_query=\"\"\"PREFIX myfunctions: <https://w3id.org/um/sparql-functions/>\nSELECT ?concat ?concatLength WHERE {\n    BIND(\"First\" AS ?first)\n    BIND(myfunctions:custom_concat(?first, \"last\") AS ?concat)\n}\"\"\"\n)\n````\n\n### \ud83d\udcdd Or directly define the custom evaluation\n\nYou can also directly provide the custom evaluation function, this will override the `functions`.\n\nRefer to the [RDFLib documentation](https://rdflib.readthedocs.io/en/stable/_modules/examples/custom_eval.html) to define the custom evaluation function. Then provide it when instantiating the SPARQL endpoint:\n\n```python\nimport rdflib\nfrom rdflib.plugins.sparql.evaluate import evalBGP\nfrom rdflib.namespace import FOAF, RDF, RDFS\n\ndef customEval(ctx, part):\n    \"\"\"Rewrite triple patterns to get super-classes\"\"\"\n    if part.name == \"BGP\":\n        # rewrite triples\n        triples = []\n        for t in part.triples:\n            if t[1] == RDF.type:\n                bnode = rdflib.BNode()\n                triples.append((t[0], t[1], bnode))\n                triples.append((bnode, RDFS.subClassOf, t[2]))\n            else:\n                triples.append(t)\n        # delegate to normal evalBGP\n        return evalBGP(ctx, triples)\n    raise NotImplementedError()\n\napp = SparqlEndpoint(\n    graph=g,\n    custom_eval=customEval\n)\n```\n\n### \ud83e\udd84 Run the SPARQL endpoint\n\nYou can then run the SPARQL endpoint server from the folder where your script is defined with `uvicorn` on http://localhost:8000/sparql (which is installed automatically when you install the `rdflib-endpoint` package)\n\n```bash\nuvicorn main:app --app-dir app --reload\n```\n\nYou can access the YASGUI interface to easily query the SPARQL endpoint on http://localhost:8000\n\n> Checkout in the `example/README.md` for more details, such as deploying it with docker.\n\n## \ud83e\uddd1\u200d\ud83d\udcbb Development\n\nThis section is for if you want to run the package in development, and get involved by making a code contribution.\n\n### \ud83d\udce5\ufe0f Clone\n\nClone the repository:\n\n```bash\ngit clone https://github.com/vemonet/rdflib-endpoint\ncd rdflib-endpoint\n```\n\n### \ud83d\udc23 Install dependencies\n\nInstall [Hatch](https://hatch.pypa.io), this will automatically handle virtual environments and make sure all dependencies are installed when you run a script in the project:\n\n```bash\npip install --upgrade hatch\n```\n\nInstall the dependencies in a local virtual environment:\n\n```bash\nhatch -v env create\n```\n\n### \ud83d\ude80 Run example API\n\nThe API will be automatically reloaded when the code is changed:\n\n```bash\nhatch run dev\n```\n\nAccess the YASGUI interface at http://localhost:8000\n\nOr query directly the SPARQL endpoint at http://localhost:8000/sparql\n\n### \u2611\ufe0f Run tests\n\nMake sure the existing tests still work by running ``pytest``. Note that any pull requests to the fairworkflows repository on github will automatically trigger running of the test suite;\n\n```bash\nhatch run test\n```\n\nTo display all `print()`:\n\n```bash\nhatch run test -s\n```\n\n### \ud83e\uddf9 Code formatting\n\nThe code will be automatically formatted when you commit your changes using `pre-commit`. But you can also run the script to format the code yourself:\n\n```\nhatch run fmt\n```\n\nCheck the code for errors, and if it is in accordance with the PEP8 style guide, by running `flake8` and `mypy`:\n\n```\nhatch run check\n```\n\n### \u267b\ufe0f Reset the environment\n\nIn case you are facing issues with dependencies not updating properly you can easily reset the virtual environment with:\n\n```bash\nhatch env prune\n```\n\n### \ud83c\udff7\ufe0f New release process\n\nThe deployment of new releases is done automatically by a GitHub Action workflow when a new release is created on GitHub. To release a new version:\n\n1. Make sure the `PYPI_TOKEN` secret has been defined in the GitHub repository (in Settings > Secrets > Actions). You can get an API token from PyPI at [pypi.org/manage/account](https://pypi.org/manage/account).\n2. Increment the `version` number in the `pyproject.toml` file in the root folder of the repository.\n3. Create a new release on GitHub, which will automatically trigger the publish workflow, and publish the new release to PyPI.\n\nYou can also manually trigger the workflow from the Actions tab in your GitHub repository webpage.\n\n## \ud83d\udcc2 Projects using rdflib-endpoint\n\nHere are some projects using `rdflib-endpoint` to deploy custom SPARQL endpoints with python:\n\n* https://github.com/MaastrichtU-IDS/rdflib-endpoint-sparql-service\n  * Serve predicted biomedical entities associations (e.g. disease treated by drug) using the rdflib-endpoint classifier\n* https://github.com/vemonet/translator-sparql-service\n  * A SPARQL endpoint to serve NCATS Translator services as SPARQL custom functions.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "Python",
+            "license": "MIT License  Copyright (c) 2022-present Vincent Emonet <vincent.emonet@gmail.com>  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
+            "maintainer": "",
+            "maintainer_email": "Vincent Emonet <vincent.emonet@gmail.com>",
+            "name": "rdflib-endpoint",
+            "package_url": "https://pypi.org/project/rdflib-endpoint/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/rdflib-endpoint/",
+            "project_urls": {
+                "Documentation": "https://github.com/vemonet/rdflib-endpoint",
+                "History": "https://github.com/vemonet/rdflib-endpoint/releases",
+                "Homepage": "https://github.com/vemonet/rdflib-endpoint",
+                "Source": "https://github.com/vemonet/rdflib-endpoint",
+                "Tracker": "https://github.com/vemonet/rdflib-endpoint/issues"
+            },
+            "release_url": "https://pypi.org/project/rdflib-endpoint/0.2.6/",
+            "requires_dist": [
+                "click",
+                "fastapi>=0.51.0",
+                "rdflib>=6.0.0",
+                "uvicorn[standard]>=0.12.0",
+                "autoflake>=1.0.0; extra == 'dev'",
+                "pre-commit>=2.17.0; extra == 'dev'",
+                "oxrdflib; extra == 'oxigraph'",
+                "black>=22.8.0; extra == 'test'",
+                "coveralls>=3.3.0; extra == 'test'",
+                "flake8-pyproject>=1.2.2; extra == 'test'",
+                "flake8>=5.0.0; extra == 'test'",
+                "httpx; extra == 'test'",
+                "isort>=5.11.0; extra == 'test'",
+                "mypy>=0.991; extra == 'test'",
+                "pytest-cov>=3.0.0; extra == 'test'",
+                "pytest>=7.1.3; extra == 'test'",
+                "types-pyyaml; extra == 'test'",
+                "types-setuptools; extra == 'test'",
+                "types-ujson; extra == 'test'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "A package to deploy SPARQL endpoint to serve local RDF files, machine learning models, or any other logic implemented in Python, using RDFLib and FastAPI.",
+            "version": "0.2.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16152589,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8a5dc3e5d59b69cf0a4498345e038655",
+                    "sha256": "10196342daaa523aa91f6aaa48b929d3ea9b124529a991a0353c8b2e6298ee33"
+                },
+                "downloads": -1,
+                "filename": "rdflib_endpoint-0.2.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "8a5dc3e5d59b69cf0a4498345e038655",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 13562,
+                "upload_time": "2022-12-19T16:56:38",
+                "upload_time_iso_8601": "2022-12-19T16:56:38.685338Z",
+                "url": "https://files.pythonhosted.org/packages/9f/15/a977b1c539f520ad43ca12ba93b7d497e68f79c11c24ddc9df0eb284d2c7/rdflib_endpoint-0.2.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c4e4e55db9f81b53207b80e06bdb21f1",
+                    "sha256": "275441256877a031d2c3ebb0ff1ca6467f7a734810160f2bacad80df801fe2ee"
+                },
+                "downloads": -1,
+                "filename": "rdflib_endpoint-0.2.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c4e4e55db9f81b53207b80e06bdb21f1",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 19802,
+                "upload_time": "2022-12-19T16:56:41",
+                "upload_time_iso_8601": "2022-12-19T16:56:41.201647Z",
+                "url": "https://files.pythonhosted.org/packages/db/c4/b7891c5341402c8fba6498d4642c853ef1db44523a0907bce6d53fbf86e4/rdflib_endpoint-0.2.6.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
