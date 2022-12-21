@@ -1,5 +1,5 @@
 {
-    "0.1.0": {
+    "0.1.1": {
         "info": {
             "author": "Pulsar team",
             "author_email": "pulsar@data-rs.io",
@@ -11,7 +11,7 @@
                 "Programming Language :: Python :: 3.11",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# data-collection-sdk\n\nAuthors:\n    - ehammel@rocketscience.one\n    - marya@rocketscience.one\n\nObjective\nLightweight python SDK enabling data collection of features, predictions and metadata from an ML model serving code/micro-service\n\nBackground\nThe project falls within the scope of Model Performance Management product workflow.\nFirst step is to collect an ML model's predictions, features and other metadata. Then, store these information in order to\n\nBenefits\nIf your proposal is implemented, how does it benefit the company?\n\nGoals\nWhat exactly are you trying to do? Why? These should be measurable and specific.\n\nNon-goals\nWhat are you explicitly not trying to do? Why?\n\nDesign Overview\nAt a high level, how is your service put together? What\u2019s the block-level diagram for the service?\n\nDetailed Design\nAnother level of detail beyond the design overview, if needed.\n\nPerformance Implications\nWhat should we know about performance?\n\nSecurity Implications\nAre there known or potential security issues that should be pointed out? How are, or will they be, addressed?\n\nPrivacy/GDPR Implications\nAre there known or potential privacy or GDPR issues that should be pointed out? How are, or will they be, addressed?\n\nLogging Impacts\nWhat kind of logs are you generating? At what volume? How long do will we expect to keep them?\n\nEngineering Asks\nWhat does the rest of engineering have to do if this project is implemented?\n\nSign-off List\nWho has to sign off on this before it can move to implementation?\n",
+            "description": "# pulsar_data_collection\n\nPulsar data collection SDK is an open-source Python library for\npushing/processing/collecting features, predictions and metadata. Works with different\ndata storages, at this point InfluxDB is implemented.\n\n## Getting started\n\nInstall Pulsar Data Collection with pip:\n\n```bash\npython3 -m pip install --upgrade pip\npython3 -m pip install --upgrade pulsar-data-collection\n```\n\n### Components\n\nThere are two core components in data collection SDK: storage engine and data capture.\nRight now storage engine implemented only for InfluxDb, it helps to make ingestion and digestion operations\nto the database.\n\n#### Data Capture\n\n`DataCapture` class helps to ingest dataset to database with needed parameters and needed format for future\ndigestion and metrics calculation without any significant changes of data.\n\nIt requires `storage_engine` (available only influxdb right now), `operation_type` (`DATABASE_OPERATION_TYPE_INSERT_PREDICTION`,\n`DATABASE_OPERATION_TYPE_METRICS`),  `login_url` (object of DatabaseLogin class) as input parameters.\n\nOperation type `DATABASE_OPERATION_TYPE_INSERT_PREDICTION` uses for any ingestion operations to the database.\nIt requires additional parameters: `model_id`, `model_version`, `data_id`\", `y_name`, `pred_name` what describes\nan input dataset.\nFor operation type `DATABASE_OPERATION_TYPE_METRICS` what commonly uses for retrieving dataset ready for metrics\ncalculation these parameters aren't required.\n\nThe last and probably one the most important class to work with is `DataWithPrediction`.\nIt requires two parameters as input: `prediction`, `data_points`. Where `prediction` is prediction value of the model,\nand `data_points` is features dataset. `Push` method of the `DataCapture` takes object of `DataWithPrediction` as\nrequired parameter, and after that makes ingestion operation to database with data transforming, like adding timestamp,\nchanging name of prediction column in dataset, combining features with prediction into single dataset, creating\ninfluxdb unique cache, etc.\n\nList of methods of `DataCapture` class:\n\n- push(data: DataWithPrediction)\n- ingests data to the db after preprocessing it;\n- collect(filters: dict) - retrieves data from db;\n- collect_eval_timestamp - retrieves the newest timestamp in the database;\n- push_eval_timestamp(eval_df: df) - ingesting new one timestamp into db;\n- push_metrics(metrics_df: df) - ingesting metrics dataframe to the database after calculations\n\n### Example usage\n\nInitialize Database credentials:\n\n```python\nfrom pulsar_data_collection.data_capture import DatabaseLogin\ndatabase_login = DatabaseLogin(db_host=<db_host>), db_port=<db_port>, db_user=<db_user>, db_password=<db_password>, protocol=<db_protocol>)\n```\n\nInitialize DataCapture class, depends on operation type use appropriate constant.\nFor inserting data into the database:\n\n```python\nfrom pulsar_data_collection.data_capture import DataCapture, DATABASE_OPERATION_TYPE_INSERT_PREDICTION\n\ndat_predict = DataWithPrediction(prediction=prediction, data_points=to_predict)\n\ndat_capture = DataCapture(\n    storage_engine=\"influxdb\",\n    model_id=<model_id>,\n    model_version=<model_verstion>,\n    data_id=<data_id>,\n    y_name=<y_name>,\n    pred_name=<pred_name>,\n    operation_type=<operation_type>,\n    login_url=<database_login>,\n)\n\ndat_capture.push(dat_predict)\n```\n\nFor collecting data from the database:\n\n```python\nfrom pulsar_data_collection.data_capture import DataCapture, DATABASE_OPERATION_TYPE_METRICS\n\ndat_capture = DataCapture(\n    storage_engine=\"influxdb\",\n    operation_type=DATABASE_OPERATION_TYPE_METRICS,\n    login_url=database_login\n)\n\ndat_capture.collect()\n```\n\nCollection the newest prediction data what wasn't precessed\n\n```python\n# receiving the last period of data\n\nlast_eval_timestamp = dat_capture.collect_eval_timestamp()\n\n# if last period exists, collecting only data what wasn't collected previously\nif last_eval_timestamp:\n    last_eval_timestamp_str = last_eval_timestamp.strftime('%Y-%m-%d %H:%M:%S')\n    db_df = pd.DataFrame(dat_capture.collect({\"time\": f\">= '{last_eval_timestamp_str}'\"}).get(\"prediction\"))\nelse:\n    db_df = pd.DataFrame(dat_capture.collect().get(\"prediction\"))\n```\n\nExample of pushing calculated metrics:\n\n```python\ndat_capture.push_metrics(df_result_drift)\n```\n\nExample of pushing the timestamp when metrics were calculated:\n\n```python\ndat_capture.push_eval_timestamp(eval_timestamp_df)\n```\nTODO: add use cases of input dataframes: metrics, prediction, datapoint\n\n## About [PulsarML](https://pulsar.ml/)\n\nPulsarML is a project helping with monitoring your models and gain powerful insights into its performance.\n\nWe released two Open Source packages :\n\n- [pulsar-data-collection](https://github.com/Rocket-Science-Development/pulsar_data_collection) :  lightweight python SDK enabling data collection of features, predictions and metadata from an ML model serving code/micro-service\n- [pulsar-metrics](https://github.com/Rocket-Science-Development/pulsar_metrics) : library for evaluating and monitoring data and concept drift with an extensive set of metrics. It also offers the possibility to use custom metrics defined by the user.\n\nWe also created [pulsar demo](https://github.com/Rocket-Science-Development/pulsar_demo) to display an example use-case showing how to leverage both packages to implement model monitoring and performance management.\n\nWant to interact with the community? join our [slack channel](https://pulsarml.slack.com)\n\nPowered by [Rocket Science Development](https://rocketscience.one/)\n\n## Contributing\n\n1. Fork this repository, develop, and test your changes\n2. open an issue\n3. Submit a pull request with a reference to the issue\n\nTODO: add use cases of input dataframes: metrics, prediction, datapoint\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -32,7 +32,7 @@
             "project_urls": {
                 "Homepage": "https://github.com/Rocket-Science-Development/pulsar_data_collection"
             },
-            "release_url": "https://pypi.org/project/pulsar-data-collection/0.1.0/",
+            "release_url": "https://pypi.org/project/pulsar-data-collection/0.1.1/",
             "requires_dist": [
                 "pandas (>=1.4.2,<2.0.0)",
                 "pysqlite3 (>=0.4.7,<0.5.0)",
@@ -43,49 +43,49 @@
             ],
             "requires_python": ">=3.9,<4.0",
             "summary": "sdk enabling data collection from model serving code for our MPM solution",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16091967,
+        "last_serial": 16163176,
         "urls": [
             {
                 "comment_text": "",
                 "digests": {
-                    "md5": "cba4667c966e8934965ef9ed36cf1bc0",
-                    "sha256": "9a45fed89c05939cedbc27106cadb0dcca89d99ec1c0c06b97424a88ef3534ac"
+                    "md5": "e97362375776aba13b9a73f7844c8131",
+                    "sha256": "c7e57a4f04a04aac652982862875645919cec26319f1f6b0db32fb487cb42932"
                 },
                 "downloads": -1,
-                "filename": "pulsar_data_collection-0.1.0-py3-none-any.whl",
+                "filename": "pulsar_data_collection-0.1.1-py3-none-any.whl",
                 "has_sig": false,
-                "md5_digest": "cba4667c966e8934965ef9ed36cf1bc0",
+                "md5_digest": "e97362375776aba13b9a73f7844c8131",
                 "packagetype": "bdist_wheel",
                 "python_version": "py3",
                 "requires_python": ">=3.9,<4.0",
-                "size": 7219,
-                "upload_time": "2022-12-13T21:37:18",
-                "upload_time_iso_8601": "2022-12-13T21:37:18.394787Z",
-                "url": "https://files.pythonhosted.org/packages/41/68/ba52162fc2e18115498b8c098ad965360614c42a1c19c5eec47a51a3dce2/pulsar_data_collection-0.1.0-py3-none-any.whl",
+                "size": 8601,
+                "upload_time": "2022-12-20T16:16:42",
+                "upload_time_iso_8601": "2022-12-20T16:16:42.352066Z",
+                "url": "https://files.pythonhosted.org/packages/b7/56/08e52ef276bd735a3ac6c9656d7154627413fea44378ddf99736fcbc5ca2/pulsar_data_collection-0.1.1-py3-none-any.whl",
                 "yanked": false,
                 "yanked_reason": null
             },
             {
                 "comment_text": "",
                 "digests": {
-                    "md5": "63ebea43a048c8ae66b6bad80a1d92e1",
-                    "sha256": "f7b096842a91de9ac3b985c640353d7553a24098b795c0a1c5d7c339c4f4196d"
+                    "md5": "71545ffb534d3870f8c2e2280c1d2f9a",
+                    "sha256": "461c58501514d66be6c01476c0b8c39e04f59e337ce6e3289c34df6d6483f924"
                 },
                 "downloads": -1,
-                "filename": "pulsar_data_collection-0.1.0.tar.gz",
+                "filename": "pulsar_data_collection-0.1.1.tar.gz",
                 "has_sig": false,
-                "md5_digest": "63ebea43a048c8ae66b6bad80a1d92e1",
+                "md5_digest": "71545ffb534d3870f8c2e2280c1d2f9a",
                 "packagetype": "sdist",
                 "python_version": "source",
                 "requires_python": ">=3.9,<4.0",
-                "size": 5953,
-                "upload_time": "2022-12-13T21:37:19",
-                "upload_time_iso_8601": "2022-12-13T21:37:19.544310Z",
-                "url": "https://files.pythonhosted.org/packages/34/32/3c4da64fa56b836ebf3daa0db9df9c2c4b2fb9853427c3c2803e29d752c8/pulsar_data_collection-0.1.0.tar.gz",
+                "size": 9229,
+                "upload_time": "2022-12-20T16:16:44",
+                "upload_time_iso_8601": "2022-12-20T16:16:44.613864Z",
+                "url": "https://files.pythonhosted.org/packages/c1/10/f8461f17b377a784c51372df9def51b9660caebffe0d4acdecff6469556f/pulsar_data_collection-0.1.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
