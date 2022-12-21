@@ -39,7 +39,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16110942,
+        "last_serial": 16171380,
         "urls": [
             {
                 "comment_text": "",
@@ -504,7 +504,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16110942,
+        "last_serial": 16171380,
         "urls": [
             {
                 "comment_text": "",
@@ -969,7 +969,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16110942,
+        "last_serial": 16171380,
         "urls": [
             {
                 "comment_text": "",
@@ -1434,7 +1434,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16110942,
+        "last_serial": 16171380,
         "urls": [
             {
                 "comment_text": "",
@@ -1899,7 +1899,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16110942,
+        "last_serial": 16171380,
         "urls": [
             {
                 "comment_text": "",
@@ -2364,7 +2364,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16110942,
+        "last_serial": 16171380,
         "urls": [
             {
                 "comment_text": "",
@@ -2829,7 +2829,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16110942,
+        "last_serial": 16171380,
         "urls": [
             {
                 "comment_text": "",
@@ -3494,7 +3494,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16110942,
+        "last_serial": 16171380,
         "urls": [
             {
                 "comment_text": "",
@@ -4159,7 +4159,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16110942,
+        "last_serial": 16171380,
         "urls": [
             {
                 "comment_text": "",
@@ -4794,7 +4794,6 @@
                 "Programming Language :: Python :: Implementation :: PyPy",
                 "Programming Language :: Rust"
             ],
-            "description": "# README\n\n[![PyPI version](https://badge.fury.io/py/feathrpiper.svg)](https://badge.fury.io/py/feathrpiper) \n\nThis is the Python wrapper of the Feathr online transformation service.\n\nThere are 2 major classes in this package:\n\n* `PiperService`, this is the service class, it is used to start a HTTP service to handle the transformation requests. It doesn't support HTTPS and authentication, so you may need to setup gateway or proxy to handle the security issues.\nThe `PiperService` class has a `start` method to start the HTTP service in blocking mode, and `start_async` method to start the service in the `async` context.\n\n* `Piper`, this is the transformation engine, it can be use to transform data directly, mainly for development and testing purpose.\nThe `Piper` class has a `process` method to transform data in blocking mode, and `process_async` method to transform data in the `async` context.\n\nBoth above classes support [UDF](#user-defined-function-udf-in-python) and [UDLF](#user-defined-lookup-function-udlf-in-python) written in Python.\n\nNOTE: Because of the GIL, pure Python code cannot run concurrently, that means using Python UDF could slow down the transformation service, especially on heavy load.\n\n## Value Types\n\nAll values passed to the pipeline must be in one of the following types:\n* `None`\n* Simple types: `bool`, `int`, `float`, `str`\n* Date/time is represented as `datetime.DateTime`.\n* List: List of supported types.\n* Map: Map of supported types, keys must be string, and value can be any supported type.\n\nAll values returned by the pipeline will also be in above types.\n\nNOTE: When using Python big integer, exception will be thrown if any it exceeds the range of 64-bit signed integer.\n\n## User Defined Function (UDF) in Python\n\nThe UDF is implemented as ordinary Python function, and it must be registered to the service before it can be used in the pipeline.\n\n* The UDF function can only accept positional arguments, keyword arguments are not supported.\n* The UDF function must be able to be invoked by the usage in the DSL script, i.e. a UDF with 2 fixed arguments and 1 optional argument can be invoked as `udf(1, 2)` or `udf(1, 2, 3)`, but not `udf(1, 2, 3, 4)` or `udf(1)`.\n* The UDF function may raise any exception, and the returned value will be record as an error. This error will be propagated to the caller.\n* Every function and operator that takes error as the input will return the error.\n* At the final output stage of the pipeline, the error value will be converted to `None`, and the error will be recorded in a separated error list.\n* The UDF function will never see the error as the input, the invocation is bypassed before the UDF function is called if any of the argument is error.\n* The execution order is non-deterministic, so the UDF function shall not make any assumptions.\n* The UDF function should not block, such behavior is not strictly forbidden but the performance will be impacted significantly.\n\n## User Defined Lookup Function (UDLF) in Python\n\nUsually `lookup` is to fetch external data, such as a database or a web service, so the lookup data source is implemented as a Python async functions, and it must be registered to the piper or the service before it can be used in the pipeline.\n\nThe lookup function is called with a single key and a list of requested field names, and it should return a list of rows that each row is a list that aligns with the requested fields, or an empty list when lookup failed. The key must be in the supported simple types, list and dict cannot be used as key, and using `None` as the key will get `None` as the value of all returned fields without actually calling the lookup function.\n\n```\nasync def my_fancy_lookup_function(key: Any, fields: List[str]) -> List[List[Any]]:\n    ...\n    return [\n        [some_data[f] for f in fields],\n        [some_other_data[f] for f in fields],\n    ]\n```\n\nThe lookup function must be added to the `Piper` or `PiperService` before it can be used in the pipeline:\n```\npiper = Piper(pipeline_def, {\"lookup_name\": my_fancy_lookup_function}, ...)\n```\nor\n```\nsvc = PiperService(pipeline_def, {\"lookup_name\": my_fancy_lookup_function}, ...)\n```\n\nThen you can use the lookup data source in the pipeline in a `lookup` transformation:\n```\npipeline_name(...)\n| ...\n| lookup field1, field2 from lookup_name on key\n| ...\n;\n```\n\nor a `join` transformation:\n```\npipeline_name(...)\n| ...\n| join kind=left-inner field1, field2 from lookup_name on key\n| ...\n;\n```\n\nOnce the user-defined lookup function is used, the `Piper` and `PiperService` must be used in `async` context, otherwise all async function will never be executed and the program may hang forever.\nAlso you need to replace `process` with `process_async`, and `start` with `start_async`.\n\n```\npiper = Piper(pipeline_def, {\"lookup_name\": lookup_function})\n\nasync def test():\n    await piper.process_async(...)\n\nasyncio.run(test())\n```\n\nFor more information about Python async programming, please refer to [Python Asyncio](https://docs.python.org/3/library/asyncio.html).\n\nNOTE:\n* Because of the asynchronous nature of the lookup function, it's recommended to use `asyncio` compatible libraries to implement the lookup function, traditional blocking libraries may cause the performance issue, e.g. use [`aiohttp`](https://pypi.org/project/aiohttp/) or [`HTTPX`](https://pypi.org/project/httpx/) instead of `Requests`.\n* This package only supports `asyncio`,  `Twisted` or `Gevent` based libraries are not supported.\n* In order to lookup data from a standard JSON-based HTTP API, you can use builtin HTTP client instead of implementing your own lookup function, register the lookup data source either in a JSON string or a `dict` with correct content, detailed doc is at [here](https://github.com/windoze/piper#lookup-data-source-definition).\n* The `feathrpiper` also has builtin support of SqlServer/AzureSQL, Sqlite3, and Azure CosmosDb.\n\n## Integration with Other Web-Service Frameworks\n\nThe `feathrpiper` contains built-in web service, but it doesn't support HTTPS and authentication, and has a specific HTTP API spec which cannot be changed from the Python side. In case you need to use it in any other scenario, you may integrate it with other Web service frameworks.\n\n* Flask: prefer to use async version of Flask, such as [Flask-Async](https://pypi.org/project/Flask-Async/), [Flask-RESTful-Async](https://pypi.org/project/Flask-RESTful-Async/), [Flask-RESTX-Async](https://pypi.org/project/Flask-RESTX-Async/), etc. And you should use `process_async` to process the request.\n* FastAPI: FastAPI is fully async-based, use `process_async` to process the request.\n* Any other Web framework that doesn't support async: You can use `process` in non-async context, but the user-defined lookup function feature will be unavailable.\n\nA demo of integrating with FastAPI is at [here](https://github.com/windoze/piper/blob/main/python/examples/fastapi_example.py)\n\n## Packaging and Deployment\n\nThe `feathrpiper` package is a standard Python package without external dependency, you need to write your own code using the package to implement your own transformation service.\n\nThe packaging and the deployment process is also standard, refer to [the official document](https://docs.docker.com/language/python/build-images/) if you need to build Docker image, currently we don't have any pre-built Docker image for the Python package.\n\nIn most cases, the packaging process could be like:\n\n1. Prepare the `requirements.txt` file which includes the `feathrpiper` package and all the other dependencies.\n    ```\n    # This package\n    feathrpiper >= 0.4.3\n    # Any other dependencies\n    pandas == 1.5.2\n    pytorch >= 1.0.0\n    ...\n    ```\n2. Prepare a `Dockerfile` file which includes the `requirements.txt` file and the code to run the service.\n    ```\n    FROM python:3.9-slim-buster\n    COPY requirements.txt /tmp/\n    RUN pip install -r /tmp/requirements.txt\n    COPY . /app\n    WORKDIR /app\n    # In case you want to use the built-in web service provided by `PiperService` class and it's listening at the port 8000\n    # Or you write your own web service and it's listening at the port 8000\n    EXPOSE 8000\n    CMD [\"python\", \"main.py\"]\n    ```\n3. Build the Docker image:\n    ```\n    docker build -t my_image .\n    ```\n4. Run the Docker image:\n    ```\n    docker run -p 8000:8000 my_image\n    ```\n\n## Building from Source\n\nThe `feathrpiper` package is written in Rust, so you need to setup the Rust toolchain to build it from source. The Rust toolchain can be installed from [here](https://www.rust-lang.org/tools/install). The development is done in Rust 1.65, older version may not work.\n\n1. Install `maturin`:\n    ```\n    pip install maturin\n    ```\n2. Build the package under the `feathrpiper_root/python` directory:\n    ```\n    maturin build --release\n    ```\nMore information about `maturin` can be found [here](https://github.com/PyO3/maturin). Please note that running `cargo build` in the top level directory won't build the Python package because the python package project is excluded from the workspace for some technical issues.\n\n## Limitations and Known Issues\n\n* The `PiperService` class supports plain HTTP only, and it doesn't support any kind of authentication.\n* The `feathrpiper` supports Python 3.7~3.11, no support for Python 3.6 or earlier, and no support for Python 2.\n* The package published on PyPI only support following platforms:\n    * Linux arm64\n    * Linux armv7\n    * Linux x86_64\n    * macOS x86_64/AppleSilicon universal\n    * Windows x86_64\n  \nYou need to build the package from source if you need to use it on other platforms.\n\n\n",
             "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
             "docs_url": null,
             "download_url": "",
@@ -4825,7 +4824,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16110942,
+        "last_serial": 16171380,
         "urls": [
             {
                 "comment_text": "",
@@ -5444,6 +5443,672 @@
                 "upload_time": "2022-12-15T09:16:39",
                 "upload_time_iso_8601": "2022-12-15T09:16:39.619282Z",
                 "url": "https://files.pythonhosted.org/packages/f6/6c/56c0cd76a88dcca4dfaa80f8cc48dbd109c769fb64b4317d46334bb5609e/feathrpiper-0.4.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.5": {
+        "info": {
+            "author": "Chen Xu <windoze@0d0a.com>",
+            "author_email": "Chen Xu <windoze@0d0a.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Python :: Implementation :: PyPy",
+                "Programming Language :: Rust"
+            ],
+            "description": "# README\n\n[![PyPI version](https://badge.fury.io/py/feathrpiper.svg)](https://badge.fury.io/py/feathrpiper) \n\nThis is the Python wrapper of the Feathr online transformation service.\n\nThere are 2 major classes in this package:\n\n* `PiperService`, this is the service class, it is used to start a HTTP service to handle the transformation requests. It doesn't support HTTPS and authentication, so you may need to setup gateway or proxy to handle the security issues.\nThe `PiperService` class has a `start` method to start the HTTP service in blocking mode, and `start_async` method to start the service in the `async` context.\n\n* `Piper`, this is the transformation engine, it can be use to transform data directly, mainly for development and testing purpose.\nThe `Piper` class has a `process` method to transform data in blocking mode, and `process_async` method to transform data in the `async` context.\n\nBoth above classes support [UDF](#user-defined-function-udf-in-python) and [UDLF](#user-defined-lookup-function-udlf-in-python) written in Python.\n\nNOTE: Because of the GIL, pure Python code cannot run concurrently, that means using Python UDF could slow down the transformation service, especially on heavy load.\n\n## Value Types\n\nAll values passed to the pipeline must be in one of the following types:\n* `None`\n* Simple types: `bool`, `int`, `float`, `str`\n* Date/time is represented as `datetime.DateTime`.\n* List: List of supported types.\n* Map: Map of supported types, keys must be string, and value can be any supported type.\n\nAll values returned by the pipeline will also be in above types.\n\nNOTE: When using Python big integer, exception will be thrown if any it exceeds the range of 64-bit signed integer.\n\n## User Defined Function (UDF) in Python\n\nThe UDF is implemented as ordinary Python function, and it must be registered to the service before it can be used in the pipeline.\n\n* The UDF function can only accept positional arguments, keyword arguments are not supported.\n* The UDF function must be able to be invoked by the usage in the DSL script, i.e. a UDF with 2 fixed arguments and 1 optional argument can be invoked as `udf(1, 2)` or `udf(1, 2, 3)`, but not `udf(1, 2, 3, 4)` or `udf(1)`.\n* The UDF function may raise any exception, and the returned value will be record as an error. This error will be propagated to the caller.\n* Every function and operator that takes error as the input will return the error.\n* At the final output stage of the pipeline, the error value will be converted to `None`, and the error will be recorded in a separated error list.\n* The UDF function will never see the error as the input, the invocation is bypassed before the UDF function is called if any of the argument is error.\n* The execution order is non-deterministic, so the UDF function shall not make any assumptions.\n* The UDF function should not block, such behavior is not strictly forbidden but the performance will be impacted significantly.\n\n## User Defined Lookup Function (UDLF) in Python\n\nUsually `lookup` is to fetch external data, such as a database or a web service, so the lookup data source is implemented as a Python async functions, and it must be registered to the piper or the service before it can be used in the pipeline.\n\nThe lookup function is called with a single key and a list of requested field names, and it should return a list of rows that each row is a list that aligns with the requested fields, or an empty list when lookup failed. The key must be in the supported simple types, list and dict cannot be used as key, and using `None` as the key will get `None` as the value of all returned fields without actually calling the lookup function.\n\n```\nasync def my_fancy_lookup_function(key: Any, fields: List[str]) -> List[List[Any]]:\n    ...\n    return [\n        [some_data[f] for f in fields],\n        [some_other_data[f] for f in fields],\n    ]\n```\n\nThe lookup function must be added to the `Piper` or `PiperService` before it can be used in the pipeline:\n```\npiper = Piper(pipeline_def, {\"lookup_name\": my_fancy_lookup_function}, ...)\n```\nor\n```\nsvc = PiperService(pipeline_def, {\"lookup_name\": my_fancy_lookup_function}, ...)\n```\n\nThen you can use the lookup data source in the pipeline in a `lookup` transformation:\n```\npipeline_name(...)\n| ...\n| lookup field1, field2 from lookup_name on key\n| ...\n;\n```\n\nor a `join` transformation:\n```\npipeline_name(...)\n| ...\n| join kind=left-inner field1, field2 from lookup_name on key\n| ...\n;\n```\n\nOnce the user-defined lookup function is used, the `Piper` and `PiperService` must be used in `async` context, otherwise all async function will never be executed and the program may hang forever.\nAlso you need to replace `process` with `process_async`, and `start` with `start_async`.\n\n```\npiper = Piper(pipeline_def, {\"lookup_name\": lookup_function})\n\nasync def test():\n    await piper.process_async(...)\n\nasyncio.run(test())\n```\n\nFor more information about Python async programming, please refer to [Python Asyncio](https://docs.python.org/3/library/asyncio.html).\n\nNOTE:\n* Because of the asynchronous nature of the lookup function, it's recommended to use `asyncio` compatible libraries to implement the lookup function, traditional blocking libraries may cause the performance issue, e.g. use [`aiohttp`](https://pypi.org/project/aiohttp/) or [`HTTPX`](https://pypi.org/project/httpx/) instead of `Requests`.\n* This package only supports `asyncio`,  `Twisted` or `Gevent` based libraries are not supported.\n* In order to lookup data from a standard JSON-based HTTP API, you can use builtin HTTP client instead of implementing your own lookup function, register the lookup data source either in a JSON string or a `dict` with correct content, detailed doc is at [here](https://github.com/windoze/piper#lookup-data-source-definition).\n* The `feathrpiper` also has builtin support of SqlServer/AzureSQL, Sqlite3, and Azure CosmosDb.\n\n## Integration with Other Web-Service Frameworks\n\nThe `feathrpiper` contains built-in web service, but it doesn't support HTTPS and authentication, and has a specific HTTP API spec which cannot be changed from the Python side. In case you need to use it in any other scenario, you may integrate it with other Web service frameworks.\n\n* Flask: prefer to use async version of Flask, such as [Flask-Async](https://pypi.org/project/Flask-Async/), [Flask-RESTful-Async](https://pypi.org/project/Flask-RESTful-Async/), [Flask-RESTX-Async](https://pypi.org/project/Flask-RESTX-Async/), etc. And you should use `process_async` to process the request.\n* FastAPI: FastAPI is fully async-based, use `process_async` to process the request.\n* Any other Web framework that doesn't support async: You can use `process` in non-async context, but the user-defined lookup function feature will be unavailable.\n\nA demo of integrating with FastAPI is at [here](https://github.com/windoze/piper/blob/main/python/examples/fastapi_example.py)\n\n## Packaging and Deployment\n\nThe `feathrpiper` package is a standard Python package without external dependency, you need to write your own code using the package to implement your own transformation service.\n\nThe packaging and the deployment process is also standard, refer to [the official document](https://docs.docker.com/language/python/build-images/) if you need to build Docker image, currently we don't have any pre-built Docker image for the Python package.\n\nIn most cases, the packaging process could be like:\n\n1. Prepare the `requirements.txt` file which includes the `feathrpiper` package and all the other dependencies.\n    ```\n    # This package\n    feathrpiper >= 0.4.3\n    # Any other dependencies\n    pandas == 1.5.2\n    pytorch >= 1.0.0\n    ...\n    ```\n2. Prepare a `Dockerfile` file which includes the `requirements.txt` file and the code to run the service.\n    ```\n    FROM python:3.9-slim-buster\n    COPY requirements.txt /tmp/\n    RUN pip install -r /tmp/requirements.txt\n    COPY . /app\n    WORKDIR /app\n    # In case you want to use the built-in web service provided by `PiperService` class and it's listening at the port 8000\n    # Or you write your own web service and it's listening at the port 8000\n    EXPOSE 8000\n    CMD [\"python\", \"main.py\"]\n    ```\n3. Build the Docker image:\n    ```\n    docker build -t my_image .\n    ```\n4. Run the Docker image:\n    ```\n    docker run -p 8000:8000 my_image\n    ```\n\n## Building from Source\n\nThe `feathrpiper` package is written in Rust, so you need to setup the Rust toolchain to build it from source. The Rust toolchain can be installed from [here](https://www.rust-lang.org/tools/install). The development is done in Rust 1.65, older version may not work.\n\n1. Install `maturin`:\n    ```\n    pip install maturin\n    ```\n2. Build the package under the `feathrpiper_root/python` directory:\n    ```\n    maturin build --release\n    ```\nMore information about `maturin` can be found [here](https://github.com/PyO3/maturin). Please note that running `cargo build` in the top level directory won't build the Python package because the python package project is excluded from the workspace for some technical issues.\n\n## Limitations and Known Issues\n\n* The `PiperService` class supports plain HTTP only, and it doesn't support any kind of authentication.\n* The `feathrpiper` supports Python 3.7~3.11, no support for Python 3.6 or earlier, and no support for Python 2.\n* The package published on PyPI only support following platforms:\n    * Linux arm64\n    * Linux armv7\n    * Linux x86_64\n    * macOS x86_64/AppleSilicon universal\n    * Windows x86_64\n  \nYou need to build the package from source if you need to use it on other platforms.\n\n\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/windoze/piper",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "feathrpiper",
+            "package_url": "https://pypi.org/project/feathrpiper/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/feathrpiper/",
+            "project_urls": {
+                "Homepage": "https://github.com/windoze/piper",
+                "Issues": "https://github.com/windoze/piper/issues",
+                "Source Code": "https://github.com/windoze/piper"
+            },
+            "release_url": "https://pypi.org/project/feathrpiper/0.4.5/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "",
+            "version": "0.4.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16171380,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c8f14a79b2c7a908fbf17dd41b31cba0",
+                    "sha256": "75dc3c0ce8548023b677ed3b0040c8b6e85467c217aeee78103cb86c42e0a935"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp310-cp310-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "c8f14a79b2c7a908fbf17dd41b31cba0",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 6752873,
+                "upload_time": "2022-12-21T08:57:19",
+                "upload_time_iso_8601": "2022-12-21T08:57:19.943284Z",
+                "url": "https://files.pythonhosted.org/packages/ce/ce/61d7b60c3418654826f8cbad847a9916a5aab50fe2f7833f115b56622423/feathrpiper-0.4.5-cp310-cp310-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4569c1a67db505e8771ef2a0d86b7ef9",
+                    "sha256": "5f97b8b3ddd0068b47285151ff85799fc6714215b5c839a2d7068c72e84ca550"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp310-cp310-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "4569c1a67db505e8771ef2a0d86b7ef9",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 13050855,
+                "upload_time": "2022-12-21T08:57:21",
+                "upload_time_iso_8601": "2022-12-21T08:57:21.840549Z",
+                "url": "https://files.pythonhosted.org/packages/b4/22/214bad984cf3af73f1817ac2fc9b63ed54571b7fd710788ce20b6e312138/feathrpiper-0.4.5-cp310-cp310-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4181ea5a752fbd2756f892eccf96dd4f",
+                    "sha256": "eb88cdf615a25da387cb497fac9775ef5734236f8ab270751c2971540eb67811"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "4181ea5a752fbd2756f892eccf96dd4f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 9387102,
+                "upload_time": "2022-12-21T08:57:24",
+                "upload_time_iso_8601": "2022-12-21T08:57:24.352515Z",
+                "url": "https://files.pythonhosted.org/packages/81/82/ecd8a056cab94929a8bad254d0cdeecf639a7f4cfc44e43b4c47535e62c6/feathrpiper-0.4.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fbbfa87857acce9e58c7072c38b78b93",
+                    "sha256": "5c06712fcf496da8ccf5511b748be095460b04eb8a296cd5dd3cfd20460254c4"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp310-cp310-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "has_sig": false,
+                "md5_digest": "fbbfa87857acce9e58c7072c38b78b93",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 8962654,
+                "upload_time": "2022-12-21T08:57:25",
+                "upload_time_iso_8601": "2022-12-21T08:57:25.989344Z",
+                "url": "https://files.pythonhosted.org/packages/39/56/ac38e44b6e9609b6802c45023656b38068593677b6311e6ee6471d1936ec/feathrpiper-0.4.5-cp310-cp310-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b7f32fdf8ed0acf3c1c34264a821d63c",
+                    "sha256": "b5b204f48e275ed98efa9272689a4ea0118ee883c065ee7dddff28cd59e2d653"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "b7f32fdf8ed0acf3c1c34264a821d63c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 9776637,
+                "upload_time": "2022-12-21T08:57:27",
+                "upload_time_iso_8601": "2022-12-21T08:57:27.796406Z",
+                "url": "https://files.pythonhosted.org/packages/c2/3f/f9909a7a90b06b8d3b8deda5021c47f835bab88cfcb043868ba03d83df64/feathrpiper-0.4.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "684148c9d6e5ed895e6a0fbe54c9acd6",
+                    "sha256": "59b3fd24baf58c6bf483e124b6394a8efce05bcd41a1adf8661e133585b7f78c"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp310-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "684148c9d6e5ed895e6a0fbe54c9acd6",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.7",
+                "size": 5781259,
+                "upload_time": "2022-12-21T08:57:29",
+                "upload_time_iso_8601": "2022-12-21T08:57:29.678065Z",
+                "url": "https://files.pythonhosted.org/packages/be/2e/51a9d4a2668fd642a56ef4af55ac90fe9cd77ea1754e47deeb1212c037f5/feathrpiper-0.4.5-cp310-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "557a17d071f78abaefb6300a2d79c0cd",
+                    "sha256": "e03979ae32cb0469f1cf93205d22e93cee40f045e01704983f0135a25236910e"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp311-cp311-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "557a17d071f78abaefb6300a2d79c0cd",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 6752870,
+                "upload_time": "2022-12-21T08:57:31",
+                "upload_time_iso_8601": "2022-12-21T08:57:31.215812Z",
+                "url": "https://files.pythonhosted.org/packages/1c/f7/a1bbbd234f2992602cc9bd5b1293cd5cae5fc48e5bf1d5686a9fd744e0c2/feathrpiper-0.4.5-cp311-cp311-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6b7274eb8cac05bb67a7e34867175913",
+                    "sha256": "84c2a624f60900fcec5adde18d18736d8b8743be7c87a32667b3248497eeb442"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp311-cp311-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "6b7274eb8cac05bb67a7e34867175913",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 13050852,
+                "upload_time": "2022-12-21T08:57:33",
+                "upload_time_iso_8601": "2022-12-21T08:57:33.039036Z",
+                "url": "https://files.pythonhosted.org/packages/b4/f8/1de23c2fc6e7ec60ee452380c0caf165a4400d2f642f033850de5ec42006/feathrpiper-0.4.5-cp311-cp311-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5dea1c8c729ab8884ec66c1edec984df",
+                    "sha256": "db4012e1d86f65885469a630298173f09df8430eb22137c277b16ba66048e5a6"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "5dea1c8c729ab8884ec66c1edec984df",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 9387103,
+                "upload_time": "2022-12-21T08:57:34",
+                "upload_time_iso_8601": "2022-12-21T08:57:34.986882Z",
+                "url": "https://files.pythonhosted.org/packages/ba/e8/30a9dd8f60f12ea7dce72afbd950464538eb66d400b942689ce909ce6eec/feathrpiper-0.4.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a879acc6cb57e99c680a6a244445bdf9",
+                    "sha256": "8653843b8fae4336847f7591474cfb3dd9efb9930062c1094ff02d8773f91ec2"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp311-cp311-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "has_sig": false,
+                "md5_digest": "a879acc6cb57e99c680a6a244445bdf9",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 8962653,
+                "upload_time": "2022-12-21T08:57:36",
+                "upload_time_iso_8601": "2022-12-21T08:57:36.610070Z",
+                "url": "https://files.pythonhosted.org/packages/a8/94/4fd92bba7b10f1a18f1c17013ae1c273089321353d2eaeec58abbceeea80/feathrpiper-0.4.5-cp311-cp311-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "920fa70fb3d6d61b869c26805f49b08a",
+                    "sha256": "cc36e48ec10961f98ed0d26f40e012c40372be7c09f3d5f77ee62a60e871134e"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "920fa70fb3d6d61b869c26805f49b08a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 9776635,
+                "upload_time": "2022-12-21T08:57:38",
+                "upload_time_iso_8601": "2022-12-21T08:57:38.393560Z",
+                "url": "https://files.pythonhosted.org/packages/8b/65/f6845c071a7cc87c81090ad2e9e3f6ab93b1a78c98c0e501ef913e8d8254/feathrpiper-0.4.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7d42a3990e3981e6700e543d5130c9a1",
+                    "sha256": "620423e03237834eab2eb4c84f0ede6a475c28b31bc25d15ab0e7d21caca6a88"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp311-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "7d42a3990e3981e6700e543d5130c9a1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.7",
+                "size": 5781266,
+                "upload_time": "2022-12-21T08:57:40",
+                "upload_time_iso_8601": "2022-12-21T08:57:40.282270Z",
+                "url": "https://files.pythonhosted.org/packages/96/ea/a4c55dae46b81f44a2ac8a2c6a12d4a1cbe982940dec29ab11158e3e61a0/feathrpiper-0.4.5-cp311-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "116e5ee0ec2d321755b44a371b91c9e1",
+                    "sha256": "14c5c7fdb43d4916982ba2a6d1b5fafd9002900d66534f2885c39742947f1ee0"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp37-cp37m-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "116e5ee0ec2d321755b44a371b91c9e1",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 6754908,
+                "upload_time": "2022-12-21T08:57:42",
+                "upload_time_iso_8601": "2022-12-21T08:57:42.080126Z",
+                "url": "https://files.pythonhosted.org/packages/80/dc/05ee00b89b2c2859c7f6b4344f0020373f5d51bafa7c5fab671cca2bd004/feathrpiper-0.4.5-cp37-cp37m-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "df8885b13c68353f0856c76d675d5925",
+                    "sha256": "db8dd4bee9108507ab62859068424c9620266cb8790b104348c49d4017cdc370"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp37-cp37m-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "df8885b13c68353f0856c76d675d5925",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 13056459,
+                "upload_time": "2022-12-21T08:57:43",
+                "upload_time_iso_8601": "2022-12-21T08:57:43.836816Z",
+                "url": "https://files.pythonhosted.org/packages/fb/d5/43138a4b5099d36ef74bfd0e43549f652065565ce7815468324a8156c47d/feathrpiper-0.4.5-cp37-cp37m-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a79dc8e951dcb6163cdb75651aee594c",
+                    "sha256": "a8e5f16834c8e74ba29dfd20b910a2da1612dbb54e4f711f599b1e5eab09fb52"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "a79dc8e951dcb6163cdb75651aee594c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 9386960,
+                "upload_time": "2022-12-21T08:57:46",
+                "upload_time_iso_8601": "2022-12-21T08:57:46.153436Z",
+                "url": "https://files.pythonhosted.org/packages/81/3e/c8e95b2656efd81547ffd3296ae4a0b810d10814b604b8821658e8abbf3e/feathrpiper-0.4.5-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "be7abcace17e32ee12a73a68c1b9517d",
+                    "sha256": "a4db3ab8661fdd56e880e0726a1fd2478e2f5f52dc03ff97f05a6c3f8cdb65b6"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp37-cp37m-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "has_sig": false,
+                "md5_digest": "be7abcace17e32ee12a73a68c1b9517d",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 8963540,
+                "upload_time": "2022-12-21T08:57:48",
+                "upload_time_iso_8601": "2022-12-21T08:57:48.148002Z",
+                "url": "https://files.pythonhosted.org/packages/ee/79/8af81a0cd6403aa820a5d6fc706735188ee33db24179d12d129b61f34aa8/feathrpiper-0.4.5-cp37-cp37m-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ad178a31f5c6129bab403b5e47328756",
+                    "sha256": "bea212a29cf10910f6977bb29ff8a4ab0991c9ac5a6c0602c836ab5ed5a297c0"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "ad178a31f5c6129bab403b5e47328756",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 9777677,
+                "upload_time": "2022-12-21T08:57:49",
+                "upload_time_iso_8601": "2022-12-21T08:57:49.954223Z",
+                "url": "https://files.pythonhosted.org/packages/09/cf/ffaf6f80fbe67462ba45eed3ab62d9e468c4be8975e1430523c2174914c1/feathrpiper-0.4.5-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "86c21d01eb053c2077a7c0aea2471397",
+                    "sha256": "a4aae4ea3476581a9b17363a528c015e859eabd5e472797b747f230f2ac763ce"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp37-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "86c21d01eb053c2077a7c0aea2471397",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.7",
+                "size": 5781490,
+                "upload_time": "2022-12-21T08:57:51",
+                "upload_time_iso_8601": "2022-12-21T08:57:51.784037Z",
+                "url": "https://files.pythonhosted.org/packages/1b/20/26b0b2d68295f99a24d9d993de4b821412e68504db12c6bd5ae1d186f041/feathrpiper-0.4.5-cp37-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a11122930f015a61afc35006c87f228a",
+                    "sha256": "aa4ce99cf0607195c35574bfc23f8f523c04200bb0669ef524dd2b560c34c755"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp38-cp38-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "a11122930f015a61afc35006c87f228a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 6755422,
+                "upload_time": "2022-12-21T08:57:53",
+                "upload_time_iso_8601": "2022-12-21T08:57:53.532104Z",
+                "url": "https://files.pythonhosted.org/packages/d4/b7/1fe3362706cd7cf8eb1be162b2d1cc52225383822d75ad1fa07653930d0a/feathrpiper-0.4.5-cp38-cp38-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "43375092fac31ddf9926a538939d548f",
+                    "sha256": "a2702661e0e6370c809fcf576af9bb0c1437b4719f97bc83421aa19a59623eaf"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp38-cp38-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "43375092fac31ddf9926a538939d548f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 13056769,
+                "upload_time": "2022-12-21T08:57:55",
+                "upload_time_iso_8601": "2022-12-21T08:57:55.467669Z",
+                "url": "https://files.pythonhosted.org/packages/29/6f/f85c935ca8e39f07c5cb7d1a4dc4211d81825f22a67aac999ee0b4033043/feathrpiper-0.4.5-cp38-cp38-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "82f3b004e904e37b259b21ffacc643f5",
+                    "sha256": "737a9ea72ebdf250f21f34349039bca8c9eba119601eb453fefd7b53af5b5aed"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "82f3b004e904e37b259b21ffacc643f5",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 9386058,
+                "upload_time": "2022-12-21T08:57:57",
+                "upload_time_iso_8601": "2022-12-21T08:57:57.281644Z",
+                "url": "https://files.pythonhosted.org/packages/d7/3b/40f9da8e51210fe6a05b434c92b82fa4fcc6fd9bea86a8e7f818c5696eb2/feathrpiper-0.4.5-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1cd75031eda35bafa2e34ba341cafdb9",
+                    "sha256": "74dda6b5ea9c1246deaea859bfcada2f4def6ec02e337188fb585eb0b7289ced"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp38-cp38-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "has_sig": false,
+                "md5_digest": "1cd75031eda35bafa2e34ba341cafdb9",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 8962946,
+                "upload_time": "2022-12-21T08:57:58",
+                "upload_time_iso_8601": "2022-12-21T08:57:58.977865Z",
+                "url": "https://files.pythonhosted.org/packages/b6/45/3c9e15d40b70f3a18a1759d6015d915c6373c2e7fbaf57d6ace93a5efcaf/feathrpiper-0.4.5-cp38-cp38-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7f80066eb61a6b8396b3564f84b82b1c",
+                    "sha256": "1adf18be21fc3eaa6debb7b753b3699bfe8bbd6e619058b74bc7228ef6599776"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "7f80066eb61a6b8396b3564f84b82b1c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 9778125,
+                "upload_time": "2022-12-21T08:58:01",
+                "upload_time_iso_8601": "2022-12-21T08:58:01.002223Z",
+                "url": "https://files.pythonhosted.org/packages/47/3e/59ec8cfb166f60b855131b3e3878272275fdc5ab0a0a3c81cdca4c12b1a6/feathrpiper-0.4.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "eceb893c753f8e3f55aac7e5288db2df",
+                    "sha256": "f9ae89ddcb2ffc1f82fcbdcaf122f29eae92273693ed30ac363f2dc91471be3e"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp38-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "eceb893c753f8e3f55aac7e5288db2df",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.7",
+                "size": 5781438,
+                "upload_time": "2022-12-21T08:58:02",
+                "upload_time_iso_8601": "2022-12-21T08:58:02.627496Z",
+                "url": "https://files.pythonhosted.org/packages/b8/a0/5e8e56e8f52f4795734e9a6583ee698b1acf68f3819bfc23251cfb159687/feathrpiper-0.4.5-cp38-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "72b80889ae9750dda69958a801a47bff",
+                    "sha256": "827bba4c357986439864bf123eaf743dd530bd880d61a3ccc46975ac56b58098"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp39-cp39-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "72b80889ae9750dda69958a801a47bff",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 6752736,
+                "upload_time": "2022-12-21T08:58:04",
+                "upload_time_iso_8601": "2022-12-21T08:58:04.339079Z",
+                "url": "https://files.pythonhosted.org/packages/d2/87/84d1e7dec880c73db8e11e404a84bc863f96830eeec01a6c185b2551d12b/feathrpiper-0.4.5-cp39-cp39-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f67306f5920cab1b720d30b6d3560373",
+                    "sha256": "48f90f1a61c8ed51ab63e3784afef145d9912917746c9d8d2c8c3cb15fba6e80"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp39-cp39-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "f67306f5920cab1b720d30b6d3560373",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 13050726,
+                "upload_time": "2022-12-21T08:58:06",
+                "upload_time_iso_8601": "2022-12-21T08:58:06.505576Z",
+                "url": "https://files.pythonhosted.org/packages/c2/27/3d74adb33b66bab3763b54c1b94f1518711510682a46c8dd85c191beeb7f/feathrpiper-0.4.5-cp39-cp39-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b1ed912e4d0ae5cf78cf4fba3ba84909",
+                    "sha256": "ad4db71cab5016c0f7700bbfae5b9bfb58e18aebb7441b11266c79f246603d34"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "b1ed912e4d0ae5cf78cf4fba3ba84909",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 9387402,
+                "upload_time": "2022-12-21T08:58:08",
+                "upload_time_iso_8601": "2022-12-21T08:58:08.518247Z",
+                "url": "https://files.pythonhosted.org/packages/01/2d/e597bef27ba2e763300f52c672dc9b02b270a32b7eec644bda65cb5a33e0/feathrpiper-0.4.5-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8457b6d96e74812ba99987bfde8d0ae5",
+                    "sha256": "1aea257ba93205ff1c99fa97c56b7f74f0078b2419c65743fb24a2fc78842860"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp39-cp39-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "has_sig": false,
+                "md5_digest": "8457b6d96e74812ba99987bfde8d0ae5",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 8963341,
+                "upload_time": "2022-12-21T08:58:10",
+                "upload_time_iso_8601": "2022-12-21T08:58:10.257102Z",
+                "url": "https://files.pythonhosted.org/packages/a7/5e/df710dc0e5978f3cf8bfb769864faa93a5daf822a5e62a8ab4e375bb8c0f/feathrpiper-0.4.5-cp39-cp39-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cb3bd7ab18f5b0e94dba10859a1ea250",
+                    "sha256": "be00ff02b2c34844e04712d1cca86897b6c3929790a03e2d9858548578b113f8"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "cb3bd7ab18f5b0e94dba10859a1ea250",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 9777542,
+                "upload_time": "2022-12-21T08:58:11",
+                "upload_time_iso_8601": "2022-12-21T08:58:11.913016Z",
+                "url": "https://files.pythonhosted.org/packages/85/00/f5d3616f34e388f406ed91bda9d9d94713d6fbd86dc19d429d518f494761/feathrpiper-0.4.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "03f8d9c20ad100c8cc8d8b6afe96d056",
+                    "sha256": "c31c589930929b1bf37625749ff6045b26f91693b0fd4375413567e52c8e2f0a"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5-cp39-none-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "03f8d9c20ad100c8cc8d8b6afe96d056",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.7",
+                "size": 5781537,
+                "upload_time": "2022-12-21T08:58:13",
+                "upload_time_iso_8601": "2022-12-21T08:58:13.800545Z",
+                "url": "https://files.pythonhosted.org/packages/35/de/0f8d65dc46a09677d1ec074019a11d69befda89d993f942dd2c8b5bfb540/feathrpiper-0.4.5-cp39-none-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "745d2f738bcf71921cf7a2ae638687ea",
+                    "sha256": "54f60295e04a06a0da9d7996138ed93e34e1a02a0cc99b8ba0899749cdf94291"
+                },
+                "downloads": -1,
+                "filename": "feathrpiper-0.4.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "745d2f738bcf71921cf7a2ae638687ea",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 111263,
+                "upload_time": "2022-12-21T08:58:14",
+                "upload_time_iso_8601": "2022-12-21T08:58:14.987287Z",
+                "url": "https://files.pythonhosted.org/packages/fa/ef/a322aeee02febc17f255742f1bbb078476f1a0f78b631b786bbf5aea7317/feathrpiper-0.4.5.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

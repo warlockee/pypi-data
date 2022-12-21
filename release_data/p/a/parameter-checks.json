@@ -42,7 +42,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16165656,
+        "last_serial": 16173050,
         "urls": [
             {
                 "comment_text": "",
@@ -102,7 +102,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# parameter-checks\n\nExtend typehints to include dynamic checks (that might otherwise be dealt with by assertions) in Python.\n\n**Project**\n\n![PyPI Version](https://img.shields.io/pypi/v/parameter_checks)\n![Wheel](https://img.shields.io/pypi/wheel/parameter_checks)\n\n**Tests**\n\n![Tests](https://github.com/snimu/parameter-checks/actions/workflows/tests.yml/badge.svg)\n![Coverage](coverage.svg)\n\n**Misc**\n\n![License](https://img.shields.io/github/license/snimu/parameter-checks)\n![Python Versions](https://img.shields.io/pypi/pyversions/parameter_checks)\n\n**Installation: Pip**\n\n```bash\npip3 install parameter_checks\n```\n\n**Comment**\n\n- A proper documentation is (likely) coming\n- A conda-build may or may not come\n\n## Example: Checks\n\nWorks something like this:\n\n```python\nimport parameter_checks as pc\nimport enum\n\n\nclass Status(enum.Enum):\n  FAILURE = 0\n  SAVED = 1\n  DISPLAYED = 2\n\n\n@pc.hints.cleanup  # Cleans up annotations\n@pc.hints.enforce  # Enforces the checks\ndef function(\n        rescale: pc.annotations.Checks[\n          float,\n          lambda a: 1. < a < 25.\n        ],\n        file: pc.annotations.Checks[\n          str,\n          lambda file: file.endswith(\".jpg\") or file.endswith(\".png\"),\n          lambda file: not file.endswith(\"private.jpg\") and not file.endswith(\"private.jpg\"),\n          lambda file: not file.startswith(\"_\")\n        ]\n) -> pc.annotations.Checks[Status, lambda r: r != Status.FAILURE]:\n  ...\n```\n\nAs can be seen in this example, this package provides a new type-annotation: [pc.annotations.Checks](#pcannotationschecks)\n(it also provides [pc.annotations.Hooks](#pcannotationshooks), as seen in the example below). \n\n### pc.annotations.Checks\n\n**Construction**\n\nAs seen in the [example](#example--checks), `pc.annotations.Checks` is constructed via its \n`__getitem__`-method to conform to the type-hinting from [typing](https://docs.python.org/3/library/typing.html).\n\nThe first parameter in the brackets can either be a type-hint or a callable. All others must be callables, or they will \nbe ignored by [@pc.hints.enforce](#pchintsenforce) and [@pc.hints.cleanup](#pchintscleanup). Any callable is assumed \nto take one argument&mdash;the parameter&mdash;and return a `bool`. \nIf that bool is `False`, a `ValueError` will be raised. These callables will be referred to as \"check functions\" \nfrom hereon out.\n\n**Explanation with examples**\n\nUsing this annotation on a parameter- or return-hint of a callable that is decorated with \n[@pc.hints.enforce](#pchintsenforce) means that the check-functions in the `Checks`-hint \nwill be executed and, if they fail, will raise a ValueError \nwith that looks something like this:\n\n    ValueError: Check failed! \n        - function: foo\n        - parameter: a\n\nFor the following function:\n\n```python\nimport parameter_checks as pc\n\n\n@pc.hints.enforce\ndef foo(a: pc.annotations.Checks[lambda a: a != 0]):\n    ... \n\n\nfoo(0)   # raises ValueError\n```\n\nThe error-output will be improved upon with more information to make the traceback easier.\n\n\n### pc.annotations.Hooks\n\nThis works similar to [pc.annotations.Checks](#pcannotationschecks), except that its check-functions work differently.\n\nThe first item in the brackets can again be a type or a callable, but the callables are now assumed to work \ndifferently: \n\n- They take four arguments in the following order: \n  1. **fct**: the function that was decorated by [@pc.hints.enforce](#pchintsenforce).\n  2. **parameter**: the value of the parameter that is annotated.\n  3. **parameter_name**: the name of that parameter.\n  4. **typehint**: the typehint.\n- They return the parameter &ndash; however modified. \n\n**Example**\n\n```python\nimport parameter_checks as pc\n\n\ndef hook_function(fct, parameter, parameter_name, typehint):\n    if type(parameter) is not typehint.typehint:\n        err_str = f\"In function {fct}, parameter {parameter_name}={parameter} \" \\\n                  f\"is not of type {typehint.typehint}!\"\n        raise TypeError(err_str)\n    \n    # Yes, the following calculation should be in the function-body,\n    #   but it demonstrates that arbitrary changes can be made here,\n    #   which might be useful if, for example, some conversion has \n    #   to happen in many parameters of many functions. \n    # Moving that conversion into its own function and calling it \n    #   in the typehint might make the program more readable than \n    #   packing it into the function-body.\n    return 3 + 4 * parameter - parameter**2   \n\n\n@pc.hints.enforce\ndef foo(a: pc.annotations.Hooks[int, hook_function]):\n    return a \n```\n\nYou can also use multiple hook-functions, which will be called on each other's output in the order\nin which they are given to `pc.annotations.Hooks`.\n\n### @pc.hints.enforce\n\nThis decorator enforces the two above-mentioned hints ([pc.annotations.Checks](#pcannotationschecks) \nand [pc.annotations.Hooks](#pcannotationshooks)) for a callable. \n\n**CAREFUL** This decorator *doesn't* enforce type-hints, but only the check-functions. Type-hints \nare only there for [@pc.hints.cleanup](#pchintscleanup).\n\n### @pc.hints.cleanup\n\nThis decorator removes any hint of `pc.annotations.Checks` (and `pc.annotations.Hooks`, as described below). This means that a \nfunction annotated as follows:\n\n```python \nimport parameter_checks as pc \n\n\n@pc.hints.cleanup\n@pc.hints.enforce\ndef foo(\n        a: int, \n        b: pc.annotations.Checks[int, ...], \n        c\n) -> pc.annotations.Checks[...]:\n    ...\n```\n\nwhich is excpected to have the following `__annotations__`: \n\n`{'a': int, 'b': pc.annotations.Checks[int, ...], 'return': pc.annotations.Checks[...]`\n\nnow actually has these annotations:\n\n`{'a': int, 'b': int}`\n\nThis way, other decorators can work as usual. This is important as `@pc.hints.enforce` doesn't enforce \n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -131,7 +130,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16165656,
+        "last_serial": 16173050,
         "urls": [
             {
                 "comment_text": "",
@@ -170,6 +169,95 @@
                 "upload_time": "2022-12-20T20:44:02",
                 "upload_time_iso_8601": "2022-12-20T20:44:02.880589Z",
                 "url": "https://files.pythonhosted.org/packages/56/31/4a3aa1cb0d8af79831c9cd301c9c20b0c561124f6b64feba20f554eaf26a/parameter-checks-0.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.2": {
+        "info": {
+            "author": "Sebastian M\u00fcller",
+            "author_email": "sebastian.nicolas.mueller@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# parameter-checks\n\nExtend typehints to include dynamic checks (that might otherwise be dealt with by assertions) in Python.\n\n**Project**\n\n![PyPI Version](https://img.shields.io/pypi/v/parameter_checks)\n![Wheel](https://img.shields.io/pypi/wheel/parameter_checks)\n\n**Tests**\n\n![Tests](https://github.com/snimu/parameter-checks/actions/workflows/tests.yml/badge.svg)\n![Coverage](coverage.svg)\n\n**Misc**\n\n![License](https://img.shields.io/github/license/snimu/parameter-checks)\n![Python Versions](https://img.shields.io/pypi/pyversions/parameter_checks)\n\n**Installation: Pip**\n\n```bash\npip3 install parameter_checks\n```\n\n**Comments**\n\n- A proper documentation is (likely) coming\n- A conda-build may or may not come\n\n## Package\n\nBasic example:\n\n```python \nimport parameter_checks as pc\n\n\n@pc.hints.cleanup   # be left with only type-annotations\n@pc.hints.enforce   # enforce the lambda but not the types\ndef div(a: int, b: pc.annotations.Checks[int, lambda b: b != 0]):\n    return a / b \n\ndiv(1, 1)   # returns 1.0\ndiv(1, 0)   # raises ValueError\n```\n\nAs can be seen in this example, this package provides a new type-annotation: [pc.annotations.Checks](#pcannotationschecks)\n(it also provides [pc.annotations.Hooks](#pcannotationshooks), see below). \nUsing [@pc.hints.enforce](#pchintsenforce) on a function will enforce the checks given to those \nannotations (but not the types). [@pc.hints.cleanup](#pchintscleanup) would produce the \n`div.__annotations__` of `{\"a\": int, \"b\": int}` in the example above.\n\n### pc.annotations.Checks\n\nAdd simple boolean checks on your parameters or return-values.\n\n#### Construction of Checks\n\nAs seen in the [example](#example--checks), `pc.annotations.Checks` is constructed via its \n`__getitem__`-method to conform to the type-hinting from [typing](https://docs.python.org/3/library/typing.html).\n\nThe first parameter in the brackets can either be a type-hint or a callable. All others must be callables, or they will \nbe ignored by [@pc.hints.enforce](#pchintsenforce) and [@pc.hints.cleanup](#pchintscleanup). Any callable is assumed \nto take one argument&mdash;the parameter&mdash;and return a `bool`. \nIf that bool is `False`, a `ValueError` will be raised. These callables will be referred to as \"check functions\" \nfrom hereon out.\n\n#### Check-failure\n\nUsing this annotation on a parameter- or return-hint of a callable that is decorated with \n[@pc.hints.enforce](#pchintsenforce) means that the check-functions in the `Checks`-hint \nwill be executed and, if they fail, will raise a ValueError.\n\nThe following code:\n\n```python\nimport parameter_checks as pc\n\n\n@pc.hints.enforce\ndef div(a: int, b: pc.annotations.Checks[lambda b: b != 0]):\n    return a / b\n\n\ndiv(1, 0)   # raises ValueError\n```\n\nWill produce the following exception: \n\n    ValueError: \n    Check failed! \n        - Callable: \n            - Name: foo\n            - Module: __main__\n        - Parameter: \n            - Name: b\n            - Value: 0\n\n#### Example Checks\n\n```python\nimport parameter_checks as pc\nimport enum\n\n\nclass Status(enum.Enum):\n  FAILURE = 0\n  SAVED = 1\n  DISPLAYED = 2\n\n\n@pc.hints.cleanup  # Cleans up annotations\n@pc.hints.enforce  # Enforces the checks\ndef function(\n        rescale: pc.annotations.Checks[\n          float,\n          lambda a: 1. < a < 25.\n        ],\n        file: pc.annotations.Checks[\n          str,\n          lambda file: file.endswith(\".jpg\") or file.endswith(\".png\"),\n          lambda file: not file.endswith(\"private.jpg\") and not file.endswith(\"private.jpg\"),\n          lambda file: not file.startswith(\"_\")\n        ]\n) -> pc.annotations.Checks[Status, lambda r: r != Status.FAILURE]:\n  ...\n```\n\n#### Notes on Checks\n\n**CAREFUL!** Do not use this hint in any other hint (like `pc.annotations.Checks | float`, \nor `tuple[pc.annotations.Check, int, int]`). Both [@pc.hints.enforce](#pchintsenforce) \nand [@pc.hints.cleanup](#pchintscleanup) will fully ignore these `pc.annotations.Checks`. \n\n\n### pc.annotations.Hooks\n\nHook functions to your parameters that modify them or raise exceptions before the actual \nfunction even starts.\n\n#### Construction of Hooks\n\nThis works similar to [pc.annotations.Checks](#pcannotationschecks), except that its check-functions work differently.\n\nThe first item in the brackets can again be a type or a callable, but the callables are now assumed to work \ndifferently: \n\n- They take four arguments in the following order: \n  1. **fct**: the function that was decorated by [@pc.hints.enforce](#pchintsenforce).\n  2. **parameter**: the value of the parameter that is annotated.\n  3. **parameter_name**: the name of that parameter.\n  4. **typehint**: the typehint.\n- They return the parameter &ndash; however modified. \n\n#### Example 1 of Hooks\n\n```python \nimport torch\nimport torchvision as tv\nimport parameter_checks as pc\n\n\ntransforms =  tv.transforms.Compose([   # examples for transforms that might be used just everywhere\n    tv.transforms.ToPILImage(), \n    tv.transforms.ToTensor(),\n    tv.transforms.Normalize(mean=train_mean, std=train_std),\n    tv.transforms.RandomHorizontalFlip(),\n    tv.transforms.RandomVerticalFlip()\n])\n\n\nclass Model(torch.nn.Module):\n    def __init__(self):\n        ...\n\n    @pc.hints.enforce\n    def forward(self, tensor: pc.annotations.Hooks[transforms]):\n        ...\n```\n\nYes, this could (and should) have been taken care of by the dataloader. \n\nHowever, applying the transforms in the function-signature might allow \ndifferent models to use the same dataloader but with\ndifferent transforms. It would make it obvious which transform belongs to which model \nin the function-signature, instead of having to look it up in the \ndataloader. If the `transforms` were properly named, it might make the code more \nreadable.\n\nThis might not be the most practical example, but it hopefully serves as inspiration.\n\n#### Example 2 of Hooks\n\n```python\nimport parameter_checks as pc\n\n\ndef hook_function(fct, parameter, parameter_name, typehint):\n    if type(parameter) is not typehint:\n        err_str = f\"In function {fct}, parameter {parameter_name}={parameter} \" \\\n                  f\"is not of type {typehint}!\"\n        raise TypeError(err_str)\n    \n    # Yes, the following calculation should be in the function-body,\n    #   but it demonstrates that arbitrary changes can be made here,\n    #   which might be useful if, for example, some conversion has \n    #   to happen in many parameters of many functions. \n    # Moving that conversion into its own function and calling it \n    #   in the typehint might make the program more readable than \n    #   packing it into the function-body.\n    return 3 + 4 * parameter - parameter**2   \n\n\n@pc.hints.enforce\ndef foo(a: pc.annotations.Hooks[int, hook_function]):\n    return a \n\n\nassert foo(1) == 6\nassert foo(2) == 7\nassert foo(5) == -2\n```\n\n#### Notes on Hooks\n\nYou can also use multiple hook-functions, which will be called on each other's output in the order\nin which they are given to `pc.annotations.Hooks`.\n\n**CAREFUL!** Do not use this hint in any other hint (like `pc.annotations.Hooks | float`, \nor `tuple[pc.annotations.Hooks, int, int]`). Both [@pc.hints.enforce](#pchintsenforce) \nand [@pc.hints.cleanup](#pchintscleanup) will fully ignore these `pc.annotations.Hooks`.\n\n### @pc.hints.enforce\n\nThis decorator enforces the two above-mentioned hints ([pc.annotations.Checks](#pcannotationschecks) \nand [pc.annotations.Hooks](#pcannotationshooks)) for a callable. \n\n**CAREFUL** This decorator *doesn't* enforce type-hints, but only the check-functions. Type-hints \nare only there for [@pc.hints.cleanup](#pchintscleanup).\n\n### @pc.hints.cleanup\n\nThis decorator removes any hint of `pc.annotations.Checks` (and `pc.annotations.Hooks`, as described below). This means that a \nfunction annotated as follows:\n\n```python \nimport parameter_checks as pc \n\n\n@pc.hints.cleanup\n@pc.hints.enforce\ndef foo(\n        a: int, \n        b: pc.annotations.Checks[int, ...], \n        c\n) -> pc.annotations.Checks[...]:\n    ...\n```\n\nwhich is excpected to have the following `__annotations__`: \n\n`{'a': int, 'b': pc.annotations.Checks[int, ...], 'return': pc.annotations.Checks[...]`\n\nnow actually has these annotations:\n\n`{'a': int, 'b': int}`\n\nThis way, other decorators can work as usual. \n\nThis decorator is separate from \n[@pc.hints.enforce](#pchintsenforce) so that users can decide to somehow make use\nof [pc.annotations.Checks](#pcannotationschecks) and [pc.annotations.Hooks](#pcannotationshooks)\nin their own functions or decorators, or choose to remove those pesky annotations and have \nnormal-looking `__annotations__`.\n\n## But why?\n\nFew things are more useful in programming than the ability to constrain a program's possible behaviors \nand communicate those constraints clearly in code. Statically typed languages do this with types, scope modifiers, \nand lifetime modifiers, among others (`int`, `static`, `private`, `const`, etc.). These are static constraints \nin that they are evaluated statically, before runtime.\n\nOftentimes, a program also has dynamic constraints, evaluated during runtime&mdash;assertions, for example. \nA function dealing with division, for example, has to deal with the special case of division by zero.\n\nReplacing parameter-checks in the function-body with enforceable typehints in the \nfunction-signature might have the following advantages:\n\n- Make code more readable by having constraints in a predefined place\n- Encourage programmers to think about these constraints while writing the functions&mdash;a type of \ntest-driven development directly at the function (seeing parts of the \"tests\" in the function-signature\nmight assist readability of code, as well)\n- Make code easier to write by providing important information about APIs in a glancable way\n  - This would of course require editor-support, which I do not provide\n- Make it possible to include information on dynamic constraints in automatically generated documentation\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "parameters,return-values,checks,types,dynamic,decorator,typehint",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "parameter-checks",
+            "package_url": "https://pypi.org/project/parameter-checks/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/parameter-checks/",
+            "project_urls": {
+                "repository": "https://github.com/snimu/parameter-checks"
+            },
+            "release_url": "https://pypi.org/project/parameter-checks/0.1.2/",
+            "requires_dist": null,
+            "requires_python": ">=3.8",
+            "summary": "Extend typehints to include dynamic checks (that might otherwise be dealt with by assertions) in Python.",
+            "version": "0.1.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16173050,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7b1ce355b6d5464eb366680babfd14de",
+                    "sha256": "600fa067e4b37f7836baf4f0f12c1405e9bf85af156edea5cd0e1420928ac8ef"
+                },
+                "downloads": -1,
+                "filename": "parameter_checks-0.1.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "7b1ce355b6d5464eb366680babfd14de",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 8182,
+                "upload_time": "2022-12-21T12:18:51",
+                "upload_time_iso_8601": "2022-12-21T12:18:51.034011Z",
+                "url": "https://files.pythonhosted.org/packages/c3/cf/accbe236f9b05efefd1cdbe76cbfef119e5f88f63ff24e4ce0fa427f30ca/parameter_checks-0.1.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c64480be575b1a365f2fa098c24428e0",
+                    "sha256": "46d40226d67a00da3a6fcd384a30edc5ed542bef2d3f1f8d729fb13415f39856"
+                },
+                "downloads": -1,
+                "filename": "parameter-checks-0.1.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c64480be575b1a365f2fa098c24428e0",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 10959,
+                "upload_time": "2022-12-21T12:18:52",
+                "upload_time_iso_8601": "2022-12-21T12:18:52.651645Z",
+                "url": "https://files.pythonhosted.org/packages/21/c6/10e21b24e9eb686fb07f8b33267de101e9725d1307cf8014b71138429d8f/parameter-checks-0.1.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

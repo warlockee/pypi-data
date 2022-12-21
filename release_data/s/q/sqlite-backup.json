@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16138798,
+        "last_serial": 16169524,
         "urls": [
             {
                 "comment_text": "",
@@ -138,7 +138,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16138798,
+        "last_serial": 16169524,
         "urls": [
             {
                 "comment_text": "",
@@ -231,7 +231,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16138798,
+        "last_serial": 16169524,
         "urls": [
             {
                 "comment_text": "",
@@ -324,7 +324,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16138798,
+        "last_serial": 16169524,
         "urls": [
             {
                 "comment_text": "",
@@ -417,7 +417,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16138798,
+        "last_serial": 16169524,
         "urls": [
             {
                 "comment_text": "",
@@ -476,7 +476,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# sqlite_backup\n\nThis exposes the python stdlib [`sqlite.backup`](https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.backup) function as a library, with a couple extra steps.\n\nThe main purpose for writing this is to copy sqlite databases that you may not own -- perhaps it belongs to an application (your browser) and is locked since that's currently open, or the OS keeps it open while the computer is active (e.g. Mac with iMessage)\n\n### Features\n\n- Has the option (true by default) to first safely copy the database from disk to a temporary directory, which is:\n  - useful in case the source is in read-only mode (e.g. in some sort of docker container)\n  - safer if you're especially worried about corrupting or losing data\n- Uses [`Cpython`s Connection.backup](https://github.com/python/cpython/blob/8fb36494501aad5b0c1d34311c9743c60bb9926c/Modules/_sqlite/connection.c#L1716), which directly uses the [underlying Sqlite C code](https://www.sqlite.org/c3ref/backup_finish.html)\n- Performs a [`wal_checkpoint`](https://www.sqlite.org/pragma.html#pragma_wal_checkpoint) after copying to the destination, to remove the WAL (write-ahead log; temporary database file). Typically the WAL is removed when the database is closed, but [particular builds of sqlite](https://sqlite.org/forum/forumpost/1fdfc1a0e7) or sqlite compiled with [`SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE` enabled](https://www.sqlite.org/c3ref/c_dbconfig_enable_fkey.html) may prevent that -- so the checkpoint exists to ensure there are no temporary files leftover\n\nIn short, this **prioritizes safety of the data** over performance (temporarily copying data files to `/tmp`) - because we often don't know what the application may be doing while we're copying underlying sqlite databases\n\nThe initial backup function and some tests were extracted out of the [`karlicoss/HPI` `core/sqlite`](https://github.com/karlicoss/HPI/blob/a1f03f9c028df9d1898de2cc14f1df4fa6d8c471/my/core/sqlite.py#L33-L51) module\n\nIf other tools exist to do this, please [let me know!](https://github.com/seanbreckenridge/sqlite_backup/issues/new)\n\n## Installation\n\nRequires `python3.7+`\n\nTo install with pip, run:\n\n    pip install sqlite_backup\n\n## Usage\n\n```\nUsage: sqlite_backup [OPTIONS] SOURCE_DATABASE DESTINATION\n\n  SOURCE_DATABASE is the database to copy\n\n  DESTINATION is where to write the database. If a directory, uses\n  the SOURCE_DATABASE name. If a file, the directory must exist,\n  and the destination file must not already exist (to prevent\n  possibly overwriting old data)\n\nOptions:\n  --debug                         Increase log verbosity  [default: False]\n  --wal-checkpoint / --no-wal-checkpoint\n                                  After writing to the destination, run a\n                                  checkpoint to truncate the WAL to zero bytes\n                                  [default: wal-checkpoint]\n  --copy-use-tempdir / --no-copy-use-tempdir\n                                  Copy the source database files to a\n                                  temporary directory, then connect to the\n                                  copied files  [default: copy-use-tempdir]\n  --copy-retry INTEGER            If the files change while copying to the\n                                  temporary directory, retry <n> times\n                                  [default: 100]\n  --copy-retry-strict / --no-copy-retry-strict\n                                  Throws an error if this fails to safely copy\n                                  the database files --copy-retry times\n                                  [default: copy-retry-strict]\n  --help                          Show this message and exit.  [default:\n                                  False]\n```\n\nFor usage in python, use the `sqlite_backup` function, see the [docs](./docs/sqlite_backup/core.md)\n\nIf you plan on reading from these backed up databases (and you're not planning on modifying these at all), I would recommend using the [`mode=ro`](https://www.sqlite.org/uri.html#urimode) (readonly) or [`immutable`](https://www.sqlite.org/uri.html#uriimmutable) flags when connecting to the database. In python, like:\n\n```python\nimport sqlite3\nfrom typing import Iterator\n\ndef sqlite_connect(database: str) -> Iterator[sqlite3.Connection]:\n    try:\n        # or for immutable, f\"file:{database}?immutable=1\"\n        with sqlite3.connect(f\"file:{database}?mode=ro\", uri=True) as conn:\n            yield conn\n    finally:\n        conn.close()\n\nwith sqlite_connect(\"/path/to/database\") as conn:\n    conn.execute(\"...\")\n```\n\n### Example\n\n```\nsqlite_backup --debug ~/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite ./firefox.sqlite\n[D 220202 13:00:32 core:110] Source database files: '['/home/sean/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite', '/home/sean/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite-wal']'\n[D 220202 13:00:32 core:111] Temporary Destination database files: '['/tmp/tmpm2nhl1p3/places.sqlite', '/tmp/tmpm2nhl1p3/places.sqlite-wal']'\n[D 220202 13:00:32 core:64] Copied from '/home/sean/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite' to '/tmp/tmpm2nhl1p3/places.sqlite' successfully; copied without file changing: True\n[D 220202 13:00:32 core:64] Copied from '/home/sean/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite-wal' to '/tmp/tmpm2nhl1p3/places.sqlite-wal' successfully; copied without file changing: True\n[D 220202 13:00:32 core:240] Running backup, from '/tmp/tmpm2nhl1p3/places.sqlite' to '/home/sean/Repos/sqlite_backup/firefox.sqlite'\nBacked up /home/sean/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite to /home/sean/Repos/sqlite_backup/firefox.sqlite\n```\n\n### Tests\n\n```bash\ngit clone 'https://github.com/seanbreckenridge/sqlite_backup'\ncd ./sqlite_backup\npip install '.[testing]'\nmypy ./sqlite_backup\npytest\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -512,7 +511,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16138798,
+        "last_serial": 16169524,
         "urls": [
             {
                 "comment_text": "",
@@ -551,6 +550,101 @@
                 "upload_time": "2022-12-18T05:26:26",
                 "upload_time_iso_8601": "2022-12-18T05:26:26.135725Z",
                 "url": "https://files.pythonhosted.org/packages/08/70/137ac330d99722730bc63e266fa483715f0f71e375ce5d18e41ce42d7162/sqlite_backup-0.1.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.6": {
+        "info": {
+            "author": "Sean Breckenridge",
+            "author_email": "seanbrecke@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# sqlite_backup\n\nThis exposes the python stdlib [`sqlite.backup`](https://docs.python.org/3/library/sqlite3.html#sqlite3.Connection.backup) function as a library, with a couple extra steps.\n\nThe main purpose for writing this is to copy sqlite databases that you may not own -- perhaps it belongs to an application (your browser) and is locked since that's currently open, or the OS keeps it open while the computer is active (e.g. Mac with iMessage)\n\n### Features\n\n- Has the option (true by default) to first safely copy the database from disk to a temporary directory, which is:\n  - useful in case the source is in read-only mode (e.g. in some sort of docker container)\n  - safer if you're especially worried about corrupting or losing data\n- Uses [`Cpython`s Connection.backup](https://github.com/python/cpython/blob/8fb36494501aad5b0c1d34311c9743c60bb9926c/Modules/_sqlite/connection.c#L1716), which directly uses the [underlying Sqlite C code](https://www.sqlite.org/c3ref/backup_finish.html)\n- Performs a [`wal_checkpoint`](https://www.sqlite.org/pragma.html#pragma_wal_checkpoint) and sets `journal_mode=DELETE` after copying to the destination, to remove the WAL (write-ahead log; temporary database file). Typically the WAL is removed when the database is closed, but [particular builds of sqlite](https://sqlite.org/forum/forumpost/1fdfc1a0e7), the [default sqlite installed on mac](https://github.com/seanbreckenridge/sqlite_backup/issues/9), or sqlite compiled with [`SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE` enabled](https://www.sqlite.org/c3ref/c_dbconfig_enable_fkey.html) or [`SQLITE_FCNTL_PERSIST_WAL`](https://www.sqlite.org/c3ref/c_fcntl_begin_atomic_write.html#sqlitefcntlpersistwal) may prevent that -- so the checkpoint exists to ensure there are no temporary files leftover\n\nIn short, this **prioritizes safety of the data** over performance (temporarily copying data files to `/tmp`) - because we often don't know what the application may be doing while we're copying underlying sqlite databases\n\nThe initial backup function and some tests were extracted out of the [`karlicoss/HPI` `core/sqlite`](https://github.com/karlicoss/HPI/blob/a1f03f9c028df9d1898de2cc14f1df4fa6d8c471/my/core/sqlite.py#L33-L51) module\n\nIf other tools exist to do this, please [let me know!](https://github.com/seanbreckenridge/sqlite_backup/issues/new)\n\n## Installation\n\nRequires `python3.7+`\n\nTo install with pip, run:\n\n    pip install sqlite_backup\n\n## Usage\n\n```\nUsage: sqlite_backup [OPTIONS] SOURCE_DATABASE DESTINATION\n\n  SOURCE_DATABASE is the database to copy\n\n  DESTINATION is where to write the database. If a directory, uses\n  the SOURCE_DATABASE name. If a file, the directory must exist,\n  and the destination file must not already exist (to prevent\n  possibly overwriting old data)\n\nOptions:\n  --debug                         Increase log verbosity  [default: False]\n  --wal-checkpoint / --no-wal-checkpoint\n                                  After writing to the destination, run a\n                                  checkpoint to truncate the WAL to zero bytes\n                                  [default: wal-checkpoint]\n  --copy-use-tempdir / --no-copy-use-tempdir\n                                  Copy the source database files to a\n                                  temporary directory, then connect to the\n                                  copied files  [default: copy-use-tempdir]\n  --copy-retry INTEGER            If the files change while copying to the\n                                  temporary directory, retry <n> times\n                                  [default: 100]\n  --copy-retry-strict / --no-copy-retry-strict\n                                  Throws an error if this fails to safely copy\n                                  the database files --copy-retry times\n                                  [default: copy-retry-strict]\n  --help                          Show this message and exit.  [default:\n                                  False]\n```\n\nFor usage in python, use the `sqlite_backup` function, see the [docs](./docs/sqlite_backup/core.md)\n\nIf you plan on reading from these backed up databases (and you're not planning on modifying these at all), I would recommend using the [`mode=ro`](https://www.sqlite.org/uri.html#urimode) (readonly) or [`immutable`](https://www.sqlite.org/uri.html#uriimmutable) flags when connecting to the database. In python, like:\n\n```python\nimport sqlite3\nfrom typing import Iterator\n\ndef sqlite_connect(database: str) -> Iterator[sqlite3.Connection]:\n    try:\n        # or for immutable, f\"file:{database}?immutable=1\"\n        with sqlite3.connect(f\"file:{database}?mode=ro\", uri=True) as conn:\n            yield conn\n    finally:\n        conn.close()\n\nwith sqlite_connect(\"/path/to/database\") as conn:\n    conn.execute(\"...\")\n```\n\n### Example\n\n```\nsqlite_backup --debug ~/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite ./firefox.sqlite\n[D 220202 13:00:32 core:110] Source database files: '['/home/sean/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite', '/home/sean/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite-wal']'\n[D 220202 13:00:32 core:111] Temporary Destination database files: '['/tmp/tmpm2nhl1p3/places.sqlite', '/tmp/tmpm2nhl1p3/places.sqlite-wal']'\n[D 220202 13:00:32 core:64] Copied from '/home/sean/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite' to '/tmp/tmpm2nhl1p3/places.sqlite' successfully; copied without file changing: True\n[D 220202 13:00:32 core:64] Copied from '/home/sean/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite-wal' to '/tmp/tmpm2nhl1p3/places.sqlite-wal' successfully; copied without file changing: True\n[D 220202 13:00:32 core:240] Running backup, from '/tmp/tmpm2nhl1p3/places.sqlite' to '/home/sean/Repos/sqlite_backup/firefox.sqlite'\nBacked up /home/sean/.mozilla/firefox/ew9cqpqe.dev-edition-default/places.sqlite to /home/sean/Repos/sqlite_backup/firefox.sqlite\n```\n\n### Tests\n\n```bash\ngit clone 'https://github.com/seanbreckenridge/sqlite_backup'\ncd ./sqlite_backup\npip install '.[testing]'\nmypy ./sqlite_backup\npytest\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/seanbreckenridge/sqlite_backup",
+            "keywords": "database sqlite",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "sqlite-backup",
+            "package_url": "https://pypi.org/project/sqlite-backup/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/sqlite-backup/",
+            "project_urls": {
+                "Homepage": "https://github.com/seanbreckenridge/sqlite_backup"
+            },
+            "release_url": "https://pypi.org/project/sqlite-backup/0.1.6/",
+            "requires_dist": [
+                "click (>=8.0)",
+                "logzero",
+                "pytest ; extra == 'testing'",
+                "mypy ; extra == 'testing'",
+                "flake8 ; extra == 'testing'",
+                "pytest-reraise ; extra == 'testing'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "A tool to copy sqlite databases you don't own",
+            "version": "0.1.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16169524,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f963d7a1e85f1b9a1547f6289d2edf1d",
+                    "sha256": "d7ae21e53fe4100925ea0996718da2b03865babab0f9db96467ce4726a6bcced"
+                },
+                "downloads": -1,
+                "filename": "sqlite_backup-0.1.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f963d7a1e85f1b9a1547f6289d2edf1d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 10740,
+                "upload_time": "2022-12-21T04:30:02",
+                "upload_time_iso_8601": "2022-12-21T04:30:02.492435Z",
+                "url": "https://files.pythonhosted.org/packages/7c/9e/ce9ec807e5171751d3e5ed701b21e53274b153ae83b035ffb182dd117e55/sqlite_backup-0.1.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e00e719af89866e0dc895a7523cc8119",
+                    "sha256": "1211a2ffa2c29e446271b3b374a125847a14fa3c36380532bc3d864e60073314"
+                },
+                "downloads": -1,
+                "filename": "sqlite_backup-0.1.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e00e719af89866e0dc895a7523cc8119",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 11188,
+                "upload_time": "2022-12-21T04:30:04",
+                "upload_time_iso_8601": "2022-12-21T04:30:04.351549Z",
+                "url": "https://files.pythonhosted.org/packages/24/07/3e617b9f066695620770088e8ca36c037f6a1b3c2620b8423052ad6b5b79/sqlite_backup-0.1.6.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
