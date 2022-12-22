@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15812041,
+        "last_serial": 16173393,
         "urls": [
             {
                 "comment_text": "",
@@ -146,7 +146,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15812041,
+        "last_serial": 16173393,
         "urls": [
             {
                 "comment_text": "",
@@ -235,7 +235,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15812041,
+        "last_serial": 16173393,
         "urls": [
             {
                 "comment_text": "",
@@ -324,7 +324,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15812041,
+        "last_serial": 16173393,
         "urls": [
             {
                 "comment_text": "",
@@ -380,7 +380,6 @@
                 "Programming Language :: Python :: 3.10",
                 "Programming Language :: Python :: 3.11"
             ],
-            "description": "# dapla-statbank-client\nUsed internally by SSB (Statistics Norway).\nValidates and transfers data from Dapla to Statbank.\nGets data from public and internal statbank.\n\n\n### Installing from Pypi with Poetry\nIf the project-folder doesnt already have a pyproject.toml with poetry-info, run this in the dapla-jupyterlab-terminal:\n```bash\npoetry init\n```\nWhen poetry is initialized in the project-folder, install the package from Pypi, and create a kernel:\n```bash\npoetry add dapla-statbank-client\npoetry run python -m ipykernel install --user --name test_statbank\n```\nMake a notebook with the kernel you just made, try this code to verify the package is available:\n```python\nfrom statbank import StatbankClient\nstat_client = StatbankClient(loaduser = \"LASTEBRUKER\")\n# Change LASTEBRUKER to your load-statbank-username\n# Fill out password\n# Default publishing-date is TOMORROW\nprint(stat_client)\n```\n\n### Building datasets\nYou can look at the \"filbeskrivelse\" which is returned from `stat_client.get_description()` in its own local class: StatbankUttrekksBeskrivelse\n```python\ndescription_06339 = stat_client.get_description(tableid=\"06339\")\nprint(description_06339)\n```\nThis should have all the information you are used to reading out from the old \"Filbeskrivelse\". And describes how you should construct your data.\n```python\n# Interesting attributes\ndescription_06339.subtables\ndescription_06339.variables\ndescription_06339.codelists\ndescription_06339.suppression\n```\nAfter starting to construct your data, you can validate it against the Uttrekksbeskrivelse, using the validate-method, without starting a transfer, like this:\n```python\nstat_client.validate(df_06339, tableid=\"06339\")\n```\nValidation will happen by default on user-side, in Python.\nValidation happens on the number of tables, number of columns, code usage in categorical columns, code usage in \"suppression-columns\" (prikkekolonner), and on timeformats (both length and characters used).\n\nGet the \"template\" for the dictionary that needs to be transferred like this:\n```python\ndescription_06339.transferdata_template()\n```\nThis both returns the dict, and prints it, depending on what you want to do with it. Use it to insert your own DataFrames into, and send it to .transfer()\n\n\n### Usage Transferring\n\n```python\nstat_client.transfer({\"deltabellfilnavn.dat\" : df_06399}, \"06339\")\n```\nThe simplest form of usage, is directly-transferring using the transfer-method under the client-class. If the statbanktable expects multiple \"deltabeller\", dataframes must be passed in a list, in the correct order.\n\n\n### Getting apidata\n\n```python\ndf_06339 = stat_client.apidata_all(\"06339\", include_id=True)\n```\n`apidata_all`, does not need a specified query, it will build its own query, trying to get *all the data* from the table. This might be too much, resulting in an error.\n\nThe `include_id`-parameter is a bit *magical*, it gets both codes and value-columns for categorical columns, and tries to merge these next to each other, it also makes a check if the content is the same, then it will not include the content twice.\n\nIf you want to specify a query, to limit the response, use the method `apidata` instead.\\\nHere we are requesting an \"internal table\" which only people at SSB have access to, with a specified URL and query.\n```python\nquery = {'query': [{'code': 'Region', 'selection': {'filter': 'vs:Landet', 'values': ['0']}}, {'code': 'Alder', 'selection': {'filter': 'vs:AldGrupp19', 'values': ['000', '001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011', '012', '013', '014', '015', '016', '017', '018', '019', '020', '021', '022', '023', '024', '025', '026', '027', '028', '029', '030', '031', '032', '033', '034', '035', '036', '037', '038', '039', '040', '041', '042', '043', '044', '045', '046', '047', '048', '049', '050', '051', '052', '053', '054', '055', '056', '057', '058', '059', '060', '061', '062', '063', '064', '065', '066', '067', '068', '069', '070', '071', '072', '073', '074', '075', '076', '077', '078', '079', '080', '081', '082', '083', '084', '085', '086', '087', '088', '089', '090', '091', '092', '093', '094', '095', '096', '097', '098', '099', '100', '101', '102', '103', '104', '105', '106', '107', '108', '109', '110', '111', '112', '113', '114', '115', '116', '117', '118', '119+']}}, {'code': 'Statsbrgskap', 'selection': {'filter': 'vs:Statsborgerskap', 'values': ['000']}}, {'code': 'Tid', 'selection': {'filter': 'item', 'values': ['2022']}}], 'response': {'format': 'json-stat2'}}\n\ndf_folkemengde = stat_client.apidata(\"https://i.ssb.no/pxwebi/api/v0/no/prod_24v_intern/START/be/be01/folkemengde/Rd0002Aa\",\n                                     query,\n                                     include_id = True\n                                    )\n```\n\n`apidata_rotate` is a thin wrapper around pivot_table. Stolen from: https://github.com/sehyoun/SSB_API_helper/blob/master/src/ssb_api_helper.py\n```python\ndf_folkemengde_rotert = stat_client.rotate(df_folkemengde, 'tidskolonne', \"verdikolonne\")\n```\n\n\nTo import the apidata-functions outside the client (no need for password) do the imports like this:\n```python\nfrom statbank.apidata import apidata_all, apidata, apidata_rotate\n```\n\n\n### Saving and restoring Uttrekksbeskrivelser and Transfers as json\n\nFrom `stat_client.transfer()` you will recieve a StatbankTransfer object, from `stat_client.get_description` a StatbankUttrekksBeskrivelse-object. These can be serialized and saved to disk, and later be restored.\n\n```python\nfilbesk_06339 = stat_client.get_description(\"06339\")\nfilbesk_06339.to_json(\"path.json\")\n# Later the file can be restored with\nfilbesk_06339_new = stat_client.read_description_json(\"path.json\")\n```\n\nSome deeper data-structures, like the dataframes in the transfer will not be serialized and stored with the transfer-object in its json.\n\n---\n\n### Version history\n- 0.0.5 Still some parameter issues\n- 0.0.4 More test coverage, some bugs fixed in rounding checks and parameter-passing \n- 0.0.3 Removed batches, stripping uttrekk from transfer, rounding function on uttrekk, data required in as a dict of dataframes, with \"deltabell-navn\". Tableid now works to transfer to instead of only \"hovedtabellnavn\"\n- 0.0.2 Starting alpha, fine-tuning release to Pypi on github-release\n- 0.0.1 Client, transfer, description, apidata. Quite a lot of work done already. Pre-alpha.\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -414,7 +413,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15812041,
+        "last_serial": 16173393,
         "urls": [
             {
                 "comment_text": "",
@@ -453,6 +452,96 @@
                 "upload_time": "2022-11-18T07:37:14",
                 "upload_time_iso_8601": "2022-11-18T07:37:14.610728Z",
                 "url": "https://files.pythonhosted.org/packages/59/73/a181e4fcdc39a620ef7fe265818487ec591d6b2a832704ef7f70f0a62908/dapla_statbank_client-0.0.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.8": {
+        "info": {
+            "author": "Statistics Norway",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11"
+            ],
+            "description": "# dapla-statbank-client\nUsed internally by SSB (Statistics Norway).\nValidates and transfers data from Dapla to Statbank.\nGets data from public and internal statbank.\n\n\n### Installing from Pypi with Poetry\nIf the project-folder doesnt already have a pyproject.toml with poetry-info, run this in the dapla-jupyterlab-terminal:\n```bash\npoetry init\n```\nWhen poetry is initialized in the project-folder, install the package from Pypi, and create a kernel:\n```bash\npoetry add dapla-statbank-client\npoetry run python -m ipykernel install --user --name test_statbank\n```\nMake a notebook with the kernel you just made, try this code to verify the package is available:\n```python\nfrom statbank import StatbankClient\nstat_client = StatbankClient(loaduser = \"LASTEBRUKER\")\n# Change LASTEBRUKER to your load-statbank-username\n# Fill out password\n# Default publishing-date is TOMORROW\nprint(stat_client)\n```\n\n### Building datasets\nYou can look at the \"filbeskrivelse\" which is returned from `stat_client.get_description()` in its own local class: StatbankUttrekksBeskrivelse\n```python\ndescription_06339 = stat_client.get_description(tableid=\"06339\")\nprint(description_06339)\n```\nThis should have all the information you are used to reading out from the old \"Filbeskrivelse\". And describes how you should construct your data.\n```python\n# Interesting attributes\ndescription_06339.subtables\ndescription_06339.variables\ndescription_06339.codelists\ndescription_06339.suppression\n```\nAfter starting to construct your data, you can validate it against the Uttrekksbeskrivelse, using the validate-method, without starting a transfer, like this:\n```python\nstat_client.validate(df_06339, tableid=\"06339\")\n```\nValidation will happen by default on user-side, in Python.\nValidation happens on the number of tables, number of columns, code usage in categorical columns, code usage in \"suppression-columns\" (prikkekolonner), and on timeformats (both length and characters used).\n\nGet the \"template\" for the dictionary that needs to be transferred like this:\n```python\ndescription_06339.transferdata_template()\n```\nThis both returns the dict, and prints it, depending on what you want to do with it. Use it to insert your own DataFrames into, and send it to .transfer()\n\n\n### Usage Transferring\n\n```python\nstat_client.transfer({\"deltabellfilnavn.dat\" : df_06399}, \"06339\")\n```\nThe simplest form of usage, is directly-transferring using the transfer-method under the client-class. If the statbanktable expects multiple \"deltabeller\", dataframes must be passed in a list, in the correct order.\n\n\n### Getting apidata\n\n```python\ndf_06339 = stat_client.apidata_all(\"06339\", include_id=True)\n```\n`apidata_all`, does not need a specified query, it will build its own query, trying to get *all the data* from the table. This might be too much, resulting in an error.\n\nThe `include_id`-parameter is a bit *magical*, it gets both codes and value-columns for categorical columns, and tries to merge these next to each other, it also makes a check if the content is the same, then it will not include the content twice.\n\nIf you want to specify a query, to limit the response, use the method `apidata` instead.\\\nHere we are requesting an \"internal table\" which only people at SSB have access to, with a specified URL and query.\n```python\nquery = {'query': [{'code': 'Region', 'selection': {'filter': 'vs:Landet', 'values': ['0']}}, {'code': 'Alder', 'selection': {'filter': 'vs:AldGrupp19', 'values': ['000', '001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011', '012', '013', '014', '015', '016', '017', '018', '019', '020', '021', '022', '023', '024', '025', '026', '027', '028', '029', '030', '031', '032', '033', '034', '035', '036', '037', '038', '039', '040', '041', '042', '043', '044', '045', '046', '047', '048', '049', '050', '051', '052', '053', '054', '055', '056', '057', '058', '059', '060', '061', '062', '063', '064', '065', '066', '067', '068', '069', '070', '071', '072', '073', '074', '075', '076', '077', '078', '079', '080', '081', '082', '083', '084', '085', '086', '087', '088', '089', '090', '091', '092', '093', '094', '095', '096', '097', '098', '099', '100', '101', '102', '103', '104', '105', '106', '107', '108', '109', '110', '111', '112', '113', '114', '115', '116', '117', '118', '119+']}}, {'code': 'Statsbrgskap', 'selection': {'filter': 'vs:Statsborgerskap', 'values': ['000']}}, {'code': 'Tid', 'selection': {'filter': 'item', 'values': ['2022']}}], 'response': {'format': 'json-stat2'}}\n\ndf_folkemengde = stat_client.apidata(\"https://i.ssb.no/pxwebi/api/v0/no/prod_24v_intern/START/be/be01/folkemengde/Rd0002Aa\",\n                                     query,\n                                     include_id = True\n                                    )\n```\n\n`apidata_rotate` is a thin wrapper around pivot_table. Stolen from: https://github.com/sehyoun/SSB_API_helper/blob/master/src/ssb_api_helper.py\n```python\ndf_folkemengde_rotert = stat_client.rotate(df_folkemengde, 'tidskolonne', \"verdikolonne\")\n```\n\n\nTo import the apidata-functions outside the client (no need for password) do the imports like this:\n```python\nfrom statbank.apidata import apidata_all, apidata, apidata_rotate\n```\n\n\n### Saving and restoring Uttrekksbeskrivelser and Transfers as json\n\nFrom `stat_client.transfer()` you will recieve a StatbankTransfer object, from `stat_client.get_description` a StatbankUttrekksBeskrivelse-object. These can be serialized and saved to disk, and later be restored.\n\n```python\nfilbesk_06339 = stat_client.get_description(\"06339\")\nfilbesk_06339.to_json(\"path.json\")\n# Later the file can be restored with\nfilbesk_06339_new = stat_client.read_description_json(\"path.json\")\n```\n\nSome deeper data-structures, like the dataframes in the transfer will not be serialized and stored with the transfer-object in its json.\n\n---\n\n### Version history\n- 0.0.5 Still some parameter issues\n- 0.0.4 More test coverage, some bugs fixed in rounding checks and parameter-passing \n- 0.0.3 Removed batches, stripping uttrekk from transfer, rounding function on uttrekk, data required in as a dict of dataframes, with \"deltabell-navn\". Tableid now works to transfer to instead of only \"hovedtabellnavn\"\n- 0.0.2 Starting alpha, fine-tuning release to Pypi on github-release\n- 0.0.1 Client, transfer, description, apidata. Quite a lot of work done already. Pre-alpha.\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "dapla-statbank-client",
+            "package_url": "https://pypi.org/project/dapla-statbank-client/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/dapla-statbank-client/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/dapla-statbank-client/0.0.8/",
+            "requires_dist": [
+                "IPython (>=8.5.0,<9.0.0)",
+                "dapla-toolbelt (>=1.3.3,<2.0.0)",
+                "ipywidgets (>=8.0.2,<9.0.0)",
+                "pandas (>=1.5.0,<2.0.0)",
+                "pyjstat (>=2.3.0,<3.0.0)",
+                "requests (>=2.28.1,<3.0.0)"
+            ],
+            "requires_python": ">=3.10,<4.0",
+            "summary": "Handles data transfer Statbank <-> Dapla for Statistics Norway",
+            "version": "0.0.8",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16173393,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4cdc95d298d06ae9272252141eb253dd",
+                    "sha256": "c9dc528458a26c4bbb2e2e3e710f25dbb59481e3ffc940066e68b5b0f6920820"
+                },
+                "downloads": -1,
+                "filename": "dapla_statbank_client-0.0.8-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "4cdc95d298d06ae9272252141eb253dd",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10,<4.0",
+                "size": 21882,
+                "upload_time": "2022-12-21T13:02:01",
+                "upload_time_iso_8601": "2022-12-21T13:02:01.174797Z",
+                "url": "https://files.pythonhosted.org/packages/dc/07/4975cf9e23f0ee97c154d1c52ec1c243009ae259cc01fd6a66bfff0c4f60/dapla_statbank_client-0.0.8-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1eaa22abf20006a7db689fdcf80c85b5",
+                    "sha256": "cb39ca44180be97c33f2342ef5ada2802eefb8dca38e95bcdbd3daa96dbc0bd7"
+                },
+                "downloads": -1,
+                "filename": "dapla_statbank_client-0.0.8.tar.gz",
+                "has_sig": false,
+                "md5_digest": "1eaa22abf20006a7db689fdcf80c85b5",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10,<4.0",
+                "size": 21545,
+                "upload_time": "2022-12-21T13:02:02",
+                "upload_time_iso_8601": "2022-12-21T13:02:02.600613Z",
+                "url": "https://files.pythonhosted.org/packages/7a/f8/4ba5c204c0e7d63bb210bf94bf91e360ef17fae90fd4b35045f37178fbdd/dapla_statbank_client-0.0.8.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

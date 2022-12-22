@@ -1,0 +1,92 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "Rob Blackbourn",
+            "author_email": "rob.blackbourn@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# jetblack-negotiate-stream\n\nA Python client for .Net [NegotiateStream](https://learn.microsoft.com/en-us/dotnet/api/system.net.security.negotiatestream).\nIt supports single sign on (SSO) and encryption.\n\nThis was tested using Python 3.8 on Windows 11.\n\n## Installation\n\nInstall from pypi.\n\n```bash\npip install jetblack-negotiate-stream\n```\n\n## Example\n\nThe following programs provide a simple echo server in C# and client in Python.\n\n### Client\n\nThis is an example of a Python client using the synchronous `NegotiateStream` class. Note the call to `authenticate_as_client` before reading and writing.\n\n```python\nimport socket\n\nfrom jetblack_negotiate_stream import NegotiateStream\n\ndef main():\n    hostname = socket.gethostname()\n    port = 8181\n\n    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:\n        sock.connect((hostname, port))\n\n        stream = NegotiateStream(hostname, sock)\n\n        # Do the client side negotiate handshake.\n        stream.authenticate_as_client()\n\n        for data in (b'first line', b'second line', b'third line'):\n            # All reads and writes are encrypted.\n            stream.write(data)\n            response = stream.read()\n            print(\"Received: \", response)\n\nif __name__ == '__main__':\n    main()\n```\n\n### Async Client\n\nThis program uses `NegotiateStreamAsync` which is simply a synchronous version of the `NegotiateStream` class demonstrated above.\n\n```python\nimport asyncio\nimport socket\n\nfrom jetblack_negotiate_stream import NegotiateStreamAsync\n\nasync def main():\n    hostname = socket.gethostname()\n    port = 8181\n\n    reader, writer = await asyncio.open_connection(hostname, port)\n\n    stream = NegotiateStreamAsync(hostname, reader, writer)\n\n    await stream.authenticate_as_client()\n    for data in (b'first line', b'second line', b'third line'):\n        stream.write(data)\n        await stream.drain()\n        response = await stream.read()\n        print(\"Received: \", response)\n\n    stream.close()\n    await stream.wait_closed()\n\nif __name__ == '__main__':\n    asyncio.run(main())\n```\n\n### Alternative Async Client\n\nThe following client follows the patterns demonstrated in the asyncio library using `open_negotiate_stream`. This follows\nthe conventions of the asyncio `open_connection` function. The negotiation happens before the function returns, resulting in cleaner code. \n\n```python\nimport asyncio\nimport socket\n\nfrom jetblack_negotiate_stream import open_negotiate_stream\n\nasync def main():\n    hostname = socket.gethostname()\n    port = 8181\n\n    # Following the same pattern as asyncio.open_connection.\n    reader, writer = await open_negotiate_stream(hostname, port)\n\n    for data in (b'first line', b'second line', b'third line'):\n        writer.write(data)\n        await writer.drain()\n        response = await reader.read()\n        print(\"Received: \", response)\n\n    writer.close()\n    await writer.wait_closed()\n\nif __name__ == '__main__':\n    asyncio.run(main())\n```\n\n### Server\n\nHere is a trivial C# echo server for the clients.\n\n```csharp\nusing System;\nusing System.Net;\nusing System.Net.Security;\nusing System.Net.Sockets;\nusing System.Text;\n\nnamespace NegotiateStreamServer\n{\n    internal class Program\n    {\n        static void Main(string[] args)\n        {\n            var listener = new TcpListener(IPAddress.Any, 8181);\n            listener.Start();\n\n            while (true)\n            {\n                Console.WriteLine(\"Listening ...\");\n                var client = listener.AcceptTcpClient();\n\n                try\n                {\n                    Console.WriteLine(\"... Client connected.\");\n\n                    Console.WriteLine(\"Authenticating...\");\n                    var stream = new NegotiateStream(client.GetStream(), false);\n                    stream.AuthenticateAsServer();\n\n                    Console.WriteLine(\n                        \"... {0} authenticated using {1}\",\n                        stream.RemoteIdentity.Name,\n                        stream.RemoteIdentity.AuthenticationType);\n\n                    var buf = new byte[4096];\n                    for (var i = 0; i < 3; ++i)\n                    {\n                        var bytesRead = stream.Read(buf, 0, buf.Length);\n                        var message = Encoding.UTF8.GetString(buf, 0, bytesRead);\n                        Console.WriteLine(message);\n                        stream.Write(buf, 0, bytesRead);\n                    }\n                    stream.Close();\n                }\n                catch (Exception ex)\n                {\n                    Console.WriteLine(ex.ToString());\n                }\n            }\n        }\n    }\n}\n```\n\n## Acknowledgements\n\nThe library uses the [pyspnego](https://github.com/jborean93/pyspnego) library,\nand takes many ideas from [net.tcp-proxy](https://github.com/ernw/net.tcp-proxy).\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/rob-blackbourn/jetblack-negotiate-stream",
+            "keywords": "",
+            "license": "Apache-2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "jetblack-negotiate-stream",
+            "package_url": "https://pypi.org/project/jetblack-negotiate-stream/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/jetblack-negotiate-stream/",
+            "project_urls": {
+                "Homepage": "https://github.com/rob-blackbourn/jetblack-negotiate-stream",
+                "Repository": "https://github.com/rob-blackbourn/jetblack-negotiate-stream"
+            },
+            "release_url": "https://pypi.org/project/jetblack-negotiate-stream/0.1.0/",
+            "requires_dist": [
+                "pyspnego (>=0.7,<0.8)"
+            ],
+            "requires_python": ">=3.8,<4.0",
+            "summary": "A python client for .Net NegotiateStream",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16174562,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "41c7812d4cb7378bcb811983a8926123",
+                    "sha256": "32fe7f4db7eefd02db4770c6c161d85ed396221490f41a8b682280f1743bac03"
+                },
+                "downloads": -1,
+                "filename": "jetblack_negotiate_stream-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "41c7812d4cb7378bcb811983a8926123",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<4.0",
+                "size": 7410,
+                "upload_time": "2022-12-21T14:59:11",
+                "upload_time_iso_8601": "2022-12-21T14:59:11.117469Z",
+                "url": "https://files.pythonhosted.org/packages/a9/5a/74e0a75df7019952a8734160e09699565883b0b61a4a2df6152292251aa4/jetblack_negotiate_stream-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "417210b136dd2ba7086fbf50b27d9e17",
+                    "sha256": "be5e8fa9dc678e3564e4f41c02a7abc2870a915132fa5f9f2ff9d78b1a09abce"
+                },
+                "downloads": -1,
+                "filename": "jetblack_negotiate_stream-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "417210b136dd2ba7086fbf50b27d9e17",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<4.0",
+                "size": 5650,
+                "upload_time": "2022-12-21T14:59:13",
+                "upload_time_iso_8601": "2022-12-21T14:59:13.214751Z",
+                "url": "https://files.pythonhosted.org/packages/a1/8a/874d79fd0b61aa0573b3006380ef0bd07a7ee1bec96826c9238ccfb2727d/jetblack_negotiate_stream-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
