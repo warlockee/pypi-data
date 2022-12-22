@@ -5,7 +5,6 @@
             "author_email": "Chris Riccomini <criccomini@apache.org>",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "<h1 align=\"center\">\n  <img src=\"https://github.com/recap-cloud/recap/blob/main/static/recap-logo.png?raw=true\" alt=\"recap\"></a>\n  <br>\n</h1>\n\n<p align=\"center\">\n<i>Recap crawls and serves metadata.</i>\n</p>\n\nThere are a ton of data catalogs out there, but most are complex, bloated, and built for a wide audience. Recap is the opposite of that; it's tiny and built specifically for engineers.\n\nYou can use Recap to build data tools for:\n\n* Observability\n* Monitoring\n* Debugging\n* Security\n* Compliance\n* Governance\n\n## Principles\n\nRecap is built with some deliberate design choices.\n\n* **Lightweight**: Recap starts with a single command and requires no other infrastructure (not even Docker).\n* **CLI-first**: Recap doesn't even have a GUI!\n* **RESTful**: Recap comes with a little REST API to ease integration with outside tools.\n* **Automated**: Recap does not support manual curation. All crawling is automated.\n* **Modular**: Recap's storage and crawling layers are fully pluggable.\n* **Programmable**: Recap is a Python library, so you can invoke it directly from your code.\n\n## Integrations\n\nRecap uses [SQLAlchemy](https://www.sqlalchemy.org/) to access databases, so any SQLAlchemy dialect should work. Recap has been tested with:\n\n* Snowflake\n* Bigquery\n* PostgreSQL\n\nStream and filesystem crawling is in the works.\n\n## Usage\n\n### Quickstart\n\nInstall Recap using `pip` or your favorite package manager. Python 3.9 or above is required.\n\n```\n$ pip install recap-core\n```\n\nNow let's crawl a database:\n\n    recap refresh postgresql://username@localhost/some_db\n\nCrawled metadata is stored in a directory structure. See what's available using:\n\n    recap list /\n\nRecap will respond with a JSON list:\n\n```\n[\n  \"databases\"\n]\n```\n\nBrowse around by appending children to the list command:\n\n    recap list /databases\n\nAfter you poke around, try and read some metadata. Every node in the path can have metadata, but only table and view children contain metadata. You can llook at metadata using the `recap read` command:\n\n```\nrecap read /databases/postgresql/instances/localhost/schemas/some_db/tables/some_table\n```\n\nRecap will print all of `some_table`'s metadata to the CLI in JSON format:\n\n```\n{\n  \"access\": {\n    \"username\": {\n      \"privileges\": [\n        \"INSERT\",\n        \"SELECT\",\n        \"UPDATE\",\n        \"DELETE\",\n        \"TRUNCATE\",\n        \"REFERENCES\",\n        \"TRIGGER\"\n      ],\n      \"read\": true,\n      \"write\": true\n    }\n  },\n  \"columns\": {\n    \"email\": {\n      \"autoincrement\": false,\n      \"default\": null,\n      \"generic_type\": \"VARCHAR\",\n      \"nullable\": false,\n      \"type\": \"VARCHAR\"\n    },\n    \"id\": {\n      \"autoincrement\": true,\n      \"default\": \"nextval('\\\"some_db\\\".some_table_id_seq'::regclass)\",\n      \"generic_type\": \"BIGINT\",\n      \"nullable\": false,\n      \"type\": \"BIGINT\"\n    }\n  },\n  \"data_profile\": {\n    \"email\": {\n      \"count\": 10,\n      \"distinct\": 10,\n      \"empty_strings\": 0,\n      \"max_length\": 32,\n      \"min_length\": 13,\n      \"nulls\": 0\n    },\n    \"id\": {\n      \"average\": 5.5,\n      \"count\": 10,\n      \"max\": 10,\n      \"min\": 1,\n      \"negatives\": 0,\n      \"nulls\": 0,\n      \"sum\": 55.0,\n      \"zeros\": 0\n    }\n  },\n  \"indexes\": {\n    \"index_some_table_on_email\": {\n      \"columns\": [\n        \"email\"\n      ],\n      \"unique\": false\n    }\n  },\n  \"location\": {\n    \"database\": \"postgresql\",\n    \"instance\": \"localhost\",\n    \"schema\": \"some_db\",\n    \"table\": \"some_table\"\n  },\n  \"primary_key\": {\n    \"constrained_columns\": [\n      \"id\"\n    ],\n    \"name\": \"some_table_pkey\"\n  }\n}\n```\n\nYou might want to search for metadata. Recap stores its metadata in [DuckDB](https://duckdb.org/), so you can use DuckDB's [JSON path syntax](https://duckdb.org/docs/extensions/json) to search the catalog:\n\n    recap search \"metadata->'$.location'->>'$.table' = 'some_table'\"\n\n### API\n\n#### Server\n\nRecap comes with an API out of the box. You can start it with:\n\n    recap api\n\nA `uvicorn` server will bind to http://localhost:8000 by default. You can look at the API endpoints using http://localhost:8000/docs.\n\nYou can pass custom `uvicorn` configuration by creating `~/.recap/settings.toml` and setting parameters under the `api` space like:\n\n```\napi.host = \"0.0.0.0\"\n```\n\n#### Client\n\nYou can use Recap's CLI to query a remote Recap API server if you wish. Set `catalog.url` in `settings.toml` to point to your Recap API location.\n\n```\ncatalog.url = \"http://localhost:8000\"\n```\n\n### Configuration\n\nRecap uses [Dynaconf](https://www.dynaconf.com/) to manage configuration. By default, Recap can see anything you put into `~/recap/settings.toml`.\n\nYou can customize your `settings.toml` location using the `SETTINGS_FILE_FOR_DYNACONF` environment variable:\n\n    SETTINGS_FILE_FOR_DYNACONF=/tmp/api.toml recap list\n\nYou can also configure your catalog and crawlers in `settings.toml`. Here's an example:\n\n```\n[api]\nhost = \"0.0.0.0\"\n\n[catalog]\nurl = file:///tmp/recap.duckdb\n\n[[crawlers]]\nurl = \"bigquery://some-project-12345\"\n\n[[crawlers]]\nurl = \"postgresql://username@localhost/some_db\"\n\n[[crawlers]]\nurl = \"snowflake://some_user:some_pass@some_account_id\"\n```\n\n## Warning\n\nRecap is still a little baby application. It's going to wake up crying in the middle of the night. It's going to vomit on the floor once in a while. But if you give it some love and care, it'll be worth it. As time goes on, it'll grow up and be more mature. Bear with it.\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -49,7 +48,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16168137,
+        "last_serial": 16180742,
         "urls": [
             {
                 "comment_text": "",
@@ -88,6 +87,101 @@
                 "upload_time": "2022-12-21T02:01:38",
                 "upload_time_iso_8601": "2022-12-21T02:01:38.665503Z",
                 "url": "https://files.pythonhosted.org/packages/a3/90/e30c311558ccce8b3f79ddee362bca0a96f436c4b9c47df85124ea8aba5e/recap-core-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.1": {
+        "info": {
+            "author": "",
+            "author_email": "Chris Riccomini <criccomini@apache.org>",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "<h1 align=\"center\">\n  <img src=\"https://github.com/recap-cloud/recap/blob/main/static/recap-logo.png?raw=true\" alt=\"recap\"></a>\n  <br>\n</h1>\n\n<p align=\"center\">\n<i>Recap crawls and serves metadata</i>\n</p>\n\nThere are a ton of data catalogs out there, but most are complex, bloated, and built for a wide audience. Recap is the opposite of that; it's tiny and built specifically for engineers.\n\nYou can use Recap to build data tools for:\n\n* Observability\n* Monitoring\n* Debugging\n* Security\n* Compliance\n* Governance\n* Cost\n\n## Principles\n\nRecap was designed to be small and flexible.\n\n* **Lightweight**: Recap starts with a single command and doesn't require other infrastructure (not even Docker).\n* **CLI-first**: Recap doesn't even have a GUI!\n* **RESTful**: Recap comes with a REST API to ease integration with outside tools.\n* **Automated**: Recap is not meant for manual taxonomy curation.\n* **Modular**: Recap's storage and crawling layers are fully pluggable.\n* **Programmable**: Recap is a Python library, so you can invoke it directly from your code.\n\n## Integrations\n\nRecap uses [SQLAlchemy](https://www.sqlalchemy.org/) to access databases, so any SQLAlchemy dialect should work. Recap has been tested with:\n\n* Snowflake\n* Bigquery\n* PostgreSQL\n\nStream and filesystem crawling is in the works.\n\n## Usage\n\n### Quickstart\n\nStart by installing Recap. Python 3.9 or above is required.\n\n```\npip install recap-core\n```\n\nNow let's crawl a database:\n\n    recap refresh postgresql://username@localhost/some_db\n\nYou can use any SQLAlchemy connect string. \n\n    recap refresh bigquery://some-project-12345\n    recap refresh snowflake://some_user:some_pass@some_account_id\n\nFor Snowflake and BigQuery, you'll have to `pip install snowflake-sqlalchemy` or `pip install sqlalchemy-bigquery`, respectively.\n\nCrawled metadata is stored in a directory structure. See what's available using:\n\n    recap list /\n\nRecap will respond with a JSON list:\n\n```\n[\n  \"databases\"\n]\n```\n\nAppend children to the list path to browse around:\n\n    recap list /databases\n\nAfter you poke around, try and read some metadata. Every node in the path can have metadata, but only table and view children contain metadata. You can look at metadata using the `recap read` command:\n\n```\nrecap read /databases/postgresql/instances/localhost/schemas/some_db/tables/some_table\n```\n\nRecap will print all of `some_table`'s metadata to the CLI in JSON format:\n\n```\n{\n  \"access\": {\n    \"username\": {\n      \"privileges\": [\n        \"INSERT\",\n        \"SELECT\",\n        \"UPDATE\",\n        \"DELETE\",\n        \"TRUNCATE\",\n        \"REFERENCES\",\n        \"TRIGGER\"\n      ],\n      \"read\": true,\n      \"write\": true\n    }\n  },\n  \"columns\": {\n    \"email\": {\n      \"autoincrement\": false,\n      \"default\": null,\n      \"generic_type\": \"VARCHAR\",\n      \"nullable\": false,\n      \"type\": \"VARCHAR\"\n    },\n    \"id\": {\n      \"autoincrement\": true,\n      \"default\": \"nextval('\\\"some_db\\\".some_table_id_seq'::regclass)\",\n      \"generic_type\": \"BIGINT\",\n      \"nullable\": false,\n      \"type\": \"BIGINT\"\n    }\n  },\n  \"data_profile\": {\n    \"email\": {\n      \"count\": 10,\n      \"distinct\": 10,\n      \"empty_strings\": 0,\n      \"max_length\": 32,\n      \"min_length\": 13,\n      \"nulls\": 0\n    },\n    \"id\": {\n      \"average\": 5.5,\n      \"count\": 10,\n      \"max\": 10,\n      \"min\": 1,\n      \"negatives\": 0,\n      \"nulls\": 0,\n      \"sum\": 55.0,\n      \"zeros\": 0\n    }\n  },\n  \"indexes\": {\n    \"index_some_table_on_email\": {\n      \"columns\": [\n        \"email\"\n      ],\n      \"unique\": false\n    }\n  },\n  \"location\": {\n    \"database\": \"postgresql\",\n    \"instance\": \"localhost\",\n    \"schema\": \"some_db\",\n    \"table\": \"some_table\"\n  },\n  \"primary_key\": {\n    \"constrained_columns\": [\n      \"id\"\n    ],\n    \"name\": \"some_table_pkey\"\n  }\n}\n```\n\nYou can search for metadata, too. Recap stores its metadata in [DuckDB](https://duckdb.org/) by default, so you can use DuckDB's [JSON path syntax](https://duckdb.org/docs/extensions/json) to search the catalog:\n\n    recap search \"metadata->'$.location'->>'$.table' = 'some_table'\"\n\nThe database file defaults to `~/.recap/catalog/recap.duckdb`, if you wish to open a DuckDB client directly.\n\n### API\n\n#### Server\n\nRecap comes with an API out of the box. You can start it with:\n\n    recap api\n\nA `uvicorn` server will bind to http://localhost:8000 by default. You can look at the API endpoints using http://localhost:8000/docs.\n\nYou can pass custom `uvicorn` configuration by creating `~/.recap/settings.toml` and setting parameters under the `api` space like:\n\n```\napi.host = \"0.0.0.0\"\n```\n\n#### Client\n\nYou can use Recap's CLI to query a remote Recap API server if you wish. Set `catalog.url` in `settings.toml` to point to your Recap API location.\n\n```\ncatalog.url = \"http://localhost:8000\"\n```\n\n### Configuration\n\nRecap uses [Dynaconf](https://www.dynaconf.com/) to manage configuration. By default, Recap can see anything you put into `~/recap/settings.toml`.\n\nYou can customize your `settings.toml` location using the `SETTINGS_FILE_FOR_DYNACONF` environment variable:\n\n    SETTINGS_FILE_FOR_DYNACONF=/tmp/api.toml recap list\n\nYou can also configure your catalog and crawlers in `settings.toml`. Here's an example:\n\n```\n[api]\nhost = \"0.0.0.0\"\n\n[catalog]\nurl = file:///tmp/recap.duckdb\n\n[[crawlers]]\nurl = \"bigquery://some-project-12345\"\n\n[[crawlers]]\nurl = \"postgresql://username@localhost/some_db\"\n\n[[crawlers]]\nurl = \"snowflake://some_user:some_pass@some_account_id\"\n```\n\n## Warning\n\nRecap is still a little baby application. It's going to wake up crying in the middle of the night. It's going to vomit on the floor once in a while. But if you give it some love and care, it'll be worth it. As time goes on, it'll grow up and be more mature. Bear with it.\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "metadata,data,data catalog,data engineering,data infrastructure,infrastructure,devtools,devops",
+            "license": "SSPL-1.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "recap-core",
+            "package_url": "https://pypi.org/project/recap-core/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/recap-core/",
+            "project_urls": {
+                "homepage": "https://github.com/recap-cloud/recap",
+                "repository": "https://github.com/recap-cloud/recap"
+            },
+            "release_url": "https://pypi.org/project/recap-core/0.1.1/",
+            "requires_dist": [
+                "duckdb>=0.6.1",
+                "dynaconf>=3.1.11",
+                "fastapi>=0.88.0",
+                "fsspec>=2022.11.0",
+                "httpx>=0.23.1",
+                "psycopg2>=2.9.5",
+                "rich>=12.6.0",
+                "setuptools>=65.6.3",
+                "sqlalchemy>=1.4.45",
+                "typer>=0.7.0",
+                "uvicorn[standard]>=0.20.0",
+                "recap[jq]; extra == \"all\"",
+                "pyjq>=2.6.0; extra == \"jq\""
+            ],
+            "requires_python": ">=3.9, <3.11",
+            "summary": "Recap is a tiny metadata service built for engineers.",
+            "version": "0.1.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16180742,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bcb5cb2c042c75174b98da3ecccb931a",
+                    "sha256": "803631fbd8d0eeaca760b2a39c6d1758ac85e96518c5dd3b6e252b7141bf8ad3"
+                },
+                "downloads": -1,
+                "filename": "recap_core-0.1.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "bcb5cb2c042c75174b98da3ecccb931a",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.9, <3.11",
+                "size": 28374,
+                "upload_time": "2022-12-22T01:35:46",
+                "upload_time_iso_8601": "2022-12-22T01:35:46.604222Z",
+                "url": "https://files.pythonhosted.org/packages/69/3a/92b621a5460c03677c97788227c8fff6b33e4d00792a6405410c62372a62/recap_core-0.1.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c60620e406a73fe4d972a327539458a1",
+                    "sha256": "08705c0f94d3be373a178efab1a8624e7cf54bbaf92e382dd617363557d9033a"
+                },
+                "downloads": -1,
+                "filename": "recap-core-0.1.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c60620e406a73fe4d972a327539458a1",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9, <3.11",
+                "size": 25421,
+                "upload_time": "2022-12-22T01:35:48",
+                "upload_time_iso_8601": "2022-12-22T01:35:48.789589Z",
+                "url": "https://files.pythonhosted.org/packages/93/46/268d6ff191f632c1144c3c0b6b1e53e455199abc38fd395e954964b6ce2f/recap-core-0.1.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
