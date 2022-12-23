@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -132,7 +132,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -221,7 +221,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -310,7 +310,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -399,7 +399,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -488,7 +488,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -577,7 +577,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -666,7 +666,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -755,7 +755,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -844,7 +844,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -900,7 +900,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python"
             ],
-            "description": "[![PyPI version](https://img.shields.io/pypi/v/mcbackend)](https://pypi.org/project/mcbackend)\n[![pipeline](https://github.com/michaelosthege/mcbackend/workflows/pipeline/badge.svg)](https://github.com/michaelosthege/mcbackend/actions)\n[![coverage](https://codecov.io/gh/michaelosthege/mcbackend/branch/main/graph/badge.svg)](https://codecov.io/gh/michaelosthege/mcbackend)\n\nWhere do _you_ want to store your MCMC draws?\nIn memory?\nOn disk?\nOr in a database running in a datacenter?\n\nNo matter where you want to put them, or which <abbr title=\"probabilistic programming language\">PPL</abbr> generates them: McBackend takes care of your MCMC samples.\n\n## Quickstart\nThe `mcbackend` package consists of three parts:\n\n### Part 1: A schema for MCMC run & chain metadata\nNo matter which programming language your favorite PPL is written in, the [ProtocolBuffers](https://developers.google.com/protocol-buffers/) from McBackend can be used to generate code in languages like C++, C#, Python and many more to represent commonly used metadata about MCMC runs, chains and model variables.\n\nThe definitions in [`protobufs/meta.proto`](./protobufs/meta.proto) are designed to maximize compatibility with [`ArviZ`](https://github.com/arviz-devs/arviz) objects, making it easy to transform MCMC draws stored according to the McBackend schema to `InferenceData` objects for plotting & analysis.\n\n### Part 2: A storage backend interface\nThe  `draws` and `stats` created by MCMC sampling algorithms at runtime need to be stored _somewhere_.\n\nThis \"somewhere\" is called the storage _backend_ in PPLs/MCMC frameworks like [PyMC](https://github.com/pymc-devs/pymc) or [emcee](https://github.com/dfm/emcee).\n\nMost storage backends must be initialized with metadata about the model variables so they can, for example, pre-allocated memory for the `draws` and `stats` they're about to receive.\nAfter then receiving thousands of `draws` and `stats` they must then provide methods by which the `draws`/`stats` can be retrieved.\n\nThe `mcbackend.core` module has classes such as `Backend`, `Run`, and `Chain` to define these interfaces for any storage backend, no matter if it's an in-memory, filesystem or database storage.\nAlbeit this implementation is currently Python-only, the interface signature should be portable to e.g. C++.\n\nVia `mcbackend.backends` the McBackend package then provides backend _implementations_.\nCurrently you may choose from:\n\n```python\nbackend = mcbackend.NumPyBackend()\nbackend = mcbackend.ClickHouseBackend( client=clickhouse_driver.Client(\"localhost\") )\n\n# All that matters:\nisinstance(backend, mcbackend.Backend)\n# >>> True\n```\n\n### Part 3: PPL adapters\nAnything that is a `Backend` can be wrapped by an [adapter ](https://en.wikipedia.org/wiki/Adapter_pattern) that makes it compatible with your favorite PPL.\n\nIn the example below, a `ClickHouseBackend` is initialized to store MCMC draws from a PyMC model in a [ClickHouse](http://clickhouse.com/) database.\nSee below for [how to run it in Docker](#development).\n\n```python\nimport clickhouse_driver\nimport mcbackend\nimport pymc as pm\n\n# 1. Create _any_ kind of backend\nch_client = clickhouse_driver.Client(\"localhost\")\nbackend = mcbackend.ClickHouseBackend(ch_client)\n\nwith pm.Model():\n    # 3. Create your model\n    ...\n    # 4. Wrap the PyMC adapter around an `mcbackend.Backend`\n    #    This generates and prints a short `trace.run_id` by which\n    #    this MCMC run is identified in the (database) backend.\n    trace = mcbackend.pymc.TraceBackend(backend)\n\n    # 5. Hit the inference button \u2122\n    pm.sample(trace=trace)\n```\n\nInstead of using PyMC's built-in NumPy backend, the MCMC draws now end up in ClickHouse.\n\n### Retrieving the `draws` & `stats`\nContinuing the example from above we can now retrieve draws from the backend.\n\nNote that since this example wrote the draws to ClickHouse, we could run the code below on another machine, and even while the above model is still sampling!\n\n```python\nbackend = mcbackend.ClickHouseBackend(ch_client)\n\n# Fetch the run from the database (downloads just metadata)\nrun = backend.get_run(trace.run_id)\n\n# Get all draws from a chain\nchain = run.get_chains()[0]\nchain.get_draws(\"my favorite variable\")\n# >>> array([ ... ])\n\n# Convert everything to `InferenceData`\nidata = run.to_inferencedata()\nprint(idata)\n# >>> Inference data with groups:\n# >>> \t> posterior\n# >>> \t> sample_stats\n# >>> \t> observed_data\n# >>> \t> constant_data\n# >>>\n# >>> Warmup iterations saved (warmup_*).\n```\n\n# Contributing what's next\nMcBackend just started and is looking for contributions.\nFor example:\n* Schema discussion: Which metadata is needed? (related: [PyMC #5160](https://github.com/pymc-devs/pymc/issues/5160))\n* Interface discussion: How should `Backend`/`Run`/`Chain` evolve?\n* Python Backends for disk storage (HDF5, `*.proto`, ...)\n* An `emcee` adapter (#11).\n* C++ `Backend`/`Run`/`Chain` interfaces\n* C++ ClickHouse backend (via [`clickhouse-cpp`](https://github.com/ClickHouse/clickhouse-cpp))\n* A webinterface that goes beyond the Streamlit proof-of-concept (see [`mcbackend-server`](#experimental-arviz-server))\n\nAs the schema and API stabilizes a mid-term goal might be to replace PyMC `BaseTrace`/`MultiTrace` entirely to rely on `mcbackend`.\n\nGetting rid of `MultiTrace` was a [long-term goal](https://github.com/pymc-devs/pymc/issues/4372#issuecomment-770100410) behind making `pm.sample(return_inferencedata=True)` the default.\n\n## Development\nFirst clone the repository and install `mcbackend` locally:\n\n```bash\npip install -e .\n```\n\nTo run the tests:\n\n```bash\npip install -r requirements-dev.txt\npytest -v\n```\n\nSome tests need a ClickHouse database server running locally.\nTo start one in Docker:\n\n```bash\ndocker run --detach --rm --name mcbackend-db -p 9000:9000 --ulimit nofile=262144:262144 yandex/clickhouse-server\n```\n\n### Compiling the ProtocolBuffers\nIf you don't already have it, first install the protobuf compiler:\n```bash\nconda install protobuf\n```\n\nTo compile the `*.proto` files for languages other than Python, check the [ProtocolBuffers documentation](https://developers.google.com/protocol-buffers/docs/tutorials).\n\nThe following script compiles them for Python using the [`betterproto`](https://github.com/danielgtaylor/python-betterproto) compiler plugin to get nice-looking dataclasses.\nIt also copies the generated files to the right place in `mcbackend`.\n\n```bash\npython protobufs/generate.py\n```\n\n# Experimental: `mcbackend-server`\nThis repository also includes an experimental Streamlit app for querying the ClickHouse backend and creating ArviZ plots already while an MCMC is still running.\n\n\u26a0 This part will eventually move into its own repository. \u26a0\n\nFirst build the Docker image:\n\n```\ndocker build -t mcbackend-server:0.1.0 .\n```\n\nThen start the container.\nThe following two commands should be executed in the root path of the repository.\n\n\u26a0 You may need to adapt the hostname line. \u26a0\n\nOn Windows:\n```\ndocker run ^\n  --rm --name mcbackend-server ^\n  -p 8501:8501 ^\n  -e DB_HOST=%COMPUTERNAME% ^\n  -v %cd%:/mcbackend ^\n  -v %cd%/mcbackend-server/app.py:/mcbackend-server/app.py ^\n  mcbackend-server:0.1.0\n```\n\n\nOn Linux:\n```\ndocker run \\\n  --rm --name mcbackend-server \\\n  -p 8501:8501 \\\n  -e DB_HOST=$hostname \\\n  -v $pwd:/mcbackend \\\n  -v $pwd/mcbackend-server/app.py:/mcbackend-server/app.py \\\n  mcbackend-server:0.1.0\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -934,7 +933,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16153238,
+        "last_serial": 16188283,
         "urls": [
             {
                 "comment_text": "",
@@ -973,6 +972,96 @@
                 "upload_time": "2022-12-19T18:18:17",
                 "upload_time_iso_8601": "2022-12-19T18:18:17.818015Z",
                 "url": "https://files.pythonhosted.org/packages/bb/39/e389cb6e8258c8d77a69260238590e0f193f2ed7b19a4afb597090381de3/mcbackend-0.2.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.7": {
+        "info": {
+            "author": "Michael Osthege",
+            "author_email": "michael.osthege@outlook.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: GNU Affero General Public License v3",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python"
+            ],
+            "description": "[![PyPI version](https://img.shields.io/pypi/v/mcbackend)](https://pypi.org/project/mcbackend)\n[![pipeline](https://github.com/michaelosthege/mcbackend/workflows/pipeline/badge.svg)](https://github.com/michaelosthege/mcbackend/actions)\n[![coverage](https://codecov.io/gh/michaelosthege/mcbackend/branch/main/graph/badge.svg)](https://codecov.io/gh/michaelosthege/mcbackend)\n\nWhere do _you_ want to store your MCMC draws?\nIn memory?\nOn disk?\nOr in a database running in a datacenter?\n\nNo matter where you want to put them, or which <abbr title=\"probabilistic programming language\">PPL</abbr> generates them: McBackend takes care of your MCMC samples.\n\n## Quickstart\nThe `mcbackend` package consists of three parts:\n\n### Part 1: A schema for MCMC run & chain metadata\nNo matter which programming language your favorite PPL is written in, the [ProtocolBuffers](https://developers.google.com/protocol-buffers/) from McBackend can be used to generate code in languages like C++, C#, Python and many more to represent commonly used metadata about MCMC runs, chains and model variables.\n\nThe definitions in [`protobufs/meta.proto`](./protobufs/meta.proto) are designed to maximize compatibility with [`ArviZ`](https://github.com/arviz-devs/arviz) objects, making it easy to transform MCMC draws stored according to the McBackend schema to `InferenceData` objects for plotting & analysis.\n\n### Part 2: A storage backend interface\nThe  `draws` and `stats` created by MCMC sampling algorithms at runtime need to be stored _somewhere_.\n\nThis \"somewhere\" is called the storage _backend_ in PPLs/MCMC frameworks like [PyMC](https://github.com/pymc-devs/pymc) or [emcee](https://github.com/dfm/emcee).\n\nMost storage backends must be initialized with metadata about the model variables so they can, for example, pre-allocated memory for the `draws` and `stats` they're about to receive.\nAfter then receiving thousands of `draws` and `stats` they must then provide methods by which the `draws`/`stats` can be retrieved.\n\nThe `mcbackend.core` module has classes such as `Backend`, `Run`, and `Chain` to define these interfaces for any storage backend, no matter if it's an in-memory, filesystem or database storage.\nAlbeit this implementation is currently Python-only, the interface signature should be portable to e.g. C++.\n\nVia `mcbackend.backends` the McBackend package then provides backend _implementations_.\nCurrently you may choose from:\n\n```python\nbackend = mcbackend.NumPyBackend()\nbackend = mcbackend.ClickHouseBackend( client=clickhouse_driver.Client(\"localhost\") )\n\n# All that matters:\nisinstance(backend, mcbackend.Backend)\n# >>> True\n```\n\n### Part 3: PPL adapters\nAnything that is a `Backend` can be wrapped by an [adapter ](https://en.wikipedia.org/wiki/Adapter_pattern) that makes it compatible with your favorite PPL.\n\nIn the example below, a `ClickHouseBackend` is initialized to store MCMC draws from a PyMC model in a [ClickHouse](http://clickhouse.com/) database.\nSee below for [how to run it in Docker](#development).\n\n```python\nimport clickhouse_driver\nimport mcbackend\nimport pymc as pm\n\n# 1. Create _any_ kind of backend\nch_client = clickhouse_driver.Client(\"localhost\")\nbackend = mcbackend.ClickHouseBackend(ch_client)\n\nwith pm.Model():\n    # 3. Create your model\n    ...\n    # 4. Wrap the PyMC adapter around an `mcbackend.Backend`\n    #    This generates and prints a short `trace.run_id` by which\n    #    this MCMC run is identified in the (database) backend.\n    trace = mcbackend.pymc.TraceBackend(backend)\n\n    # 5. Hit the inference button \u2122\n    pm.sample(trace=trace)\n```\n\nInstead of using PyMC's built-in NumPy backend, the MCMC draws now end up in ClickHouse.\n\n### Retrieving the `draws` & `stats`\nContinuing the example from above we can now retrieve draws from the backend.\n\nNote that since this example wrote the draws to ClickHouse, we could run the code below on another machine, and even while the above model is still sampling!\n\n```python\nbackend = mcbackend.ClickHouseBackend(ch_client)\n\n# Fetch the run from the database (downloads just metadata)\nrun = backend.get_run(trace.run_id)\n\n# Get all draws from a chain\nchain = run.get_chains()[0]\nchain.get_draws(\"my favorite variable\")\n# >>> array([ ... ])\n\n# Convert everything to `InferenceData`\nidata = run.to_inferencedata()\nprint(idata)\n# >>> Inference data with groups:\n# >>> \t> posterior\n# >>> \t> sample_stats\n# >>> \t> observed_data\n# >>> \t> constant_data\n# >>>\n# >>> Warmup iterations saved (warmup_*).\n```\n\n# Contributing what's next\nMcBackend just started and is looking for contributions.\nFor example:\n* Schema discussion: Which metadata is needed? (related: [PyMC #5160](https://github.com/pymc-devs/pymc/issues/5160))\n* Interface discussion: How should `Backend`/`Run`/`Chain` evolve?\n* Python Backends for disk storage (HDF5, `*.proto`, ...)\n* An `emcee` adapter (#11).\n* C++ `Backend`/`Run`/`Chain` interfaces\n* C++ ClickHouse backend (via [`clickhouse-cpp`](https://github.com/ClickHouse/clickhouse-cpp))\n* A webinterface that goes beyond the Streamlit proof-of-concept (see [`mcbackend-server`](#experimental-arviz-server))\n\nAs the schema and API stabilizes a mid-term goal might be to replace PyMC `BaseTrace`/`MultiTrace` entirely to rely on `mcbackend`.\n\nGetting rid of `MultiTrace` was a [long-term goal](https://github.com/pymc-devs/pymc/issues/4372#issuecomment-770100410) behind making `pm.sample(return_inferencedata=True)` the default.\n\n## Development\nFirst clone the repository and install `mcbackend` locally:\n\n```bash\npip install -e .\n```\n\nTo run the tests:\n\n```bash\npip install -r requirements-dev.txt\npytest -v\n```\n\nSome tests need a ClickHouse database server running locally.\nTo start one in Docker:\n\n```bash\ndocker run --detach --rm --name mcbackend-db -p 9000:9000 --ulimit nofile=262144:262144 yandex/clickhouse-server\n```\n\n### Compiling the ProtocolBuffers\nIf you don't already have it, first install the protobuf compiler:\n```bash\nconda install protobuf\n```\n\nTo compile the `*.proto` files for languages other than Python, check the [ProtocolBuffers documentation](https://developers.google.com/protocol-buffers/docs/tutorials).\n\nThe following script compiles them for Python using the [`betterproto`](https://github.com/danielgtaylor/python-betterproto) compiler plugin to get nice-looking dataclasses.\nIt also copies the generated files to the right place in `mcbackend`.\n\n```bash\npython protobufs/generate.py\n```\n\n# Experimental: `mcbackend-server`\nThis repository also includes an experimental Streamlit app for querying the ClickHouse backend and creating ArviZ plots already while an MCMC is still running.\n\n\u26a0 This part will eventually move into its own repository. \u26a0\n\nFirst build the Docker image:\n\n```\ndocker build -t mcbackend-server:0.1.0 .\n```\n\nThen start the container.\nThe following two commands should be executed in the root path of the repository.\n\n\u26a0 You may need to adapt the hostname line. \u26a0\n\nOn Windows:\n```\ndocker run ^\n  --rm --name mcbackend-server ^\n  -p 8501:8501 ^\n  -e DB_HOST=%COMPUTERNAME% ^\n  -v %cd%:/mcbackend ^\n  -v %cd%/mcbackend-server/app.py:/mcbackend-server/app.py ^\n  mcbackend-server:0.1.0\n```\n\n\nOn Linux:\n```\ndocker run \\\n  --rm --name mcbackend-server \\\n  -p 8501:8501 \\\n  -e DB_HOST=$hostname \\\n  -v $pwd:/mcbackend \\\n  -v $pwd/mcbackend-server/app.py:/mcbackend-server/app.py \\\n  mcbackend-server:0.1.0\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/michaelosthege/mcbackend",
+            "keywords": "",
+            "license": "AGPLv3",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "mcbackend",
+            "package_url": "https://pypi.org/project/mcbackend/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/mcbackend/",
+            "project_urls": {
+                "Homepage": "https://github.com/michaelosthege/mcbackend"
+            },
+            "release_url": "https://pypi.org/project/mcbackend/0.2.7/",
+            "requires_dist": [
+                "betterproto (==2.0.0b5)",
+                "hagelkorn",
+                "numpy",
+                "pandas"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Framework agnostic backends for MCMC sample storage",
+            "version": "0.2.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16188283,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b57ce0342cea4ae73f9d5fd0160a717e",
+                    "sha256": "903aa7a12008f8da58287ff79122e4281075686a434f4fba1a46fd57422a619d"
+                },
+                "downloads": -1,
+                "filename": "mcbackend-0.2.7-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b57ce0342cea4ae73f9d5fd0160a717e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 45908,
+                "upload_time": "2022-12-22T17:42:06",
+                "upload_time_iso_8601": "2022-12-22T17:42:06.976809Z",
+                "url": "https://files.pythonhosted.org/packages/9f/a0/5a2d761c4d7fb68d22c677538ed48e1274e674f8f7b374ecde0294b28af6/mcbackend-0.2.7-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a9b90376a95e07d56dfaa7f8d7596171",
+                    "sha256": "00f31dc46f48847ee82c355d039fae7434c97422f615fda7711b8dd2b92e24c8"
+                },
+                "downloads": -1,
+                "filename": "mcbackend-0.2.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a9b90376a95e07d56dfaa7f8d7596171",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 42553,
+                "upload_time": "2022-12-22T17:42:08",
+                "upload_time_iso_8601": "2022-12-22T17:42:08.650280Z",
+                "url": "https://files.pythonhosted.org/packages/e6/7c/5fcd49ab82e26b34ff7d969a1203a07b0b3af5c9c7fecdf858164292884c/mcbackend-0.2.7.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

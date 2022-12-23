@@ -33,7 +33,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15957739,
+        "last_serial": 16187962,
         "urls": [
             {
                 "comment_text": "",
@@ -92,7 +92,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15957739,
+        "last_serial": 16187962,
         "urls": [
             {
                 "comment_text": "",
@@ -151,7 +151,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15957739,
+        "last_serial": 16187962,
         "urls": [
             {
                 "comment_text": "",
@@ -210,7 +210,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15957739,
+        "last_serial": 16187962,
         "urls": [
             {
                 "comment_text": "",
@@ -269,7 +269,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15957739,
+        "last_serial": 16187962,
         "urls": [
             {
                 "comment_text": "",
@@ -328,7 +328,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15957739,
+        "last_serial": 16187962,
         "urls": [
             {
                 "comment_text": "",
@@ -359,7 +359,6 @@
             "author_email": "",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# CausalPy\n\n[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)\n[![PyPI version](https://badge.fury.io/py/CausalPy.svg)](https://badge.fury.io/py/CausalPy)\n![GitHub Repo stars](https://img.shields.io/github/stars/pymc-labs/causalpy?style=social)\n![Read the Docs](https://img.shields.io/readthedocs/causalpy)\n![PyPI - Downloads](https://img.shields.io/pypi/dm/causalpy)\n\nA Python package focussing on causal inference in quasi-experimental settings. The package allows for sophisticated Bayesian model fitting methods to be used in addition to traditional OLS.\n\n_**STATUS:** Feel free to explore and experiment with the repository, and we very much welcome feedback (via [Issues](https://github.com/pymc-labs/CausalPy/issues)). But be aware that this code is very alpha! Expect the codebase and API to change for a while, so it is not appropriate to rely on this package for in-production or research pipelines._\n\n## Comparison to related packages\n\nRather than focussing on one particular quasi-experimental setting, this package aims to have broad applicability.\n\nAnother distinctive feature of this package is the ability to use different models. Currently, users can fit with `scikit-learn` models or Bayesian models with `PyMC`.\n\n|                           | [CausalImpact](https://google.github.io/CausalImpact/) from Google | [GeoLift](https://github.com/facebookincubator/GeoLift/) from Meta | CausalPy from [PyMC Labs](https://www.pymc-labs.io) |\n|---------------------------|--------------------------------|---------|----------------------------------------|\n| Synthetic control         | \u2705                              | \u2705       | \u2705                                      |\n| Regression discontinuity  | \u274c                              | \u274c       | \u2705                                      |\n| Difference in differences | \u274c                              | \u274c       | \u2705                                      |\n| Language                  | R (but see [tfcausalimpact](https://github.com/WillianFuks/tfcausalimpact))  | R       | Python                                 |\n| Models                    | Bayesian structural timeseries | Augmented synthetic control      | Flexible: Traditional OLS and Bayesian models |\n\n## Installation\n\nTo get the latest release:\n```bash\npip install CausalPy\n```\n\nAlternatively, if you want the very latest version of the package you can install from GitHub:\n\n```bash\npip install git+https://github.com/pymc-labs/CausalPy.git\n```\n\n## Quickstart\n\n```python\nimport causalpy as cp\n\n\n# Import and process data\ndf = (\n    cp.load_data(\"drinking\")\n    .rename(columns={\"agecell\": \"age\"})\n    .assign(treated=lambda df_: df_.age > 21)\n    .dropna(axis=0)\n    )\n\n# Run the analysis\nresult = cp.pymc_experiments.RegressionDiscontinuity(\n    df,\n    formula=\"all ~ 1 + age + treated\",\n    running_variable_name=\"age\",\n    prediction_model=cp.pymc_models.LinearRegression(),\n    treatment_threshold=21,\n    )\n\n# Visualize outputs\nfig, ax = result.plot();\n\n# Get a results summary\nresult.summary()\n```\n\n## Roadmap\n\nPlans for the repository can be seen in the [Issues](https://github.com/pymc-labs/CausalPy/issues).\n\n## Overview of package capabilities\n\n### Synthetic control\nThis is appropriate when you have multiple units, one of which is treated. You build a synthetic control as a weighted combination of the untreated units.\n\n| Time | Outcome   | Control 1 | Control 2 | Control 3 |\n|------|-----------|-----------|-----------|-----------|\n| 0    | $y_0$ | $x_{1,0}$ | $x_{2,0}$ | $x_{3,0}$ |\n| 1    | $y_1$ | $x_{1,1}$ | $x_{2,1}$ | $x_{3,1}$ |\n|$\\ldots$ | $\\ldots$  | $\\ldots$  | $\\ldots$  | $\\ldots$  |\n| T    | $y_T$ | $x_{1,T}$ | $x_{2,T}$ | $x_{3,T}$ |\n\n\n| Frequentist | Bayesian |\n|--|--|\n| ![](img/synthetic_control_skl.svg) | ![](img/synthetic_control_pymc.svg) |\n\n> The data (treated and untreated units), pre-treatment model fit, and counterfactual (i.e. the synthetic control) are plotted (top). The causal impact is shown as a blue shaded region. The Bayesian analysis shows shaded Bayesian credible regions of the model fit and counterfactual. Also shown is the causal impact (middle) and cumulative causal impact (bottom).\n\n### Difference in Differences\n\nThis is appropriate when you have a single pre and post intervention measurement and have a treament and a control group.\n\nData is expected to be in the following form. Shown are just two units - one in the treated group (`group=1`) and one in the untreated group (`group=0`), but there can of course be multiple units per group. This is panel data (also known as repeated measures) where each unit is measured at 2 time points.\n\n| Unit | Time | Group | Outcome         |\n|------|---|-------|-----------|\n| 0    | 0 | 0     | $y_{0,0}$ |\n| 0    | 1 | 0     | $y_{0,0}$ |\n| 1    | 0 | 1     | $y_{1,0}$ |\n| 1    | 1 | 1     | $y_{1,1}$ |\n\n| Frequentist | Bayesian |\n|--|--|\n| ![](img/difference_in_differences_skl.svg) | ![](img/difference_in_differences_pymc.svg) |\n\nThe data, model fit, and counterfactual are plotted. Frequentist model fits result in points estimates, but the Bayesian analysis results in posterior distributions, represented by the violin plots. The causal impact is the difference between the counterfactual prediction (treated group, post treatment) and the observed values for the treated group, post treatment.\n\n### Regression discontinuity designs\n\nRegression discontinuity designs are used when treatment is applied to units according to a cutoff on the running variable (e.g. $x$) which is typically _not_ time. By looking for the presence of a discontinuity at the precise point of the treatment cutoff then we can make causal claims about the potential impact of the treatment.\n\n| Running variable | Outcome | Treated  |\n|-----------|-----------|----------|\n| $x_0$     | $y_0$     | False    |\n| $x_1$     | $y_0$     | False    |\n| $\\ldots$  | $\\ldots$  | $\\ldots$ |\n| $x_{N-1}$ | $y_{N-1}$ | True     |\n| $x_N$     | $y_N$     | True     |\n\n\n| Frequentist | Bayesian |\n|--|--|\n| ![](img/regression_discontinuity_skl.svg) | ![](img/regression_discontinuity_pymc.svg) |\n\n> The data, model fit, and counterfactual are plotted (top). Frequentist analysis shows the causal impact with the blue shaded region, but this is not shown in the Bayesian analysis to avoid a cluttered chart. Instead, the Bayesian analysis shows shaded Bayesian credible regions of the model fits. The Frequentist analysis visualises the point estimate of the causal impact, but the Bayesian analysis also plots the posterior distribution of the regression discontinuity effect (bottom).\n\n## Learning resources\n\nHere are some general resources about causal inference:\n\n* The official [PyMC examples gallery](https://www.pymc.io/projects/examples/en/latest/gallery.html) has a set of examples specifically relating to causal inference.\n* Angrist, J. D., & Pischke, J. S. (2009). Mostly harmless econometrics: An empiricist's companion. Princeton university press.\n* Angrist, J. D., & Pischke, J. S. (2014). Mastering'metrics: The path from cause to effect. Princeton university press.\n* Cunningham, S. (2021). [Causal inference: The Mixtape](https://mixtape.scunning.com). Yale University Press.\n* Huntington-Klein, N. (2021). [The effect: An introduction to research design and causality](https://theeffectbook.net). Chapman and Hall/CRC.\n* Reichardt, C. S. (2019). Quasi-experimentation: A guide to design and analysis. Guilford Publications.\n\n## License\n\n[Apache License 2.0](LICENSE)\n\n---\n\n## Support\n\n<img src=\"img/pymc-labs-log.png\" align=\"right\" width=\"50%\" />\n\nThis repository is supported by [PyMC Labs](https://www.pymc-labs.io).\n\nIf you are interested in seeing what PyMC Labs can do for you, then please email [ben.vincent@pymc-labs.io](mailto:ben.vincent@pymc-labs.io). We work with companies at a variety of scales and with varying levels of existing modeling capacity. We also run corporate workshop training events and can provide sessions ranging from introduction to Bayes to more advanced topics.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -388,7 +387,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15957739,
+        "last_serial": 16187962,
         "urls": [
             {
                 "comment_text": "",
@@ -407,6 +406,66 @@
                 "upload_time": "2022-12-01T16:41:39",
                 "upload_time_iso_8601": "2022-12-01T16:41:39.049802Z",
                 "url": "https://files.pythonhosted.org/packages/01/70/e84afd9ec374c0169b428a3a011e3cc1d4a3ebd256a7203cf72d43dc9d60/CausalPy-0.0.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.7": {
+        "info": {
+            "author": "",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# CausalPy\n\n![Build](https://github.com/pymc-labs/CausalPy/workflows/ci/badge.svg)\n[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)\n[![PyPI version](https://badge.fury.io/py/CausalPy.svg)](https://badge.fury.io/py/CausalPy)\n![GitHub Repo stars](https://img.shields.io/github/stars/pymc-labs/causalpy?style=social)\n![Read the Docs](https://img.shields.io/readthedocs/causalpy)\n![PyPI - Downloads](https://img.shields.io/pypi/dm/causalpy)\n![Interrogate](img/interrogate_badge.svg)\n\nA Python package focussing on causal inference in quasi-experimental settings. The package allows for sophisticated Bayesian model fitting methods to be used in addition to traditional OLS.\n\n_**STATUS:** Feel free to explore and experiment with the repository, and we very much welcome feedback (via [Issues](https://github.com/pymc-labs/CausalPy/issues)). But be aware that this code is very alpha! Expect the codebase and API to change for a while, so it is not appropriate to rely on this package for in-production or research pipelines._\n\n## Comparison to related packages\n\nRather than focussing on one particular quasi-experimental setting, this package aims to have broad applicability.\n\nAnother distinctive feature of this package is the ability to use different models. Currently, users can fit with `scikit-learn` models or Bayesian models with `PyMC`.\n\n|                           | [CausalImpact](https://google.github.io/CausalImpact/) from Google | [GeoLift](https://github.com/facebookincubator/GeoLift/) from Meta | CausalPy from [PyMC Labs](https://www.pymc-labs.io) |\n|---------------------------|--------------------------------|---------|----------------------------------------|\n| Synthetic control         | \u2705                              | \u2705       | \u2705                                      |\n| Regression discontinuity  | \u274c                              | \u274c       | \u2705                                      |\n| Difference in differences | \u274c                              | \u274c       | \u2705                                      |\n| Language                  | R (but see [tfcausalimpact](https://github.com/WillianFuks/tfcausalimpact))  | R       | Python                                 |\n| Models                    | Bayesian structural timeseries | Augmented synthetic control      | Flexible: Traditional OLS and Bayesian models |\n\n## Installation\n\nTo get the latest release:\n```bash\npip install CausalPy\n```\n\nAlternatively, if you want the very latest version of the package you can install from GitHub:\n\n```bash\npip install git+https://github.com/pymc-labs/CausalPy.git\n```\n\n## Quickstart\n\n```python\nimport causalpy as cp\n\n\n# Import and process data\ndf = (\n    cp.load_data(\"drinking\")\n    .rename(columns={\"agecell\": \"age\"})\n    .assign(treated=lambda df_: df_.age > 21)\n    )\n\n# Run the analysis\nresult = cp.pymc_experiments.RegressionDiscontinuity(\n    df,\n    formula=\"all ~ 1 + age + treated\",\n    running_variable_name=\"age\",\n    prediction_model=cp.pymc_models.LinearRegression(),\n    treatment_threshold=21,\n    )\n\n# Visualize outputs\nfig, ax = result.plot();\n\n# Get a results summary\nresult.summary()\n```\n\n## Roadmap\n\nPlans for the repository can be seen in the [Issues](https://github.com/pymc-labs/CausalPy/issues).\n\n## Overview of package capabilities\n\n### Synthetic control\nThis is appropriate when you have multiple units, one of which is treated. You build a synthetic control as a weighted combination of the untreated units.\n\n| Time | Outcome   | Control 1 | Control 2 | Control 3 |\n|------|-----------|-----------|-----------|-----------|\n| 0    | $y_0$ | $x_{1,0}$ | $x_{2,0}$ | $x_{3,0}$ |\n| 1    | $y_1$ | $x_{1,1}$ | $x_{2,1}$ | $x_{3,1}$ |\n|$\\ldots$ | $\\ldots$  | $\\ldots$  | $\\ldots$  | $\\ldots$  |\n| T    | $y_T$ | $x_{1,T}$ | $x_{2,T}$ | $x_{3,T}$ |\n\n\n| Frequentist | Bayesian |\n|--|--|\n| ![](img/synthetic_control_skl.svg) | ![](img/synthetic_control_pymc.svg) |\n\n> The data (treated and untreated units), pre-treatment model fit, and counterfactual (i.e. the synthetic control) are plotted (top). The causal impact is shown as a blue shaded region. The Bayesian analysis shows shaded Bayesian credible regions of the model fit and counterfactual. Also shown is the causal impact (middle) and cumulative causal impact (bottom).\n\n### Geographical lift (Geolift)\nWe can also use synthetic control methods to analyse data from geographical lift studies. For example, we can try to evaluate the causal impact of an intervention (e.g. a marketing campaign) run in one geographical area by using control geographical areas which are similar to the intervention area but which did not recieve the specific marketing intervention.\n\n### ANCOVA\n\nThis is appropriate for non-equivalent group designs when you have a single pre and post intervention measurement and have a treament and a control group.\n\n| Group | pre | post |\n|------|---|-------|\n| 0    | $x_1$ | $y_1$ |\n| 0    | $x_2$ | $y_2$ |\n| 1    | $x_3$ | $y_3$ |\n| 1    | $x_4$ | $y_4$ |\n\n| Frequentist | Bayesian |\n|--|--|\n| coming soon | ![](img/anova_pymc.svg) |\n\n> The data from the control and treatment group are plotted, along with posterior predictive 94% credible intervals. The lower panel shows the estimated treatment effect.\n\n### Difference in Differences\n\nThis is appropriate for non-equivalent group designs when you have pre and post intervention measurement and have a treament and a control group. Unlike the ANCOVA approach, difference in differences is appropriate when there are multiple pre and/or post treatment measurements.\n\nData is expected to be in the following form. Shown are just two units - one in the treated group (`group=1`) and one in the untreated group (`group=0`), but there can of course be multiple units per group. This is panel data (also known as repeated measures) where each unit is measured at 2 time points.\n\n| Unit | Time | Group | Outcome         |\n|------|---|-------|-----------|\n| 0    | 0 | 0     | $y_{0,0}$ |\n| 0    | 1 | 0     | $y_{0,0}$ |\n| 1    | 0 | 1     | $y_{1,0}$ |\n| 1    | 1 | 1     | $y_{1,1}$ |\n\n| Frequentist | Bayesian |\n|--|--|\n| ![](img/difference_in_differences_skl.svg) | ![](img/difference_in_differences_pymc.svg) |\n\n>The data, model fit, and counterfactual are plotted. Frequentist model fits result in points estimates, but the Bayesian analysis results in posterior distributions, represented by the violin plots. The causal impact is the difference between the counterfactual prediction (treated group, post treatment) and the observed values for the treated group, post treatment.\n\n### Regression discontinuity designs\n\nRegression discontinuity designs are used when treatment is applied to units according to a cutoff on the running variable (e.g. $x$) which is typically _not_ time. By looking for the presence of a discontinuity at the precise point of the treatment cutoff then we can make causal claims about the potential impact of the treatment.\n\n| Running variable | Outcome | Treated  |\n|-----------|-----------|----------|\n| $x_0$     | $y_0$     | False    |\n| $x_1$     | $y_0$     | False    |\n| $\\ldots$  | $\\ldots$  | $\\ldots$ |\n| $x_{N-1}$ | $y_{N-1}$ | True     |\n| $x_N$     | $y_N$     | True     |\n\n\n| Frequentist | Bayesian |\n|--|--|\n| ![](img/regression_discontinuity_skl.svg) | ![](img/regression_discontinuity_pymc.svg) |\n\n> The data, model fit, and counterfactual are plotted (top). Frequentist analysis shows the causal impact with the blue shaded region, but this is not shown in the Bayesian analysis to avoid a cluttered chart. Instead, the Bayesian analysis shows shaded Bayesian credible regions of the model fits. The Frequentist analysis visualises the point estimate of the causal impact, but the Bayesian analysis also plots the posterior distribution of the regression discontinuity effect (bottom).\n\n## Learning resources\n\nHere are some general resources about causal inference:\n\n* The official [PyMC examples gallery](https://www.pymc.io/projects/examples/en/latest/gallery.html) has a set of examples specifically relating to causal inference.\n* Angrist, J. D., & Pischke, J. S. (2009). Mostly harmless econometrics: An empiricist's companion. Princeton university press.\n* Angrist, J. D., & Pischke, J. S. (2014). Mastering'metrics: The path from cause to effect. Princeton university press.\n* Cunningham, S. (2021). [Causal inference: The Mixtape](https://mixtape.scunning.com). Yale University Press.\n* Huntington-Klein, N. (2021). [The effect: An introduction to research design and causality](https://theeffectbook.net). Chapman and Hall/CRC.\n* Reichardt, C. S. (2019). Quasi-experimentation: A guide to design and analysis. Guilford Publications.\n\n## License\n\n[Apache License 2.0](LICENSE)\n\n---\n\n## Support\n\n<img src=\"img/pymc-labs-log.png\" align=\"right\" width=\"50%\" />\n\nThis repository is supported by [PyMC Labs](https://www.pymc-labs.io).\n\nIf you are interested in seeing what PyMC Labs can do for you, then please email [ben.vincent@pymc-labs.io](mailto:ben.vincent@pymc-labs.io). We work with companies at a variety of scales and with varying levels of existing modeling capacity. We also run corporate workshop training events and can provide sessions ranging from introduction to Bayes to more advanced topics.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/pymc-labs/CausalPy",
+            "keywords": "",
+            "license": "Apache License 2.0",
+            "maintainer": "Benjamin T. Vincent",
+            "maintainer_email": "",
+            "name": "CausalPy",
+            "package_url": "https://pypi.org/project/CausalPy/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/CausalPy/",
+            "project_urls": {
+                "Homepage": "https://github.com/pymc-labs/CausalPy"
+            },
+            "release_url": "https://pypi.org/project/CausalPy/0.0.7/",
+            "requires_dist": null,
+            "requires_python": ">=3.8",
+            "summary": "Causal inference for quasi-experiments in Python",
+            "version": "0.0.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16187962,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e34eef37b4853abde28316b26e512c08",
+                    "sha256": "8bea895f499987ae1aff910a9160bd4b90458a508a29220ab699ef8e67bcc70e"
+                },
+                "downloads": -1,
+                "filename": "CausalPy-0.0.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e34eef37b4853abde28316b26e512c08",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 89439,
+                "upload_time": "2022-12-22T16:54:03",
+                "upload_time_iso_8601": "2022-12-22T16:54:03.107692Z",
+                "url": "https://files.pythonhosted.org/packages/12/47/c1331ad3096a630df223315c60d6dffb6c046c632afa32c0208da103222c/CausalPy-0.0.7.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

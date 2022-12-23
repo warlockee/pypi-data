@@ -42,7 +42,7 @@
             "yanked": true,
             "yanked_reason": null
         },
-        "last_serial": 16174654,
+        "last_serial": 16186959,
         "urls": [
             {
                 "comment_text": "",
@@ -130,7 +130,7 @@
             "yanked": true,
             "yanked_reason": null
         },
-        "last_serial": 16174654,
+        "last_serial": 16186959,
         "urls": [
             {
                 "comment_text": "",
@@ -218,7 +218,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16174654,
+        "last_serial": 16186959,
         "urls": [
             {
                 "comment_text": "",
@@ -273,7 +273,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# Jasmin Mongo Configuration\n\nLinks [Jasmin SMS Gateway](https://github.com/jookies/jasmin)'s configuration to MongoDB cluster's [Change Stream](https://www.mongodb.com/docs/manual/changeStreams/) (can be a one-node cluster). This package is using MongoDB cluster's [Change Stream](https://www.mongodb.com/docs/manual/changeStreams/) which allow applications to access realtime data changes.\n\n\n### Table of Contents\n1. **[Installation Instructions](#installation-instructions)**<br>\n    + **[PYPI](#pypi)**<br>\n    + **[From Source](#from-source)**<br>\n    + **[Docker](#docker)**<br>\n2. **[Setup MongoDB CLuster](#setup-mongodb-cluster)**<br>\n3. **[Usage Instructions](#usage-instructions)**<br>\n    + **[Data Structure](#data-structure)**<br>\n    + **[Start the Service](#start-the-service)**<br>\n\n\n## Installation Instructions\n### PYPI:\n```\npip3 install -U jasmin-mongo-configuration\n```\n### From Source:\n```\ngit clone https://github.com/BlackOrder/jasmin_mongo_configuration.git\ncd jasmin_mongo_configuration\npip3 install .\n```\n### Docker:\n```\ndocker compose -f ./docker/docker-compose.yml up -d\n```\nBe sure to change the `JASMIN_HOST` and `MONGO_HOST` in the `docker-compose.yml` file to your desired values. and also finish the setup of the MongoDB cluster and import all of your configurations into a MongoDB database before running the docker-compose file.\n\n## Setup MongoDB CLuster\nTo setup a MongoDB cluster with Docker, You can use this open source [Docker Custom MongoDB Image](https://github.com/BlackOrder/mongo-cluster)\n\n\n## Usage Instructions:\n`Jasmin Mongo Configuration` sync all configurations [`Smppccm`, `Httpccm`, `Group`, `User`, `Filter`, `MoRouter`, `MtRouter`, `MoInterceptor`, and `MtInterceptor`] from a MongoDB cluster to a `jasmin` instance. All settings can be read from OS ENV when run from console or passed as arguments. if you want to import it in you code, you can supply the settings on initialization.\n\n### Data Structure\nThe Database supplied should have a collection for each module:\n```\nsmppccm\ngroup\nuser\nfilter\nhttpccm\nmorouter\nmointerceptor\nmtrouter\nmtinterceptor\n```\nEach collection should contains your desired `jasmin`'s settings in a key value format. and should have a valid format for Jasmin. for example the `user` collection should have documents in this format:\n```\n{\n    '_id': '$UID',\n    'gid': '$GID',\n    'mt_messaging_cred authorization dlr_level': 'True',\n    'mt_messaging_cred authorization hex_content': 'True',\n    'mt_messaging_cred authorization http_balance': 'True',\n    'mt_messaging_cred authorization http_bulk': 'True',\n    'mt_messaging_cred authorization http_dlr_method': 'True',\n    'mt_messaging_cred authorization http_long_content': 'True',\n    'mt_messaging_cred authorization http_rate': 'True',\n    'mt_messaging_cred authorization http_send': 'True',\n    'mt_messaging_cred authorization priority': 'True',\n    'mt_messaging_cred authorization schedule_delivery_time': 'True',\n    'mt_messaging_cred authorization smpps_send': 'True',\n    'mt_messaging_cred authorization src_addr': 'True',\n    'mt_messaging_cred authorization validity_period': 'True',\n    'mt_messaging_cred defaultvalue src_addr': 'None',\n    'mt_messaging_cred quota balance': 4000,\n    'mt_messaging_cred quota early_percent': 'ND',\n    'mt_messaging_cred quota http_throughput': 'ND',\n    'mt_messaging_cred quota smpps_throughput': 'ND',\n    'mt_messaging_cred quota sms_count': 'ND',\n    'mt_messaging_cred valuefilter content': '.*',\n    'mt_messaging_cred valuefilter dst_addr': '.*',\n    'mt_messaging_cred valuefilter priority': '^[0-3]$',\n    'mt_messaging_cred valuefilter src_addr': '^()$',\n    'mt_messaging_cred valuefilter validity_period': '^d+$',\n    'password': '$PASSWORD',\n    'smpps_cred authorization bind': 'True',\n    'smpps_cred quota max_bindings': '1',\n    'status': true,\n    'uid': '$UID',\n    'username': '$USERNAME'\n}\n```\nKeep in mind, to not include `mt_messaging_cred quota balance`, and `mt_messaging_cred quota sms_count` keys in your `user` collection if you have `jasmin` internal billing enabled.\nAlso notice there is an extra key `status`. This key is a special `bool` field. You have to include it in all `user`, `group`, and `smppccm` documents. The package will use the value of this key to `Enable` if `True`, `Disable` if `False` the `user`, and `group`. In case of `smppccm` the package will `start` the `smppccm` if `True` and `stop` it if `False`.\n\nAlso keep in mind the package will not copy any files to the `jasmin` instance. all communications are done through `Telnet`. So, in case of `MoInterceptor`, and `MtInterceptor`. You will have to make the script accessible to the `jasmin` server. Example of a `MtInterceptor` document:\n```\n{\n    _id: '$ORDER',\n    filters: 'premium_numbers',\n    order: '$ORDER',\n    script: 'python3(/tmp/premium.py)',\n    type: 'StaticMTInterceptor'\n}\n```\nYou will have to make the sure `jasmin` have access to `/tmp/premium.py` before adding the document to MongoDB cluster.\n\n\n### Start the service\nThere is multiple ways to setup the package from CLI.\n\n1. Set ENV variables\nyou can export the fallowing variables before execution\n```\nJASMIN_CLI_HOST                         =       **REQUIRED:NoDefault**\nJASMIN_CLI_PORT                         =               8990\nJASMIN_CLI_TIMEOUT                      =                30\nJASMIN_CLI_AUTH                         =                yes\nJASMIN_CLI_USERNAME                     =             jcliadmin\nJASMIN_CLI_PASSWORD                     =              jclipwd\nJASMIN_CLI_STANDARD_PROMPT              =             \"jcli : \"\nJASMIN_CLI_INTERACTIVE_PROMPT           =               \"> \"\nMONGO_CONNECTION_STRING                 =       **REQUIRED:NoDefault**\nMONGO_CONFIGURATION_DATABASE            =       **REQUIRED:NoDefault**\nSYNC_CURRENT_FIRST                      =                yes\nJASMIN_MONGO_CONFIGURATION_LOG_PATH     =          /var/log/jasmin/\n```\n\n\nThen execute:\n```\njasminmongoconfd\n```\n\n2. you can pass arguments to the package on execution. execute ` jasminmongoconfd -h ` to see all possible arguments. Then execute:\n```\njasminmongoconfd --cli-host $JASMIN_CLI_HOST --connection-string $MONGO_CONNECTION_STRING --configuration-database $MONGO_CONFIGURATION_DATABASE\n```\n\n3. Mix the previous two methods. you can set the ENV variables and pass some arguments. for example:\n```\nJASMIN_CLI_HOST=127.0.0.1 jasminmongoconfd --connection-string $MONGO_CONNECTION_STRING --configuration-database $MONGO_CONFIGURATION_DATABASE\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -307,7 +306,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16174654,
+        "last_serial": 16186959,
         "urls": [
             {
                 "comment_text": "",
@@ -346,6 +345,95 @@
                 "upload_time": "2022-12-21T15:11:09",
                 "upload_time_iso_8601": "2022-12-21T15:11:09.412876Z",
                 "url": "https://files.pythonhosted.org/packages/80/20/e959b5f55b9e0dd4a4d183960138626b0464ae47cbcf82dff988c7811378/jasmin_mongo_configuration-0.0.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.0": {
+        "info": {
+            "author": "",
+            "author_email": "BlackOrder <4302157+BlackOrder@users.noreply.github.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# Jasmin Mongo Configuration\n\nLinks [Jasmin SMS Gateway](https://github.com/jookies/jasmin)'s configuration to MongoDB cluster's [Change Stream](https://www.mongodb.com/docs/manual/changeStreams/) (can be a one-node cluster). This package is using MongoDB cluster's [Change Stream](https://www.mongodb.com/docs/manual/changeStreams/) which allow applications to access realtime data changes.\n\n\n### Table of Contents\n1. **[Installation Instructions](#installation-instructions)**<br>\n    + **[PYPI](#pypi)**<br>\n    + **[From Source](#from-source)**<br>\n    + **[Docker](#docker)**<br>\n2. **[Setup MongoDB CLuster](#setup-mongodb-cluster)**<br>\n3. **[Usage Instructions](#usage-instructions)**<br>\n    + **[Data Structure](#data-structure)**<br>\n    + **[Start the Service](#start-the-service)**<br>\n\n\n## Installation Instructions\n### PYPI:\n```\npip3 install -U jasmin-mongo-configuration\n```\n### From Source:\n```\ngit clone https://github.com/BlackOrder/jasmin_mongo_configuration.git\ncd jasmin_mongo_configuration\npip3 install .\n```\n### Docker:\n```\ndocker compose -f ./docker/docker-compose.yml up -d\n```\nBe sure to change the `JASMIN_HOST` and `MONGO_HOST` in the `docker-compose.yml` file to your desired values. and also finish the setup of the MongoDB cluster and import all of your configurations into a MongoDB database before running the docker-compose file.\n\n## Setup MongoDB CLuster\nTo setup a MongoDB cluster with Docker, You can use this open source [Docker Custom MongoDB Image](https://github.com/BlackOrder/mongo-cluster)\n\n\n## Usage Instructions:\n`Jasmin Mongo Configuration` sync all configurations [`Smppccm`, `Httpccm`, `Group`, `User`, `Filter`, `MoRouter`, `MtRouter`, `MoInterceptor`, and `MtInterceptor`] from a MongoDB cluster to a `jasmin` instance. All settings can be read from OS ENV when run from console or passed as arguments. if you want to import it in you code, you can supply the settings on initialization.\n\n### Data Structure\nThe Database supplied should have a collection for each module:\n```\nsmppccm\ngroup\nuser\nfilter\nhttpccm\nmorouter\nmointerceptor\nmtrouter\nmtinterceptor\n```\nEach collection should contains your desired `jasmin`'s settings in a key value format. and should have a valid format for Jasmin. for example the `user` collection should have documents in this format:\n```\n{\n    '_id': '$UID',\n    'gid': '$GID',\n    'mt_messaging_cred authorization dlr_level': 'True',\n    'mt_messaging_cred authorization hex_content': 'True',\n    'mt_messaging_cred authorization http_balance': 'True',\n    'mt_messaging_cred authorization http_bulk': 'True',\n    'mt_messaging_cred authorization http_dlr_method': 'True',\n    'mt_messaging_cred authorization http_long_content': 'True',\n    'mt_messaging_cred authorization http_rate': 'True',\n    'mt_messaging_cred authorization http_send': 'True',\n    'mt_messaging_cred authorization priority': 'True',\n    'mt_messaging_cred authorization schedule_delivery_time': 'True',\n    'mt_messaging_cred authorization smpps_send': 'True',\n    'mt_messaging_cred authorization src_addr': 'True',\n    'mt_messaging_cred authorization validity_period': 'True',\n    'mt_messaging_cred defaultvalue src_addr': 'None',\n    'mt_messaging_cred quota balance': 4000,\n    'mt_messaging_cred quota early_percent': 'ND',\n    'mt_messaging_cred quota http_throughput': 'ND',\n    'mt_messaging_cred quota smpps_throughput': 'ND',\n    'mt_messaging_cred quota sms_count': 'ND',\n    'mt_messaging_cred valuefilter content': '.*',\n    'mt_messaging_cred valuefilter dst_addr': '.*',\n    'mt_messaging_cred valuefilter priority': '^[0-3]$',\n    'mt_messaging_cred valuefilter src_addr': '^()$',\n    'mt_messaging_cred valuefilter validity_period': '^d+$',\n    'password': '$PASSWORD',\n    'smpps_cred authorization bind': 'True',\n    'smpps_cred quota max_bindings': '1',\n    'status': true,\n    'uid': '$UID',\n    'username': '$USERNAME'\n}\n```\nKeep in mind, to not include `mt_messaging_cred quota balance`, and `mt_messaging_cred quota sms_count` keys in your `user` collection if you have `jasmin` internal billing enabled.\nAlso notice there is an extra key `status`. This key is a special `bool` field. You have to include it in all `user`, `group`, and `smppccm` documents. The package will use the value of this key to `Enable` if `True`, `Disable` if `False` the `user`, and `group`. In case of `smppccm` the package will `start` the `smppccm` if `True` and `stop` it if `False`.\n\nAlso keep in mind the package will not copy any files to the `jasmin` instance. all communications are done through `Telnet`. So, in case of `MoInterceptor`, and `MtInterceptor`. You will have to make the script accessible to the `jasmin` server. Example of a `MtInterceptor` document:\n```\n{\n    _id: '$ORDER',\n    filters: 'premium_numbers',\n    order: '$ORDER',\n    script: 'python3(/tmp/premium.py)',\n    type: 'StaticMTInterceptor'\n}\n```\nYou will have to make the sure `jasmin` have access to `/tmp/premium.py` before adding the document to MongoDB cluster.\n\n\n### Start the service\nThere is multiple ways to setup the package from CLI.\n\n1. By exporting ENV variables\nyou can export the fallowing variables before execution\n```\nJASMIN_CLI_HOST                         =       **REQUIRED:NoDefault**\nJASMIN_CLI_PORT                         =               8990\nJASMIN_CLI_TIMEOUT                      =                30\nJASMIN_CLI_AUTH                         =                yes\nJASMIN_CLI_USERNAME                     =             jcliadmin\nJASMIN_CLI_PASSWORD                     =              jclipwd\nJASMIN_CLI_STANDARD_PROMPT              =             \"jcli : \"\nJASMIN_CLI_INTERACTIVE_PROMPT           =               \"> \"\nMONGO_CONNECTION_STRING                 =       **REQUIRED:NoDefault**\nMONGO_CONFIGURATION_DATABASE            =       **REQUIRED:NoDefault**\nSYNC_CURRENT_FIRST                      =                yes\nJASMIN_MONGO_CONFIGURATION_LOG_PATH     =          /var/log/jasmin/\n```\n\n\nThen execute:\n```\njasminmongoconfd\n```\n\n2. you can pass arguments to the package on execution. execute ` jasminmongoconfd -h ` to see all possible arguments. Then execute:\n```\njasminmongoconfd --cli-host $JASMIN_CLI_HOST --connection-string $MONGO_CONNECTION_STRING --configuration-database $MONGO_CONFIGURATION_DATABASE\n```\n\n3. Mix the previous two methods. you can set the ENV variables and pass some arguments. for example:\n```\nJASMIN_CLI_HOST=127.0.0.1 jasminmongoconfd --connection-string $MONGO_CONNECTION_STRING --configuration-database $MONGO_CONFIGURATION_DATABASE\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "jasmin-mongo-configuration",
+            "package_url": "https://pypi.org/project/jasmin-mongo-configuration/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/jasmin-mongo-configuration/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/BlackOrder/jasmin_mongo_configuration/issues",
+                "Homepage": "https://github.com/BlackOrder/jasmin_mongo_configuration"
+            },
+            "release_url": "https://pypi.org/project/jasmin-mongo-configuration/0.1.0/",
+            "requires_dist": [
+                "dnspython",
+                "jasmin-telnet",
+                "pymongo"
+            ],
+            "requires_python": ">=3.11",
+            "summary": "Links Jasmin SMS Gateway to MongoDB cluster's Change Stream (can be one node).",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16186959,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9773f9ffac1ebed971226bea0fbeae0b",
+                    "sha256": "4eed413e4f8e887d2d886563f5efcd0a3029d7e921cdf04b24305feb34e13346"
+                },
+                "downloads": -1,
+                "filename": "jasmin_mongo_configuration-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "9773f9ffac1ebed971226bea0fbeae0b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.11",
+                "size": 20912,
+                "upload_time": "2022-12-22T15:08:52",
+                "upload_time_iso_8601": "2022-12-22T15:08:52.448839Z",
+                "url": "https://files.pythonhosted.org/packages/84/f8/3fa8cf5668875c5a3488c3b9c7fe6c5d850c15bb2ed2246e8ca03166cfb2/jasmin_mongo_configuration-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "03fdb6705212e4685c8a3829113fb16a",
+                    "sha256": "bd9d425127cf185187897739be9bc7772eb985d4546d152fd09e09ebd8a0e81d"
+                },
+                "downloads": -1,
+                "filename": "jasmin_mongo_configuration-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "03fdb6705212e4685c8a3829113fb16a",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.11",
+                "size": 20727,
+                "upload_time": "2022-12-22T15:08:54",
+                "upload_time_iso_8601": "2022-12-22T15:08:54.355792Z",
+                "url": "https://files.pythonhosted.org/packages/f0/46/455a4fb6960f57addaf30ed9eea58577bed0a3ead704d2b388d2f30032e4/jasmin_mongo_configuration-0.1.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
