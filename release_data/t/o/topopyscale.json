@@ -42,7 +42,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16102435,
+        "last_serial": 16195833,
         "urls": [
             {
                 "comment_text": "",
@@ -130,7 +130,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16102435,
+        "last_serial": 16195833,
         "urls": [
             {
                 "comment_text": "",
@@ -169,7 +169,6 @@
                 "Topic :: Scientific/Engineering :: Hydrology",
                 "Topic :: Scientific/Engineering :: Visualization"
             ],
-            "description": "\n\n[![DOI](https://zenodo.org/badge/411249045.svg)](https://zenodo.org/badge/latestdoi/411249045)\n[![GitHub license](https://img.shields.io/github/license/ArcticSnow/TopoPyScale)](https://github.com/ArcticSnow/TopoPyScale/blob/main/LICENSE)\n![GitHub release (latest by date)](https://img.shields.io/github/v/release/ArcticSnow/TopoPyScale)\n\n# TopoPyScale\nPure Python version of Toposcale packaged as a Pypi library. Toposcale is an original idea of Joel Fiddes to perform topography-based downscaling of climate data to the hillslope scale.\n\nDocumentation avalaible: https://topopyscale.readthedocs.io\n\n**References:**\n- Fiddes, J. and Gruber, S.: TopoSCALE v.1.0: downscaling gridded climate data in complex terrain, Geosci. Model Dev., 7, 387\u2013405, https://doi.org/10.5194/gmd-7-387-2014, 2014.\n- Fiddes, J. and Gruber, S.: TopoSUB: a tool for efficient large area numerical modelling in complex topography at sub-grid scales, Geosci. Model Dev., 5, 1245\u20131257, https://doi.org/10.5194/gmd-5-1245-2012, 2012. \n\nKristoffer Aalstad has a Matlab implementation: https://github.com/krisaalstad/TopoLAB\n\n## Contribution Workflow\n**Please follow these simple rules:**\n1. a bug -> fix it! \n2. an idea or a bug you cannot fix? -> create a new [issue](https://github.com/ArcticSnow/TopoPyScale/issues) if none doesn't already exist. If one exist, then add material to tit.\n3. wanna develop a new feature/idea? -> create a new branch. Do the development. Merge with main branch when accomplished.\n4. Create release version when significant improvements and bug fixes have been done. Coordinate with others\n\n**Create a new release:**\nFollow procedure and conventions described in: https://www.youtube.com/watch?v=Ob9llA_QhQY\n\nAnd check out our Slack: tscaleworkspace.slack.com\n\nContributors to the current version (2021) are:\n- Simon Filhol\n- Joel Fiddes\n- Kristoffer Aalstad\n\n## Design\n\n1. Inputs\n    - Climate data from reanalysis (ERA5, etc)\n    - Climate data from future projections (CORDEX) (not avail.)\n    - DEM from local source, or fetch from public repository: SRTM, ArcticDEM, ASTER\n2. Run TopoScale\n    - compute derived values (from DEM)\n    - toposcale (k-mean clustering)\n    - interpolation (bilinear, inverse square dist.)\n3. Output\n    - Cryogrid format\n    - FSM format\n    - CROCUS format\n    - Snowmodel format\n    - basic netcfd\n    - For each method, have the choice to output either the abstract cluster points, or the gridded product after interpolation\n4. Validation toolset\n    - validation to local observation timeseries\n    - plotting\n5. Gap filling algorithm\n    - random forest temporal gap filling\n\nValidation (4) and Gap filling (4) are future implementation.\n\n## Installation\n\n```bash\nconda install mamba -n base -c conda-forge\nmamba create -n downscaling ipython numpy pandas xarray matplotlib netcdf4 ipykernel scikit-learn rasterio gdal pyproj\nconda activate downscaling\npip install cdsapi\npip install h5netcdf\npip install topocalc\npip install pvlib\npip install elevation\npip install configobj\npip install lazydocs\n\ncd github  # navigate to where you want to clone TopoPyScale\ngit clone git@github.com:ArcticSnow/TopoPyScale.git\npip install -e TopoPyScale    #install a development version\n\n#----------------------------------------------------------\n#            OPTIONAL: if using jupyter lab\n# add this new Python kernel to your jupyter lab PATH\npython -m ipykernel install --user --name downscaling\n```\n\nThen you need to setup your `cdsapi` with the Copernicus API key system. Follow [this tutorial](https://cds.climate.copernicus.eu/api-how-to#install-the-cds-api-key) after creating an account with [Copernicus](https://cds.climate.copernicus.eu/). On Linux, create a file `nano ~/.cdsapirc` with inside:\n\n```\nurl: https://cds.climate.copernicus.eu/api/v2\nkey: {uid}:{api-key}\n```\n\n## Basic usage\n\n1. Setup your Python environment\n2. Create your project directory\n3. Configure the file `config.ini` to fit your problem (see [`config.ini`](https://github.com/ArcticSnow/TopoPyScale/blob/main/TopoPyScale/config.ini) for an example)\n4. Run TopoPyScale\n\n```python\nimport pandas as pd\nfrom TopoPyScale import topoclass as tc\nfrom matplotlib import pyplot as plt\n\n# ========= STEP 1 ==========\n# Load Configuration\nconfig_file = './config.ini'\nmp = tc.Topoclass(config_file)\n# Compute parameters of the DEM (slope, aspect, sky view factor)\nmp.compute_dem_param()\n\n# ========== STEP 2 ===========\n# Extract DEM parameters for points of interest (centroids or physical points)\n\nmp.extract_topo_param()\n\n# ----- Option 1:\n# Compute clustering of the input DEM and extract cluster centroids\n#mp.extract_dem_cluster_param()\n# plot clusters\n#mp.toposub.plot_clusters_map()\n# plot sky view factor\n#mp.toposub.plot_clusters_map(var='svf', cmap=plt.cm.viridis)\n\n# ------ Option 2:\n# inidicate in the config file the .csv file containing a list of point coordinates (!!! must same coordinate system as DEM !!!)\n#mp.extract_pts_param(method='linear',index_col=0)\n\n# ========= STEP 3 ==========\n# compute solar geometry and horizon angles\nmp.compute_solar_geometry()\nmp.compute_horizon()\n\n# ========= STEP 4 ==========\n# Perform the downscaling\nmp.downscale_climate()\n\n# ========= STEP 5 ==========\n# explore the downscaled dataset. For instance the temperature difference between each point and the first one\n(mp.downscaled_pts.t-mp.downscaled_pts.t.isel(point_id=0)).plot()\nplt.show()\n\n# ========= STEP 6 ==========\n# Export output to desired format\nmp.to_netcdf()\n```\n\nTopoClass will create a file structure in the project folder (see below). TopoPyScale assumes you have a DEM in GeoTiFF, and a set of climate data in netcdf (following ERA5 variable conventions). \nTopoPyScale can easier segment the DEM using clustering (e.g. K-mean), or a list of predefined point coordinates in `pts_list.csv` can be provided. Make sure all parameters in `config.ini` are correct.\n```\nmy_project/\n    \u251c\u2500\u2500 inputs/\n        \u251c\u2500\u2500 dem/ \n            \u251c\u2500\u2500 my_dem.tif\n            \u2514\u2500\u2500 pts_list.csv  (optional)\n        \u2514\u2500\u2500 climate/\n            \u251c\u2500\u2500 PLEV*.nc\n            \u2514\u2500\u2500 SURF*.nc\n    \u251c\u2500\u2500 outputs/\n    \u2514\u2500\u2500 config.ini\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "https://github.com/ArcticSnow/TopoPyScale/releases/latest",
@@ -199,7 +198,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16102435,
+        "last_serial": 16195833,
         "urls": [
             {
                 "comment_text": "",
@@ -238,6 +237,98 @@
                 "upload_time": "2022-12-14T17:00:52",
                 "upload_time_iso_8601": "2022-12-14T17:00:52.684326Z",
                 "url": "https://files.pythonhosted.org/packages/63/e7/5a15d8b53273001f33df9cfe244449f70cfd5bd8e425debe8e8dcefc15de/topopyscale-0.1.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.7": {
+        "info": {
+            "author": "['Simon Filhol', 'Joel Fiddes', 'Kristoffer Aalstad']",
+            "author_email": "simon.filhol@geo.uio.no",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3.8",
+                "Topic :: Scientific/Engineering :: Atmospheric Science",
+                "Topic :: Scientific/Engineering :: Hydrology",
+                "Topic :: Scientific/Engineering :: Visualization"
+            ],
+            "description": "\n\n[![DOI](https://zenodo.org/badge/411249045.svg)](https://zenodo.org/badge/latestdoi/411249045)\n[![GitHub license](https://img.shields.io/github/license/ArcticSnow/TopoPyScale)](https://github.com/ArcticSnow/TopoPyScale/blob/main/LICENSE)\n![GitHub release (latest by date)](https://img.shields.io/github/v/release/ArcticSnow/TopoPyScale)\n\n# TopoPyScale\nPure Python version of Toposcale packaged as a Pypi library. Toposcale is an original idea of Joel Fiddes to perform topography-based downscaling of climate data to the hillslope scale.\n\nDocumentation avalaible: https://topopyscale.readthedocs.io\n\n**References:**\n- Fiddes, J. and Gruber, S.: TopoSCALE v.1.0: downscaling gridded climate data in complex terrain, Geosci. Model Dev., 7, 387\u2013405, https://doi.org/10.5194/gmd-7-387-2014, 2014.\n- Fiddes, J. and Gruber, S.: TopoSUB: a tool for efficient large area numerical modelling in complex topography at sub-grid scales, Geosci. Model Dev., 5, 1245\u20131257, https://doi.org/10.5194/gmd-5-1245-2012, 2012. \n\nKristoffer Aalstad has a Matlab implementation: https://github.com/krisaalstad/TopoLAB\n\n## Contribution Workflow\n**Please follow these simple rules:**\n1. a bug -> fix it! \n2. an idea or a bug you cannot fix? -> create a new [issue](https://github.com/ArcticSnow/TopoPyScale/issues) if none doesn't already exist. If one exist, then add material to tit.\n3. wanna develop a new feature/idea? -> create a new branch. Do the development. Merge with main branch when accomplished.\n4. Create release version when significant improvements and bug fixes have been done. Coordinate with others\n\n**Create a new release:**\nFollow procedure and conventions described in: https://www.youtube.com/watch?v=Ob9llA_QhQY\n\nAnd check out our Slack: tscaleworkspace.slack.com\n\nContributors to the current version (2021) are:\n- Simon Filhol\n- Joel Fiddes\n- Kristoffer Aalstad\n\n## Design\n\n1. Inputs\n    - Climate data from reanalysis (ERA5, etc)\n    - Climate data from future projections (CORDEX) (not avail.)\n    - DEM from local source, or fetch from public repository: SRTM, ArcticDEM, ASTER\n2. Run TopoScale\n    - compute derived values (from DEM)\n    - toposcale (k-mean clustering)\n    - interpolation (bilinear, inverse square dist.)\n3. Output\n    - Cryogrid format\n    - FSM format\n    - CROCUS format\n    - Snowmodel format\n    - basic netcfd\n    - For each method, have the choice to output either the abstract cluster points, or the gridded product after interpolation\n4. Validation toolset\n    - validation to local observation timeseries\n    - plotting\n5. Gap filling algorithm\n    - random forest temporal gap filling\n\nValidation (4) and Gap filling (4) are future implementation.\n\n## Installation\n\n```bash\nconda install mamba -n base -c conda-forge\nmamba create -n downscaling ipython numpy pandas xarray matplotlib netcdf4 ipykernel scikit-learn rasterio gdal pyproj\nconda activate downscaling\npip install cdsapi\npip install h5netcdf\npip install topocalc\npip install pvlib\npip install elevation\npip install configobj\npip install lazydocs\n\ncd github  # navigate to where you want to clone TopoPyScale\ngit clone git@github.com:ArcticSnow/TopoPyScale.git\npip install -e TopoPyScale    #install a development version\n\n#----------------------------------------------------------\n#            OPTIONAL: if using jupyter lab\n# add this new Python kernel to your jupyter lab PATH\npython -m ipykernel install --user --name downscaling\n```\n\nThen you need to setup your `cdsapi` with the Copernicus API key system. Follow [this tutorial](https://cds.climate.copernicus.eu/api-how-to#install-the-cds-api-key) after creating an account with [Copernicus](https://cds.climate.copernicus.eu/). On Linux, create a file `nano ~/.cdsapirc` with inside:\n\n```\nurl: https://cds.climate.copernicus.eu/api/v2\nkey: {uid}:{api-key}\n```\n\n## Basic usage\n\n1. Setup your Python environment\n2. Create your project directory\n3. Configure the file `config.ini` to fit your problem (see [`config.ini`](https://github.com/ArcticSnow/TopoPyScale/blob/main/TopoPyScale/config.ini) for an example)\n4. Run TopoPyScale\n\n```python\nimport pandas as pd\nfrom TopoPyScale import topoclass as tc\nfrom matplotlib import pyplot as plt\n\n# ========= STEP 1 ==========\n# Load Configuration\nconfig_file = './config.ini'\nmp = tc.Topoclass(config_file)\n# Compute parameters of the DEM (slope, aspect, sky view factor)\nmp.compute_dem_param()\n\n# ========== STEP 2 ===========\n# Extract DEM parameters for points of interest (centroids or physical points)\n\nmp.extract_topo_param()\n\n# ----- Option 1:\n# Compute clustering of the input DEM and extract cluster centroids\n#mp.extract_dem_cluster_param()\n# plot clusters\n#mp.toposub.plot_clusters_map()\n# plot sky view factor\n#mp.toposub.plot_clusters_map(var='svf', cmap=plt.cm.viridis)\n\n# ------ Option 2:\n# inidicate in the config file the .csv file containing a list of point coordinates (!!! must same coordinate system as DEM !!!)\n#mp.extract_pts_param(method='linear',index_col=0)\n\n# ========= STEP 3 ==========\n# compute solar geometry and horizon angles\nmp.compute_solar_geometry()\nmp.compute_horizon()\n\n# ========= STEP 4 ==========\n# Perform the downscaling\nmp.downscale_climate()\n\n# ========= STEP 5 ==========\n# explore the downscaled dataset. For instance the temperature difference between each point and the first one\n(mp.downscaled_pts.t-mp.downscaled_pts.t.isel(point_id=0)).plot()\nplt.show()\n\n# ========= STEP 6 ==========\n# Export output to desired format\nmp.to_netcdf()\n```\n\nTopoClass will create a file structure in the project folder (see below). TopoPyScale assumes you have a DEM in GeoTiFF, and a set of climate data in netcdf (following ERA5 variable conventions). \nTopoPyScale can easier segment the DEM using clustering (e.g. K-mean), or a list of predefined point coordinates in `pts_list.csv` can be provided. Make sure all parameters in `config.ini` are correct.\n```\nmy_project/\n    \u251c\u2500\u2500 inputs/\n        \u251c\u2500\u2500 dem/ \n            \u251c\u2500\u2500 my_dem.tif\n            \u2514\u2500\u2500 pts_list.csv  (optional)\n        \u2514\u2500\u2500 climate/\n            \u251c\u2500\u2500 PLEV*.nc\n            \u2514\u2500\u2500 SURF*.nc\n    \u251c\u2500\u2500 outputs/\n    \u2514\u2500\u2500 config.ini\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://github.com/ArcticSnow/TopoPyScale/releases/latest",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/ArcticSnow/TopoPyScale",
+            "keywords": "climate,downscaling,meteorology,xarray",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "topopyscale",
+            "package_url": "https://pypi.org/project/topopyscale/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/topopyscale/",
+            "project_urls": {
+                "Documentation": "https://topopyscale.readthedocs.io/en/latest/",
+                "Download": "https://github.com/ArcticSnow/TopoPyScale/releases/latest",
+                "Examples": "https://github.com/ArcticSnow/TopoPyScale_examples",
+                "Homepage": "https://github.com/ArcticSnow/TopoPyScale",
+                "Source": "https://github.com/ArcticSnow/TopoPyScale"
+            },
+            "release_url": "https://pypi.org/project/topopyscale/0.1.7/",
+            "requires_dist": null,
+            "requires_python": ">=3.8",
+            "summary": "A Python package to perform climate downscaling at the hillslope scale",
+            "version": "0.1.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16195833,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b5795a522f91985e9182d4c6dfcd3c59",
+                    "sha256": "66b99c7dcf9d2c6bb40e3ce93bebd2e6ee31182f9a54c07ae0eb2540ab38f5a0"
+                },
+                "downloads": -1,
+                "filename": "topopyscale-0.1.7-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b5795a522f91985e9182d4c6dfcd3c59",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 63591,
+                "upload_time": "2022-12-23T10:00:03",
+                "upload_time_iso_8601": "2022-12-23T10:00:03.648126Z",
+                "url": "https://files.pythonhosted.org/packages/51/7d/344b41f3a3c9639461e8992005fdd25a6b9f11143b5346cccb61a73d9920/topopyscale-0.1.7-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f84c53251e8355d8876013340673af92",
+                    "sha256": "cda7de98399373d67c945e1af04cff6a3e92222d0aa9a9353fae7025232bcfa1"
+                },
+                "downloads": -1,
+                "filename": "topopyscale-0.1.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "f84c53251e8355d8876013340673af92",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 3117363,
+                "upload_time": "2022-12-23T09:54:21",
+                "upload_time_iso_8601": "2022-12-23T09:54:21.561940Z",
+                "url": "https://files.pythonhosted.org/packages/f1/0c/4e6df51f0b7b83f88fc900c870b4e54748a78a8b8f99da5778f589aea8b7/topopyscale-0.1.7.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

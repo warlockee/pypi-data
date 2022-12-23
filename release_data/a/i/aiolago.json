@@ -41,7 +41,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16180144,
+        "last_serial": 16193850,
         "urls": [
             {
                 "comment_text": "",
@@ -128,7 +128,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16180144,
+        "last_serial": 16193850,
         "urls": [
             {
                 "comment_text": "",
@@ -215,7 +215,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16180144,
+        "last_serial": 16193850,
         "urls": [
             {
                 "comment_text": "",
@@ -302,7 +302,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16180144,
+        "last_serial": 16193850,
         "urls": [
             {
                 "comment_text": "",
@@ -389,7 +389,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16180144,
+        "last_serial": 16193850,
         "urls": [
             {
                 "comment_text": "",
@@ -445,7 +445,6 @@
                 "Programming Language :: Python :: 3.7",
                 "Topic :: Software Development :: Libraries"
             ],
-            "description": "# aiolago\n Unofficial Asyncronous Python Client for Lago\n\n\n **Latest Version**: [![PyPI version](https://badge.fury.io/py/aiolago.svg)](https://badge.fury.io/py/aiolago)\n\n **[Official Client](https://github.com/getlago/lago-python-client)**\n\n## Features\n\n- Unified Asyncronous and Syncronous Python Client for [Lago](https://www.getlago.com/)\n- Supports Python 3.6+\n- Strongly Typed with [Pydantic](https://pydantic-docs.helpmanual.io/)\n- Includes Function Wrappers to quickly add to existing projects\n- Utilizes Environment Variables for Configuration\n\n---\n\n## Installation\n\n```bash\n# Install from PyPI\npip install aiolago\n\n# Install from source\npip install git+https://github.com/GrowthEngineAI/aiolago.git\n```\n\n## Usage\n\nWIP - Simple Usage Example\n\n```python\nimport asyncio\nfrom aiolago import Lago\nfrom aiolago.utils import logger\n\n\"\"\"\nEnvironment Vars that map to Lago.configure:\nall vars are prefixed with LAGO_\n\nLAGO_API_KEY (apikey): str\nLAGO_URL (url): str takes precedence over LAGO_SCHEME | LAGO_HOST | LAGO_PORT\nLAGO_SCHEME (scheme): str - defaults to 'http://'\nLAGO_HOST (host): str - defaults to None\nLAGO_PORT (port): int - defaults to 3000\nLAGO_API_PATH (api_path): str - defaults to '/api/v1'\nLAGO_TIMEOUT (timeout): int - defaults to 10\nLAGO_IGNORE_ERRORS (ignore_errors): bool = defaults to False\n\"\"\"\n\nLago.configure(\n    api_key = '...',\n    url = '',\n)\n\n\ncustomer_id = \"gexai_demo\"\n\nmetric_name = \"Demo API Requests\"\nmetric_id = \"demo_requests\"\n\nplan_name = \"Demo Plan\"\nplan_id = \"demo_plan\"\n\n\nasync def create_demo_customer():\n    customer = await Lago.customers.async_create(\n        external_id = customer_id,\n        email = f\"{customer_id}@growthengineai.com\",\n        billing_configuration = {\n            \"tax_rate\": 8.25,\n        },\n    )\n    logger.info(f'Created Customer: {customer}')\n    return customer\n\n\nflat_rate = 0.021\nvolume_rate = 0.025\nbase_rate = 0.023\n\nrates = {\n    'volume': [\n        {\n            'from_value': 0,\n            'to_value': 2500,\n            'flat_amount': '0',\n            'per_unit_amount': str(round(volume_rate, 5)),\n        },\n        # 20% discount\n        {\n            'from_value': 2501,\n            'to_value': 10000,\n            'flat_amount': '0',\n            'per_unit_amount': str(round(volume_rate * .8, 5)),\n        },\n        # 50% discount\n        {\n            'from_value': 10001,\n            'flat_amount': '0',\n            'per_unit_amount': str(round(volume_rate * .5, 5)),\n        },\n    ],\n    'graduated': [\n        {\n            'to_value': 2500,\n            'from_value': 0,\n            'flat_amount': '0',\n            'per_unit_amount': str(round(base_rate, 5)),\n        },\n        # 25% discount\n        {\n            'from_value': 2501,\n            'flat_amount': '0',\n            'per_unit_amount': str(round(base_rate * .75, 5)),\n        },\n    ],\n    # 'standard': str(round(flat_rate, 5)),\n}\n\n\ndef create_charge(\n    metric_id: str,\n    name: str = 'volume'\n) -> Charge:\n    # https://doc.getlago.com/docs/api/plans/plan-object\n\n    if name in {'volume', 'graduated'}:\n        return Charge(\n            billable_metric_id = metric_id,\n            charge_model = name,\n            amount_currency = 'USD',\n            properties = {\n                f'{name}_ranges': rates[name],\n            }\n        )\n    return Charge(\n        billable_metric_id = metric_id,\n        charge_model = name,\n        amount_currency = 'USD',\n        properties = {\n            'amount': rates[name]\n        },\n    )\n    \n\n\nasync def create_metric() -> BillableMetricResponse:\n    \"\"\"\n    The upsert logic creates a new metric if it doesn't exist.\n    \"\"\"\n    return await Lago.billable_metrics.async_upsert(\n        resource_id = metric_id,\n        name = metric_name,\n        code = metric_id,\n        description = 'Demo API Requests',\n        aggregation_type = \"sum_agg\",\n        field_name = \"consumption\"\n    )\n    \n\n\nasync def create_plan() -> Plan:\n    \n    plan = await Lago.plans.async_exists(\n        resource_id = plan_id,\n    )\n    if not plan:\n        metric = await create_metric()\n        plan_obj = Plan(\n            name = plan_name,\n            amount_cents = 0,\n            amount_currency = 'USD',\n            code = plan_id,\n            interval = \"monthly\",\n            description = \"Demo API Plan\",\n            pay_in_advance = False\n        )\n        for rate in rates:\n            charge = create_charge(\n                name = rate,\n                metric_id = metric.resource_id,\n            )\n            plan_obj.add_charge_to_plan(charge)\n        plan = await Lago.plans.async_create(plan_obj)\n        logger.info(f'Created Plan: {plan}')\n    return plan\n\n\nasync def run_test():\n    plan = await create_plan()\n\nasyncio.run(run_test())\n\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -477,7 +476,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16180144,
+        "last_serial": 16193850,
         "urls": [
             {
                 "comment_text": "",
@@ -516,6 +515,94 @@
                 "upload_time": "2022-12-22T00:46:11",
                 "upload_time_iso_8601": "2022-12-22T00:46:11.976376Z",
                 "url": "https://files.pythonhosted.org/packages/ba/9e/4d15cd8fc8800547dd5580b3ce7849a6b040d03a0158a1a02a805d725ee7/aiolago-0.0.6.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.7": {
+        "info": {
+            "author": "Tri Songz",
+            "author_email": "ts@growthengineai.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3.7",
+                "Topic :: Software Development :: Libraries"
+            ],
+            "description": "# aiolago\n Unofficial Asyncronous Python Client for Lago\n\n\n **Latest Version**: [![PyPI version](https://badge.fury.io/py/aiolago.svg)](https://badge.fury.io/py/aiolago)\n\n **[Official Client](https://github.com/getlago/lago-python-client)**\n\n## Features\n\n- Unified Asyncronous and Syncronous Python Client for [Lago](https://www.getlago.com/)\n- Supports Python 3.6+\n- Strongly Typed with [Pydantic](https://pydantic-docs.helpmanual.io/)\n- Includes Function Wrappers to quickly add to existing projects\n- Utilizes Environment Variables for Configuration\n\n---\n\n## Installation\n\n```bash\n# Install from PyPI\npip install aiolago\n\n# Install from source\npip install git+https://github.com/GrowthEngineAI/aiolago.git\n```\n\n## Usage\n\nWIP - Simple Usage Example\n\n```python\nimport asyncio\nfrom aiolago import Lago\nfrom aiolago.utils import logger\n\n\"\"\"\nEnvironment Vars that map to Lago.configure:\nall vars are prefixed with LAGO_\n\nLAGO_API_KEY (apikey): str\nLAGO_URL (url): str takes precedence over LAGO_SCHEME | LAGO_HOST | LAGO_PORT\nLAGO_SCHEME (scheme): str - defaults to 'http://'\nLAGO_HOST (host): str - defaults to None\nLAGO_PORT (port): int - defaults to 3000\nLAGO_API_PATH (api_path): str - defaults to '/api/v1'\nLAGO_TIMEOUT (timeout): int - defaults to 10\nLAGO_IGNORE_ERRORS (ignore_errors): bool = defaults to False\n\"\"\"\n\nLago.configure(\n    api_key = '...',\n    url = '',\n)\n\n\ncustomer_id = \"gexai_demo\"\n\nmetric_name = \"Demo API Requests\"\nmetric_id = \"demo_requests\"\n\nplan_name = \"Demo Plan\"\nplan_id = \"demo_plan\"\n\n\nasync def create_demo_customer():\n    customer = await Lago.customers.async_create(\n        external_id = customer_id,\n        email = f\"{customer_id}@growthengineai.com\",\n        billing_configuration = {\n            \"tax_rate\": 8.25,\n        },\n    )\n    logger.info(f'Created Customer: {customer}')\n    return customer\n\n\nflat_rate = 0.021\nvolume_rate = 0.025\nbase_rate = 0.023\n\nrates = {\n    'volume': [\n        {\n            'from_value': 0,\n            'to_value': 2500,\n            'flat_amount': '0',\n            'per_unit_amount': str(round(volume_rate, 5)),\n        },\n        # 20% discount\n        {\n            'from_value': 2501,\n            'to_value': 10000,\n            'flat_amount': '0',\n            'per_unit_amount': str(round(volume_rate * .8, 5)),\n        },\n        # 50% discount\n        {\n            'from_value': 10001,\n            'flat_amount': '0',\n            'per_unit_amount': str(round(volume_rate * .5, 5)),\n        },\n    ],\n    'graduated': [\n        {\n            'to_value': 2500,\n            'from_value': 0,\n            'flat_amount': '0',\n            'per_unit_amount': str(round(base_rate, 5)),\n        },\n        # 25% discount\n        {\n            'from_value': 2501,\n            'flat_amount': '0',\n            'per_unit_amount': str(round(base_rate * .75, 5)),\n        },\n    ],\n    # 'standard': str(round(flat_rate, 5)),\n}\n\n\ndef create_charge(\n    metric_id: str,\n    name: str = 'volume'\n) -> Charge:\n    # https://doc.getlago.com/docs/api/plans/plan-object\n\n    if name in {'volume', 'graduated'}:\n        return Charge(\n            billable_metric_id = metric_id,\n            charge_model = name,\n            amount_currency = 'USD',\n            properties = {\n                f'{name}_ranges': rates[name],\n            }\n        )\n    return Charge(\n        billable_metric_id = metric_id,\n        charge_model = name,\n        amount_currency = 'USD',\n        properties = {\n            'amount': rates[name]\n        },\n    )\n    \n\n\nasync def create_metric() -> BillableMetricResponse:\n    \"\"\"\n    The upsert logic creates a new metric if it doesn't exist.\n    \"\"\"\n    return await Lago.billable_metrics.async_upsert(\n        resource_id = metric_id,\n        name = metric_name,\n        code = metric_id,\n        description = 'Demo API Requests',\n        aggregation_type = \"sum_agg\",\n        field_name = \"consumption\"\n    )\n    \n\n\nasync def create_plan() -> Plan:\n    \n    plan = await Lago.plans.async_exists(\n        resource_id = plan_id,\n    )\n    if not plan:\n        metric = await create_metric()\n        plan_obj = Plan(\n            name = plan_name,\n            amount_cents = 0,\n            amount_currency = 'USD',\n            code = plan_id,\n            interval = \"monthly\",\n            description = \"Demo API Plan\",\n            pay_in_advance = False\n        )\n        for rate in rates:\n            charge = create_charge(\n                name = rate,\n                metric_id = metric.resource_id,\n            )\n            plan_obj.add_charge_to_plan(charge)\n        plan = await Lago.plans.async_create(plan_obj)\n        logger.info(f'Created Plan: {plan}')\n    return plan\n\n\nasync def run_test():\n    plan = await create_plan()\n\nasyncio.run(run_test())\n\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/GrowthEngineAI/aiolago",
+            "keywords": "",
+            "license": "MIT License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "aiolago",
+            "package_url": "https://pypi.org/project/aiolago/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/aiolago/",
+            "project_urls": {
+                "Homepage": "https://github.com/GrowthEngineAI/aiolago"
+            },
+            "release_url": "https://pypi.org/project/aiolago/0.0.7/",
+            "requires_dist": [
+                "aiohttpx",
+                "backoff"
+            ],
+            "requires_python": "",
+            "summary": "Unofficial Asyncronous Python Client for Lago",
+            "version": "0.0.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16193850,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cb847c2dabfb1decd106e37b30d21649",
+                    "sha256": "5a9d9e3aa7578d1d2d1e42f2002c0d27f5721b95ed784aff129cd45ec8ea9089"
+                },
+                "downloads": -1,
+                "filename": "aiolago-0.0.7-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "cb847c2dabfb1decd106e37b30d21649",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 27194,
+                "upload_time": "2022-12-23T03:20:37",
+                "upload_time_iso_8601": "2022-12-23T03:20:37.882739Z",
+                "url": "https://files.pythonhosted.org/packages/3e/3b/40a4470c597a8d2c1b21c364580165fcb6dcc84d8b85644afc0507a3b466/aiolago-0.0.7-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7c99b8170189b41a835300b037469098",
+                    "sha256": "6f3b6047b97e1bf21d69f8c25bcbec07d8fbb2361369d65ca3e7cd700acfb59b"
+                },
+                "downloads": -1,
+                "filename": "aiolago-0.0.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7c99b8170189b41a835300b037469098",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 20999,
+                "upload_time": "2022-12-23T03:20:39",
+                "upload_time_iso_8601": "2022-12-23T03:20:39.149503Z",
+                "url": "https://files.pythonhosted.org/packages/5e/6d/9ca4e7823c984597109e1c627ab09aab1e148de5dca69618194eedcc9e60/aiolago-0.0.7.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
