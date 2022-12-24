@@ -5,7 +5,6 @@
             "author_email": "nwang@futurewei.com",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# KubeML\n\nKubeML provides wrappers and tools that allow the interaction with user code written in PyTorch\nwith the distributed training and serving functionality offered by KubeML\n\n## Installing\n\nInstall and update using pip\n\n```text\npip install kubeml\n```\n\n## Usage\n\nThe main functionality offered is in the shape of Models and Datasets. A KubeDataset is a convenience wrapper over a\ntorch dataset which, like when using torch, users extend with their own functionality to adapt to their data. A simple\nexample of how to create a dataset to train with KubeML is seen below.\n\n### The Dataset class\n\n```python\nfrom kubeml import KubeDataset\nfrom torchvision import transforms\n\nclass MnistDataset(KubeDataset):\n\n    def __init__(self):\n        super().__init__(\"mnist\")\n        self.transf = transforms.Compose([\n            transforms.ToTensor(),\n            transforms.Normalize((0.1307,), (0.3081,))\n        ])\n\n    def __getitem__(self, index):\n        x = self.data[index]\n        y = self.labels[index]\n\n        return self.transf(x), y.astype('int64')\n\n    def __len__(self):\n        return len(self.data)\n```\n\nThe user only needs to provide to the constructor the name of the dataset as was uploaded to the KubeML storage, \nthe dataset will take care of fetching only the corresponding minibatches of data so that the network can be trained\nwith a model parallel approach.\n\nAs with a normal torch dataset, the user must implement the `__getitem__` and `__len__` methods to iterate over the dataset.\nThe dataset exposes two member variables:\n1. `data` Holds the features used as input to the network\n2. `labels` Holds the output labels\n\nBoth are saved as numpy arrays.\n\n### The Model class\n\nThe other main component is the model class. This abstract class abstracts the complexity of distributing the training\namong multiple workers, nodes and GPUs. The constructor only takes a torch model and the dataset as a parameter. The user only needs\nto implement the abstract methods of the class, `train`, `infer`, `validate` `init` and `configure_optimizers` with the behavior they\nwant from the network.\n\nThe Kubenet exposes the `batch_size` and `lr` arguments which the user can change when starting the train job\n\n\n```python\nfrom kubeml import KubeModel\nimport torch\nimport torch.nn as nn\nimport numpy as np\n\nclass KubeLeNet(KubeModel):\n\n    def __init__(self, network, dataset):\n        super().__init__(network, dataset, gpu=True)\n    \n    @abstractmethod\n    def configure_optimizers(self) -> torch.optim.Optimizer:\n        pass\n\n    # Train trains the model for an epoch and returns the loss\n    @abstractmethod\n    def train(self, x, y, batch_index) -> float:\n        pass\n    \n    # Validate validates the model on the test data and returns a tuple\n    # of (accuracy, loss)\n    @abstractmethod\n    def validate(self, x, y, batch_index) -> Tuple[float, float]:\n        pass\n    \n    # Infer receives the data points or images as a list and returns \n    # the predictions of the network\n    @abstractmethod\n    def infer(self, data: List[Any]) -> Union[torch.Tensor, np.ndarray, List[float]]:\n        pass\n    \n    # Init initializes the model in a particular way\n    @abstractmethod\n    def init(self, model: nn.Module):\n       pass\n\n```\n\nAn example implementation of the `init` and `train` functions can be done as follows\n\n```python\n    # Train trains the model for an epoch and returns the loss\n     def train(self, x, y, batch_index) -> float:\n        # define the device for training and load the data\n        loss_fn = nn.CrossEntropyLoss()\n        total_loss = 0\n    \n        self.optimizer.zero_grad()\n        output = self(x)\n    \n        # compute loss and backprop\n        # logging.debug(f'Shape of the output is {output.shape}, y is {y.shape}')\n        loss = loss_fn(output, y)\n        loss.backward()\n    \n        # step with the optimizer\n        self.optimizer.step()\n        total_loss += loss.item()\n    \n        if batch_index % 10 == 0:\n            logging.info(f\"Index {batch_index}, error: {loss.item()}\")\n    \n        return total_loss\n    \n    # Intialize the network as a pytorch model\n    def init(self, model):\n        def init_weights(m: nn.Module):\n            if isinstance(m, nn.Conv2d):\n                nn.init.xavier_uniform_(m.weight)\n                nn.init.constant_(m.bias, 0.01)\n            if isinstance(m, nn.Linear):\n                nn.init.xavier_uniform_(m.weight)\n                nn.init.constant_(m.bias, 0.01)\n    \n        model.apply(init_weights)\n```\n\n## Writing the training function\n\nAt the moment of creating a serverless function which will serve as a worker for the model training process, the \nsteps are simple, simply write the code initializing the network in the `main` method of the function, and call\n`start` on the KubeML model.\n\n```python\ndef main():\n    # Create the PyTorch Model\n    lenet = LeNet()\n    dataset = MnistDataset()\n    kubenet = KubeLeNet(lenet, dataset)\n    return kubenet.start()\n```\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -37,7 +36,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15998387,
+        "last_serial": 16199511,
         "urls": [
             {
                 "comment_text": "",
@@ -76,6 +75,89 @@
                 "upload_time": "2022-12-05T17:32:53",
                 "upload_time_iso_8601": "2022-12-05T17:32:53.288670Z",
                 "url": "https://files.pythonhosted.org/packages/b0/71/4c3f81f8865b19ca869c4043f9179040b9f14ed985cf3381be1e02625a66/serverlessdl-0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2": {
+        "info": {
+            "author": "Ning Wang originally from Diego Albo Mart\u00ednez: diego.albo.martinez@gmail.com",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# KubeML\n\nKubeML provides wrappers and tools that allow the interaction with user code written in PyTorch\nwith the distributed training and serving functionality offered by KubeML\n\n## Installing\n\nInstall and update using pip\n\n```text\npip install kubeml\n```\n\n## Usage\n\nThe main functionality offered is in the shape of Models and Datasets. A KubeDataset is a convenience wrapper over a\ntorch dataset which, like when using torch, users extend with their own functionality to adapt to their data. A simple\nexample of how to create a dataset to train with KubeML is seen below.\n\n### The Dataset class\n\n```python\nfrom kubeml import KubeDataset\nfrom torchvision import transforms\n\nclass MnistDataset(KubeDataset):\n\n    def __init__(self):\n        super().__init__(\"mnist\")\n        self.transf = transforms.Compose([\n            transforms.ToTensor(),\n            transforms.Normalize((0.1307,), (0.3081,))\n        ])\n\n    def __getitem__(self, index):\n        x = self.data[index]\n        y = self.labels[index]\n\n        return self.transf(x), y.astype('int64')\n\n    def __len__(self):\n        return len(self.data)\n```\n\nThe user only needs to provide to the constructor the name of the dataset as was uploaded to the KubeML storage, \nthe dataset will take care of fetching only the corresponding minibatches of data so that the network can be trained\nwith a model parallel approach.\n\nAs with a normal torch dataset, the user must implement the `__getitem__` and `__len__` methods to iterate over the dataset.\nThe dataset exposes two member variables:\n1. `data` Holds the features used as input to the network\n2. `labels` Holds the output labels\n\nBoth are saved as numpy arrays.\n\n### The Model class\n\nThe other main component is the model class. This abstract class abstracts the complexity of distributing the training\namong multiple workers, nodes and GPUs. The constructor only takes a torch model and the dataset as a parameter. The user only needs\nto implement the abstract methods of the class, `train`, `infer`, `validate` `init` and `configure_optimizers` with the behavior they\nwant from the network.\n\nThe Kubenet exposes the `batch_size` and `lr` arguments which the user can change when starting the train job\n\n\n```python\nfrom kubeml import KubeModel\nimport torch\nimport torch.nn as nn\nimport numpy as np\n\nclass KubeLeNet(KubeModel):\n\n    def __init__(self, network, dataset):\n        super().__init__(network, dataset, gpu=True)\n    \n    @abstractmethod\n    def configure_optimizers(self) -> torch.optim.Optimizer:\n        pass\n\n    # Train trains the model for an epoch and returns the loss\n    @abstractmethod\n    def train(self, x, y, batch_index) -> float:\n        pass\n    \n    # Validate validates the model on the test data and returns a tuple\n    # of (accuracy, loss)\n    @abstractmethod\n    def validate(self, x, y, batch_index) -> Tuple[float, float]:\n        pass\n    \n    # Infer receives the data points or images as a list and returns \n    # the predictions of the network\n    @abstractmethod\n    def infer(self, data: List[Any]) -> Union[torch.Tensor, np.ndarray, List[float]]:\n        pass\n    \n    # Init initializes the model in a particular way\n    @abstractmethod\n    def init(self, model: nn.Module):\n       pass\n\n```\n\nAn example implementation of the `init` and `train` functions can be done as follows\n\n```python\n    # Train trains the model for an epoch and returns the loss\n     def train(self, x, y, batch_index) -> float:\n        # define the device for training and load the data\n        loss_fn = nn.CrossEntropyLoss()\n        total_loss = 0\n    \n        self.optimizer.zero_grad()\n        output = self(x)\n    \n        # compute loss and backprop\n        # logging.debug(f'Shape of the output is {output.shape}, y is {y.shape}')\n        loss = loss_fn(output, y)\n        loss.backward()\n    \n        # step with the optimizer\n        self.optimizer.step()\n        total_loss += loss.item()\n    \n        if batch_index % 10 == 0:\n            logging.info(f\"Index {batch_index}, error: {loss.item()}\")\n    \n        return total_loss\n    \n    # Intialize the network as a pytorch model\n    def init(self, model):\n        def init_weights(m: nn.Module):\n            if isinstance(m, nn.Conv2d):\n                nn.init.xavier_uniform_(m.weight)\n                nn.init.constant_(m.bias, 0.01)\n            if isinstance(m, nn.Linear):\n                nn.init.xavier_uniform_(m.weight)\n                nn.init.constant_(m.bias, 0.01)\n    \n        model.apply(init_weights)\n```\n\n## Writing the training function\n\nAt the moment of creating a serverless function which will serve as a worker for the model training process, the \nsteps are simple, simply write the code initializing the network in the `main` method of the function, and call\n`start` on the KubeML model.\n\n```python\ndef main():\n    # Create the PyTorch Model\n    lenet = LeNet()\n    dataset = MnistDataset()\n    kubenet = KubeLeNet(lenet, dataset)\n    return kubenet.start()\n```\n\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.2/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16199511,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9f98fddd1c1ec4193e0d4cac9636190e",
+                    "sha256": "124bd399943cfb2d08f7d77a435872a01e0dba69e954c81705a2f30ede8751b4"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "9f98fddd1c1ec4193e0d4cac9636190e",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 13585,
+                "upload_time": "2022-12-23T18:23:25",
+                "upload_time_iso_8601": "2022-12-23T18:23:25.226761Z",
+                "url": "https://files.pythonhosted.org/packages/d7/db/7ef6e3b926be52d3843389c0ad992613500e934a9efaa0619c56cbc16f2c/serverlessdl-0.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "411087add13c1a60f8b7d176a6afbe23",
+                    "sha256": "a8af894e13cfe7d079d016838b65b81158663fe067a5a047d3fbadb6afe1075b"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "411087add13c1a60f8b7d176a6afbe23",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 13585,
+                "upload_time": "2022-12-23T18:23:28",
+                "upload_time_iso_8601": "2022-12-23T18:23:28.416289Z",
+                "url": "https://files.pythonhosted.org/packages/42/5c/0162b125a661b0385c6240db48824666543f385138ca8c623408c32ebcae/serverlessdl-0.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

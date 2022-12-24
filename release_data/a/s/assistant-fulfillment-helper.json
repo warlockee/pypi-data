@@ -1,0 +1,62 @@
+{
+    "0.0.3": {
+        "info": {
+            "author": "TotvsLabs",
+            "author_email": "info@totvslabs.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# Fulfillment Helper\n\nEste app tem como objetivo ser um ponto de partida para a migra\u00e7\u00e3o de c\u00f3digos implementados em snippts de fulfillment para uma APi externa. Abaixo as motiva\u00e7\u00f5es para realizar essa migra\u00e7\u00e3o.\n\n- A funcionalidade de fulfillment, apesar de facilitar o tratamento de l\u00f3gicas simplificadas, apresenta v\u00e1rias limita\u00e7\u00f5es, dentre elas:\n\n\t+ A edi\u00e7\u00e3o de c\u00f3digo ocorre apenas na GUI oferecida pela plataforma. Isso dificulta a modulariza\u00e7\u00e3o e re\u00faso de c\u00f3digo, al\u00e9m de limitar o teste do c\u00f3digo. Outro ponto \u00e9 que a valida\u00e7\u00e3o do c\u00f3digo executada pelo backend \u00e9 demasiadamente simples, deixando passar inconsist\u00eancias que seriam capturadas por uma IDE mais robusta.\n\n\t+ O versionamento realizado atraves do backend \u00e9 do tipo \"caixa preta\", ou seja, \u00e9 poss\u00edvel salvar vers\u00f5es de implementa\u00e7\u00e3o contudo n\u00e3o \u00e9 poss\u00edvel realizar compara\u00e7\u00f5es\n\tentre as vers\u00f5es salvas. Esse ponto dificulta o debug e o acompanhamento da evolu\u00e7\u00e3o da implementa\u00e7\u00e3o. Com o c\u00f3digo implementado externamente qualquer ferramenta de versionamento pode ser usada, como o github, inclusive com a maior controle de publica\u00e7\u00e3o (pull requests) e publica\u00e7\u00f5es autom\u00e1ticas (CI/CD).\n\n\t+ Com a implementa\u00e7\u00e3o embedada n\u00e3o h\u00e1 a possibilidade de seguir o paradigma Test Driven Development, pois n\u00e3o h\u00e1 como implementar testes unit\u00e1rios e integrados. \n\n\t+ O resultado processamento de uma conversa s\u00f3 pode ser testado / debugado via chat de conversa. \n\n- Pelos problemas apontados acima, a funcionalidade de implementa\u00e7\u00f5es de fulfillment via c\u00f3digo embedado deve ser descontinuada em um futuro pr\u00f3ximo, restando apenas a op\u00e7\u00e3o de uso de fulfillment atrav\u00e9s de webhooks.\n\nO app est\u00e1 organizado da seguinte forma, visando exigir o m\u00ednimo de mudan\u00e7as no c\u00f3digo embedado para rodar no app:\n\n- **/app/businesslogic/FullfillmentBase.py**: \u00c9 a classe base da qual todas as implementa\u00e7\u00f5es fulfillments devem herdar.\n- **/app/businesslogic/reusable**: Neste diret\u00f5rio devem ser colocados todos os c\u00f3digos recorrentes da implementa\u00e7\u00e3o.\n- **/app/businesslogic**: Nesta pasta de devem ser colocados os arquivos que implementam as l\u00f3gicas de neg\u00f3cio de cada n\u00f3. As regras s\u00e3o: 1. Deve haver um arquivo por c\u00f3digo de fulfillment; 2. O arquivo deve ter como nome o mesmo nome do n\u00f3 de conversa, com todas as letras min\u00fasculas e espa\u00e7os substitu\u00eddos por \"_\"; 3. A implenta\u00e7\u00e3o deve ser feita via classe extendendo o c\u00f3digo da classe FulfillmentBase. O nome da classe deve ser igual o nome do arquivo, por\u00e9m com o pref\u00edxo \"Fulfillment_\".\n- **/app/auth_helper.py**: Fun\u00e7\u00f5es auxiliares para efetuar a autentica\u00e7\u00e3o das chamadas a esta API.\n- **/app/routes.py**: C\u00f3digo que trata din\u00e2micamente as chamadas na rota /getanswer, designando o c\u00f3digo a ser executado pelo nome do n\u00f3.\n\n## Migrando o c\u00f3digo\n\nPara exemplificar a migra\u00e7\u00e3o, tomamos como exemplo a migra\u00e7\u00e3o do n\u00f3 *Default Fallback* do projeto Carolina Suporte. Para este caso o criamos o arquivo default_fallback.py no diret\u00f3rio app/businesslogic, com o seguinte conte\u00fado:\n\n```python\n\nfrom app.businesslogic.FulfillmentBase import FulfillmentBase\nfrom app.businesslogic.reusable.cloudsql_functions import GetMessage\nimport re\nimport random\n\n# Herdando a classe base e implementando o m\u00e9todo runFulfillment como c\u00f3digo customizado\nclass Fulfillment_default_fallback(FulfillmentBase):\n    def runFulfillment(self):\n\n\t\t# Por padr\u00e3o, as vari\u00e1veis dispon\u00edveis no fulfillment embedado como vari\u00e1veis globais s\u00e3o disponibilizadas\n\t\t# aqui como membros de classe. Para evitar ter que acrescentar \"self.\" em todas as refer\u00eancias \u00e0s vari\u00e1veis\n\t\t# globais, simplesmente atribu\u00edmos a refer\u00eancia da vari\u00e1vel de classe a uma vari\u00e1vel local. Vari\u00e1veis comple\n\t\t# xas ser\u00e3o tratadas por refer\u00eancia (altera\u00e7\u00f5es modificam o class member), vari\u00e1veis simples por valor (n\u00e3o \n\t\t# modificam o class member)\n        parameters = self.parameters\n        query = self.query\n        \n\t\t# Iniciando a implementa\u00e7\u00e3o da l\u00f3gica de neg\u00f3cio. o C\u00f3digo abaixo foi copiado as-is do c\u00f3digo embedado, ajus-\n\t\t# tando apenas a identa\u00e7\u00e3o.\n\t\tparameters['question'] = query\n        language = parameters.get(\"lang\")\n        module = parameters.get('module')\n        product = parameters.get('product')\n        parameters['subject'] = 'Produto'\n\n        language = \"pt-BR\" if language is None else language \n\n\t\t# Continua\u00e7\u00e3o da l\u00f3gica de neg\u00f3cio suprimida. C\u00f3digo completo dispon\u00edvel em app/businesslogic.\n\t\t...\n\n\t\t# Retornando os resultados para o backend da assistente. Os mesmos par\u00e2metros usados no Fulfillment embedado\n\t\t# podem ser usados aqui tamb\u00e9m. A \u00fanica diferen\u00e7a \u00e9 que retornamos como um dicion\u00e1rio, e n\u00e3o como os objetos\n\t\t# do tipo textResponse e optionResponse. Para mais informa\u00e7\u00f5es sobre os par\u00e2metros dispon\u00edveis consulte:\n\t\t# https://tdn.totvs.com/pages/releaseview.action?pageId=682036247\n\t\t#\n\t\t# Altera\u00e7\u00f5es dos par\u00e2metros e vari\u00e1veis globais do c\u00f3digo s\u00e3o autom\u00e1ticamente atualizadas com\n\t\t# os valores adicionados as vari\u00e1veis de classe do objeto.\n\n\t\tretd = {'message':msg,  'short_message':msg_short,  'jump_to':jump_to,  'custom_log':None}\n        return retd\n```\n\nUma vez adicionado o c\u00f3digo fonte, a API j\u00e1 estar\u00e1 apta a tratar o processamento do n\u00f3 \"Default Fallback\" atrav\u00e9s da chamada de webhook.",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/totvslabs/assistant-fulfillment-helper",
+            "keywords": "assistant fulfillment helper carol totvs carolina carolapp",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "assistant-fulfillment-helper",
+            "package_url": "https://pypi.org/project/assistant-fulfillment-helper/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/assistant-fulfillment-helper/",
+            "project_urls": {
+                "Homepage": "https://github.com/totvslabs/assistant-fulfillment-helper"
+            },
+            "release_url": "https://pypi.org/project/assistant-fulfillment-helper/0.0.3/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "Assistant Fulfillment Helper Server",
+            "version": "0.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16201183,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ad53c11d2b04a610d56acdbccfbd913d",
+                    "sha256": "e7f359323cda92633f7987fb778c608c5a8a9ea07292faf15bd8c4e44edf8103"
+                },
+                "downloads": -1,
+                "filename": "assistant-fulfillment-helper-0.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ad53c11d2b04a610d56acdbccfbd913d",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 11482,
+                "upload_time": "2022-12-23T23:11:09",
+                "upload_time_iso_8601": "2022-12-23T23:11:09.701263Z",
+                "url": "https://files.pythonhosted.org/packages/4b/39/782ea082510725546fad67d2abed9e1f0bedb53c07fbae8b0967ac9167fb/assistant-fulfillment-helper-0.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
