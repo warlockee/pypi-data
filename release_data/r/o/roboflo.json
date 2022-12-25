@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13364634,
+        "last_serial": 16207227,
         "urls": [
             {
                 "comment_text": "",
@@ -137,7 +137,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13364634,
+        "last_serial": 16207227,
         "urls": [
             {
                 "comment_text": "",
@@ -228,7 +228,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13364634,
+        "last_serial": 16207227,
         "urls": [
             {
                 "comment_text": "",
@@ -289,7 +289,6 @@
                 "Topic :: Scientific/Engineering :: Physics",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "![roboflo](/docs/roboflo.png)\n\n`pip install roboflo`\n\nTask scheduler for any system with coordinated workers. The original use case is for the Perovskite Automated Spin-Coating Assembly Line (PASCAL) in the Fenning Lab at UC San Diego, where a robotic arm moves small glass slides between stations to perform experiments. \n\n`roboflo` assumes that you have a set of `Worker`'s that act (independently or in unison) to perform `Task`'s of set duration. Furthermore, one or more `Worker`'s can function to transition between `Task`'s (eg my robot moves a sample from the hotplate to a camera, or my mom moves me from school to soccer practice). These transition moves constitute a special case of `Task`'s , called `Transition`'s. The total set of `Worker`'s and `Transition`'s define your `System`. Sets of `Task`'s are consolidated into `Protocol`'s (eg the same process for five samples or five kids), which are then scheduled (using the `Scheduler` on your `System`) to minimize the total working time. An example schedule is shown below. \n\nHappy robot-ing!\n\n![Example Schedule](/docs/exampleschedule.jpg)\n\nPS - shoutout to [Taskpacker](https://github.com/Edinburgh-Genome-Foundry/Taskpacker), from which I drew heavy inspiration. `roboflo` carries much of the design philosophy from `Taskpacker`, but uses only Python packages (the backend is Google ORTools as opposed to Numberjack, which can be difficult to install especially on Windows). `roboflo` also introduces `Transitions`, which define a finite state machine, as a critical component in the workflow under the assumption that many robotic platforms involve workers whose specific jobs are to move things between other workers.\n<!-- \n\n# Examples\n\n## Solution Mixing\nSolutions are defined with the `Solution` class. Solutes and solvents are both defined by their formula, which follows the `(name1)(amount1)_(name2)(amount2)_..._(name)(amount)` format. The names do not have to correspond to elements, so you can use placeholders for units that will be mixed. Parentheses can be used to simplify formulae as well: `A2_B2_C` == `(A_B)2_C`. An `alias` can be provided for the solution to simplify later analysis.\n\n```\nstock_solutions = [\n    Solution(\n        solutes='FA_Pb_I3',\n        solvent='DMF9_DMSO1',\n        molarity=1,\n        alias='FAPI'\n    ),\n    Solution(\n        solutes='MA_Pb_I3',\n        solvent='DMF9_DMSO1',\n        molarity=1,\n        alias='MAPI'\n    ),\n]\n```\n\nThis process goes for both stock and target solutions. \n\n```\ndensetargets = []\nfor a in np.linspace(0, 0.8, 5):\n    densetargets.append(Solution(\n        solutes=f\"FA{a:0.3f}_MA{1-a:.3f}_Pb_I3\",\n        solvent=\"DMF9_DMSO1\",\n        molarity=1,\n        alias=f'FA_{a:.3f}'\n    ))\n```\n\nStock and target solutions go into a `Mixer` object\n\n```\nsm = Mixer(\n    stock_solutions = stock_solutions,\n    targets = {\n        t:60      #Solution:volume dictionary\n        for t in densetargets\n    })\n```\nwhich is then solved with constraints\n```\nsm.solve(\n    min_volume=20, #minimum volume for a single liquid transfer\n    max_inputs = 3 #maximum number of solutions that can be mixed to form one target\n    )\n```\n\nThe results can be displayed in two ways:\n- plain text output of liquid transfers, in order. use of the `alias` term really simplifies this output\n```\nsm.print()\n```\n```\n===== Stock Prep =====\n120.00 of FAPI\n180.00 of MAPI\n====== Mixing =====\nDistribute FAPI:\n\t54.00 to FA_0.600\n\t36.00 to FA_0.400\n\t30.00 to FA_0.800\nDistribute MAPI:\n\t60.00 to FA_0.000\n\t36.00 to FA_0.600\n\t54.00 to FA_0.400\n\t30.00 to FA_0.200\nDistribute FA_0.600:\n\t30.00 to FA_0.800\nDistribute FA_0.400:\n\t30.00 to FA_0.200\n```\n\n- a graph of solution transfers. This is harder to use in practice, but can give an overview of the mixing path.\n```\nfig, ax = plt.subplots(figsize=(6,6))\nsm.plot(ax=ax)\n```\n![Example Mixer.plot()](/docs/example_graph.png)\n\nNote that the units of volume here are arbitrary. Using SI units for small volumes might cause numerical issues when solving a mixture strategy (eg you should use 10 microliters instead of 1e-5 liters). \n\n## Solution Preparation\nMixsol aids in determining the mass of solid reagents needed to form target solutions. We can also check the actual solution formed from recorded reagent masses. Here, the units *do* matter, and you should stick to SI units (mass in grams, volume in liters).\n\nWe define solid reagents with the `Powder` class. This requires at least a chemical formula delimited by underscores, similar to the `Solution` definition earlier. If this formula is a proper chemical formula of elements, the molar mass is calculated automatically. If not, you can pass the molar mass directly. The `calculate_molar_mass` function can be used for convenience. `alias` does the same thing it did for `Solution`.\n\n```\nfrom mixsol import Powder, calculate_molar_mass, Weigher\n\npowders = [\n    Powder('Cs_I'),\n    Powder('Pb_I2'),\n    Powder('Pb_Br2'),\n    Powder('Pb_Cl2'),\n    Powder(\n        formula='MA_I',\n        molar_mass=calculate_molar_mass('C_H6_N_I'),\n        alias='MAI',\n    ),\n    Powder(\n        formula='FA_I',\n        molar_mass = calculate_molar_mass('C_H5_N2_I'),\n        alias='FAI',\n        )\n]\n```\n\nThe list of available `Powder`s is fed into a `Weigher` object\n\n```\nweigher = Weigher(\n    powders=powders\n)\n```\nwhich can then be used to determine powder amounts for a given volume of a target `Solution`\n\n```\ntarget=Solution(\n    solutes='Cs0.05_FA0.8_MA0.15_Pb_I2.4_Br0.45_Cl0.15',\n    solvent='DMF9_DMSO1',\n    molarity=1\n)\n\nanswer = weigher.get_weights(\n    target,\n    volume=1e-3, #in L\n)\nprint(answer) #masses of each powder, in grams\n```\n```\n{'Cs_I': 0.012990496098, 'Pb_I2': 0.322706258, 'Pb_Br2': 0.082576575, 'Pb_Cl2': 0.020857935, 'MAI': 0.02384543385, 'FAI': 0.1375746568}\n```\n\nFinally, we can also generate a `Solution` object by inputting a `{powder:mass}` dictionary into `Weigher`. We will just use the answer from before, but this can be manually input. \n```\nresult = weigher.weights_to_solution(\n    weights=answer,\n    volume=1e-3,\n    solvent='DMF9_DMSO1',\n)\nprint(result)\n```\n```\n2.4M Cs0.0208_I_MA0.0625_FA0.333_Br0.188_Cl0.0625_Pb0.417 in DMF9_DMSO1\n```\nThe molarity of the output will by default be determined by the largest component amount. This can be a bit silly. Passing a component or a numeric value to `norm` can control the molarity. Note that this does not affect the solution itself, just the relative values of the formula units and the overall molarity.\n\n```\nresult2 = weigher.weights_to_solution(\n    weights=answer,\n    volume=1e-3, #in L\n    solvent='DMF9_DMSO1',\n    norm='Pb', #normalize the formula+molarity such that Pb=1\n)\nprint(result2) #result is a Solution object\n```\n```\n1.0M Cs0.05_I2.4_Pb_MA0.15_Br0.45_Cl0.15_FA0.8 in DMF9_DMSO1\n```\n\n`Solution` objects can be compared - even if their molarity/formulae are apparently different, they will show as equal if the effective molarity of each component is within 0.01% between the solutions.\n\n```\nresult == result2\n```\n```\nTrue\n```\n\nRead the full documentation [here](https://mixsol.readthedocs.io/en/latest/). -->\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -320,7 +319,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13364634,
+        "last_serial": 16207227,
         "urls": [
             {
                 "comment_text": "",
@@ -359,6 +358,102 @@
                 "upload_time": "2022-03-31T19:30:43",
                 "upload_time_iso_8601": "2022-03-31T19:30:43.687273Z",
                 "url": "https://files.pythonhosted.org/packages/a3/6e/b181da31b90d47267877d3dbc817efee2ff2e7f16788cc6dc4f43a396a09/roboflo-0.1.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.1": {
+        "info": {
+            "author": "Rishi Kumar",
+            "author_email": "rek010@eng.ucsd.edu",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Manufacturing",
+                "Intended Audience :: Science/Research",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.8",
+                "Topic :: Office/Business :: Scheduling",
+                "Topic :: Scientific/Engineering :: Chemistry",
+                "Topic :: Scientific/Engineering :: Information Analysis",
+                "Topic :: Scientific/Engineering :: Physics",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/rekumar/roboflo/HEAD?labpath=.%2FExamples%2Fbasic%20usage.ipynb)\n[![PyPI version](https://badge.fury.io/py/roboflo.svg)](https://badge.fury.io/py/roboflo)\n[![codecov](https://codecov.io/gh/rekumar/roboflo/branch/master/graph/badge.svg?token=V3LPNLOJOG)](https://codecov.io/gh/rekumar/roboflo)\n\n![roboflo](/docs/roboflo.png)\n\n`pip install roboflo`\n\nTask scheduler for any system with coordinated workers. The original use case is for the Perovskite Automated Spin-Coating Assembly Line (PASCAL) in the Fenning Lab at UC San Diego, where a robotic arm moves small glass slides between stations to perform experiments. \n\n`roboflo` assumes that you have a set of `Worker`'s that act (independently or in unison) to perform `Task`'s of set duration. Furthermore, one or more `Worker`'s can function to transition between `Task`'s (eg my robot moves a sample from the hotplate to a camera, or my mom moves me from school to soccer practice). These transition moves constitute a special case of `Task`'s , called `Transition`'s. The total set of `Worker`'s and `Transition`'s define your `System`. Sets of `Task`'s are consolidated into `Protocol`'s (eg the same process for five samples or five kids), which are then scheduled (using the `Scheduler` on your `System`) to minimize the total working time. An example schedule is shown below. \n\nHappy robot-ing!\n\n![Example Schedule](/docs/exampleschedule.jpg)\n\nPS - shoutout to [Taskpacker](https://github.com/Edinburgh-Genome-Foundry/Taskpacker), from which I drew heavy inspiration. `roboflo` carries much of the design philosophy from `Taskpacker`, but uses only Python packages (the backend is Google ORTools as opposed to Numberjack, which can be difficult to install especially on Windows). `roboflo` also introduces `Transitions`, which define a finite state machine, as a critical component in the workflow under the assumption that many robotic platforms involve workers whose specific jobs are to move things between other workers.\n\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "https://github.com/rekumar/roboflo",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "research,science,machine,automation",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "roboflo",
+            "package_url": "https://pypi.org/project/roboflo/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/roboflo/",
+            "project_urls": {
+                "Download": "https://github.com/rekumar/roboflo"
+            },
+            "release_url": "https://pypi.org/project/roboflo/0.2.1/",
+            "requires_dist": [
+                "numpy (~=1.24.0)",
+                "ortools (~=9.5.2237)",
+                "matplotlib (~=3.6.2)",
+                "pytest (>=6.2.5) ; extra == 'dev'"
+            ],
+            "requires_python": "",
+            "summary": "Scheduler for automation tasks that involve multiple stations/workers.",
+            "version": "0.2.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16207227,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "59a0d4bdcbf8db00ba5b72730152131f",
+                    "sha256": "4688216d1e6ad212ea9624ecda406539c50ae09e49756e30ae65e8e7d2055f16"
+                },
+                "downloads": -1,
+                "filename": "roboflo-0.2.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "59a0d4bdcbf8db00ba5b72730152131f",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 28723,
+                "upload_time": "2022-12-24T23:39:05",
+                "upload_time_iso_8601": "2022-12-24T23:39:05.298670Z",
+                "url": "https://files.pythonhosted.org/packages/4d/1f/50d63c7bfa7aed4ebf9173be606048168cd1543cad1432b551a7a18cd98d/roboflo-0.2.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4c26dcebcf9ebfcb63628f451feb2daf",
+                    "sha256": "325ae66f3b0315c2fb727bf1637bcc1b4e4b4b7ca191c58cc322aa59bbc141d3"
+                },
+                "downloads": -1,
+                "filename": "roboflo-0.2.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "4c26dcebcf9ebfcb63628f451feb2daf",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 27121,
+                "upload_time": "2022-12-24T23:39:06",
+                "upload_time_iso_8601": "2022-12-24T23:39:06.862686Z",
+                "url": "https://files.pythonhosted.org/packages/99/93/a50b2774b1432a7ff417f4ee6272cdcc9e19b03cd936ea2c721d62fcf723/roboflo-0.2.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
