@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16185171,
+        "last_serial": 16211918,
         "urls": [
             {
                 "comment_text": "",
@@ -127,7 +127,6 @@
                 "Topic :: Software Development :: Libraries :: Python Modules",
                 "Topic :: Utilities"
             ],
-            "description": "================\r\ndwebsocket\r\n================\r\n\r\nThe **dwebsocket** module provides an implementation of the WebSocket\r\nProtocol for django. \r\n\r\nThis module implements the final version of the WebSocket protocol as\r\ndefined in `RFC 6455 <http://tools.ietf.org/html/rfc6455>`_.  Certain\r\nbrowser versions (notably Safari 5.x) implemented an earlier draft of\r\nthe protocol (known as \"draft 76\") and are not compatible with this module.\r\n\r\nThe **dwebsocket** module based django-websocket development, django-websocket\r\nmodule in `https://github.com/gregmuellegger/django-websocket`.\r\nThank you Gregor M\u7709llegger.\r\n\r\nUsage\r\n=====\r\n\r\nYou can use the ``accept_websocket`` decorator if you want to handle websocket\r\nconnections just for a single view - it will route standard HTTP requests to\r\nthe view as well. Use ``require_websocket`` to only allow WebSocket\r\nconnections but reject normal HTTP requests.\r\n\r\nYou can use a middleware if you want to have WebSockets available for *all*\r\nURLs in your application. Add\r\n``dwebsocket.middleware.WebSocketMiddleware`` to your\r\n``MIDDLEWARE_CLASSES`` setting. This will still reject websockets for normal\r\nviews. You have to set the ``accept_websocket`` attribute on a view to allow\r\nwebsockets.\r\n\r\nTo allow websockets for *every single view*, set the ``WEBSOCKET_ACCEPT_ALL``\r\nsetting to ``True``.\r\n\r\nThe request objects passed to a view, decorated with ``accept_websocket`` or\r\n``require_websocket`` will have the following attributes/methods attached.\r\nThese attributes are always available if you use the middleware.\r\n\r\n``request.is_websocket()``\r\n--------------------------\r\n\r\nReturns either ``True`` if the request has a valid websocket or ``False`` if\r\nits a normal HTTP request. Use this method in views that can accept both types\r\nof requests to distinguish between them.\r\n\r\n``request.websocket``\r\n---------------------\r\n\r\nAfter a websocket is established, the request will have a ``websocket``\r\nattribute which provides a simple API to communicate with the client. This\r\nattribute will be ``None`` if ``request.is_websocket()`` returns ``False``.\r\n\r\nIt has the following public methods:\r\n\r\n``WebSocket.wait(timeout=-1)``\r\n~~~~~~~~~~~~~~~~~~~~\r\n\r\nThis will return exactly one message sent by the client. It will not return\r\nbefore a message is received or the conection is closed by the client. In this\r\ncase the method will return ``None``.\r\n\r\n``WebSocket.read()``\r\n~~~~~~~~~~~~~~~~~~~~\r\n\r\nThe ``read`` method will return either a new message if available or ``None``\r\nif no new message was received from the client. It is a non-blocking\r\nalternative to the ``wait()`` method.\r\n\r\n``WebSocket.count_messages()``\r\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n\r\nReturns the number of queued messages.\r\n\r\n``WebSocket.has_messages()``\r\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n\r\nReturns ``True`` if new messages are available, else ``False``.\r\n\r\n``WebSocket.send(message)``\r\n~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n\r\nThis will send a single message to the client.\r\n\r\n``WebSocket.__iter__()``\r\n~~~~~~~~~~~~~~~~~~~~~~~~\r\n\r\nYou can use the websocket as iterator. It will yield every new message sent by\r\nthe client and stop iteration after the client has closed the connection.\r\n\r\n``WebSocket.is_closed()``\r\n~~~~~~~~~~~~~~~~~~~~~~~~\r\nReturn to ``True`` if websocket is closed, else ``False``.\r\n\r\nError handling\r\n--------------\r\n\r\nThe library will return a Http 400 error (Bad Request) if the client requests\r\na WebSocket connection, but the request is malformed or not supported by\r\n*dwebsocket*.\r\n\r\nExamples\r\n========\r\n\r\nReceive one message from the client, send that message back to the client and\r\nclose the connection (by returning from the view)::\r\n\r\n    from dwebsocket import require_websocket\r\n\r\n    @require_websocket\r\n    def echo_once(request):\r\n        message = request.websocket.wait()\r\n        request.websocket.send(message)\r\n\r\nSend websocket messages from the client as lowercase and provide same\r\nfunctionallity for normal GET requests::\r\n\r\n    from django.http import HttpResponse\r\n    from dwebsocket import accept_websocket\r\n\r\n    def modify_message(message):\r\n        return message.lower()\r\n\r\n    @accept_websocket\r\n    def lower_case(request):\r\n        if not request.is_websocket():\r\n            message = request.GET['message']\r\n            message = modify_message(message)\r\n            return HttpResponse(message)\r\n        else:\r\n            for message in request.websocket:\r\n                message = modify_message(message)\r\n                request.websocket.send(message)\r\n\r\n\r\nChange websocket backends\r\n-------------------\r\n\r\nCurrently supports two kinds of backends, they are default and uwsgi.\r\n\r\nDjango develop server, eventlent, gevent, gunicore are supported by default.\r\n\r\nIf you want to use the uwsgi backend, add `WEBSOCKET_FACTORY_CLASS` in the settings.py file::\r\n\r\n    WEBSOCKET_FACTORY_CLASS = 'dwebsocket.backends.uwsgi.factory.uWsgiWebSocketFactory'\r\n\r\nRun uwsgi::\r\n\r\n    uwsgi --http :8080 --http-websockets --processes 1 \\\r\n    --wsgi-file wsgi.py--async 30 --ugreen --http-timeout 300\r\n\r\n\r\nUsing in production\r\n-------------------\r\n\r\nCurrently there is a cluster of two machines being used dwebsocket, it uses\r\ngevent wsgi deployed, each machine around 150,000 concurrent connections.\r\n\r\n\r\nContribute\r\n==========\r\n\r\nEvery contribution in any form is welcome. Ask questions, report bugs, request\r\nnew features, make rants or tell me any other critique you may have.\r\n\r\nOne of the biggest contributions you can make is giving me a quick *Thank you*\r\nif you like this library or if it has saved you a bunch of time.\r\n\r\nBut if you want to get your hands dirty:\r\n\r\n- Get the code from github: https://github.com/duanhongyi/dwebsocket\r\n- Start coding :)\r\n- Send me a pull request or an email with a patch.\r\n\r\n\r\nChangelog\r\n=========\r\n\r\nRelease 0.2.1\r\n-------------\r\n\r\n- Initial release\r\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -159,7 +158,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16185171,
+        "last_serial": 16211918,
         "urls": [
             {
                 "comment_text": "",
@@ -198,6 +197,119 @@
                 "upload_time": "2022-12-22T12:13:45",
                 "upload_time_iso_8601": "2022-12-22T12:13:45.687566Z",
                 "url": "https://files.pythonhosted.org/packages/65/c4/5644d640da7c0314bcaa8685a00493243ac6a55ecd8c2663313f5ad62350/dwebsocket2-0.0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.3": {
+        "info": {
+            "author": "zack",
+            "author_email": "1125564921@qq.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Environment :: Web Environment",
+                "Framework :: Django",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Topic :: Software Development :: Libraries :: Python Modules",
+                "Topic :: Utilities"
+            ],
+            "description": "================\ndwebsocket\n================\n\nThe **dwebsocket** module provides an implementation of the WebSocket\nProtocol for django. \n\nThis module implements the final version of the WebSocket protocol as\ndefined in `RFC 6455 <http://tools.ietf.org/html/rfc6455>`_.  Certain\nbrowser versions (notably Safari 5.x) implemented an earlier draft of\nthe protocol (known as \"draft 76\") and are not compatible with this module.\n\nThe **dwebsocket** module based django-websocket development, django-websocket\nmodule in `https://github.com/gregmuellegger/django-websocket`.\nThank you Gregor M\u7709llegger.\n\nUsage\n=====\n\nYou can use the ``accept_websocket`` decorator if you want to handle websocket\nconnections just for a single view - it will route standard HTTP requests to\nthe view as well. Use ``require_websocket`` to only allow WebSocket\nconnections but reject normal HTTP requests.\n\nYou can use a middleware if you want to have WebSockets available for *all*\nURLs in your application. Add\n``dwebsocket.middleware.WebSocketMiddleware`` to your\n``MIDDLEWARE_CLASSES`` setting. This will still reject websockets for normal\nviews. You have to set the ``accept_websocket`` attribute on a view to allow\nwebsockets.\n\nTo allow websockets for *every single view*, set the ``WEBSOCKET_ACCEPT_ALL``\nsetting to ``True``.\n\nThe request objects passed to a view, decorated with ``accept_websocket`` or\n``require_websocket`` will have the following attributes/methods attached.\nThese attributes are always available if you use the middleware.\n\n``request.is_websocket()``\n--------------------------\n\nReturns either ``True`` if the request has a valid websocket or ``False`` if\nits a normal HTTP request. Use this method in views that can accept both types\nof requests to distinguish between them.\n\n``request.websocket``\n---------------------\n\nAfter a websocket is established, the request will have a ``websocket``\nattribute which provides a simple API to communicate with the client. This\nattribute will be ``None`` if ``request.is_websocket()`` returns ``False``.\n\nIt has the following public methods:\n\n``WebSocket.wait(timeout=-1)``\n~~~~~~~~~~~~~~~~~~~~\n\nThis will return exactly one message sent by the client. It will not return\nbefore a message is received or the conection is closed by the client. In this\ncase the method will return ``None``.\n\n``WebSocket.read()``\n~~~~~~~~~~~~~~~~~~~~\n\nThe ``read`` method will return either a new message if available or ``None``\nif no new message was received from the client. It is a non-blocking\nalternative to the ``wait()`` method.\n\n``WebSocket.count_messages()``\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nReturns the number of queued messages.\n\n``WebSocket.has_messages()``\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nReturns ``True`` if new messages are available, else ``False``.\n\n``WebSocket.send(message)``\n~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nThis will send a single message to the client.\n\n``WebSocket.__iter__()``\n~~~~~~~~~~~~~~~~~~~~~~~~\n\nYou can use the websocket as iterator. It will yield every new message sent by\nthe client and stop iteration after the client has closed the connection.\n\n``WebSocket.is_closed()``\n~~~~~~~~~~~~~~~~~~~~~~~~\nReturn to ``True`` if websocket is closed, else ``False``.\n\nError handling\n--------------\n\nThe library will return a Http 400 error (Bad Request) if the client requests\na WebSocket connection, but the request is malformed or not supported by\n*dwebsocket*.\n\nExamples\n========\n\nReceive one message from the client, send that message back to the client and\nclose the connection (by returning from the view)::\n\n    from dwebsocket import require_websocket\n\n    @require_websocket\n    def echo_once(request):\n        message = request.websocket.wait()\n        request.websocket.send(message)\n\nSend websocket messages from the client as lowercase and provide same\nfunctionallity for normal GET requests::\n\n    from django.http import HttpResponse\n    from dwebsocket import accept_websocket\n\n    def modify_message(message):\n        return message.lower()\n\n    @accept_websocket\n    def lower_case(request):\n        if not request.is_websocket():\n            message = request.GET['message']\n            message = modify_message(message)\n            return HttpResponse(message)\n        else:\n            for message in request.websocket:\n                message = modify_message(message)\n                request.websocket.send(message)\n\n\nChange websocket backends\n-------------------\n\nCurrently supports two kinds of backends, they are default and uwsgi.\n\nDjango develop server, eventlent, gevent, gunicore are supported by default.\n\nIf you want to use the uwsgi backend, add `WEBSOCKET_FACTORY_CLASS` in the settings.py file::\n\n    WEBSOCKET_FACTORY_CLASS = 'dwebsocket.backends.uwsgi.factory.uWsgiWebSocketFactory'\n\nRun uwsgi::\n\n    uwsgi --http :8080 --http-websockets --processes 1 \\\n    --wsgi-file wsgi.py--async 30 --ugreen --http-timeout 300\n\n\nUsing in production\n-------------------\n\nCurrently there is a cluster of two machines being used dwebsocket, it uses\ngevent wsgi deployed, each machine around 150,000 concurrent connections.\n\n\nContribute\n==========\n\nEvery contribution in any form is welcome. Ask questions, report bugs, request\nnew features, make rants or tell me any other critique you may have.\n\nOne of the biggest contributions you can make is giving me a quick *Thank you*\nif you like this library or if it has saved you a bunch of time.\n\nBut if you want to get your hands dirty:\n\n- Get the code from github: https://github.com/duanhongyi/dwebsocket\n- Start coding :)\n- Send me a pull request or an email with a patch.\n\n\nChangelog\n=========\n\nRelease 0.2.1\n-------------\n\n- Initial release\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "http://github.com/duanhongyi/dwebsocket",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "dwebsocket2",
+            "package_url": "https://pypi.org/project/dwebsocket2/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/dwebsocket2/",
+            "project_urls": {
+                "Homepage": "http://github.com/duanhongyi/dwebsocket"
+            },
+            "release_url": "https://pypi.org/project/dwebsocket2/0.0.3/",
+            "requires_dist": [
+                "setuptools",
+                "six"
+            ],
+            "requires_python": "",
+            "summary": "\u501f\u9274\u539f\u4f5c\u8005\u505a\u8c03\u6574",
+            "version": "0.0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16211918,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7d86416c380ca132e5b798f66e28be69",
+                    "sha256": "667b5a12a36d46ce1160e71434e8c42512949720752493d87042beef3da67bda"
+                },
+                "downloads": -1,
+                "filename": "dwebsocket2-0.0.3-py3.7.egg",
+                "has_sig": false,
+                "md5_digest": "7d86416c380ca132e5b798f66e28be69",
+                "packagetype": "bdist_egg",
+                "python_version": "0.0.3",
+                "requires_python": null,
+                "size": 31669,
+                "upload_time": "2022-12-26T00:47:16",
+                "upload_time_iso_8601": "2022-12-26T00:47:16.279460Z",
+                "url": "https://files.pythonhosted.org/packages/24/1d/c140146e7f4f500612525bf660b0d0406019411d4b91d6ff73c5a1c3954d/dwebsocket2-0.0.3-py3.7.egg",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fdb6c7617f3a7dfc0d00defb211ca673",
+                    "sha256": "c8ed086546161c00fc01ce4056b7be16dfbf76e261164a9b0dc1676287ddd971"
+                },
+                "downloads": -1,
+                "filename": "dwebsocket2-0.0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "fdb6c7617f3a7dfc0d00defb211ca673",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 16077,
+                "upload_time": "2022-12-26T00:47:14",
+                "upload_time_iso_8601": "2022-12-26T00:47:14.299946Z",
+                "url": "https://files.pythonhosted.org/packages/35/3d/fc1c92a9e518bca1b9d45004ea998ef592e7fca715eb97eea89e253d4b6f/dwebsocket2-0.0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4276fa11ae66c2851b2bed4a86f9ec43",
+                    "sha256": "eef4f04289e5772a59a957242faeb3bf4608250d0bbb50666117c3126f458ea7"
+                },
+                "downloads": -1,
+                "filename": "dwebsocket2-0.0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "4276fa11ae66c2851b2bed4a86f9ec43",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 18954,
+                "upload_time": "2022-12-26T00:47:17",
+                "upload_time_iso_8601": "2022-12-26T00:47:17.977120Z",
+                "url": "https://files.pythonhosted.org/packages/24/fb/5c15607dd5ca6d4cdff4d8d178c20d0662ae60aebb8e9cebf184f039cec9/dwebsocket2-0.0.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -36,7 +36,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12487459,
+        "last_serial": 16211949,
         "urls": [
             {
                 "comment_text": "",
@@ -98,7 +98,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12487459,
+        "last_serial": 16211949,
         "urls": [
             {
                 "comment_text": "",
@@ -160,7 +160,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12487459,
+        "last_serial": 16211949,
         "urls": [
             {
                 "comment_text": "",
@@ -194,7 +194,6 @@
                 "License :: OSI Approved :: MIT License",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# gardener - simple tree manipulation module\n\n## Basic usage\n\n```python\nfrom gardener import Node, register_hook\n\n@register_hook(\"child\")\ndef child(node):\n    return Node.another_child(\n        values=[value * 2 for value in node.values]\n    )\n\n\ntree = Node.root(\n    value=56,\n    some_property=Node.child(\n        values=[10, 20, 80]\n    )\n)\n\n\nprint(tree.pretty())\n\"\"\"\n{\n  \"key\": \"root\",\n  \"props\": {\n    \"value\": 56,\n    \"some_property\": {\n      \"key\": \"another_child\",\n      \"props\": {\n        \"values\": [\n          20,\n          40,\n          160\n        ]\n      }\n    }\n  }\n}\n\"\"\"\n```\n\n## Installation\n\n`python -m pip install gardener`\n\n## Getting started\n\nGardener is useful for tree manipulation (building and transforming complex trees)\n\nTo start working with it, you need to understand a few concepts:\n\n*hook* is a function called on node creation. It can create a brand new node or change current one.    \n*node* is an object with a *key* - string identifier and *props* - an arbitrary dictionary\n\n## Building a tree\n\nTo build a tree, you can use `Node.name[.name2.name3...](**props)`:\n\n```python\nfrom gardener import Node\n\n\nroot = Node.root() # props={}, key=\"root\"\noak = Node.tree.oak(age=23) # props={\"age\": 23}, key=\"tree:oak\"\nlong_name = Node.very.long.node.key() # props={}, key=\"very:long:node:key\"\n```\n\nArbitrary name length makes it possible to create namespaces:\n\n```python\nfrom gardener import Node\n\ntree = Node.tree\n\ntree.oak(age=23) # props={\"age\": 23}, key=\"tree:oak\"\ntree.pine(age=2) # props={\"age\": 2}, key=\"tree:pine\"\n\n```\n\n## Hooks\n\nTo transform your tree, you can define any number of hooks.    \nHooks are called on node creation, in order they were defined - hooks defined earlier would be called earlier.    \n\nA hook is just a function getting node as argument and returning a transformed node.    \nTo define hook, use `register_hook(key)`:    \n\n```python\nfrom gardener import Node, register_hook\n\n@register_hook(\"car\")\ndef make_any_car_faster(node):\n    node.engine.horsepower = node.engine.horsepower * 5\n    return node\n\n@register_hook(\"engine\")\ndef engine_tweak(node):\n    node.horsepower -= 1\n    return node\n\n@register_hook(\"car\")\ndef no_red_cars(node):\n    if node.color == \"red\":\n        node.color = \"black\"\n    return node\n\n@register_hook(\"car\")\ndef make_supercar(node):\n    if node.engine.horsepower > 500:\n        return Node.supercar(**node.props)\n    return node\n\nparking_lot = Node.lot(\n    cars=[\n        Node.car(\n            engine=Node.engine(horsepower=100),\n            color=\"red\"\n        ),\n        Node.car(\n            engine=Node.engine(horsepower=200),\n            color=\"white\"\n        ),\n        Node.car(\n            engine=Node.engine(horsepower=205),\n            color=\"red\"\n        ),\n    ]\n)\n# notice how car.engine.horsepower is (x - 1) * 5 because engine is created before the car\nprint(parking_lot.pretty())\n\"\"\"\n{\n  \"key\": \"lot\",\n  \"props\": {\n    \"cars\": [\n      {\n        \"key\": \"car\",\n        \"props\": {\n          \"engine\": {\n            \"key\": \"engine\",\n            \"props\": {\n              \"horsepower\": 495\n            }\n          },\n          \"color\": \"black\"\n        }\n      },\n      {\n        \"key\": \"supercar\",\n        \"props\": {\n          \"engine\": {\n            \"key\": \"engine\",\n            \"props\": {\n              \"horsepower\": 995\n            }\n          },\n          \"color\": \"white\"\n        }\n      },\n      {\n        \"key\": \"supercar\",\n        \"props\": {\n          \"engine\": {\n            \"key\": \"engine\",\n            \"props\": {\n              \"horsepower\": 1020\n            }\n          },\n          \"color\": \"black\"\n        }\n      }\n    ]\n  }\n}\n\"\"\"\n```\n\n*Important notes*:    \n- if your hook changes existing node (but key remains the same) - use node.copy() or make changes in place.    \n- if you change the key of the node, make a new node.    \n\nFirst is needed to avoid infinite recursion (otherwise your hook would be called again and again on the same node).    \nSecond is needed to ensure hooks are called on the new node.    \n\n## Pretty printing\n\nGardener uses built-in `json` module to make a pretty-printed tree:\n\n```python\nfrom gardener import Node\n\nprint(Node.tree.oak(age=23).pretty())\n\"\"\"\n{\n  \"key\": \"tree:oak\",\n  \"props\": {\n    \"age\": 23\n  }\n}\n\"\"\"\n```\n\nIf your values are JSON serializable, this would work out-of-the-box.    \nOtherwise you will need to extend GardenerJSON class:\n\n```python\nfrom gardener import Node, GardenerJSON\n\nclass MyGardenerJSON(GardenerJSON):\n    def default(self, obj):\n        if obj is Ellipsis:\n            return \"...\" # return any JSON serializable object\n        return super().default(obj)\n\n# Ellipsis is not JSON serializable\nprint(Node.tree.oak(cool_object=Ellipsis).pretty(cls=MyGardenerJSON))\n\"\"\"\n{\n  \"key\": \"tree:oak\",\n  \"props\": {\n    \"cool_object\": \"...\"\n  }\n}\n\"\"\"\n\n```\n\nIn fact, `Node.pretty` accepts any keyword argument of `json.dumps`",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -223,7 +222,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 12487459,
+        "last_serial": 16211949,
         "urls": [
             {
                 "comment_text": "",
@@ -262,6 +261,92 @@
                 "upload_time": "2022-01-05T20:01:17",
                 "upload_time_iso_8601": "2022-01-05T20:01:17.317022Z",
                 "url": "https://files.pythonhosted.org/packages/0d/9e/82c63a3e95d6c1b1bde947f8b45e1c8c7a9b35d1ad504785875f479de78d/gardener-1.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.0.0": {
+        "info": {
+            "author": "Dmitry Gritsenko",
+            "author_email": "k01419q45@ya.ru",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "",
+            "description_content_type": null,
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "gardener",
+            "package_url": "https://pypi.org/project/gardener/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/gardener/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/gardener/2.0.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.7,<4.0",
+            "summary": "Hook-based tree manipulation library",
+            "version": "2.0.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16211949,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f4a0a2daae70b99557e4e96788f5476b",
+                    "sha256": "66d959268b2bc26e1e2868e8caf4a599e9d7fbd443390428f714ebef3c20fd78"
+                },
+                "downloads": -1,
+                "filename": "gardener-2.0.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f4a0a2daae70b99557e4e96788f5476b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7,<4.0",
+                "size": 2907,
+                "upload_time": "2022-12-26T01:00:02",
+                "upload_time_iso_8601": "2022-12-26T01:00:02.474065Z",
+                "url": "https://files.pythonhosted.org/packages/b6/c3/3358e5b23d736519ad6e7fa2bb8547b6881570f4dbf46db6060e0999b798/gardener-2.0.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b6ac5f2c316073f99b7a68aa81319efc",
+                    "sha256": "ca36337deedcc5565525d5839dd2b2961dd47d82ad7920ac81623420e3bffa5d"
+                },
+                "downloads": -1,
+                "filename": "gardener-2.0.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "b6ac5f2c316073f99b7a68aa81319efc",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<4.0",
+                "size": 2425,
+                "upload_time": "2022-12-26T01:00:03",
+                "upload_time_iso_8601": "2022-12-26T01:00:03.717169Z",
+                "url": "https://files.pythonhosted.org/packages/88/15/ccf648eca059bf6923bb16391da23b9b9ad67cf50603c821e81bd06e7852/gardener-2.0.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
