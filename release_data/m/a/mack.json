@@ -8,7 +8,6 @@
                 "Programming Language :: Python :: 3",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# mack\n\nmack provides a variety of helper methods that make it easy for you to perform common Delta Lake operations.\n\nFor example, you can follow certain table conventions and perform Type 2 SCD upserts with mack using a single line of code.\n\n## Setup\n\nInstall mack with `pip install mack`.\n\nHere's how you can perform a Type 2 SCD upsert on a table that follows the right conventions:\n\n```python\nmack.type_2_scd_upsert(path, updatesDF, \"pkey\", [\"attr1\", \"attr2\"])\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -35,7 +34,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15900482,
+        "last_serial": 16209781,
         "urls": [
             {
                 "comment_text": "",
@@ -54,6 +53,87 @@
                 "upload_time": "2022-11-26T23:07:13",
                 "upload_time_iso_8601": "2022-11-26T23:07:13.217657Z",
                 "url": "https://files.pythonhosted.org/packages/ba/b0/c1f3a70fac456266b4cfb25d8c48123e82b1d2971aa68e39691c06f7db02/mack-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.0": {
+        "info": {
+            "author": "Matthew Powers",
+            "author_email": "matthewkevinpowers@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# mack\n\n![![image](https://github.com/MrPowers/mack/workflows/build/badge.svg)](https://github.com/MrPowers/mack/actions/workflows/ci.yml/badge.svg)\n![![image](https://github.com/MrPowers/mack/workflows/build/badge.svg)](https://github.com/MrPowers/mack/actions/workflows/black.yml/badge.svg)\n![PyPI - Downloads](https://img.shields.io/pypi/dm/mack)\n[![PyPI version](https://badge.fury.io/py/mack.svg)](https://badge.fury.io/py/mack)\n\nmack provides a variety of helper methods that make it easy for you to perform common Delta Lake operations.\n\n![mack](https://github.com/MrPowers/mack/blob/main/images/mack.jpg)\n\n## Setup\n\nInstall mack with `pip install mack`.\n\nHere's an example of how you can perform a Type 2 SCD upsert with a single line of code using Mack:\n\n```python\nimport mack\n\nmack.type_2_scd_upsert(path, updatesDF, \"pkey\", [\"attr1\", \"attr2\"])\n```\n\n## Type 2 SCD Upserts\n\nThis library provides an opinionated, conventions over configuration, approach to Type 2 SCD management. Let's look at an example before\ncovering the conventions required to take advantage of the functionality.\n\nSuppose you have the following SCD table with the `pkey` primary key:\n\n```\n+----+-----+-----+----------+-------------------+--------+\n|pkey|attr1|attr2|is_current|     effective_time|end_time|\n+----+-----+-----+----------+-------------------+--------+\n|   1|    A|    A|      true|2019-01-01 00:00:00|    null|\n|   2|    B|    B|      true|2019-01-01 00:00:00|    null|\n|   4|    D|    D|      true|2019-01-01 00:00:00|    null|\n+----+-----+-----+----------+-------------------+--------+\n```\n\nYou'd like to perform an upsert with this data:\n\n```\n+----+-----+-----+-------------------+\n|pkey|attr1|attr2|     effective_time|\n+----+-----+-----+-------------------+\n|   2|    Z| null|2020-01-01 00:00:00| // upsert data\n|   3|    C|    C|2020-09-15 00:00:00| // new pkey\n+----+-----+-----+-------------------+\n```\n\nHere's how to perform the upsert:\n\n```scala\nmack.type_2_scd_upsert(path, updatesDF, \"pkey\", [\"attr1\", \"attr2\"])\n```\n\nHere's the table after the upsert:\n\n```\n+----+-----+-----+----------+-------------------+-------------------+\n|pkey|attr1|attr2|is_current|     effective_time|           end_time|\n+----+-----+-----+----------+-------------------+-------------------+\n|   2|    B|    B|     false|2019-01-01 00:00:00|2020-01-01 00:00:00|\n|   4|    D|    D|      true|2019-01-01 00:00:00|               null|\n|   1|    A|    A|      true|2019-01-01 00:00:00|               null|\n|   3|    C|    C|      true|2020-09-15 00:00:00|               null|\n|   2|    Z| null|      true|2020-01-01 00:00:00|               null|\n+----+-----+-----+----------+-------------------+-------------------+\n```\n\nYou can leverage the upsert code if your SCD table meets these requirements:\n\n* Contains a unique primary key column\n* Any change in an attribute column triggers an upsert\n* SCD logic is exposed via `effective_time`, `end_time` and `is_current` column (you can also use date or version columns for SCD upserts)\n\n## Kill duplicates\n\nThe `kill_duplicate` function completely removes all duplicate rows from a Delta table.\n\nSuppose you have the following table:\n\n```\n+----+----+----+\n|col1|col2|col3|\n+----+----+----+\n|   1|   A|   A| # duplicate\n|   2|   A|   B|\n|   3|   A|   A| # duplicate\n|   4|   A|   A| # duplicate\n|   5|   B|   B| # duplicate\n|   6|   D|   D|\n|   9|   B|   B| # duplicate\n+----+----+----+\n```\n\nRun the `kill_duplicates` function:\n\n```python\nmack.kill_duplicates(deltaTable, [\"col2\", \"col3\"])\n```\n\nHere's the ending state of the table:\n\n```\n+----+----+----+\n|col1|col2|col3|\n+----+----+----+\n|   2|   A|   B|\n|   6|   D|   D|\n+----+----+----+\n```\n\n## Drop duplicates with Primary Key\n\nThe `drop_duplicates_pkey` function removes all but one duplicate row from a Delta table.\n**Warning:** You have to provide a primary column that **must contain unique values**, otherwise the method will default to kill the duplicates.\nIf you can not provide a unique primary key, you can use the `drop_duplicates` method.\n\nSuppose you have the following table:\n\n```\n+----+----+----+----+\n|col1|col2|col3|col4|\n+----+----+----+----+\n|   1|   A|   A|   C| # duplicate1\n|   2|   A|   B|   C|\n|   3|   A|   A|   D| # duplicate1\n|   4|   A|   A|   E| # duplicate1\n|   5|   B|   B|   C| # duplicate2\n|   6|   D|   D|   C|\n|   9|   B|   B|   E| # duplicate2\n+----+----+----+----+\n```\n\nRun the `drop_duplicates` function:\n\n```python\nmack.drop_duplicates_pkey(delta_table=deltaTable, primary_key=\"col1\", duplication_columns=[\"col2\", \"col3\"])\n```\n\nHere's the ending state of the table:\n\n```\n+----+----+----+----+\n|col1|col2|col3|col4|\n+----+----+----+----+\n|   1|   A|   A|   C|\n|   2|   A|   B|   C|\n|   5|   B|   B|   C|\n|   6|   D|   D|   C|\n+----+----+----+----+\n```\n\n## Drop duplicates\n\nThe `drop_duplicates` function removes all but one duplicate row from a Delta table. It behaves exactly like the `drop_duplicates` DataFrame API.\n**Warning:** This method is overwriting the whole table, thus very inefficient. If you can, use the `drop_duplicates_pkey` method instead.\n\nSuppose you have the following table:\n\n```\n+----+----+----+----+\n|col1|col2|col3|col4|\n+----+----+----+----+\n|   1|   A|   A|   C| # duplicate\n|   1|   A|   A|   C| # duplicate\n|   2|   A|   A|   C|\n+----+----+----+----+\n```\n\nRun the `drop_duplicates` function:\n\n```python\nmack.drop_duplicates_pkey(delta_table=deltaTable, duplication_columns=[\"col1\"])\n```\n\nHere's the ending state of the table:\n\n```\n+----+----+----+----+\n|col1|col2|col3|col4|\n+----+----+----+----+\n|   1|   A|   A|   C| # duplicate\n|   2|   A|   A|   C| # duplicate\n+----+----+----+----+\n```\n\n## Copy table\n\nThe `copy_table` function copies an existing Delta table.\nWhen you copy a table, it gets recreated at a specified target. This target could be a path or a table in a metastore.\nCopying includes:\n\n* Data\n* Partitioning\n* Table properties\n\nCopying **does not** include the delta log, which means that you will not be able to restore the new table to an old version of the original\ntable.\n\nHere's how to perform the copy:\n\n```python\nmack.copy_table(delta_table=deltaTable, target_path=path)\n```\n\n## Append data without duplicates\n\nThe `append_without_duplicates` function helps to append records to a existing Delta table without getting duplicates appended to the\nrecord.\n\nSuppose you have the following Delta table:\n\n```\n+----+----+----+\n|col1|col2|col3|\n+----+----+----+\n|   1|   A|   B|\n|   2|   C|   D|\n|   3|   E|   F|\n+----+----+----+\n```\n\nHere is data to be appended:\n\n```\n+----+----+----+\n|col1|col2|col3|\n+----+----+----+\n|   2|   R|   T| # duplicate col1\n|   8|   A|   B|\n|  10|   X|   Y|\n+----+----+----+\n```\n\nRun the `append_without_duplicates` function:\n\n```python\nmack.append_without_duplicates(deltaTable, append_df, [\"col1\"])\n```\n\nHere's the ending result:\n\n```\n\n+----+----+----+\n|col1|col2|col3|\n+----+----+----+\n|   1|   A|   B|\n|   2|   C|   D|\n|   3|   E|   F|\n|   8|   A|   B|\n|  10|   X|   Y|\n+----+----+----+\n```\n\nNotice that the duplicate `col1` value was not appended. If a normal append operation was run, then the Delta table would contain two rows\nof data with `col1` equal to 2.\n\n## Delta File Sizes\n\nThe `delta_file_sizes` function returns a dictionary that contains the total size in bytes, the amount of files and the average file size\nfor a given Delta Table.\n\nSuppose you have the following Delta Table, partitioned by `col1`:\n\n```\n+----+----+----+\n|col1|col2|col3|\n+----+----+----+\n|   1|   A|   A|\n|   2|   A|   B|\n+----+----+----+\n```\n\nRunning `mack.delta_file_sizes(delta_table)` on that table will return:\n\n`{\"size_in_bytes\": 1320,\n\"number_of_files\": 2,\n\"average_file_size_in_bites\": 660}`\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "mack",
+            "package_url": "https://pypi.org/project/mack/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/mack/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/mack/0.2.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.9,<4.0",
+            "summary": "",
+            "version": "0.2.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16209781,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a1c2dc439fade579a436bfa5d9485f40",
+                    "sha256": "b63491b64f1499f6e7ad2673819f9f50af649a74c0762eab6f7cbb6c89d4f748"
+                },
+                "downloads": -1,
+                "filename": "mack-0.2.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "a1c2dc439fade579a436bfa5d9485f40",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.9,<4.0",
+                "size": 5262,
+                "upload_time": "2022-12-25T15:18:44",
+                "upload_time_iso_8601": "2022-12-25T15:18:44.345461Z",
+                "url": "https://files.pythonhosted.org/packages/8e/3d/c8bb6f5badbdc9652e78e7089dc2c168572d35d4c66f552552a6f9eda4fd/mack-0.2.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c0b8032f5daab2463c40c62adf479f1f",
+                    "sha256": "8c8fe6a8ab30ad5bba7006270f9fceb7f0a83c35e6f3716d29ca68d9591f0a48"
+                },
+                "downloads": -1,
+                "filename": "mack-0.2.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "c0b8032f5daab2463c40c62adf479f1f",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9,<4.0",
+                "size": 6447,
+                "upload_time": "2022-12-25T15:18:46",
+                "upload_time_iso_8601": "2022-12-25T15:18:46.137104Z",
+                "url": "https://files.pythonhosted.org/packages/19/00/834c103e98fd569180b022bb6417ab4dafd52a9a314df77f3a41e43e6a98/mack-0.2.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
