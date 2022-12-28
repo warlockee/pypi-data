@@ -33,7 +33,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16222105,
+        "last_serial": 16228999,
         "urls": [
             {
                 "comment_text": "",
@@ -112,7 +112,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16222105,
+        "last_serial": 16228999,
         "urls": [
             {
                 "comment_text": "",
@@ -191,7 +191,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16222105,
+        "last_serial": 16228999,
         "urls": [
             {
                 "comment_text": "",
@@ -242,7 +242,6 @@
             "author_email": "venunathan12@gmail.com",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# task-ruleset\n\nA scheduler for task and ruleset based parallel computation. Useful for highly parallel applications.\n\nAny algorithm can be devided into a set of steps, called Tasks. Some Tasks may need to be run in a particular order, and some may be run in any order.\n\nWe define Tasks of several types, and a Rule for acting on each type of Task. These Rules may perform some computation and end their Task, and then may create one or more new Tasks of same or different types, or may not create any new Tasks and end the chain. All Tasks which exist at a given point in time must not depend on each other and will run in parallel.\n\nParalellism is achieved by creating a fixed number of sub-processes and scheduling the Tasks on those sub-processes.\n\n### Usage Example\n\nA simple example of how this package can be used is shown below:\n\n```python\nimport task_ruleset as Lib\nimport os, sys, time\n\ndef rule_init(TaskKey, TaskData):\n    return [Lib.Task(\"get\", \"get_\" + str(i), [i]) for i in range(16)]\n\ndef rule_get(TaskKey, TaskData):\n    time.sleep(1)\n    print(TaskKey, TaskData)\n\nLib.NGuests = 8\nLib.Rules[\"init\"] = (0, rule_init)\nLib.Rules[\"get\"] = (1, rule_get)\n\nLib.InitTask = Lib.Task(\"init\", \"init\", [])\n\ndef main():\n    print(\"Starting Execution\")\n    Lib.main()\n    print(Lib.TasksAssignedToProcess)\n\nif __name__ == '__main__':\n    main()\n```\n\nHere we first set the number of sub-processes being used to 8.<br>\nWe define Tasks of 2 types:\n* `\"init\"`: acted on by `rule_init`, requires `0` parameters<br>Creates 16 new tasks, all of type `\"get\"`, with keys as `\"get_0\"`, `\"get_1\"` ... `\"get_15\"`, and parameters as `0`, `1` ... `15`.\n* `\"get\"`: acted on by `rule_get`, requires `1` parameters<br>Waits for 1 second, then prints key of the Task and its parameters, then ends.\n\nWhen run, this program creates 8 sub-processes and runs 1 Task of type `\"init\"` on one sub-process. This creates 16 new tasks which needs to be schedules on 8 sub-processes. Each sub-process gets 2 Tasks. None of these Tasks create new Tasks, so the program ends.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -271,7 +270,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16222105,
+        "last_serial": 16228999,
         "urls": [
             {
                 "comment_text": "",
@@ -310,6 +309,86 @@
                 "upload_time": "2022-12-27T08:10:45",
                 "upload_time_iso_8601": "2022-12-27T08:10:45.201256Z",
                 "url": "https://files.pythonhosted.org/packages/66/81/72d31c10e9f1f511c39ff43f964847b31428ca359b55c3e57437ccaf218f/task-ruleset-0.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.4": {
+        "info": {
+            "author": "Venu Nathan",
+            "author_email": "venunathan12@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# task-ruleset\n\nA Python Package that acts as a scheduler for task and ruleset based parallel computation. Useful for highly parallel applications.\n\nThis package was created to help speed up time consuming activities in large software projects, such as waiting for HTTP response or DB operations.<br>\nMost large software projects consist of chunks of code which are independent, but are still made to run in sequence.\n\nAny algorithm can be divided into a set of steps, called Tasks. Some Tasks may need to be run in a particular order, and some may be run in any order.\n\nWe allow the users to define Tasks of several types, and a Rule for acting on each type of Task. These Rules may perform some computation and end their Task, and then may create one or more new Tasks of same or different types, or may not create any new Tasks and end the chain. All Tasks which exist at a given point in time must not depend on each other and will run in parallel.\n\nParalellism is achieved by creating a fixed number of sub-processes and scheduling the Tasks on those sub-processes.\n\n### Usage Example\n\nFor detailed examples on how this project can be used, please check the folder named Examples on this project's [GitHub page](https://github.com/venunathan12/task-ruleset).<br>\nIt also contains full details on the example which will be discussed shortly.\n\nFor now, lets consider a simple use case. We wish to run a Google search for whole numbers from 1 to 64 and save the search result locally as a html page.<br>\nThis represents a usecase where one may need to make several HTTP requests, which are indepentent of each other.\n\nThe code for a parallel implementation of such use cases utilizing this package is shown below:\n\n```python\nimport task_ruleset as trs\nimport __helper as h\nimport time; startTimeStamp = time.time()\n\n\n# the list of numbers we wish to google\nnumsToPull = range(1, 64 + 1)\n\n\n# The Generator which states how tasks of type 'init' need to be performed\n# It yields when a new task is ready to start execution\ndef rule_init(TaskKey, TaskData):\n\n    # create output folder\n    outputPath = h.prepareOutputFolder()\n    # record output path in a location accessible by all processes\n    trs.CommonDict['OUTPUT_PATH'] = outputPath\n\n    # for each number\n    for num in numsToPull:\n        \n        # create new task of type 'proc', pass name of file to process as a param\n        yield trs.Task(\"proc\", f\"proc_{num}\", [num])\n\n    # mark this task as completed\n    return\n\n\n# The Function which states how tasks of type 'proc' need to be performed\n# It returns an empty list since it does not schedule more tasks\ndef rule_proc(TaskKey, TaskData):\n\n    # get the number to google, from the params passed when creating the task\n    num = TaskData[0]\n    # get the output path recorded during execution of the initial task\n    outputPath = trs.CommonDict['OUTPUT_PATH']\n    \n    # search for the number on google and get the search results\n    processedData = h.googleSearchNumber(num)\n    \n    # save the search results to a file\n    h.saveOutputFile(outputPath, num, processedData)\n\n    # mark this task as completed\n    return []\n\n\n# Details about task organisation\ntrs.NGuests = 8                                 # State that the tasks need to be performed on 8 processes\ntrs.Rules[\"init\"] = (0, rule_init)              # Declare that there is a task of type 'init' which needs 0 params\ntrs.Rules[\"proc\"] = (1, rule_proc)              # Declare that there is a task of type 'proc' which needs 1 param\ntrs.InitTask = trs.Task(\"init\", \"init\", [])     # State that initial task is of type 'init', and does not take any params\n\n# Only the main thread should run this code\nif __name__ == '__main__':\n    \n    # Start execution of the tasks, starting with trs.InitTask\n    trs.main()\n    \n    # Record the number of tasks completed by each process\n    print(\"main - Tasks completed by each process :\", trs.TasksAssignedToProcess)\n\n    # Record execution time\n    print(f\"Completed Execution in: {time.time() - startTimeStamp} secs\")\n\n```\n\nThe initial task is to create 64 new tasks, each of which is to perform a Google search.<br>\nThese 64 tasks are independent of each other, and are scheduled in parallel on 8 processes.\n\nWhile testing, we observed roughly 7x speed up when using this parallelized program in place of the single threaded implementation.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/venunathan12/task-ruleset",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "task-ruleset",
+            "package_url": "https://pypi.org/project/task-ruleset/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/task-ruleset/",
+            "project_urls": {
+                "Homepage": "https://github.com/venunathan12/task-ruleset"
+            },
+            "release_url": "https://pypi.org/project/task-ruleset/0.0.4/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "A scheduler for task and ruleset based parallel computation. Useful for highly parallel applications.",
+            "version": "0.0.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16228999,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "c1f9e79cbe8d6b2409d47d9f1758e0ba",
+                    "sha256": "98124dc6cb4d737bcdc24f133e7e2efd8d9eefb3df7eb91e74e0bf95bd71cb29"
+                },
+                "downloads": -1,
+                "filename": "task_ruleset-0.0.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "c1f9e79cbe8d6b2409d47d9f1758e0ba",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 4297,
+                "upload_time": "2022-12-27T13:16:36",
+                "upload_time_iso_8601": "2022-12-27T13:16:36.453512Z",
+                "url": "https://files.pythonhosted.org/packages/b3/7a/bff03ca1289ed2480367a87ff62a86177e1bd19976b3ffe12dc67a2b0deb/task_ruleset-0.0.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a75627d65a04e863853d1ad337502ad4",
+                    "sha256": "795026e3ec3723461f127db0e6c4fc295b563a1758bbb852561470ca971cb14f"
+                },
+                "downloads": -1,
+                "filename": "task-ruleset-0.0.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a75627d65a04e863853d1ad337502ad4",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 4281,
+                "upload_time": "2022-12-27T13:16:38",
+                "upload_time_iso_8601": "2022-12-27T13:16:38.204071Z",
+                "url": "https://files.pythonhosted.org/packages/28/a5/fc80872faee3711dec3867d030bd07b89683bf3c3e01d4f952753cd553ba/task-ruleset-0.0.4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

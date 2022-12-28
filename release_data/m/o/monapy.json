@@ -35,7 +35,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9124888,
+        "last_serial": 16229039,
         "urls": [
             {
                 "comment_text": "",
@@ -90,7 +90,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "Monapy\n===\n\nPython Library to build declarative tools.\n---\n\n### Binder - simple monad implementation.\nBinder is binding functions to chain.\nThe result of the previous function is passed to the next function as positional argument.\nRight arrows bind functions into the chain.\nLeft arrows set positional argument for last function in chain.\n##### Examples:\n```python\n>>> from monapy import Binder\n>>> binder = Binder() >> range >> map << ( lambda i: i * 10 )\n>>> list( binder( 10 ) )\n[0, 10, 20, 30, 40, 50, 60, 70, 80, 90]\n>>> binder >> filter << ( lambda i: not i % 20 ) >> list\n>>> binder( 10 )\n[0, 20, 40, 60, 80]\n```\n\n### Package Step\nStep is a functional unit, a step is binding with other step for making chain steps.\nClass Step must be implemented, method 'make' is main that take value and generate iterator.\nFirst step take value and generating iterator,\nthat iteratively by one values is passed other step,\nthis process continue while to the last step in the chain.\nBindings define which step the value is passed to.\nSteps may be bind by next bindings: bind, loop, or_bind.\n\n#### Bind\nThe values (in iterator) is passed to the next step.\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() >> Step()\n>>> chain2 = Step().bind( Step() )\n>>> chain3 = StepChain( [ Step(), Step() ] )\n>>> chain4 = Step() >> Step() >> Step()\n```\n\n#### Loop\nThis bind make loop, first step's values (in iterator) is passed to second step and out of this chain,\nsecond step by each value is generating values (iterator),\nand this values is passed to first step, then all repeat until empty iterator from second step.\n```\n(iter) --> value ------> First Step --> (iter) --> value ------>\n                    ^                                       |\n                    |                                       |\n                     -- value <-- (iter) <-- Second Step <--\n```\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() << Step()\n>>> chain2 = Step().loop( Step() )\n>>> chain3 = LoopStep( Step(), Step() )\n```\n\n#### Or-Bind\nIt like 'or' logical expression, a first non-empty iterator is passed to out of this chain.\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() | Step()\n>>> chain2 = Step().or_bind( Step() )\n>>> chain3 = OrChain( [ Step(), Step() ] )\n>>> chain4 = Step() | Step() | Step()\n```\n\n#### Internal structure of chain\nTo view, how steps binded, call 'tree' method and print result.\n##### Examples:\n```python\n>>> chain = Step() >> ~( Step() >> Step() >> Step() ) << Step() >> ( Step() | Step() | Step() )\n>>> print( chain.tree() )\nStepChain(3)\n   |__Step()\n   |__LoopStep()\n   |     |__StepChain(3)\n   |     |     |__Step()\n   |     |     |__Step()\n   |     |     |__Step()\n   |     |\n   |     |_<< Step()\n   |\n   |__OrChain(3)\n          |__Step()\n          |__Step()\n          |__Step()\n```\n##### Detailed tree\n```python\n>>> print( chain.tree( full=True ) )\nStepChain(3)\n   |__Step()\n   |__LoopStep()\n   |     |__UnionStep()\n   |     |     |__StepChain(3)\n   |     |            |__Step()\n   |     |            |__Step()\n   |     |            |__Step()\n   |     |\n   |     |_<< Step()\n   |\n   |__OrChain(3)\n          |__Step()\n          |__Step()\n          |__Step()\n```\n\n#### Combining steps\nSometimes need to make a separate sub-chain, for this exists '~' expression.\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = ~( Step() >> Step() >> Step() ) << Step()\n>>> print( chain1.tree() )\nLoopStep()\n   |__StepChain(3)\n   |     |__Step()\n   |     |__Step()\n   |     |__Step()\n   |\n   |_<< Step()\n\n>>> chain2 = Step() >> Step() >> Step() << Step()\n>>> print( chain2.tree() )\nStepChain(3)\n   |__Step()\n   |__Step()\n   |__LoopStep()\n          |__Step()\n          |_<< Step()\n```\n\n#### Show UnionStep in tree\n```python\n>>> print( chain1.tree( show_union=True ) )\nLoopStep()\n   |__UnionStep()\n   |     |__StepChain(3)\n   |            |__Step()\n   |            |__Step()\n   |            |__Step()\n   |\n   |_<< Step()\n```\n\n#### Run chain\nFor run chain call 'make' method, that return iterator.\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain = Step() >> Step() << Step() >> ( Step() | Step() | Step() )\n>>> for val in chain.make( value ):\n>>>     print( val )\n\n>>> for val in chain( value ):\n>>>     print( val )\n```\n\n#### Packing values in standard data structures\n4 structures supported: tuple, list, dict, set.\nValues pack the corresponding steps,\nto create this step need bind the chain with corresponding structure of steps,\nor call a corresponding class.\nFrom each step, one value is taken and pack into structure.\n##### Pack in tuple\n> It's like 'zip' function,\n> if every step returns a value then those values \u200b\u200bare packed into a tuple,\n> otherwise no packing happens and values \u200b\u200baren't returned.\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() >> ( Step(), Step(), Step() )\n>>> chain2 = TupleStep( ( Step(), Step(), Step() ) )\n>>> chain3 = to_step( ( Step(), Step(), Step() ) )\n```\n##### Pack in list\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() >> [ Step(), Step(), Step() ]\n>>> chain2 = ListStep( [ Step(), Step(), Step() ] )\n>>> chain3 = to_step( [ Step(), Step(), Step() ] )\n```\n##### Pack in dict\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() >> { 'key1': Step(), 'key2': Step(), 'key3': Step() }\n>>> chain2 = DictStep( { 'key1': Step(), 'key2': Step(), 'key3': Step() } )\n>>> chain3 = to_step( { 'key1': Step(), 'key2': Step(), 'key3': Step() } )\n```\n##### Pack in set\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() >> { Step(), Step(), Step() }\n>>> chain2 = SetStep( { Step(), Step(), Step() } )\n>>> chain3 = to_step( { Step(), Step(), Step() } )\n```\n\n#### Step class implementation\nClass Step has two methods to implement,\nit's 'make' and 'make_all'.\nThe 'make' method takes a value and generates an iterator,\nthat is passed to the next step.\nThis method takes one positional argument to get the value,\nand also accepts named arguments,\nthat are used to pass settings for all steps in the chain.\nThe method 'make_all' is taking an iterator of values that it passes to the 'make' method,\nit could be used for paralleling.\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -119,7 +118,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 9124888,
+        "last_serial": 16229039,
         "urls": [
             {
                 "comment_text": "",
@@ -158,6 +157,90 @@
                 "upload_time": "2021-01-13T16:38:46",
                 "upload_time_iso_8601": "2021-01-13T16:38:46.808882Z",
                 "url": "https://files.pythonhosted.org/packages/7f/2b/614cc3aa9e41ab883d55fc655e0afb56eaf8615d89618696cf1782426312/monapy-0.4.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.5.0": {
+        "info": {
+            "author": "Andriy Stremeluk",
+            "author_email": "astremeluk@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.6"
+            ],
+            "description": "Monapy\n===\n\nPython Library for build declarative tools.\n---\n\n### Binder - simple monad implementation.\nBinder is binding functions to chain.\nThe result of the previous function is passed to a next function as positional argument.\nRight arrows bind functions into the chain.\nLeft arrows set positional argument for last function in chain.\n##### Examples:\n```python\n>>> from monapy import Binder\n>>> binder = Binder() >> range >> map << ( lambda i: i * 10 )\n>>> list( binder( 10 ) )\n[0, 10, 20, 30, 40, 50, 60, 70, 80, 90]\n>>> binder >> filter << ( lambda i: not i % 20 ) >> list\n>>> binder( 10 )\n[0, 20, 40, 60, 80]\n```\n\n### Package Step\nStep is a functional unit, a step is binding with other step for making chain steps.\nClass Step must be implemented, method 'make' is main that take value and generate iterator.\nFirst step take value and generating iterator,\nthat iteratively by one values is passed other step,\nthis process continue while to the last step in the chain.\nBindings define which step the value is passed to.\nSteps may be bind by next binding methods: bind, loop_bind, or_bind.\n\n#### Bind\nThe values (in iterator) is passed to the next step.\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() >> Step()\n>>> chain2 = Step().bind( Step() )\n>>> chain3 = StepChain( [ Step(), Step() ] )\n>>> chain4 = Step() >> Step() >> Step()\n```\n\n#### Loop\nThis bind make loop, first step's values (in iterator) is passed to second step and out of this chain,\nsecond step by each value is generating values (iterator),\nand this values is passed to first step, then all repeat until empty iterator from second step.\n```\n(iter) --> value ------> First Step --> (iter) --> value ------>\n                    ^                                       |\n                    |                                       |\n                     -- value <-- (iter) <-- Second Step <--\n```\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() << Step()\n>>> chain2 = Step().loop( Step() )\n>>> chain3 = LoopStep( Step(), Step() )\n```\n\n#### Or-Bind\nIt like 'or' logical expression, a first non-empty iterator is passed to out of this chain.\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() | Step()\n>>> chain2 = Step().or_bind( Step() )\n>>> chain3 = OrChain( [ Step(), Step() ] )\n>>> chain4 = Step() | Step() | Step()\n```\n\n#### Internal structure of chain\nTo view, how steps binded, call 'tree' method and print result.\n##### Examples:\n```python\n>>> chain = Step() >> ~( Step() >> Step() >> Step() ) << Step() >> ( Step() | Step() | Step() )\n>>> print( chain.tree() )\nStepChain(3)\n   |__Step()\n   |__LoopStep()\n   |     |__StepChain(3)\n   |     |     |__Step()\n   |     |     |__Step()\n   |     |     |__Step()\n   |     |\n   |     |_<< Step()\n   |\n   |__OrChain(3)\n          |__Step()\n          |__Step()\n          |__Step()\n```\n##### Detailed tree\n```python\n>>> print( chain.tree( full=True ) )\nStepChain(3)\n   |__Step()\n   |__LoopStep()\n   |     |__UnitedSteps()\n   |     |     |__StepChain(3)\n   |     |            |__Step()\n   |     |            |__Step()\n   |     |            |__Step()\n   |     |\n   |     |_<< Step()\n   |\n   |__OrChain(3)\n          |__Step()\n          |__Step()\n          |__Step()\n```\n\n#### Combining steps\nSometimes need to make a separate sub-chain, for this exists '~' expression.\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = ~( Step() >> Step() >> Step() ) << Step()\n>>> print( chain1.tree() )\nLoopStep()\n   |__StepChain(3)\n   |     |__Step()\n   |     |__Step()\n   |     |__Step()\n   |\n   |_<< Step()\n\n>>> chain2 = Step() >> Step() >> Step() << Step()\n>>> print( chain2.tree() )\nStepChain(3)\n   |__Step()\n   |__Step()\n   |__LoopStep()\n          |__Step()\n          |_<< Step()\n```\n\n#### Show UnitedSteps in tree\n```python\n>>> print( chain1.tree( show_union=True ) )\nLoopStep()\n   |__UnitedSteps()\n   |     |__StepChain(3)\n   |            |__Step()\n   |            |__Step()\n   |            |__Step()\n   |\n   |_<< Step()\n```\n\n#### Run chain\nFor run chain call 'make' method, that return iterator.\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain = Step() >> Step() << Step() >> ( Step() | Step() | Step() )\n>>> for val in chain.make( value ):\n>>>     print( val )\n\n>>> for val in chain( value ):\n>>>     print( val )\n```\n\n#### Packing values in standard data structures\n4 structures supported: tuple, list, dict, set.\nValues pack the corresponding steps,\nto create this step need bind the chain with corresponding structure of steps,\nor call a corresponding class.\nFrom each step, one value is taken and pack into structure.\n##### Pack in tuple\n> It's like 'zip' function,\n> if every step returns a value then those values \u200b\u200bare packed into a tuple,\n> otherwise no packing happens and values \u200b\u200baren't returned.\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() >> ( Step(), Step(), Step() )\n>>> chain2 = TupleStep( ( Step(), Step(), Step() ) )\n>>> chain3 = to_step( ( Step(), Step(), Step() ) )\n```\n##### Pack in list\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() >> [ Step(), Step(), Step() ]\n>>> chain2 = ListStep( [ Step(), Step(), Step() ] )\n>>> chain3 = to_step( [ Step(), Step(), Step() ] )\n```\n##### Pack in dict\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() >> { 'key1': Step(), 'key2': Step(), 'key3': Step() }\n>>> chain2 = DictStep( { 'key1': Step(), 'key2': Step(), 'key3': Step() } )\n>>> chain3 = to_step( { 'key1': Step(), 'key2': Step(), 'key3': Step() } )\n```\n##### Pack in set\n##### Examples:\n```python\n>>> from monapy import Step\n>>> chain1 = Step() >> { Step(), Step(), Step() }\n>>> chain2 = SetStep( { Step(), Step(), Step() } )\n>>> chain3 = to_step( { Step(), Step(), Step() } )\n```\n\n#### Step class implementation\nClass Step has two methods to implement,\nit's 'make' and 'make_all'.\nThe 'make' method takes a value and generates an iterator,\nthat is passed to the next step.\nThis method takes one positional argument to get the value,\nand also accepts named arguments,\nthat are used to pass settings for all steps in the chain.\nThe method 'make_all' is taking an iterator of values that it passes to the 'make' method,\nit could be used for paralleling.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/andriystr/Monapy",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "monapy",
+            "package_url": "https://pypi.org/project/monapy/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/monapy/",
+            "project_urls": {
+                "Homepage": "https://github.com/andriystr/Monapy"
+            },
+            "release_url": "https://pypi.org/project/monapy/0.5.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.6",
+            "summary": "Python Library for build declarative tools",
+            "version": "0.5.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16229039,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4891875ba909d314d2c4f61bc375cd39",
+                    "sha256": "4c20817a959d1cd7d985dbadcee011c93ca8bfe0001500d195b42e1a2856ea9a"
+                },
+                "downloads": -1,
+                "filename": "monapy-0.5.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "4891875ba909d314d2c4f61bc375cd39",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 9267,
+                "upload_time": "2022-12-27T13:20:48",
+                "upload_time_iso_8601": "2022-12-27T13:20:48.689040Z",
+                "url": "https://files.pythonhosted.org/packages/cc/69/750e4bb21857ee0ae2f973e116c458c0defe4430a97e3f423b7d8d9c61a7/monapy-0.5.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "31b2d8262d3a8a761c69f00b5cda2f0d",
+                    "sha256": "90b7063615c30513788be86d5f9e90e0cd3a6503667e41d0f85bdf16cbab0d6c"
+                },
+                "downloads": -1,
+                "filename": "monapy-0.5.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "31b2d8262d3a8a761c69f00b5cda2f0d",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 8641,
+                "upload_time": "2022-12-27T13:20:50",
+                "upload_time_iso_8601": "2022-12-27T13:20:50.835463Z",
+                "url": "https://files.pythonhosted.org/packages/43/97/8fd47eb072bfaf809ccf2865e42f36daf2d7f5d2d414b70add4b93095af0/monapy-0.5.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

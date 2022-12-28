@@ -46,7 +46,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16047747,
+        "last_serial": 16232006,
         "urls": [
             {
                 "comment_text": "",
@@ -106,7 +106,6 @@
                 "Topic :: Software Development :: Libraries :: Python Modules",
                 "Typing :: Typed"
             ],
-            "description": "========\nDidiator\n========\n\n``didiator`` is an asynchronous library that implements the Mediator pattern and\nuses the `DI <https://www.adriangb.com/di/>`_ library to help you to inject dependencies to called handlers\n\nThis library is inspired by the `MediatR <https://github.com/jbogard/MediatR>`_ used in C#\nand follows CQRS principles\n\nInstallation\n============\n\nDidiator is available on pypi: https://pypi.org/project/didiator\n\n.. code-block:: bash\n\n    pip install -U \"didiator[di]\"\n\nIt will install ``didiator`` with its optional DI dependency that is necessary to use ``DiMiddleware`` and ``DiBuilder``\n\nExamples\n========\n\nYou can find examples in `this folder <https://github.com/SamWarden/didiator/tree/dev/examples>`_\n\nCreate Commands and Queries with handlers for them\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n.. code-block:: python\n\n    @dataclass\n    class CreateUser(Command[int]):\n        user_id: int\n        username: str\n\n    class CreateUserHandler(CommandHandler[CreateUser, int]):\n        def __init__(self, user_repo: UserRepo) -> None:\n            self._user_repo = user_repo\n\n        async def __call__(self, command: CreateUser) -> int:\n            user = User(id=command.user_id, username=command.username)\n            await self._user_repo.add_user(user)\n            await self._user_repo.commit()\n            return user.id\n\nYou can use functions as handlers\n\n.. code-block:: python\n\n    @dataclass\n    class GetUserById(Query[User]):\n        user_id: int\n\n    async def handle_get_user_by_id(query: GetUserById, user_repo: UserRepo) -> User:\n        user = await self._user_repo.get_user_by_id(user)\n        return user\n\nCreate DiBuilder\n~~~~~~~~~~~~~~~~\n\n``DiBuilder`` is a facade for Container from DI with caching of `solving <https://www.adriangb.com/di/0.73.0/solving/>`_\n\n``di_scopes`` is a sequence with the order of `scopes <https://www.adriangb.com/di/0.73.0/scopes/>`_\n\n``di_builder.bind(...)`` will `bind <https://www.adriangb.com/di/0.73.0/binds/>`_ ``UserRepoImpl`` type to ``UserRepo`` protocol\n\n.. code-block:: python\n\n    di_scopes = (\"request\",)\n    di_builder = DiBuilder(Container(), AsyncExecutor(), di_scopes)\n    di_builder.bind(bind_by_type(Dependent(UserRepoImpl, scope=\"request\"), UserRepo))\n\nCreate Mediator and register handlers to it\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nCreate dispatchers with their middlewares and use them to initialize the ``MediatorImpl``\n\n``cls_scope`` is a scope that will be used to bind class Command/Query handlers initialized during request handling\n\n.. code-block:: python\n\n    dispatchers_middlewares = (LoggingMiddleware(), DiMiddleware(di_builder, cls_scope=\"request\"))\n    command_dispatcher = CommandDispatcherImpl(middlewares=dispatchers_middlewares)\n    query_dispatcher = QueryDispatcherImpl(middlewares=dispatchers_middlewares)\n\n    mediator = MediatorImpl(command_dispatcher, query_dispatcher)\n\n    # CreateUserHandler is not initialized during registration\n    mediator.register_command_handler(CreateUser, CreateUserHandler)\n    mediator.register_query_handler(GetUserById, handle_get_user_by_id)\n\nMain usage\n~~~~~~~~~~\n\nEnter the ``\"request\"`` scope that was registered earlier and create a new Mediator with ``di_state`` bound\n\nUse ``mediator.send(...)`` for commands and ``mediator.query(...)`` for queries\n\n.. code-block:: python\n\n        async with di_builder.enter_scope(\"request\") as di_state:\n            scoped_mediator = mediator.bind(di_state=di_state)\n\n            # It will call CreateUserHandler(...).__call__(...) and inject UserRepoImpl to it\n            user_id = await scoped_mediator.send(CreateUser(1, \"Jon\"))\n            user = await scoped_mediator.query(GetUserById(user_id))\n            print(\"User:\",  user)\n        # Session of UserRepoImpl will be closed after exiting the \"request\" scope\n\n\u26a0\ufe0f **Attention: this is a beta version of** ``didiator`` **that depends on** ``DI``, **which is also in beta. Both of them can change their API!**\n\nCQRS\n====\n\nCQRS stands for \"`Command Query Responsibility Segregation <https://www.martinfowler.com/bliki/CQRS.html>`_\".\nIts idea about splitting the responsibility of commands (writing) and queries (reading) into different models.\n\n``didiator`` have segregated ``.send(command)`` and ``.query(query)`` methods in its ``Mediator`` and\nassumes that you will separate its handlers.\nUse ``CommandMediator`` and ``QueryMediator`` protocols to explicitly define which method you need in ``YourController``\n\n.. code-block:: mermaid\n\n    graph LR;\n        YourController-- Command -->Mediator;\n        YourController-- Query -->Mediator;\n        Mediator-. Command .->CommandDispatcher-.->di1[DiMiddleware]-.->CommandHandler;\n        Mediator-. Query .->QueryDispatcher-.->di2[DiMiddleware]-.->QueryHandler;\n\n``DiMiddleware`` initializes handlers and injects dependencies for them, you can just send a command with the data you need\n\nWhy ``didiator``?\n=================\n\n- Easy dependency injection to your business logic\n- Separating dependencies from your controllers. They can just parse external requests and interact with the ``Mediator``\n- CQRS\n- Flexible configuration\n- Middlewares support\n\nWhy not?\n========\n\n- You don't need it\n- Maybe too low coupling: navigation becomes more difficult\n- Didiator is in beta now\n- No support for synchronous handlers\n\n",
             "description_content_type": "text/x-rst",
             "docs_url": null,
             "download_url": "",
@@ -139,7 +138,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16047747,
+        "last_serial": 16232006,
         "urls": [
             {
                 "comment_text": "",
@@ -178,6 +177,99 @@
                 "upload_time": "2022-12-09T12:17:17",
                 "upload_time_iso_8601": "2022-12-09T12:17:17.842887Z",
                 "url": "https://files.pythonhosted.org/packages/ea/bd/c53ad18620092abc90f5d1e60e3b4903f3231e89628deab85ac675cca8ad/didiator-0.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.0": {
+        "info": {
+            "author": "SamWarden",
+            "author_email": "SamWardenSad@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Topic :: Software Development :: Libraries :: Python Modules",
+                "Typing :: Typed"
+            ],
+            "description": "========\nDidiator\n========\n\n``didiator`` is an asynchronous library that implements the Mediator pattern and\nuses the `DI <https://www.adriangb.com/di/>`_ library to help you to inject dependencies to called handlers\n\nThis library is inspired by the `MediatR <https://github.com/jbogard/MediatR>`_ used in C#,\nfollows CQRS principles and implements event publishing\n\nInstallation\n============\n\nDidiator is available on pypi: https://pypi.org/project/didiator\n\n.. code-block:: bash\n\n    pip install -U \"didiator[di]\"\n\nIt will install ``didiator`` with its optional DI dependency that is necessary to use ``DiMiddleware`` and ``DiBuilder``\n\nExamples\n========\n\nYou can find more examples in `this folder <https://github.com/SamWarden/didiator/tree/dev/examples>`_\n\nCreate Commands and Queries with handlers for them\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n.. code-block:: python\n\n    @dataclass\n    class CreateUser(Command[int]):\n        user_id: int\n        username: str\n\n    class CreateUserHandler(CommandHandler[CreateUser, int]):\n        def __init__(self, user_repo: UserRepo) -> None:\n            self._user_repo = user_repo\n\n        async def __call__(self, command: CreateUser) -> int:\n            user = User(id=command.user_id, username=command.username)\n            await self._user_repo.add_user(user)\n            await self._user_repo.commit()\n            return user.id\n\nYou can use functions as handlers\n\n.. code-block:: python\n\n    @dataclass\n    class GetUserById(Query[User]):\n        user_id: int\n\n    async def handle_get_user_by_id(query: GetUserById, user_repo: UserRepo) -> User:\n        user = await user_repo.get_user_by_id(query.user_id)\n        return user\n\nCreate DiBuilder\n~~~~~~~~~~~~~~~~\n\n``DiBuilder`` is a facade for Container from DI with caching of `solving <https://www.adriangb.com/di/0.73.0/solving/>`_\n\n``di_scopes`` is a sequence with the order of `scopes <https://www.adriangb.com/di/0.73.0/scopes/>`_\n\n``di_builder.bind(...)`` will `bind <https://www.adriangb.com/di/0.73.0/binds/>`_ ``UserRepoImpl`` type to ``UserRepo`` protocol\n\n.. code-block:: python\n\n    di_scopes = (\"request\",)\n    di_builder = DiBuilder(Container(), AsyncExecutor(), di_scopes)\n    di_builder.bind(bind_by_type(Dependent(UserRepoImpl, scope=\"request\"), UserRepo))\n\nCreate Mediator\n~~~~~~~~~~~~~~~\n\nCreate dispatchers with their middlewares and use them to initialize the ``MediatorImpl``\n\n``cls_scope`` is a scope that will be used to bind class Command/Query handlers initialized during request handling\n\n.. code-block:: python\n\n    middlewares = (LoggingMiddleware(), DiMiddleware(di_builder, cls_scope=\"request\"))\n    command_dispatcher = CommandDispatcherImpl(middlewares=middlewares)\n    query_dispatcher = QueryDispatcherImpl(middlewares=middlewares)\n\n    mediator = MediatorImpl(command_dispatcher, query_dispatcher)\n\nRegister handlers\n~~~~~~~~~~~~~~~~~\n\n.. code-block:: python\n\n    # CreateUserHandler is not initialized during registration\n    mediator.register_command_handler(CreateUser, CreateUserHandler)\n    mediator.register_query_handler(GetUserById, handle_get_user_by_id)\n\nMain usage\n~~~~~~~~~~\n\nEnter the ``\"request\"`` scope that was registered earlier and create a new Mediator with ``di_state`` bound\n\nUse ``mediator.send(...)`` for commands and ``mediator.query(...)`` for queries\n\n.. code-block:: python\n\n        async with di_builder.enter_scope(\"request\") as di_state:\n            scoped_mediator = mediator.bind(di_state=di_state)\n\n            # It will call CreateUserHandler(UserRepoImpl()).__call__(command)\n            # UserRepoImpl() created and injected automatically\n            user_id = await scoped_mediator.send(CreateUser(1, \"Jon\"))\n\n            # It will call handle_get_user_by_id(query, user_repo)\n            # UserRepoImpl created earlier will be reused in this scope\n            user = await scoped_mediator.query(GetUserById(user_id))\n            print(\"User:\",  user)\n        # Session of UserRepoImpl will be closed after exiting the \"request\" scope\n\nEvents publishing\n~~~~~~~~~~~~~~~~~\n\nYou can register and publish events using ``Mediator`` and its ``EventObserver``.\nUnlike dispatchers, ``EventObserver`` publishes events to multiple event handlers subscribed to it\nand doesn't return their result.\nAll middlewares also work with ``EventObserver``, as in in the case with Dispatchers.\n\nDefine event and its handlers\n-----------------------------\n\n.. code-block:: python\n\n    class UserCreated(Event):\n        user_id: int\n        username: str\n\n    async def on_user_created1(event: UserCreated, logger: Logger) -> None:\n        logger.info(\"User created1: id=%s,  username=%s\", event.user_id, event.username)\n\n    async def on_user_created2(event: UserCreated, logger: Logger) -> None:\n        logger.info(\"User created2: id=%s,  username=%s\", event.user_id, event.username)\n\nCreate EventObserver and use it for Mediator\n--------------------------------------------\n\n.. code-block:: python\n\n    middlewares = (LoggingMiddleware(), DiMiddleware(di_builder, cls_scope=\"request\"))\n    event_observer = EventObserver(middlewares=middlewares)\n\n    mediator = MediatorImpl(command_dispatcher, query_dispatcher, event_observer)\n\nRegister event handlers\n-----------------------\n\nYou can register multiple event handlers for one event\n\n.. code-block:: python\n\n    mediator.register_event_handler(UserCreated, on_user_created1)\n    mediator.register_event_handler(UserCreated, on_user_created2)\n\n\nPublish event\n-------------\n\nEvent handlers will be executed sequentially\n\n.. code-block:: python\n\n    mediator.publish(UserCreated(1, \"Jon\"))\n    # User created1: id=1,  username=\"Jon\"\n    # User created2: id=1,  username=\"Jon\"\n\n    mediator.publish([UserCreated(2, \"Sam\"), UserCreated(3, \"Nick\")])\n    # User created1: id=2,  username=\"Sam\"\n    # User created2: id=2,  username=\"Sam\"\n    # User created1: id=3,  username=\"Nick\"\n    # User created2: id=3,  username=\"Nick\"\n\n\u26a0\ufe0f **Attention: this is a beta version of** ``didiator`` **that depends on** ``DI``, **which is also in beta. Both of them can change their API!**\n\nCQRS\n====\n\nCQRS stands for \"`Command Query Responsibility Segregation <https://www.martinfowler.com/bliki/CQRS.html>`_\".\nIts idea about splitting the responsibility of commands (writing) and queries (reading) into different models.\n\n``didiator`` have segregated ``.send(command)``, ``.query(query)`` and ``.publish(events)`` methods in its ``Mediator`` and\nassumes that you will separate its handlers.\nUse ``CommandMediator``, ``QueryMediator`` and ``EventMediator`` protocols to explicitly define which method you need in ``YourController``\n\n.. code-block:: mermaid\n\n    graph LR;\n        YourController-- Query -->Mediator;\n        YourController-- Command -->Mediator;\n        Mediator-. Query .->QueryDispatcher-.->di2[DiMiddleware]-.->QueryHandler;\n        Mediator-. Command .->CommandDispatcher-.->di1[DiMiddleware]-.->CommandHandler;\n        CommandHandler-- Event -->Mediator;\n        Mediator-. Event .->EventObserver-.->di3[DiMiddleware]-.->EventHandler1;\n        EventObserver-.->di4[DiMiddleware]-.->EventHandler2;\n\n``DiMiddleware`` initializes handlers and injects dependencies for them, you can just send a command with the data you need\n\nWhy ``didiator``?\n=================\n\n- Easy dependency injection to your business logic\n- Separating dependencies from your controllers. They can just parse external requests and interact with the ``Mediator``\n- CQRS\n- Event publishing\n- Flexible configuration\n- Middlewares support\n\nWhy not?\n========\n\n- You don't need it\n- Maybe too low coupling: navigation becomes more difficult\n- Didiator is in beta now\n- No support for synchronous handlers\n\n",
+            "description_content_type": "text/x-rst",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/SamWarden/didiator",
+            "keywords": "didiator,mediatr,mediator,CQRS,DI,events,ioc",
+            "license": "MIT",
+            "maintainer": "SamWarden",
+            "maintainer_email": "SamWardenSad@gmail.com",
+            "name": "didiator",
+            "package_url": "https://pypi.org/project/didiator/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/didiator/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/SamWarden/didiator/issues",
+                "Homepage": "https://github.com/SamWarden/didiator",
+                "Repository": "https://github.com/SamWarden/didiator"
+            },
+            "release_url": "https://pypi.org/project/didiator/0.2.0/",
+            "requires_dist": [
+                "di[anyio] (>=0.73.0,<0.74.0); extra == \"di\""
+            ],
+            "requires_python": ">=3.10,<4.0",
+            "summary": "A library that implements the Mediator pattern and uses DI library",
+            "version": "0.2.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16232006,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "544820f4205a97fbe4e65fb841650c6d",
+                    "sha256": "661139dc709504e6806f7c0d2ad2c61ba9ffd5bc671bd9c3123def8f68ccdde1"
+                },
+                "downloads": -1,
+                "filename": "didiator-0.2.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "544820f4205a97fbe4e65fb841650c6d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10,<4.0",
+                "size": 20751,
+                "upload_time": "2022-12-27T20:04:01",
+                "upload_time_iso_8601": "2022-12-27T20:04:01.961640Z",
+                "url": "https://files.pythonhosted.org/packages/1c/03/1f95e59935be282bf6009f2768707d5bd46809c14c9eaccf776c053be662/didiator-0.2.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e45f970ca421f04601eff52b38d8933f",
+                    "sha256": "42dcdb677f77983986699e5b61129c428103194dbf8f49679e5e6055e26b7c1b"
+                },
+                "downloads": -1,
+                "filename": "didiator-0.2.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e45f970ca421f04601eff52b38d8933f",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10,<4.0",
+                "size": 13681,
+                "upload_time": "2022-12-27T20:04:03",
+                "upload_time_iso_8601": "2022-12-27T20:04:03.830493Z",
+                "url": "https://files.pythonhosted.org/packages/e3/f9/deb91bae45a8a8cc42babf35e43492b3f813e395ae0a5a3532f14b281572/didiator-0.2.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
