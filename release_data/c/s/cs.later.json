@@ -43,7 +43,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15130723,
+        "last_serial": 16233916,
         "urls": [
             {
                 "comment_text": "",
@@ -112,7 +112,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15130723,
+        "last_serial": 16233916,
         "urls": [
             {
                 "comment_text": "",
@@ -180,7 +180,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15130723,
+        "last_serial": 16233916,
         "urls": [
             {
                 "comment_text": "",
@@ -248,7 +248,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15130723,
+        "last_serial": 16233916,
         "urls": [
             {
                 "comment_text": "",
@@ -315,7 +315,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15130723,
+        "last_serial": 16233916,
         "urls": [
             {
                 "comment_text": "",
@@ -395,7 +395,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15130723,
+        "last_serial": 16233916,
         "urls": [
             {
                 "comment_text": "",
@@ -495,7 +495,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15130723,
+        "last_serial": 16233916,
         "urls": [
             {
                 "comment_text": "",
@@ -554,7 +554,6 @@
                 "Programming Language :: Python :: 3",
                 "Topic :: Software Development :: Libraries :: Python Modules"
             ],
-            "description": "Queue functions for execution later in priority and time order.\n\n*Latest release 20220918*:\n* Later.wait: new optional timeout, replaces hardwired 5s timeout; return the Event.finished return.\n* Later: expose the finished Event as .finished_event.\n* Later.finished_event logic fixes.\n\nI use `Later` objects for convenient queuing of functions whose\nexecution occurs later in a priority order with capacity constraints.\n\nWhy not futures?\nI already had this before futures came out,\nI prefer its naming scheme and interface,\nand futures did not then support prioritised execution.\n\nUse is simple enough: create a `Later` instance and typically queue\nfunctions with the `.defer()` method::\n\n    L = Later(4)      # a Later with a parallelism of 4\n    ...\n    LF = L.defer(func, *args, **kwargs)\n    ...\n    x = LF()          # collect result\n\nThe `.defer` method and its siblings return a `LateFunction`,\nwhich is a subclass of `cs.result.Result`.\nAs such it is a callable,\nso to collect the result you just call the `LateFunction`.\n\n## Function `defer(func, *a, **kw)`\n\nQueue a function using the current default Later.\nReturn the `LateFunction`.\n\n## Class `LateFunction(cs.result.Result, cs.fsm.FSM, cs.gvutils.DOTNodeMixin)`\n\nState information about a pending function,\na subclass of `cs.result.Result`.\n\nA `LateFunction` is callable,\nso a synchronous call can be done like this:\n\n    def func():\n      return 3\n    L = Later(4)\n    LF = L.defer(func)\n    x = LF()\n    print(x)        # prints 3\n\nUsed this way, if the called function raises an exception it is visible:\n\n    LF = L.defer()\n    try:\n      x = LF()\n    except SomeException as e:\n      # handle the exception ...\n\nTo avoid handling exceptions with try/except the .wait()\nmethod should be used:\n\n    LF = L.defer()\n    x, exc_info = LF.wait()\n    if exc_info:\n      # handle exception\n      exc_type, exc_value, exc_traceback = exc_info\n      ...\n    else:\n      # use `x`, the function result\n\nTODO: .cancel(), timeout for wait().\n\n*Method `LateFunction.__init__(self, func, name=None, retry_delay=None)`*:\nInitialise a `LateFunction`.\n\nParameters:\n* `func` is the callable for later execution.\n* `name`, if supplied, specifies an identifying name for the `LateFunction`.\n* `retry_local`: time delay before retry of this function on RetryError.\n  Default from `later.retry_delay`.\n\n## Class `LatePool`\n\nA context manager after the style of subprocess.Pool\nbut with deferred completion.\n\nExample usage:\n\n    L = Later(4)    # a 4 thread Later\n    with LatePool(L) as LP:\n      # several calls to LatePool.defer, perhaps looped\n      LP.defer(func, *args, **kwargs)\n      LP.defer(func, *args, **kwargs)\n    # now we can LP.join() to block for all `LateFunctions`\n    #\n    # or iterate over LP to collect `LateFunction`s as they complete\n    for LF in LP:\n      result = LF()\n      print(result)\n\n*Method `LatePool.__init__(self, L=None, priority=None, delay=None, when=None, pfx=None, block=False)`*:\nInitialise the `LatePool`.\n\nParameters:\n* `L`: `Later` instance, default from default.current.\n* `priority`, `delay`, `when`, `name`, `pfx`:\n  default values passed to Later.submit.\n* `block`: if true, wait for `LateFunction` completion\n  before leaving __exit__.\n\n## Class `Later(cs.resources.MultiOpenMixin, cs.context.ContextManagerMixin)`\n\nA management class to queue function calls for later execution.\n\nMethods are provided for submitting functions to run ASAP or\nafter a delay or after other pending functions. These methods\nreturn `LateFunction`s, a subclass of `cs.result.Result`.\n\nA Later instance' close method closes the Later for further\nsubmission.\nShutdown does not imply that all submitted functions have\ncompleted or even been dispatched.\nCallers may wait for completion and optionally cancel functions.\n\nTODO: __enter__ returns a SubLater, __exit__ closes the SubLater.\n\nTODO: drop global default Later.\n\n*Method `Later.__init__(self, capacity, name=None, inboundCapacity=0, retry_delay=None)`*:\nInitialise the Later instance.\n\nParameters:\n* `capacity`: resource contraint on this Later; if an int, it is used\n  to size a Semaphore to constrain the number of dispatched functions\n  which may be in play at a time; if not an int it is presumed to be a\n  suitable Semaphore-like object, perhaps shared with other subsystems.\n* `name`: optional identifying name for this instance.\n* `inboundCapacity`: if >0, used as a limit on the number of\n  undispatched functions that may be queued up; the default is 0 (no\n  limit).  Calls to submit functions when the inbound limit is reached\n  block until some functions are dispatched.\n* `retry_delay`: time delay for requeued functions.\n  Default: `DEFAULT_RETRY_DELAY`.\n\n## Function `retry(retry_interval, func, *a, **kw)`\n\nCall the callable `func` with the supplied arguments.\n\nIf it raises `RetryError`,\nrun `time.sleep(retry_interval)`\nand then call again until it does not raise `RetryError`.\n\n## Class `RetryError(builtins.Exception, builtins.BaseException)`\n\nException raised by functions which should be resubmitted to the queue.\n\n## Class `SubLater`\n\nA class for managing a group of deferred tasks using an existing `Later`.\n\n*Method `SubLater.__init__(self, L)`*:\nInitialise the `SubLater` with its parent `Later`.\n\nTODO: accept `discard=False` param to suppress the queue and\nassociated checks.\n\n# Release Log\n\n\n\n*Release 20220918*:\n* Later.wait: new optional timeout, replaces hardwired 5s timeout; return the Event.finished return.\n* Later: expose the finished Event as .finished_event.\n* Later.finished_event logic fixes.\n\n*Release 20220805*:\nUpdate for recent changes to Result.\n\n*Release 20220605*:\n* Later: replace the default = _ThreadLocal with a default = ThreadState(current=None).\n* Later: fold startup/shutdown/__enter__/__exit__ into the startup_shutdown context manager, fixes MultiOpenMixin misbehaviour.\n\n*Release 20201021*:\n* Later: subclass MultiOpenMixin.\n* Later._defer: make a shallow copy of the keyword parameters as we do for the positional parameters.\n\n*Release 20191007*:\nDrop pipeline functionality, moved to new cs.pipeline module.\n\n*Release 20181231*:\n* New SubLater class to provide a grouping for deferred functions and an iteration to collect them as they complete.\n* Drop WorkerThreadPool (leaks idle Threads, brings little benefit).\n* Later: drop worker queue thread and semaphore, just try a dispatch on submit or complete.\n* Later: drop tracking code. Drop capacity context manager, never used.\n\n*Release 20181109*:\n* Updates for cs.asynchron renamed to cs.result.\n* Later: no longer subclass MultiOpenMixin, users now call close to end submission, shutdown to terminate activity and wait to await finalisation.\n* Clean lint, add docstrings, minor bugfixes.\n\n*Release 20160828*:\n* Use \"install_requires\" instead of \"requires\" in DISTINFO.\n* Add LatePool, a context manager after the flavour of subprocess.Pool.\n* Python 2 fix.\n* Rename NestingOpenCloseMixin to MultiOpenMixin - easier to type, say and remember, not to mention being more accurate.\n* Add RetryError exception for use by Later.retriable.\n* LateFunction: support RetryError exception from function, causing requeue.\n* LateFunction: accept retry_delay parameter, used to delay function retry.\n* Later.defer_iterable: accept `test_ready` callable to support deferring iteration until the callable returns truthiness.\n* New function retry(retry_interval, func, *a, **kw) to call func until it does not raise RetryError.\n* Later: wrap several methods in @MultiOpenMixin.is_opened.\n* Assorted bugfixes and improvements.\n\n*Release 20150115*:\nFirst PyPI release.\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -596,7 +595,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15130723,
+        "last_serial": 16233916,
         "urls": [
             {
                 "comment_text": "",
@@ -635,6 +634,107 @@
                 "upload_time": "2022-09-18T00:54:58",
                 "upload_time_iso_8601": "2022-09-18T00:54:58.560657Z",
                 "url": "https://files.pythonhosted.org/packages/da/ce/0918e0fb7089cee74c67aea3a82c4248078e574154d6fd66773a7401dbaf/cs.later-20220918.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "20221228": {
+        "info": {
+            "author": "Cameron Simpson",
+            "author_email": "Cameron Simpson <cs@cskk.id.au>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Topic :: Software Development :: Libraries :: Python Modules"
+            ],
+            "description": "Queue functions for execution later in priority and time order.\n\n*Latest release 20221228*:\n* Later: replace submittable checks with decorator accepting a force=True override.\n* Later.defer_iterable: implement greedy vs nongreedy.\n\nI use `Later` objects for convenient queuing of functions whose\nexecution occurs later in a priority order with capacity constraints.\n\nWhy not futures?\nI already had this before futures came out,\nI prefer its naming scheme and interface,\nand futures did not then support prioritised execution.\n\nUse is simple enough: create a `Later` instance and typically queue\nfunctions with the `.defer()` method::\n\n    L = Later(4)      # a Later with a parallelism of 4\n    ...\n    LF = L.defer(func, *args, **kwargs)\n    ...\n    x = LF()          # collect result\n\nThe `.defer` method and its siblings return a `LateFunction`,\nwhich is a subclass of `cs.result.Result`.\nAs such it is a callable,\nso to collect the result you just call the `LateFunction`.\n\n## Function `defer(func, *a, **kw)`\n\nQueue a function using the current default Later.\nReturn the `LateFunction`.\n\n## Class `LateFunction(cs.result.Result, cs.fsm.FSM, cs.gvutils.DOTNodeMixin)`\n\nState information about a pending function,\na subclass of `cs.result.Result`.\n\nA `LateFunction` is callable,\nso a synchronous call can be done like this:\n\n    def func():\n      return 3\n    L = Later(4)\n    LF = L.defer(func)\n    x = LF()\n    print(x)        # prints 3\n\nUsed this way, if the called function raises an exception it is visible:\n\n    LF = L.defer()\n    try:\n      x = LF()\n    except SomeException as e:\n      # handle the exception ...\n\nTo avoid handling exceptions with try/except the .wait()\nmethod should be used:\n\n    LF = L.defer()\n    x, exc_info = LF.wait()\n    if exc_info:\n      # handle exception\n      exc_type, exc_value, exc_traceback = exc_info\n      ...\n    else:\n      # use `x`, the function result\n\nTODO: .cancel(), timeout for wait().\n\n*Method `LateFunction.__init__(self, func, name=None, retry_delay=None)`*:\nInitialise a `LateFunction`.\n\nParameters:\n* `func` is the callable for later execution.\n* `name`, if supplied, specifies an identifying name for the `LateFunction`.\n* `retry_local`: time delay before retry of this function on RetryError.\n  Default from `later.retry_delay`.\n\n## Class `LatePool`\n\nA context manager after the style of subprocess.Pool\nbut with deferred completion.\n\nExample usage:\n\n    L = Later(4)    # a 4 thread Later\n    with LatePool(L) as LP:\n      # several calls to LatePool.defer, perhaps looped\n      LP.defer(func, *args, **kwargs)\n      LP.defer(func, *args, **kwargs)\n    # now we can LP.join() to block for all `LateFunctions`\n    #\n    # or iterate over LP to collect `LateFunction`s as they complete\n    for LF in LP:\n      result = LF()\n      print(result)\n\n*Method `LatePool.__init__(self, L=None, priority=None, delay=None, when=None, pfx=None, block=False)`*:\nInitialise the `LatePool`.\n\nParameters:\n* `L`: `Later` instance, default from default.current.\n* `priority`, `delay`, `when`, `name`, `pfx`:\n  default values passed to Later.submit.\n* `block`: if true, wait for `LateFunction` completion\n  before leaving __exit__.\n\n## Class `Later(cs.resources.MultiOpenMixin, cs.context.ContextManagerMixin)`\n\nA management class to queue function calls for later execution.\n\nMethods are provided for submitting functions to run ASAP or\nafter a delay or after other pending functions. These methods\nreturn `LateFunction`s, a subclass of `cs.result.Result`.\n\nA Later instance' close method closes the Later for further\nsubmission.\nShutdown does not imply that all submitted functions have\ncompleted or even been dispatched.\nCallers may wait for completion and optionally cancel functions.\n\nTODO: __enter__ returns a SubLater, __exit__ closes the SubLater.\n\nTODO: drop global default Later.\n\n*Method `Later.__init__(self, capacity, name=None, inboundCapacity=0, retry_delay=None)`*:\nInitialise the Later instance.\n\nParameters:\n* `capacity`: resource contraint on this Later; if an int, it is used\n  to size a Semaphore to constrain the number of dispatched functions\n  which may be in play at a time; if not an int it is presumed to be a\n  suitable Semaphore-like object, perhaps shared with other subsystems.\n* `name`: optional identifying name for this instance.\n* `inboundCapacity`: if >0, used as a limit on the number of\n  undispatched functions that may be queued up; the default is 0 (no\n  limit).  Calls to submit functions when the inbound limit is reached\n  block until some functions are dispatched.\n* `retry_delay`: time delay for requeued functions.\n  Default: `DEFAULT_RETRY_DELAY`.\n\n## Function `retry(retry_interval, func, *a, **kw)`\n\nCall the callable `func` with the supplied arguments.\n\nIf it raises `RetryError`,\nrun `time.sleep(retry_interval)`\nand then call again until it does not raise `RetryError`.\n\n## Class `RetryError(builtins.Exception, builtins.BaseException)`\n\nException raised by functions which should be resubmitted to the queue.\n\n## Class `SubLater`\n\nA class for managing a group of deferred tasks using an existing `Later`.\n\n*Method `SubLater.__init__(self, L)`*:\nInitialise the `SubLater` with its parent `Later`.\n\nTODO: accept `discard=False` param to suppress the queue and\nassociated checks.\n\n# Release Log\n\n\n\n*Release 20221228*:\n* Later: replace submittable checks with decorator accepting a force=True override.\n* Later.defer_iterable: implement greedy vs nongreedy.\n\n*Release 20220918*:\n* Later.wait: new optional timeout, replaces hardwired 5s timeout; return the Event.finished return.\n* Later: expose the finished Event as .finished_event.\n* Later.finished_event logic fixes.\n\n*Release 20220805*:\nUpdate for recent changes to Result.\n\n*Release 20220605*:\n* Later: replace the default = _ThreadLocal with a default = ThreadState(current=None).\n* Later: fold startup/shutdown/__enter__/__exit__ into the startup_shutdown context manager, fixes MultiOpenMixin misbehaviour.\n\n*Release 20201021*:\n* Later: subclass MultiOpenMixin.\n* Later._defer: make a shallow copy of the keyword parameters as we do for the positional parameters.\n\n*Release 20191007*:\nDrop pipeline functionality, moved to new cs.pipeline module.\n\n*Release 20181231*:\n* New SubLater class to provide a grouping for deferred functions and an iteration to collect them as they complete.\n* Drop WorkerThreadPool (leaks idle Threads, brings little benefit).\n* Later: drop worker queue thread and semaphore, just try a dispatch on submit or complete.\n* Later: drop tracking code. Drop capacity context manager, never used.\n\n*Release 20181109*:\n* Updates for cs.asynchron renamed to cs.result.\n* Later: no longer subclass MultiOpenMixin, users now call close to end submission, shutdown to terminate activity and wait to await finalisation.\n* Clean lint, add docstrings, minor bugfixes.\n\n*Release 20160828*:\n* Use \"install_requires\" instead of \"requires\" in DISTINFO.\n* Add LatePool, a context manager after the flavour of subprocess.Pool.\n* Python 2 fix.\n* Rename NestingOpenCloseMixin to MultiOpenMixin - easier to type, say and remember, not to mention being more accurate.\n* Add RetryError exception for use by Later.retriable.\n* LateFunction: support RetryError exception from function, causing requeue.\n* LateFunction: accept retry_delay parameter, used to delay function retry.\n* Later.defer_iterable: accept `test_ready` callable to support deferring iteration until the callable returns truthiness.\n* New function retry(retry_interval, func, *a, **kw) to call func until it does not raise RetryError.\n* Later: wrap several methods in @MultiOpenMixin.is_opened.\n* Assorted bugfixes and improvements.\n\n*Release 20150115*:\nFirst PyPI release.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://bitbucket.org/cameron_simpson/css/commits/all",
+            "keywords": "python3",
+            "license": "GNU General Public License v3 or later (GPLv3+)",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "cs.later",
+            "package_url": "https://pypi.org/project/cs.later/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/cs.later/",
+            "project_urls": {
+                "Homepage": "https://bitbucket.org/cameron_simpson/css/commits/all",
+                "URL": "https://bitbucket.org/cameron_simpson/css/commits/all"
+            },
+            "release_url": "https://pypi.org/project/cs.later/20221228/",
+            "requires_dist": [
+                "cs.deco (>=20221214)",
+                "cs.excutils (>=20221228)",
+                "cs.logutils (>=20220531)",
+                "cs.pfx (>=20221118)",
+                "cs.py.func (>=20221207)",
+                "cs.queues (>=20221228)",
+                "cs.resources (>=20221228)",
+                "cs.result (>=20221207)",
+                "cs.seq (>=20221118)",
+                "cs.threads (>=20221228)",
+                "typeguard"
+            ],
+            "requires_python": "",
+            "summary": "Queue functions for execution later in priority and time order.",
+            "version": "20221228",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16233916,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "897582c22e0056728811aa5703d69f06",
+                    "sha256": "cc3d32cd5422723be903fe042b540dc8ea50a3adff0652d2e4047639dd40943e"
+                },
+                "downloads": -1,
+                "filename": "cs.later-20221228-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "897582c22e0056728811aa5703d69f06",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 14564,
+                "upload_time": "2022-12-28T02:02:00",
+                "upload_time_iso_8601": "2022-12-28T02:02:00.825233Z",
+                "url": "https://files.pythonhosted.org/packages/12/79/98defe13783b09ee538f06e7831a740f343de339a73e20f169134d38f3c1/cs.later-20221228-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6de2215a3603eab2976f18fa75d2ccb7",
+                    "sha256": "dc6effcd9088e68991216411143874ff316a4fec544e305883ab8641483e82ef"
+                },
+                "downloads": -1,
+                "filename": "cs.later-20221228.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6de2215a3603eab2976f18fa75d2ccb7",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 18880,
+                "upload_time": "2022-12-28T02:02:02",
+                "upload_time_iso_8601": "2022-12-28T02:02:02.576647Z",
+                "url": "https://files.pythonhosted.org/packages/4a/e8/cdb0ca50fee5b07400f69ec0586ace3e090b571ff5a6373e40917d2e2726/cs.later-20221228.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

@@ -37,7 +37,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16232545,
+        "last_serial": 16234621,
         "urls": [
             {
                 "comment_text": "",
@@ -120,7 +120,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16232545,
+        "last_serial": 16234621,
         "urls": [
             {
                 "comment_text": "",
@@ -203,7 +203,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16232545,
+        "last_serial": 16234621,
         "urls": [
             {
                 "comment_text": "",
@@ -289,7 +289,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16232545,
+        "last_serial": 16234621,
         "urls": [
             {
                 "comment_text": "",
@@ -376,7 +376,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16232545,
+        "last_serial": 16234621,
         "urls": [
             {
                 "comment_text": "",
@@ -463,7 +463,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16232545,
+        "last_serial": 16234621,
         "urls": [
             {
                 "comment_text": "",
@@ -550,7 +550,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16232545,
+        "last_serial": 16234621,
         "urls": [
             {
                 "comment_text": "",
@@ -637,7 +637,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16232545,
+        "last_serial": 16234621,
         "urls": [
             {
                 "comment_text": "",
@@ -694,7 +694,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# Yog\n\n## Overview\n\nAn opinionated docker-and-ssh-centric declarative system management tool.\n\n`pip3 install yog`\n\nFeatures:\n* Like puppet or ansible but a lot smaller and focused on docker, files, and cron\n* agentless - runs entirely on top of ssh\n* entirely defers auth(z/n) to ssh and the remote system's user permissions\n\nCommand summary:\n\n* `yog`: Applies configurations to hosts. e.g. `yog myhost.mytld` applies the config from `./domains/mytld/myhost.yml`.\n* `yog-repo`: Manages a docker repository. `yog-repo push` uses the contents of `./yog-repo.conf` to build an image and push it to the configured registry with the configured name and tag.\n\nExample run:\n\n```text\n$ yog myhost.example.com\n[2022-12-26 11:01:52,514] [INFO]: [myhost.example.com]\n[2022-12-26 11:01:59,121] [INFO]: [myhost.example.com][files]: OK [hello_world.html]\n[2022-12-26 11:01:59,274] [INFO]: [myhost.example.com][files]: OK [helloworld-nginx.conf]\n[2022-12-26 11:02:07,117] [INFO]: [myhost.example.com][docker]: OK registry@sha256:8be26f81ffea54106bae012c6f349df70f4d5e7e2ec01b143c46e2c03b9e551d\n```\n\n## Setup\n\n1. Configure docker to listen on localhost's port 4243 (which is the default). See below.\n2. Use `ssh-copy-id` to copy your ssh key to all the servers you wish to manage. You can look into ssh certificates if you want a more general ssh PKI solution.\n3. Configure the target system to allow you to use sudo without a password. [2]\n4. That's it. You now serve the nameless mist. Do you hear whippoorwills?\n\n### Docker port listening setup (step 1)\n\n```bash\nssh myhost\nsudo systemctl edit docker\n```\n\nAnd add `-H tcp://127.0.0.1:4243` to the command. So for me, that file looks like:\n\n```text\n[Service]\nExecStart=\nExecStart=/usr/bin/dockerd -H fd:// -H tcp://127.0.0.1:4243\n```\n\nYog will apply files before docker containers, so you might also want to add a yog file entry like so:\n\n```yaml\nfiles:\n  - src: docker-override.conf\n    dest: /etc/systemd/system/docker.service.d/override.conf\n    root: yes\n    hupcmd: sudo systemctl restart docker\n```\n\n## Usage\n\nYog uses YML files that it calls \"necronomicons\" for configuration of hosts. It's organized hierarchically so\nthat a necronomicon for \"mytld\" will be applied to all hosts under that TLD.\n\nLet's learn by example:\n\nSuppose we have a folder, that can be named whatever we want, at `~/projects/my-config`. This is the root of a \ngit repo, and is also the root of our yog configuration. Make this your current working dir, or pass `--root-dir`.\n\n`$ cd ~/projects/my-config`\n\n```text\n.\n\u251c\u2500\u2500 domains\n\u2502      \u251c\u2500\u2500 com\n\u2502      \u2502      \u2514\u2500\u2500 example\n\u2502      \u2502          \u2514\u2500\u2500 myhost.yml\n\u2502      \u2514\u2500\u2500 com.yml\n\u2514\u2500\u2500 files\n    \u251c\u2500\u2500 example.txt\n    \u251c\u2500\u2500 hello_world.html\n    \u2514\u2500\u2500 helloworld-nginx.conf\n\n4 directories, 5 files\n```\n\nFiles that can be sent to hosts are stored under `files`.\n\nHost configurations - necronomicons - are stored under `domains`.\n\nIf we want to apply `myhost.yml`, we run:\n\n`yog myhost.example.com`\n\nExample output:\n```text\n$ yog myhost.example.com\n[2022-12-26 11:01:52,514] [INFO]: [myhost.example.com]\n[2022-12-26 11:01:59,121] [INFO]: [myhost.example.com][files]: OK [hello_world.html]\n[2022-12-26 11:01:59,274] [INFO]: [myhost.example.com][files]: OK [helloworld-nginx.conf]\n[2022-12-26 11:02:07,117] [INFO]: [myhost.example.com][docker]: OK registry@sha256:8be26f81ffea54106bae012c6f349df70f4d5e7e2ec01b143c46e2c03b9e551d\n```\n\n### Necronomicon format\n\nLet's look at a necronomicon.\n\n```yml\nfiles:\n  - src: hello_world.html\n    dest: /srv/hello_world/hello_world.html\n    root: yes\n  - src: helloworld-nginx.conf\n    dest: /etc/nginx/conf.d/helloworld.conf\n    root: yes\n    hupcmd: sudo systemctl restart nginx\n\n\ndocker:\n  - image: registry\n    name: my-registry\n    fingerprint: sha256:8be26f81ffea54106bae012c6f349df70f4d5e7e2ec01b143c46e2c03b9e551d\n    volumes:\n      images: /var/lib/registry\n    ports:\n      5000: 5000\n    env:\n      REGISTRY_STORAGE_DELETE_ENABLED: true\n```\n\n#### Files\n\nFiles are checked for equality via hash-comparison. I've found this a useful way to manage:\n\n* cron files in /etc/cron.d/\n* Root certificates to put in the system trust store[1]\n* random config files\n\nAttributes:\n\n* `src`: the source. This is a _relative_ path rooted at the `files` directory in the hierarchy. You can use intermediate dirs.\n* `dest`: the destination filepath on the managed host. This is an absolute path.\n* `root`: whether to `sudo` to root for the file put. This mainly picks who owns the file + can access files, but this might have other useful properties for your use case. If set to `no`, the put operation is run as your ssh user. \n* `hupcmd`: a command to run after the file is placed. A common thing in ye olde days was to send SIGHUP to a process which would handle it by reloading the config. Commonly nowadays you might be using `hupcmd: sudo systemctl reload nginx`\n\n\n#### Docker containers\n\nDocker containers are compared on all specified attributes and won't unnecessarily restart containers. \n\nAttributes: \n\n* `image`: the docker repository name. e.g. `itzg/minecraft-server` or `dockerrepo.local:5000/mything`\n* `name`: the container name.\n* `fingerprint`: sha digest of the desired version. Tags are bad news bears so we don't support them. This is called fingerprint instead of digest because I didn't know they were called digests when I first coded this and then never changed it once I did.\n* `volumes`: volumes to attach. see below.\n* `ports`: ports to open. see below.\n* `env`: environment variables to set.\n\n##### Volumes\n\nFor volumes, the key is the volume name and the value is the mount point.\n\nFor bind mounts, the key is the host path and the value is the container path.\n\n##### Ports\n\nThe key is the host addr/port, and the value is the dest container port. Examples:\n\n```yml\n192.168.1.103:53/tcp: 53/tcp\n192.168.1.103:53/udp: 53/udp\n127.0.0.1:53/tcp: 53/tcp\n127.0.0.1:53/udp: 53/udp\n33200: 33200\n8080: 3000 # host port 8080 maps to container port 3000\n```\n\n## Footnotes\n\n[1] This is one of those things where I feel like you probably shouldn't manage root certs like this but I have yet to regret it? It's not a cryptographic secret, so.\n\n[2] Also something that people say you probably shouldn't do but I've yet to regret. If your user is in the docker group it's basically root anyway from a threat modeling perspective.\n\n\n## `yog-repo`\n\nYog also includes a tool for pushing images to your local docker registry. I haven't documented it yet, apologies. \n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -725,7 +724,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16232545,
+        "last_serial": 16234621,
         "urls": [
             {
                 "comment_text": "",
@@ -764,6 +763,94 @@
                 "upload_time": "2022-12-27T21:16:34",
                 "upload_time_iso_8601": "2022-12-27T21:16:34.491045Z",
                 "url": "https://files.pythonhosted.org/packages/99/25/304bf475399217318a24a508af2d2e2c6cd6703af473a7816bb457fe7898/yog-1.3.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.3.5": {
+        "info": {
+            "author": "Josh Hertlein",
+            "author_email": "jmhertlein@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: Other/Proprietary License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "# Yog\n\n## Overview\n\nAn opinionated docker-and-ssh-centric declarative system management tool.\n\n`pip3 install yog`\n\nFeatures:\n* Like puppet or ansible but a lot smaller and focused on docker, files, and cron\n* agentless - runs entirely on top of ssh\n* entirely defers auth(z/n) to ssh and the remote system's user permissions\n\nCommand summary:\n\n* `yog`: Applies configurations to hosts. e.g. `yog myhost.mytld` applies the config from `./domains/mytld/myhost.yml`.\n* `yog-repo`: Manages a docker repository. `yog-repo push` uses the contents of `./yog-repo.conf` to build an image and push it to the configured registry with the configured name and tag.\n\nExample run:\n\n[usage.webm](https://user-images.githubusercontent.com/1287152/209723654-e78b5283-60b5-4894-b5a1-3d2d71bfcc45.webm)\n\n\n## Setup\n\n1. Configure docker to listen on localhost's port 4243 (which is the default). See below.\n2. Use `ssh-copy-id` to copy your ssh key to all the servers you wish to manage. You can look into ssh certificates if you want a more general ssh PKI solution.\n3. Configure the target system to allow you to use sudo without a password. [2]\n4. That's it. You now serve the nameless mist. Do you hear whippoorwills?\n\n### Docker port listening setup (step 1)\n\n```bash\nssh myhost\nsudo systemctl edit docker\n```\n\nAnd add `-H tcp://127.0.0.1:4243` to the command. So for me, that file looks like:\n\n```text\n[Service]\nExecStart=\nExecStart=/usr/bin/dockerd -H fd:// -H tcp://127.0.0.1:4243\n```\n\nYog will apply files before docker containers, so you might also want to add a yog file entry like so:\n\n```yaml\nfiles:\n  - src: docker-override.conf\n    dest: /etc/systemd/system/docker.service.d/override.conf\n    root: yes\n    hupcmd: sudo systemctl restart docker\n```\n\n## Usage\n\nYog uses YML files that it calls \"necronomicons\" for configuration of hosts. It's organized hierarchically so\nthat a necronomicon for \"mytld\" will be applied to all hosts under that TLD.\n\nLet's learn by example:\n\nSuppose we have a folder, that can be named whatever we want, at `~/projects/my-config`. This is the root of a \ngit repo, and is also the root of our yog configuration. Make this your current working dir, or pass `--root-dir`.\n\n`$ cd ~/projects/my-config`\n\n```text\n.\n\u251c\u2500\u2500 domains\n\u2502      \u251c\u2500\u2500 com\n\u2502      \u2502      \u2514\u2500\u2500 example\n\u2502      \u2502          \u2514\u2500\u2500 myhost.yml\n\u2502      \u2514\u2500\u2500 com.yml\n\u2514\u2500\u2500 files\n    \u251c\u2500\u2500 example.txt\n    \u251c\u2500\u2500 hello_world.html\n    \u2514\u2500\u2500 helloworld-nginx.conf\n\n4 directories, 5 files\n```\n\nFiles that can be sent to hosts are stored under `files`.\n\nHost configurations - necronomicons - are stored under `domains`.\n\nIf we want to apply `myhost.yml`, we run:\n\n`yog myhost.example.com`\n\nExample output:\n```text\n$ yog myhost.example.com\n[2022-12-26 11:01:52,514] [INFO]: [myhost.example.com]\n[2022-12-26 11:01:59,121] [INFO]: [myhost.example.com][files]: OK [hello_world.html]\n[2022-12-26 11:01:59,274] [INFO]: [myhost.example.com][files]: OK [helloworld-nginx.conf]\n[2022-12-26 11:02:07,117] [INFO]: [myhost.example.com][docker]: OK registry@sha256:8be26f81ffea54106bae012c6f349df70f4d5e7e2ec01b143c46e2c03b9e551d\n```\n\n### Necronomicon format\n\nLet's look at a necronomicon.\n\n```yml\nfiles:\n  - src: hello_world.html\n    dest: /srv/hello_world/hello_world.html\n    root: yes\n  - src: helloworld-nginx.conf\n    dest: /etc/nginx/conf.d/helloworld.conf\n    root: yes\n    hupcmd: sudo systemctl restart nginx\n\n\ndocker:\n  - image: registry\n    name: my-registry\n    fingerprint: sha256:8be26f81ffea54106bae012c6f349df70f4d5e7e2ec01b143c46e2c03b9e551d\n    volumes:\n      images: /var/lib/registry\n    ports:\n      5000: 5000\n    env:\n      REGISTRY_STORAGE_DELETE_ENABLED: true\n```\n\n#### Files\n\nFiles are checked for equality via hash-comparison. I've found this a useful way to manage:\n\n* cron files in /etc/cron.d/\n* Root certificates to put in the system trust store[1]\n* random config files\n\nAttributes:\n\n* `src`: the source. This is a _relative_ path rooted at the `files` directory in the hierarchy. You can use intermediate dirs.\n* `dest`: the destination filepath on the managed host. This is an absolute path.\n* `root`: whether to `sudo` to root for the file put. This mainly picks who owns the file + can access files, but this might have other useful properties for your use case. If set to `no`, the put operation is run as your ssh user. \n* `hupcmd`: a command to run after the file is placed. A common thing in ye olde days was to send SIGHUP to a process which would handle it by reloading the config. Commonly nowadays you might be using `hupcmd: sudo systemctl reload nginx`\n\n\n#### Docker containers\n\nDocker containers are compared on all specified attributes and won't unnecessarily restart containers. \n\nAttributes: \n\n* `image`: the docker repository name. e.g. `itzg/minecraft-server` or `dockerrepo.local:5000/mything`\n* `name`: the container name.\n* `fingerprint`: sha digest of the desired version. Tags are bad news bears so we don't support them. This is called fingerprint instead of digest because I didn't know they were called digests when I first coded this and then never changed it once I did.\n* `volumes`: volumes to attach. see below.\n* `ports`: ports to open. see below.\n* `env`: environment variables to set.\n\n##### Volumes\n\nFor volumes, the key is the volume name and the value is the mount point.\n\nFor bind mounts, the key is the host path and the value is the container path.\n\n##### Ports\n\nThe key is the host addr/port, and the value is the dest container port. Examples:\n\n```yml\n192.168.1.103:53/tcp: 53/tcp\n192.168.1.103:53/udp: 53/udp\n127.0.0.1:53/tcp: 53/tcp\n127.0.0.1:53/udp: 53/udp\n33200: 33200\n8080: 3000 # host port 8080 maps to container port 3000\n```\n\n## Footnotes\n\n[1] This is one of those things where I feel like you probably shouldn't manage root certs like this but I have yet to regret it? It's not a cryptographic secret, so.\n\n[2] Also something that people say you probably shouldn't do but I've yet to regret. If your user is in the docker group it's basically root anyway from a threat modeling perspective.\n\n\n## `yog-repo`\n\nYog also includes a tool for pushing images to your local docker registry. I haven't documented it yet, apologies. \n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "AGPLv3",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "yog",
+            "package_url": "https://pypi.org/project/yog/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/yog/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/yog/1.3.5/",
+            "requires_dist": [
+                "PyYAML (>=6.0,<7.0)",
+                "docker (>=5.0.3,<6.0.0)",
+                "paramiko (>=2.8.0,<3.0.0)"
+            ],
+            "requires_python": ">=3.8,<4.0",
+            "summary": "The Gate and Key",
+            "version": "1.3.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16234621,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "945f5ef34671d6d969191cbf9cc2ee1f",
+                    "sha256": "14a5632cba7b35598980f14652accf243398632932381b7f5b621643503f7d67"
+                },
+                "downloads": -1,
+                "filename": "yog-1.3.5-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "945f5ef34671d6d969191cbf9cc2ee1f",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8,<4.0",
+                "size": 30422,
+                "upload_time": "2022-12-28T04:50:52",
+                "upload_time_iso_8601": "2022-12-28T04:50:52.671254Z",
+                "url": "https://files.pythonhosted.org/packages/2b/02/4dc604f658d16cebbc7658845033fc89e48d934fbc0b69b97ffbe54b3e1c/yog-1.3.5-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cd0f25547ea4838d1da7eff9809c314a",
+                    "sha256": "b39bb5f2a077a87c7c8319845a9387a6bb5144a58eb4f89ce8b81afe806c9be1"
+                },
+                "downloads": -1,
+                "filename": "yog-1.3.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "cd0f25547ea4838d1da7eff9809c314a",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8,<4.0",
+                "size": 18298,
+                "upload_time": "2022-12-28T04:50:53",
+                "upload_time_iso_8601": "2022-12-28T04:50:53.906190Z",
+                "url": "https://files.pythonhosted.org/packages/c9/5f/9304612ef3da172254c93c832fee9b8f617806ec3eb84b2bc4fc85025670/yog-1.3.5.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

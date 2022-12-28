@@ -33,7 +33,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15880537,
+        "last_serial": 16236953,
         "urls": [
             {
                 "comment_text": "",
@@ -145,7 +145,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15880537,
+        "last_serial": 16236953,
         "urls": [
             {
                 "comment_text": "",
@@ -259,7 +259,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15880537,
+        "last_serial": 16236953,
         "urls": [
             {
                 "comment_text": "",
@@ -373,7 +373,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15880537,
+        "last_serial": 16236953,
         "urls": [
             {
                 "comment_text": "",
@@ -487,7 +487,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15880537,
+        "last_serial": 16236953,
         "urls": [
             {
                 "comment_text": "",
@@ -549,7 +549,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Utilities"
             ],
-            "description": "<div align=\"center\">\n  <img src=\"https://user-images.githubusercontent.com/58739961/187154444-fce76639-ac8d-429b-9354-c6fac64b7ef8.jpg\" height=\"100\"/>\n  <div>&nbsp;</div>\n  <div align=\"center\">\n    <b><font size=\"5\">OpenMMLab website</font></b>\n    <sup>\n      <a href=\"https://openmmlab.com\">\n        <i><font size=\"4\">HOT</font></i>\n      </a>\n    </sup>\n    &nbsp;&nbsp;&nbsp;&nbsp;\n    <b><font size=\"5\">OpenMMLab platform</font></b>\n    <sup>\n      <a href=\"https://platform.openmmlab.com\">\n        <i><font size=\"4\">TRY IT OUT</font></i>\n      </a>\n    </sup>\n  </div>\n  <div>&nbsp;</div>\n\n[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mmengine)](https://pypi.org/project/mmengine/)\n[![PyPI](https://img.shields.io/pypi/v/mmengine)](https://pypi.org/project/mmengine)\n[![license](https://img.shields.io/github/license/open-mmlab/mmengine.svg)](https://github.com/open-mmlab/mmengine/blob/main/LICENSE)\n[![open issues](https://isitmaintained.com/badge/open/open-mmlab/mmengine.svg)](https://github.com/open-mmlab/mmengine/issues)\n[![issue resolution](https://isitmaintained.com/badge/resolution/open-mmlab/mmengine.svg)](https://github.com/open-mmlab/mmengine/issues)\n\n[\ud83e\udd14Reporting Issues](https://github.com/open-mmlab/mmengine/issues/new/choose)\n\n</div>\n\n<div align=\"center\">\n\nEnglish | [\u7b80\u4f53\u4e2d\u6587](README_zh-CN.md)\n\n</div>\n\n## Introduction\n\nMMEngine is a foundational library for training deep learning models based on PyTorch. It provides a solid engineering foundation and frees developers from writing redundant codes on workflows. It serves as the training engine of all OpenMMLab codebases, which support hundreds of algorithms in various research areas. Moreover, MMEngine is also generic to be applied to non-OpenMMLab projects.\n\nMajor features:\n\n1. **A universal and powerful runner**:\n\n   - Supports training different tasks with a small amount of code, e.g., ImageNet can be trained with only 80 lines of code (400 lines of the original PyTorch example)\n   - Easily compatible with models from popular algorithm libraries such as TIMM, TorchVision, and Detectron2\n\n2. **Open architecture with unified interfaces**:\n\n   - Handles different algorithm tasks with unified APIs, e.g., implement a method and apply it to all compatible models.\n   - Provides a unified abstraction for upper-level algorithm libraries, which supports various back-end devices such as Nvidia CUDA, Mac MPS, AMD, MLU, and more for model training.\n\n3. **Customizable training process**:\n\n   - Defines the training process just like playing with Legos.\n   - Provides rich components and strategies.\n   - Complete controls on the training process with different levels of APIs.\n\n## What's New\n\nv0.3.2 was released in 2022-11-24.\n\nRead [Changelog](./docs/en/notes/changelog.md#v032-11242022) for more details.\n\n## Installation\n\nBefore installing MMEngine, please ensure that PyTorch has been successfully installed following the [official guide](https://pytorch.org/get-started/locally/).\n\nInstall MMEngine\n\n```bash\npip install -U openmim\nmim install mmengine\n```\n\nVerify the installation\n\n```bash\npython -c 'from mmengine.utils.dl_utils import collect_env;print(collect_env())'\n```\n\n## Get Started\n\nTaking the training of a ResNet-50 model on the CIFAR-10 dataset as an example, we will use MMEngine to build a complete, configurable training and validation process in less than 80 lines of code.\n\n<details>\n<summary>Build Models</summary>\n\nFirst, we need to define a **model** which 1) inherits from `BaseModel` and 2) accepts an additional argument `mode` in the `forward` method, in addition to those arguments related to the dataset.\n\n- During training, the value of `mode` is \"loss,\" and the `forward` method should return a   `dict` containing the key \"loss\".\n- During validation, the value of `mode` is \"predict\", and the forward method should return results containing both predictions and labels.\n\n```python\nimport torch.nn.functional as F\nimport torchvision\nfrom mmengine.model import BaseModel\n\nclass MMResNet50(BaseModel):\n    def __init__(self):\n        super().__init__()\n        self.resnet = torchvision.models.resnet50()\n\n    def forward(self, imgs, labels, mode):\n        x = self.resnet(imgs)\n        if mode == 'loss':\n            return {'loss': F.cross_entropy(x, labels)}\n        elif mode == 'predict':\n            return x, labels\n```\n\n</details>\n\n<details>\n<summary>Build Datasets</summary>\n\nNext, we need to create **Dataset**s and **DataLoader**s for training and validation.\nIn this case, we simply use built-in datasets supported in TorchVision.\n\n```python\nimport torchvision.transforms as transforms\nfrom torch.utils.data import DataLoader\n\nnorm_cfg = dict(mean=[0.491, 0.482, 0.447], std=[0.202, 0.199, 0.201])\ntrain_dataloader = DataLoader(batch_size=32,\n                              shuffle=True,\n                              dataset=torchvision.datasets.CIFAR10(\n                                  'data/cifar10',\n                                  train=True,\n                                  download=True,\n                                  transform=transforms.Compose([\n                                      transforms.RandomCrop(32, padding=4),\n                                      transforms.RandomHorizontalFlip(),\n                                      transforms.ToTensor(),\n                                      transforms.Normalize(**norm_cfg)\n                                  ])))\nval_dataloader = DataLoader(batch_size=32,\n                            shuffle=False,\n                            dataset=torchvision.datasets.CIFAR10(\n                                'data/cifar10',\n                                train=False,\n                                download=True,\n                                transform=transforms.Compose([\n                                    transforms.ToTensor(),\n                                    transforms.Normalize(**norm_cfg)\n                                ])))\n```\n\n</details>\n\n<details>\n<summary>Build Metrics</summary>\n\nTo validate and test the model, we need to define a **Metric** called accuracy to evaluate the model. This metric needs to inherit from `BaseMetric` and implements the `process` and `compute_metrics` methods.\n\n```python\nfrom mmengine.evaluator import BaseMetric\n\nclass Accuracy(BaseMetric):\n    def process(self, data_batch, data_samples):\n        score, gt = data_samples\n        # Save the results of a batch to `self.results`\n        self.results.append({\n            'batch_size': len(gt),\n            'correct': (score.argmax(dim=1) == gt).sum().cpu(),\n        })\n    def compute_metrics(self, results):\n        total_correct = sum(item['correct'] for item in results)\n        total_size = sum(item['batch_size'] for item in results)\n        # Returns a dictionary with the results of the evaluated metrics,\n        # where the key is the name of the metric\n        return dict(accuracy=100 * total_correct / total_size)\n```\n\n</details>\n\n<details>\n<summary>Build a Runner</summary>\n\nFinally, we can construct a **Runner** with previously defined `Model`, `DataLoader`, and `Metrics`, with some other configs, as shown below.\n\n```python\nfrom torch.optim import SGD\nfrom mmengine.runner import Runner\n\nrunner = Runner(\n    model=MMResNet50(),\n    work_dir='./work_dir',\n    train_dataloader=train_dataloader,\n    # a wapper to execute back propagation and gradient update, etc.\n    optim_wrapper=dict(optimizer=dict(type=SGD, lr=0.001, momentum=0.9)),\n    # set some training configs like epochs\n    train_cfg=dict(by_epoch=True, max_epochs=5, val_interval=1),\n    val_dataloader=val_dataloader,\n    val_cfg=dict(),\n    val_evaluator=dict(type=Accuracy),\n)\n```\n\n</details>\n\n<details>\n<summary>Launch Training</summary>\n\n```python\nrunner.train()\n```\n\n</details>\n\n## Contributing\n\nWe appreciate all contributions to improve MMEngine. Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for the contributing guideline.\n\n## License\n\nThis project is released under the [Apache 2.0 license](LICENSE).\n\n## Projects in OpenMMLab\n\n- [MIM](https://github.com/open-mmlab/mim): MIM installs OpenMMLab packages.\n- [MMCV](https://github.com/open-mmlab/mmcv): OpenMMLab foundational library for computer vision.\n- [MMEval](https://github.com/open-mmlab/mmeval): A unified evaluation library for multiple machine learning libraries.\n- [MMClassification](https://github.com/open-mmlab/mmclassification): OpenMMLab image classification toolbox and benchmark.\n- [MMDetection](https://github.com/open-mmlab/mmdetection): OpenMMLab detection toolbox and benchmark.\n- [MMDetection3D](https://github.com/open-mmlab/mmdetection3d): OpenMMLab's next-generation platform for general 3D object detection.\n- [MMRotate](https://github.com/open-mmlab/mmrotate): OpenMMLab rotated object detection toolbox and benchmark.\n- [MMYOLO](https://github.com/open-mmlab/mmyolo): OpenMMLab YOLO series toolbox and benchmark.\n- [MMSegmentation](https://github.com/open-mmlab/mmsegmentation): OpenMMLab semantic segmentation toolbox and benchmark.\n- [MMOCR](https://github.com/open-mmlab/mmocr): OpenMMLab text detection, recognition, and understanding toolbox.\n- [MMPose](https://github.com/open-mmlab/mmpose): OpenMMLab pose estimation toolbox and benchmark.\n- [MMHuman3D](https://github.com/open-mmlab/mmhuman3d): OpenMMLab 3D human parametric model toolbox and benchmark.\n- [MMSelfSup](https://github.com/open-mmlab/mmselfsup): OpenMMLab self-supervised learning toolbox and benchmark.\n- [MMRazor](https://github.com/open-mmlab/mmrazor): OpenMMLab model compression toolbox and benchmark.\n- [MMFewShot](https://github.com/open-mmlab/mmfewshot): OpenMMLab fewshot learning toolbox and benchmark.\n- [MMAction2](https://github.com/open-mmlab/mmaction2): OpenMMLab's next-generation action understanding toolbox and benchmark.\n- [MMTracking](https://github.com/open-mmlab/mmtracking): OpenMMLab video perception toolbox and benchmark.\n- [MMFlow](https://github.com/open-mmlab/mmflow): OpenMMLab optical flow toolbox and benchmark.\n- [MMEditing](https://github.com/open-mmlab/mmediting): OpenMMLab image and video editing toolbox.\n- [MMGeneration](https://github.com/open-mmlab/mmgeneration): OpenMMLab image and video generative models toolbox.\n- [MMDeploy](https://github.com/open-mmlab/mmdeploy): OpenMMLab model deployment framework.\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -602,7 +601,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15880537,
+        "last_serial": 16236953,
         "urls": [
             {
                 "comment_text": "",
@@ -641,6 +640,121 @@
                 "upload_time": "2022-11-24T15:45:48",
                 "upload_time_iso_8601": "2022-11-24T15:45:48.998590Z",
                 "url": "https://files.pythonhosted.org/packages/ed/a3/8830e8b1b0b38c67d491d25d7b38697c3c5c1356f7a8ec92d28229f4545e/mmengine-0.3.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.0": {
+        "info": {
+            "author": "MMEngine Authors",
+            "author_email": "openmmlab@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Utilities"
+            ],
+            "description": "<div align=\"center\">\n  <img src=\"https://user-images.githubusercontent.com/58739961/187154444-fce76639-ac8d-429b-9354-c6fac64b7ef8.jpg\" height=\"100\"/>\n  <div>&nbsp;</div>\n  <div align=\"center\">\n    <b><font size=\"5\">OpenMMLab website</font></b>\n    <sup>\n      <a href=\"https://openmmlab.com\">\n        <i><font size=\"4\">HOT</font></i>\n      </a>\n    </sup>\n    &nbsp;&nbsp;&nbsp;&nbsp;\n    <b><font size=\"5\">OpenMMLab platform</font></b>\n    <sup>\n      <a href=\"https://platform.openmmlab.com\">\n        <i><font size=\"4\">TRY IT OUT</font></i>\n      </a>\n    </sup>\n  </div>\n  <div>&nbsp;</div>\n\n[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mmengine)](https://pypi.org/project/mmengine/)\n[![PyPI](https://img.shields.io/pypi/v/mmengine)](https://pypi.org/project/mmengine)\n[![license](https://img.shields.io/github/license/open-mmlab/mmengine.svg)](https://github.com/open-mmlab/mmengine/blob/main/LICENSE)\n[![open issues](https://isitmaintained.com/badge/open/open-mmlab/mmengine.svg)](https://github.com/open-mmlab/mmengine/issues)\n[![issue resolution](https://isitmaintained.com/badge/resolution/open-mmlab/mmengine.svg)](https://github.com/open-mmlab/mmengine/issues)\n\n[\ud83e\udd14Reporting Issues](https://github.com/open-mmlab/mmengine/issues/new/choose)\n\n</div>\n\n<div align=\"center\">\n\nEnglish | [\u7b80\u4f53\u4e2d\u6587](README_zh-CN.md)\n\n</div>\n\n## Introduction\n\nMMEngine is a foundational library for training deep learning models based on PyTorch. It provides a solid engineering foundation and frees developers from writing redundant codes on workflows. It serves as the training engine of all OpenMMLab codebases, which support hundreds of algorithms in various research areas. Moreover, MMEngine is also generic to be applied to non-OpenMMLab projects.\n\nMajor features:\n\n1. **A universal and powerful runner**:\n\n   - Supports training different tasks with a small amount of code, e.g., ImageNet can be trained with only 80 lines of code (400 lines of the original PyTorch example)\n   - Easily compatible with models from popular algorithm libraries such as TIMM, TorchVision, and Detectron2\n\n2. **Open architecture with unified interfaces**:\n\n   - Handles different algorithm tasks with unified APIs, e.g., implement a method and apply it to all compatible models.\n   - Provides a unified abstraction for upper-level algorithm libraries, which supports various back-end devices such as Nvidia CUDA, Mac MPS, AMD, MLU, and more for model training.\n\n3. **Customizable training process**:\n\n   - Defines the training process just like playing with Legos.\n   - Provides rich components and strategies.\n   - Complete controls on the training process with different levels of APIs.\n\n## What's New\n\nv0.4.0 was released in 2022-12-28.\n\nHighlights:\n\n- Registry supports importing modules automatically\n- Upgrade the documentation and provide the **English documentation**\n- Provide `ProfileHook` to profile the training/testing process\n\nRead [Changelog](./docs/en/notes/changelog.md#v040-12282022) for more details.\n\n## Installation\n\nBefore installing MMEngine, please ensure that PyTorch has been successfully installed following the [official guide](https://pytorch.org/get-started/locally/).\n\nInstall MMEngine\n\n```bash\npip install -U openmim\nmim install mmengine\n```\n\nVerify the installation\n\n```bash\npython -c 'from mmengine.utils.dl_utils import collect_env;print(collect_env())'\n```\n\n## Get Started\n\nTaking the training of a ResNet-50 model on the CIFAR-10 dataset as an example, we will use MMEngine to build a complete, configurable training and validation process in less than 80 lines of code.\n\n<details>\n<summary>Build Models</summary>\n\nFirst, we need to define a **model** which 1) inherits from `BaseModel` and 2) accepts an additional argument `mode` in the `forward` method, in addition to those arguments related to the dataset.\n\n- During training, the value of `mode` is \"loss,\" and the `forward` method should return a   `dict` containing the key \"loss\".\n- During validation, the value of `mode` is \"predict\", and the forward method should return results containing both predictions and labels.\n\n```python\nimport torch.nn.functional as F\nimport torchvision\nfrom mmengine.model import BaseModel\n\nclass MMResNet50(BaseModel):\n    def __init__(self):\n        super().__init__()\n        self.resnet = torchvision.models.resnet50()\n\n    def forward(self, imgs, labels, mode):\n        x = self.resnet(imgs)\n        if mode == 'loss':\n            return {'loss': F.cross_entropy(x, labels)}\n        elif mode == 'predict':\n            return x, labels\n```\n\n</details>\n\n<details>\n<summary>Build Datasets</summary>\n\nNext, we need to create **Dataset**s and **DataLoader**s for training and validation.\nIn this case, we simply use built-in datasets supported in TorchVision.\n\n```python\nimport torchvision.transforms as transforms\nfrom torch.utils.data import DataLoader\n\nnorm_cfg = dict(mean=[0.491, 0.482, 0.447], std=[0.202, 0.199, 0.201])\ntrain_dataloader = DataLoader(batch_size=32,\n                              shuffle=True,\n                              dataset=torchvision.datasets.CIFAR10(\n                                  'data/cifar10',\n                                  train=True,\n                                  download=True,\n                                  transform=transforms.Compose([\n                                      transforms.RandomCrop(32, padding=4),\n                                      transforms.RandomHorizontalFlip(),\n                                      transforms.ToTensor(),\n                                      transforms.Normalize(**norm_cfg)\n                                  ])))\nval_dataloader = DataLoader(batch_size=32,\n                            shuffle=False,\n                            dataset=torchvision.datasets.CIFAR10(\n                                'data/cifar10',\n                                train=False,\n                                download=True,\n                                transform=transforms.Compose([\n                                    transforms.ToTensor(),\n                                    transforms.Normalize(**norm_cfg)\n                                ])))\n```\n\n</details>\n\n<details>\n<summary>Build Metrics</summary>\n\nTo validate and test the model, we need to define a **Metric** called accuracy to evaluate the model. This metric needs to inherit from `BaseMetric` and implements the `process` and `compute_metrics` methods.\n\n```python\nfrom mmengine.evaluator import BaseMetric\n\nclass Accuracy(BaseMetric):\n    def process(self, data_batch, data_samples):\n        score, gt = data_samples\n        # Save the results of a batch to `self.results`\n        self.results.append({\n            'batch_size': len(gt),\n            'correct': (score.argmax(dim=1) == gt).sum().cpu(),\n        })\n    def compute_metrics(self, results):\n        total_correct = sum(item['correct'] for item in results)\n        total_size = sum(item['batch_size'] for item in results)\n        # Returns a dictionary with the results of the evaluated metrics,\n        # where the key is the name of the metric\n        return dict(accuracy=100 * total_correct / total_size)\n```\n\n</details>\n\n<details>\n<summary>Build a Runner</summary>\n\nFinally, we can construct a **Runner** with previously defined `Model`, `DataLoader`, and `Metrics`, with some other configs, as shown below.\n\n```python\nfrom torch.optim import SGD\nfrom mmengine.runner import Runner\n\nrunner = Runner(\n    model=MMResNet50(),\n    work_dir='./work_dir',\n    train_dataloader=train_dataloader,\n    # a wapper to execute back propagation and gradient update, etc.\n    optim_wrapper=dict(optimizer=dict(type=SGD, lr=0.001, momentum=0.9)),\n    # set some training configs like epochs\n    train_cfg=dict(by_epoch=True, max_epochs=5, val_interval=1),\n    val_dataloader=val_dataloader,\n    val_cfg=dict(),\n    val_evaluator=dict(type=Accuracy),\n)\n```\n\n</details>\n\n<details>\n<summary>Launch Training</summary>\n\n```python\nrunner.train()\n```\n\n</details>\n\n## Learn More\n\n<details>\n<summary>Tutorials</summary>\n\n- [Runner](https://mmengine.readthedocs.io/en/latest/tutorials/runner.html)\n- [Dataset and DataLoader](https://mmengine.readthedocs.io/en/latest/tutorials/dataset.html)\n- [Model](https://mmengine.readthedocs.io/en/latest/tutorials/model.html)\n- [Evaluation](https://mmengine.readthedocs.io/en/latest/tutorials/evaluation.html)\n- [OptimWrapper](https://mmengine.readthedocs.io/en/latest/tutorials/optim_wrapper.html)\n- [Parameter Scheduler](https://mmengine.readthedocs.io/en/latest/tutorials/param_scheduler.html)\n- [Hook](https://mmengine.readthedocs.io/en/latest/tutorials/hook.html)\n\n</details>\n\n<details>\n<summary>Advanced tutorials</summary>\n\n- [Registry](https://mmengine.readthedocs.io/en/latest/tutorials/registry.html)\n- [Config](https://mmengine.readthedocs.io/en/latest/tutorials/config.html)\n- [BaseDataset](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/basedataset.html)\n- [Data Transform](https://mmengine.readthedocs.io/en/latest/tutorials/data_transform.html)\n- [Initialization](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/initialize.html)\n- [Visualization](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/visualization.html)\n- [Abstract Data Element](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/data_element.html)\n- [Distribution Communication](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/distributed.html)\n- [Logging](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/logging.html)\n- [File IO](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/fileio.html)\n- [Global manager (ManagerMixin)](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/manager_mixin.html)\n- [Use modules from other libraries](https://mmengine.readthedocs.io/en/latest/advanced_tutorials/cross_library.html)\n\n</details>\n\n<details>\n<summary>Examples</summary>\n\n- [Resume Training](https://mmengine.readthedocs.io/en/latest/examples/resume_training.html)\n- [Speed up Training](https://mmengine.readthedocs.io/en/latest/examples/speed_up_training.html)\n- [Save Memory on GPU](https://mmengine.readthedocs.io/en/latest/examples/save_gpu_memory.html)\n- [Train a GAN](https://mmengine.readthedocs.io/en/latest/examples/train_a_gan.html)\n\n</details>\n\n<details>\n<summary>Design</summary>\n\n- [Hook](https://mmengine.readthedocs.io/en/latest/design/hook.html)\n- [Runner](https://mmengine.readthedocs.io/en/latest/design/runner.html)\n- [Evaluation](https://mmengine.readthedocs.io/en/latest/design/evaluation.html)\n- [Visualization](https://mmengine.readthedocs.io/en/latest/design/visualization.html)\n- [Logging](https://mmengine.readthedocs.io/en/latest/design/logging.html)\n\n</details>\n\n<details>\n<summary>Migration guide</summary>\n\n- [Migrate Runner from MMCV to MMEngine](https://mmengine.readthedocs.io/en/latest/migration/runner.html)\n- [Migrate Hook from MMCV to MMEngine](https://mmengine.readthedocs.io/en/latest/migration/hook.html)\n- [Migrate Model from MMCV to MMEngine](https://mmengine.readthedocs.io/en/latest/migration/model.html)\n- [Migrate Parameter Scheduler from MMCV to MMEngine](https://mmengine.readthedocs.io/en/latest/migration/param_scheduler.html)\n- [Migrate Data Transform to OpenMMLab 2.0](https://mmengine.readthedocs.io/en/latest/migration/transform.html)\n\n</details>\n\n## Contributing\n\nWe appreciate all contributions to improve MMEngine. Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for the contributing guideline.\n\n## License\n\nThis project is released under the [Apache 2.0 license](LICENSE).\n\n## Projects in OpenMMLab\n\n- [MIM](https://github.com/open-mmlab/mim): MIM installs OpenMMLab packages.\n- [MMCV](https://github.com/open-mmlab/mmcv): OpenMMLab foundational library for computer vision.\n- [MMEval](https://github.com/open-mmlab/mmeval): A unified evaluation library for multiple machine learning libraries.\n- [MMClassification](https://github.com/open-mmlab/mmclassification): OpenMMLab image classification toolbox and benchmark.\n- [MMDetection](https://github.com/open-mmlab/mmdetection): OpenMMLab detection toolbox and benchmark.\n- [MMDetection3D](https://github.com/open-mmlab/mmdetection3d): OpenMMLab's next-generation platform for general 3D object detection.\n- [MMRotate](https://github.com/open-mmlab/mmrotate): OpenMMLab rotated object detection toolbox and benchmark.\n- [MMYOLO](https://github.com/open-mmlab/mmyolo): OpenMMLab YOLO series toolbox and benchmark.\n- [MMSegmentation](https://github.com/open-mmlab/mmsegmentation): OpenMMLab semantic segmentation toolbox and benchmark.\n- [MMOCR](https://github.com/open-mmlab/mmocr): OpenMMLab text detection, recognition, and understanding toolbox.\n- [MMPose](https://github.com/open-mmlab/mmpose): OpenMMLab pose estimation toolbox and benchmark.\n- [MMHuman3D](https://github.com/open-mmlab/mmhuman3d): OpenMMLab 3D human parametric model toolbox and benchmark.\n- [MMSelfSup](https://github.com/open-mmlab/mmselfsup): OpenMMLab self-supervised learning toolbox and benchmark.\n- [MMRazor](https://github.com/open-mmlab/mmrazor): OpenMMLab model compression toolbox and benchmark.\n- [MMFewShot](https://github.com/open-mmlab/mmfewshot): OpenMMLab fewshot learning toolbox and benchmark.\n- [MMAction2](https://github.com/open-mmlab/mmaction2): OpenMMLab's next-generation action understanding toolbox and benchmark.\n- [MMTracking](https://github.com/open-mmlab/mmtracking): OpenMMLab video perception toolbox and benchmark.\n- [MMFlow](https://github.com/open-mmlab/mmflow): OpenMMLab optical flow toolbox and benchmark.\n- [MMEditing](https://github.com/open-mmlab/mmediting): OpenMMLab image and video editing toolbox.\n- [MMGeneration](https://github.com/open-mmlab/mmgeneration): OpenMMLab image and video generative models toolbox.\n- [MMDeploy](https://github.com/open-mmlab/mmdeploy): OpenMMLab model deployment framework.\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/open-mmlab/mmengine",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "mmengine",
+            "package_url": "https://pypi.org/project/mmengine/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/mmengine/",
+            "project_urls": {
+                "Homepage": "https://github.com/open-mmlab/mmengine"
+            },
+            "release_url": "https://pypi.org/project/mmengine/0.4.0/",
+            "requires_dist": [
+                "addict",
+                "matplotlib",
+                "numpy",
+                "pyyaml",
+                "termcolor",
+                "yapf",
+                "opencv-python (>=3)",
+                "regex ; sys_platform == \"win32\"",
+                "addict ; extra == 'all'",
+                "matplotlib ; extra == 'all'",
+                "numpy ; extra == 'all'",
+                "pyyaml ; extra == 'all'",
+                "termcolor ; extra == 'all'",
+                "yapf ; extra == 'all'",
+                "coverage ; extra == 'all'",
+                "lmdb ; extra == 'all'",
+                "parameterized ; extra == 'all'",
+                "pytest ; extra == 'all'",
+                "regex ; (sys_platform == \"win32\") and extra == 'all'",
+                "coverage ; extra == 'tests'",
+                "lmdb ; extra == 'tests'",
+                "parameterized ; extra == 'tests'",
+                "pytest ; extra == 'tests'"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "Engine of OpenMMLab projects",
+            "version": "0.4.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16236953,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b2f89c58b9b89be8c8eaa22c65498e79",
+                    "sha256": "2c914c13d7aadf20a43cd743bab5bd79117b08bdfa54cd5a76a7078521ba604e"
+                },
+                "downloads": -1,
+                "filename": "mmengine-0.4.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b2f89c58b9b89be8c8eaa22c65498e79",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 317613,
+                "upload_time": "2022-12-28T10:01:53",
+                "upload_time_iso_8601": "2022-12-28T10:01:53.890358Z",
+                "url": "https://files.pythonhosted.org/packages/98/9b/1c0288d2e60af5f00bb9ed683b156f2b5b66e34e4937d8f3a46091ac1aab/mmengine-0.4.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "88e64f75a54e174eaceb4b8b86f5d03e",
+                    "sha256": "8204a9bfcac122bfdf8faaf15d1c53743838e19b732a57aa05a9ecf78dd48203"
+                },
+                "downloads": -1,
+                "filename": "mmengine-0.4.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "88e64f75a54e174eaceb4b8b86f5d03e",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 250877,
+                "upload_time": "2022-12-28T10:01:55",
+                "upload_time_iso_8601": "2022-12-28T10:01:55.345049Z",
+                "url": "https://files.pythonhosted.org/packages/5b/9d/56d8b5b97c3510f2355fd700e5745a08d224c8cd7c33f676180566594270/mmengine-0.4.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
