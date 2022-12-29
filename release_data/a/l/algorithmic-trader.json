@@ -51,7 +51,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16236723,
+        "last_serial": 16241435,
         "urls": [
             {
                 "comment_text": "",
@@ -106,7 +106,6 @@
                 "Programming Language :: Python :: 3",
                 "Programming Language :: Python :: 3.10"
             ],
-            "description": "# algo-trader\n\nTrading strategies builder, backtester, and real-time trader.\n\n## Intro\n\nalgo-trader is an implementation of an algorithmic trading strategy executor and backtester.\nCapable of backtesting strategies locally and trading them in real-time via your broker API.\n\n> Please be aware that this is a **work in progress** and the trader is missing external market data and trade\n> providers.\n> If you'd like to use the trader for real-world trading, you'll have to implement your broker API.\n> Although real-time trading is not finished, backtesting is fully functional, so implemented strategies can be backtested\n> and used in real trading when it will be ready.\n\n\nalgo-trader is written in Python, and its current stack composes of:\n\n1. MongoDB as a backend data store for backtesting strategies\n2. [tulipy](https://github.com/jesse-ai/tulipy) - Python bindings for [Tulip Indicators](https://tulipindicators.org/).\n   Used to provide technical indicators calculations.\n3. ib_client (Optional) - Python library to communicate with Interactive Brokers gateway. Only needed if you plan on\n   doing real trading via IB.\n\n## Architecture\n\n![System design](./design/diagram.png)\n\n### Pipeline\n\n[Pipeline](src/pipeline/pipeline.py) is the basic facilitator of the stream. It\u2019s the orchestrator responsible for\nreading data from the [Source](src/pipeline/source.py) and moving it to the processors in the stream.\nIt has no actual logic except for facilitating the processors.\nA pipeline and all of its child components are JSON serializable, that is for the system to be able to define, load and\nsave entire pipelines with their configurations on file.\nThis feature is an important one as it can be used as a facade for UI/CLI based runners.\nExample serialized (and runnable) pipelines can be found in\nthe [examples/pipeline-templates](src/examples/pipeline-templates) directory.\nExample of loading them into [Pipeline](src/pipeline/pipeline.py) and running them using\nthe [PipelineRunner](src/pipeline/runner.py) can be found in [main.py](src/main.py)\n\n### PipelineRunner\n\nA [PipelineRunner](src/pipeline/runner.py) will accept an initial list or singular [Pipeline](src/pipeline/pipeline.py),\nand an optional starting [SharedContext](src/pipeline/shared_context.py). If\na [SharedContext](src/pipeline/shared_context.py) is not provided during construction, a new one will be initialized.\nEach [Pipeline](src/pipeline/pipeline.py) will be called through `run()` in the order that it was listed with the\nprevious context. The context will move through each [Pipeline](src/pipeline/pipeline.py) allowing for some operations\nsuch as loading, caching and validation to occur before data collection and sink.\n\n### Sources\n\nA [Source](src/pipeline/source.py) is an implementation of a Candle Iterator. This is the starting point of the pipeline\nand the \"source\" for the incoming candles processed.\n\n### Processors\n\n[Processor](src/pipeline/processor.py) is the primary processing unit in the pipeline. Processors can be constructed in\nany order while Candles are flowing from the source, forward through all processors.\nEach processor is responsible for sending the candles it processes to the next processor (unless it has a reason not to)\n.\n\nThe `process()` function gets with each candle also an object called [`SharedContext`](src/pipeline/shared_context.py).\nThe context is an instance of an in-memory KV store to share context and information between processors.\n\nAnother way to share data between processors is to make use of the `attachments` field on the Candle itself.\nThis field is intended for metadata on the candle, like calculations and state relevant to that candle point in time.\nCandle attachments are persistent throughout the pipeline.\n\n#### Reprocessing\n\nReprocessing is a feature that enables a processor to re-send an already processed candle to the next processor.\nReprocessing is useful for processors that do some logic outside the main flow of the pipeline. for example, upon\nevents, external triggers, market/trade provider's events/issues, etc...\nAn example of reprocessing can be found in\nthe [AssetCorrelationProcessor](src/pipeline/processors/assets_correlation.py)\n\n### Events\n\nAn [Event](src/entities/event.py) as its name suggests, defines an event that occurred in the system.\nIt follows the same flow as the Candles, passing between processors. Each processor is responsible for propagating the\nevent to the next processor (if needed).\n\nBecause pipelines are data-driven and not time-driven, events can be used as checkpoints to indicate something that\nhappened in the data stream.\nFor example, running the same pipeline from a DB source and a real-time market data source can have different effects if\nthe processor were to rely on time.\n\n_It is crucial to have the same behavior when fast-running from DB and real-time for backtesting to be useful._\n\n### Strategies\n\nStrategies are executed per candle by the [StrategyProcessor](src/pipeline/processors/strategy.py).\nA strategy is responsible for executing the trading logic and dispatching\nSignals ([StrategySignal](src/entities/strategy_signal.py)).\nIn the event a strategy is raising a trading signal, the StrategyProcessor will catch and pass it to\nthe [SignalsExecutor](src/trade/signals_executor.py) for execution.\n\n### Terminators\n\nA [Terminator](src/pipeline/terminator.py) is an optional final piece of the pipeline. It's executed at the very end of\na pipeline when the Source iterator has been fully consumed.\nTerminators are useful for unit testing, backtesting, and environment cleanups.\n\n## Running locally\n\nalgo-trader is using MongoDB for data storage. To run Mongo locally use `docker-compose`.\n\n```shell\ndocker-compose -f docker-compose.yml up -d\n```\n\n## CLI\n\nThe CLI is a simple interface to run the system. It can be used to run a pipeline, backtest a strategy, or run a\nstrategy in real-time.\nCurrently, the CLI is not fully implemented and most of the functionality is to `describe` and `list` the available\nprocessors and strategies.\nRunning the CLI without any arguments will show the help menu.\n\n```shell\npython main.py\n```\n\nTo list all available processors:\n\n```shell\npython main.py processor list\n```\n\nTo describe a specific processor:\n\n```shell\npython main.py processor describe <processor_name>\n```\n\nSame pattern applies to strategies and sources.\nIn order to run a pipeline, you'll need to create a pipeline template file. and run it using the CLI.\n\n```shell\npython main.py pipeline run <pipeline_template_file>\n```\n\n### Easy to run examples:\n\n* Data loader from Yahoo finance can be found in [examples/pipeline-templates/build_daily_yahoo_loader.py](src/examples/pipeline-templates/build_daily_yahoo_loader.json). \nRunning this example pipeline will load historical data from Yahoo finance to MongoDB:\n\n   ```shell\n   python main.py pipeline run examples/pipeline-templates/build_daily_yahoo_loader.json\n   ```\n* Data loader from Binance can be found in [examples/pipeline-templates/build_daily_binance_loader.json](src/examples/pipeline-templates/build_daily_binance_loader.json). \nRunning this example pipeline will load historical data from Binance to MongoDB:\n\n   ```shell\n   python main.py pipeline run examples/pipeline-templates/build_daily_binance_loader.json\n   ```\n\n* Realtime Crypto pipeline from Binance can be found in [examples/pipeline-templates/build_realtime_binance.json](src/examples/pipeline-templates/build_realtime_binance.json). \nRunning this example pipeline will process realtime, second candles from Binance:\n\n   ```shell\n   python main.py pipeline run examples/pipeline-templates/build_realtime_binance.json\n   ```\n\n  \n\n## Virtual environment\n\nIt is best to use a virtual environment to run algo-trader.\n\n```shell\npython3 -m venv run\nsource run/bin/activate\npip3 install -r requirements.txt\n```\n\n## Running tests\n\n* Unit: `./scripts/test-unit.sh`\n* Integration (needs IB gateway running): `./scripts/test-integration.sh`\n* All: `./scripts/test-all.sh`\n\n## Contributing\n\nContributions are welcome and much needed.\nPlease refer to the [guidelines](CONTRIBUTING.md).\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -149,7 +148,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16236723,
+        "last_serial": 16241435,
         "urls": [
             {
                 "comment_text": "",
@@ -188,6 +187,104 @@
                 "upload_time": "2022-12-28T09:53:36",
                 "upload_time_iso_8601": "2022-12-28T09:53:36.373515Z",
                 "url": "https://files.pythonhosted.org/packages/26/c3/9a782c911dc66ce98b1223467f66bb8a446b21f27b2b1035d57301251398/algorithmic-trader-0.0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.4": {
+        "info": {
+            "author": "Idan Yael",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10"
+            ],
+            "description": "# algo-trader\n\nTrading strategies builder, backtester, and real-time trader.\n\n## Intro\n\nalgo-trader is an implementation of an algorithmic trading strategy executor and backtester.\nCapable of backtesting strategies locally and trading them in real-time via your broker API.\n\n> Please be aware that this is a **work in progress** and the trader is missing external market data and trade\n> providers.\n> If you'd like to use the trader for real-world trading, you'll have to implement your broker API.\n> Although real-time trading is not finished, backtesting is fully functional, so implemented strategies can be backtested\n> and used in real trading when it will be ready.\n\n\nalgo-trader is written in Python, and its current stack composes of:\n\n1. MongoDB as a backend data store for backtesting strategies\n2. [tulipy](https://github.com/jesse-ai/tulipy) - Python bindings for [Tulip Indicators](https://tulipindicators.org/).\n   Used to provide technical indicators calculations.\n3. ib_client (Optional) - Python library to communicate with Interactive Brokers gateway. Only needed if you plan on\n   doing real trading via IB.\n\n## Architecture\n\n![System design](./design/diagram.png)\n\n### Pipeline\n\n[Pipeline](src/pipeline/pipeline.py) is the basic facilitator of the stream. It\u2019s the orchestrator responsible for\nreading data from the [Source](src/pipeline/source.py) and moving it to the processors in the stream.\nIt has no actual logic except for facilitating the processors.\nA pipeline and all of its child components are JSON serializable, that is for the system to be able to define, load and\nsave entire pipelines with their configurations on file.\nThis feature is an important one as it can be used as a facade for UI/CLI based runners.\nExample serialized (and runnable) pipelines can be found in\nthe [examples/pipeline-templates](src/examples/pipeline-templates) directory.\nExample of loading them into [Pipeline](src/pipeline/pipeline.py) and running them using\nthe [PipelineRunner](src/pipeline/runner.py) can be found in [main.py](src/main.py)\n\n### PipelineRunner\n\nA [PipelineRunner](src/pipeline/runner.py) will accept an initial list or singular [Pipeline](src/pipeline/pipeline.py),\nand an optional starting [SharedContext](src/pipeline/shared_context.py). If\na [SharedContext](src/pipeline/shared_context.py) is not provided during construction, a new one will be initialized.\nEach [Pipeline](src/pipeline/pipeline.py) will be called through `run()` in the order that it was listed with the\nprevious context. The context will move through each [Pipeline](src/pipeline/pipeline.py) allowing for some operations\nsuch as loading, caching and validation to occur before data collection and sink.\n\n### Sources\n\nA [Source](src/pipeline/source.py) is an implementation of a Candle Iterator. This is the starting point of the pipeline\nand the \"source\" for the incoming candles processed.\n\n### Processors\n\n[Processor](src/pipeline/processor.py) is the primary processing unit in the pipeline. Processors can be constructed in\nany order while Candles are flowing from the source, forward through all processors.\nEach processor is responsible for sending the candles it processes to the next processor (unless it has a reason not to)\n.\n\nThe `process()` function gets with each candle also an object called [`SharedContext`](src/pipeline/shared_context.py).\nThe context is an instance of an in-memory KV store to share context and information between processors.\n\nAnother way to share data between processors is to make use of the `attachments` field on the Candle itself.\nThis field is intended for metadata on the candle, like calculations and state relevant to that candle point in time.\nCandle attachments are persistent throughout the pipeline.\n\n#### Reprocessing\n\nReprocessing is a feature that enables a processor to re-send an already processed candle to the next processor.\nReprocessing is useful for processors that do some logic outside the main flow of the pipeline. for example, upon\nevents, external triggers, market/trade provider's events/issues, etc...\nAn example of reprocessing can be found in\nthe [AssetCorrelationProcessor](src/pipeline/processors/assets_correlation.py)\n\n### Events\n\nAn [Event](src/entities/event.py) as its name suggests, defines an event that occurred in the system.\nIt follows the same flow as the Candles, passing between processors. Each processor is responsible for propagating the\nevent to the next processor (if needed).\n\nBecause pipelines are data-driven and not time-driven, events can be used as checkpoints to indicate something that\nhappened in the data stream.\nFor example, running the same pipeline from a DB source and a real-time market data source can have different effects if\nthe processor were to rely on time.\n\n_It is crucial to have the same behavior when fast-running from DB and real-time for backtesting to be useful._\n\n### Strategies\n\nStrategies are executed per candle by the [StrategyProcessor](src/pipeline/processors/strategy.py).\nA strategy is responsible for executing the trading logic and dispatching\nSignals ([StrategySignal](src/entities/strategy_signal.py)).\nIn the event a strategy is raising a trading signal, the StrategyProcessor will catch and pass it to\nthe [SignalsExecutor](src/trade/signals_executor.py) for execution.\n\n### Terminators\n\nA [Terminator](src/pipeline/terminator.py) is an optional final piece of the pipeline. It's executed at the very end of\na pipeline when the Source iterator has been fully consumed.\nTerminators are useful for unit testing, backtesting, and environment cleanups.\n\n## Running locally\n\nalgo-trader is using MongoDB for data storage. To run Mongo locally use `docker-compose`.\n\n```shell\ndocker-compose -f docker-compose.yml up -d\n```\n\n## CLI\n\nThe CLI is a simple interface to run the system. It can be used to run a pipeline, backtest a strategy, or run a\nstrategy in real-time.\nCurrently, the CLI is not fully implemented and most of the functionality is to `describe` and `list` the available\nprocessors and strategies.\nRunning the CLI without any arguments will show the help menu.\n\n```shell\npython main.py\n```\n\nTo list all available processors:\n\n```shell\npython main.py processor list\n```\n\nTo describe a specific processor:\n\n```shell\npython main.py processor describe <processor_name>\n```\n\nSame pattern applies to strategies and sources.\nIn order to run a pipeline, you'll need to create a pipeline template file. and run it using the CLI.\n\n```shell\npython main.py pipeline run <pipeline_template_file>\n```\n\n### Easy to run examples:\n\n* Data loader from Yahoo finance can be found in [examples/pipeline-templates/build_daily_yahoo_loader.py](src/examples/pipeline-templates/build_daily_yahoo_loader.json). \nRunning this example pipeline will load historical data from Yahoo finance to MongoDB:\n\n   ```shell\n   python main.py pipeline run examples/pipeline-templates/build_daily_yahoo_loader.json\n   ```\n* Data loader from Binance can be found in [examples/pipeline-templates/build_daily_binance_loader.json](src/examples/pipeline-templates/build_daily_binance_loader.json). \nRunning this example pipeline will load historical data from Binance to MongoDB:\n\n   ```shell\n   python main.py pipeline run examples/pipeline-templates/build_daily_binance_loader.json\n   ```\n\n* Realtime Crypto pipeline from Binance can be found in [examples/pipeline-templates/build_realtime_binance.json](src/examples/pipeline-templates/build_realtime_binance.json). \nRunning this example pipeline will process realtime, second candles from Binance:\n\n   ```shell\n   python main.py pipeline run examples/pipeline-templates/build_realtime_binance.json\n   ```\n\n  \n\n## Virtual environment\n\nIt is best to use a virtual environment to run algo-trader.\n\n```shell\npython3 -m venv run\nsource run/bin/activate\npip3 install -r requirements.txt\n```\n\n## Running tests\n\n* Unit: `./scripts/test-unit.sh`\n* Integration (needs IB gateway running): `./scripts/test-integration.sh`\n* All: `./scripts/test-all.sh`\n\n## Contributing\n\nContributions are welcome and much needed.\nPlease refer to the [guidelines](CONTRIBUTING.md).\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "algo-trader,trading,backtesting,strategy,bot",
+            "license": "MIT",
+            "maintainer": "Idan Yael",
+            "maintainer_email": "",
+            "name": "algorithmic-trader",
+            "package_url": "https://pypi.org/project/algorithmic-trader/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/algorithmic-trader/",
+            "project_urls": {
+                "bug-tracker": "https://github.com/idanya/algo-trader/issues",
+                "documentation": "https://github.com/idanya/algo-trader/blob/main/README.md",
+                "homepage": "https://github.com/idanya/algo-trader",
+                "repository": "https://github.com/idanya/algo-trader"
+            },
+            "release_url": "https://pypi.org/project/algorithmic-trader/0.0.4/",
+            "requires_dist": [
+                "newtulipy (==0.4.6)",
+                "pymongo (==3.12.0)",
+                "mongomock (==4.1.2)",
+                "scipy (==1.9.3)",
+                "yfinance (==0.1.87)",
+                "flake8 (==5.0.4)",
+                "typer[all] (==0.7.0)",
+                "coverage (==6.5.0)",
+                "binance-connector (==1.18.0)",
+                "python-dotenv (==0.21.0)"
+            ],
+            "requires_python": ">=3.10",
+            "summary": "Trading bot with support for realtime trading, backtesting, custom strategies and much more",
+            "version": "0.0.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16241435,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b1cd457d3e37de5fa1982f42ea05b38f",
+                    "sha256": "c67a5d8bbb6526827d4896e2344bc2c075d4dab51465cfc5237b65aaa2c53736"
+                },
+                "downloads": -1,
+                "filename": "algorithmic_trader-0.0.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b1cd457d3e37de5fa1982f42ea05b38f",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.10",
+                "size": 78742,
+                "upload_time": "2022-12-28T20:46:14",
+                "upload_time_iso_8601": "2022-12-28T20:46:14.450021Z",
+                "url": "https://files.pythonhosted.org/packages/23/d5/cbded4e3d14fc0986c8fe78f07d7caa10e251a628de3349428631759728a/algorithmic_trader-0.0.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "bd86c9c194f7ee698dd514acb8f200f7",
+                    "sha256": "92d4c176f54dcb40556a8ac3076d012a17900e3a0675df734c1d239c26799788"
+                },
+                "downloads": -1,
+                "filename": "algorithmic-trader-0.0.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "bd86c9c194f7ee698dd514acb8f200f7",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.10",
+                "size": 162673,
+                "upload_time": "2022-12-28T20:46:15",
+                "upload_time_iso_8601": "2022-12-28T20:46:15.902907Z",
+                "url": "https://files.pythonhosted.org/packages/a8/ea/c4dc3686119f713b4bb6a39e4a2c7cd5bf97a31362fdb29ccfd0ca049ade/algorithmic-trader-0.0.4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

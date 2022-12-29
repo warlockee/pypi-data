@@ -36,7 +36,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16211949,
+        "last_serial": 16240280,
         "urls": [
             {
                 "comment_text": "",
@@ -98,7 +98,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16211949,
+        "last_serial": 16240280,
         "urls": [
             {
                 "comment_text": "",
@@ -160,7 +160,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16211949,
+        "last_serial": 16240280,
         "urls": [
             {
                 "comment_text": "",
@@ -222,7 +222,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16211949,
+        "last_serial": 16240280,
         "urls": [
             {
                 "comment_text": "",
@@ -281,7 +281,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "",
             "description_content_type": null,
             "docs_url": null,
             "download_url": "",
@@ -308,7 +307,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16211949,
+        "last_serial": 16240280,
         "urls": [
             {
                 "comment_text": "",
@@ -347,6 +346,95 @@
                 "upload_time": "2022-12-26T01:00:03",
                 "upload_time_iso_8601": "2022-12-26T01:00:03.717169Z",
                 "url": "https://files.pythonhosted.org/packages/88/15/ccf648eca059bf6923bb16391da23b9b9ad67cf50603c821e81bd06e7852/gardener-2.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2.0.1": {
+        "info": {
+            "author": "Dmitry Gritsenko",
+            "author_email": "k01419q45@ya.ru",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/courage-tci/gardener/build.yml?branch=pub)](https://github.com/courage-tci/gardener/actions/workflows/build.yml)\n[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/courage-tci/gardener/test.yml?branch=pub&label=tests)](https://github.com/courage-tci/gardener/actions/workflows/test.yml)\n[![PyPI](https://img.shields.io/pypi/v/gardener)](https://pypi.org/project/gardener/)\n![PyPI - Downloads](https://pepy.tech/badge/gardener)\n![PyPI - Python Version](https://img.shields.io/pypi/pyversions/gardener)\n[![Coveralls](https://img.shields.io/coverallsCoverage/github/courage-tci/gardener?label=test%20coverage)](https://coveralls.io/github/courage-tci/gardener?branch=pub)\n![License](https://img.shields.io/github/license/courage-tci/gardener)\n![Badge Count](https://img.shields.io/badge/badges-8-important)\n\n**gardener** is a simple tree manipulation module. It provides a hook-based tree transformation.\n\n## Installation\n\n`gardener` is available on PyPi:    \n\n`python -m pip install gardener` (or any other package manager)\n\n## Basic example\n\nThis is a simple example usage, a hook that transforms every `tag` node into a string:\n\n\n```python\nfrom gardener import make_node, register_hook, Node\n\n\n@register_hook(\"tag\")\ndef tag_hook(node: Node) -> str:\n    return f\"tag:{node['i']}{node['children', []]}\"\n\n\nx: str = make_node(\n    \"tag\",\n    children=[\n        make_node(\"tag\", i=i) \n        for i in range(10)\n    ],\n    i=99\n)\n\nprint(x) # tag:99['tag:0[]', 'tag:1[]', 'tag:2[]', 'tag:3[]', 'tag:4[]', 'tag:5[]', 'tag:6[]', 'tag:7[]', 'tag:8[]', 'tag:9[]']\n```\n\n## Combining hooks and transforming nodes\n\n```python\nfrom gardener import make_node, register_hook, Node\nfrom operator import add, sub, mul, truediv\n\n\noperators = {\n    \"+\": add,\n    \"-\": sub,\n    \"*\": mul,\n    \"/\": truediv\n}\n\n@register_hook(\"+\", \"-\", \"*\", \"/\")\ndef binary_expr(node: Node) -> float:\n    op = node.key[0] # node.key is a 1-element tuple, e.g. ('+', )\n    op_func = operators[op]\n    \n    parts = node[\"parts\", []]\n    \n    if not parts:\n        if op in \"+-\":\n            return 0 # empty sum\n        return 1 # empty product\n    \n    result = parts[0]\n    \n    for i in range(1, len(parts)):\n        result = op_func(result, parts[i])\n    \n    return result\n\n\nx: float = make_node(\n    \"+\",\n    parts=[\n        3,\n        make_node(\"*\", parts=[5, 6]) # 30\n    ]\n)\n\nprint(x) # 33\n```\n\nLet's add exponentiation to this calculator. The trick is that power is right-associative (so that `2 ** 2 ** 3` equals `2 ** (2 ** 3)`, not `(2 ** 2) ** 3`).    \nYou can obviously write a separate hook for that, but we can just combine hooks:\n\n```python\nfrom gardener import make_node, register_hook, Node\nfrom operator import add, sub, mul, truediv\n\n\noperators = {\n    \"+\": add,\n    \"-\": sub,\n    \"*\": mul,\n    \"/\": truediv,\n    \"**\": lambda x, y: pow(y, x) # reversing order there, so that we can reverse the order of all elements\n}\n\n\"\"\"\n\nThis hook, instead of producing a new non-node value, just edits the node contents.\nThis allows the hook chain to continue to `binary_expr` hook\n\nBe aware that the order of hook apply is the same as their registration.\n\n\"\"\"\n@register_hook(\"**\")\ndef power_reverse(node: Node) -> Node:\n    node[\"parts\"] = node[\"parts\", []][::-1]\n    return node\n\n\n@register_hook(\"+\", \"-\", \"*\", \"/\", \"**\")\ndef binary_expr(node: Node) -> float:\n    op = node.key[0] # node.key is a 1-element tuple, e.g. ('+', )\n    op_func = operators[op]\n    \n    parts = node[\"parts\", []]\n    \n    if not parts:\n        if op in \"+-\":\n            return 0 # empty sum\n        return 1 # empty product\n    \n    result = parts[0]\n    \n    for i in range(1, len(parts)):\n        result = op_func(result, parts[i])\n    \n    return result\n\n\nx: float = make_node(\n    \"+\",\n    parts=[\n        3,\n        make_node(\"*\", parts=[5, 6]), # 30\n        make_node(\"**\", parts=[2, 2, 3]) # 256\n    ]\n)\n\nprint(x) # 289\n```\n\nThis, of course, may not be the most efficient or obvious way, but `gardener` doesn't impose any restrictions on how you might approach a problem\n\n## Node props\n\nExamples above have shown how to set initial props of a `Node`. To get and edit those props, use bracket notation:\n\n\n```python\nfrom gardener import make_node\n\nnode = make_node(\"test\")\n\nnode[\"a\"] = 10 # accepts any type of value, but key must be a string\nprint(node[\"a\"]) # prints 10\nprint(node[\"b\", 0]) # prints 0 (default value)\nprint(node[\"b\"]) # raises KeyError\n\n```\n\n## Hook evaluation order\n\nHook ordering is simple:\n\n1. Hooks run at the node creation, there is no way to get a node that wasn't processed with relevant hooks (if there were any) \n    *except creating a `Node` object directly, which is discouraged*\n2. Hooks are run in registration order, because when you register a hook, it's appended to the end of the list for that key. \n    *you can change the order by editing `scope.hooks[key]` directly (check Scopes below)*\n\n## Scoping\n\nOften it is convenient to have different trees in one project, using different hooks.    \nWhile this can be done through namespacing (`make_node` actually also accepts node key as a `str | tuple[str, ...]`), that approach would force you to write long names in node creating and hook registration.    \n\n`gardener` provides you with a more convenient approach: `Scope` objects. A scope is an isolated store with hooks:\n\n```python\nfrom gardener import Scope, Node\n\n\nscope1 = Scope(\"scope1\") # key is optional and it doesn't affect scope behaviour\nscope2 = Scope(\"scope2\")\n\n\n@scope1.register_hook(\"i\")\ndef print_stuff_1(node: Node) -> Node:\n    print(\"this is the first scope\")\n    return node\n\n@scope2.register_hook(\"i\")\ndef print_stuff_2(node: Node) -> Node:\n    print(\"this is the second scope\")\n    return node\n\n@scope1.register_hook(\"i\")\n@scope2.register_hook(\"i\")\ndef print_stuff_both(node: Node) -> Node:\n    print(\"this is both scopes\")\n    return node\n\n\n# prints \"this is the first scope\"\n# prints \"this is both scopes\"\nscope1.make_node(\"i\")\n\n\n# prints \"this is the second scope\"\n# prints \"this is both scopes\"\nscope2.make_node(\"i\")\n```\n\nYou can get all of the scope hooks with `scope.hooks`. It has type `dict[tuple[str, ...], list[HookType]]`.    \nTo get the scope of the current node (e.g. in a hook, use `node.scope`)    \n\nGlobal `make_node` and `register_hook` are, in fact, methods of `gardener.core.default_scope`\n\n\n## Applying hooks multiple times\n\nTo apply a hook to a node multiple times, call `node.transform()` \u2014 it would return the result of another chain of transformations.    \n**Be careful about using it in hooks, as this could easily lead to infinite recursion if not handled properly.**    \n\n## Node printing\n\nIf your node props are JSON-serializable, you can run `node.pretty(**dumps_kwargs)` to get a pretty indented JSON representation of the node.    \nNode class itself is JSON-serializable (only with `NodeJSON` as an encoder).\n\nTo represent non-JSON-serializable data, you will need to provide an encoder class:\n\n```python\nfrom gardener import make_node\nfrom gardener.core import NodeJSON\nfrom typing import Any\n\n\nclass SomeCoolDataClass: # your custom class\n    def __init__(self, x: int):\n        self.x = x\n\n\nclass MyNodeJSON(NodeJSON):\n    def default(self, obj: Any):\n        if isinstance(obj, SomeCoolDataClass):\n            return f\"SomeCoolDataClass<{obj.x}>\" # return any serializable data here (can contain nodes or, e.g. SomeCoolDataClass inside)\n        return super().default(obj)\n\n\nnode = make_node(\n    \"cool_data_node\",\n    cool_data=SomeCoolDataClass(6)\n)\n\nprint(\n    node.pretty(cls=MyNodeJSON) # accepts same arguments (keyword-only) as json.dumps\n)\n\"\"\"\n{\n  \"key\": \"cool_data_node\",\n  \"props\": {\n    \"cool_data\": \"SomeCoolDataClass<6>\"\n  }\n}\n\"\"\"\n```",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/courage-tci/gardener",
+            "keywords": "tree",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "gardener",
+            "package_url": "https://pypi.org/project/gardener/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/gardener/",
+            "project_urls": {
+                "Homepage": "https://github.com/courage-tci/gardener",
+                "Repository": "https://github.com/courage-tci/gardener"
+            },
+            "release_url": "https://pypi.org/project/gardener/2.0.1/",
+            "requires_dist": null,
+            "requires_python": ">=3.7,<4.0",
+            "summary": "Hook-based tree manipulation library",
+            "version": "2.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16240280,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1b32e4ff11ff836db13ecc52f135e6e6",
+                    "sha256": "9e08c080648f7e304d0969583c3bd3b18232b90d4f3a7f19eec1e5934cf1181a"
+                },
+                "downloads": -1,
+                "filename": "gardener-2.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "1b32e4ff11ff836db13ecc52f135e6e6",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7,<4.0",
+                "size": 5818,
+                "upload_time": "2022-12-28T17:10:07",
+                "upload_time_iso_8601": "2022-12-28T17:10:07.426948Z",
+                "url": "https://files.pythonhosted.org/packages/22/33/568536b5061d7d17b0cb991e135548acaa675475744cbbe641d78c49c304/gardener-2.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "85531b45db93268c8f23506b05d8d7bb",
+                    "sha256": "6e2b1b90e6a4d3496e4bb457eaec6a408e1fd8bb8d2abf1690f40c43971857f3"
+                },
+                "downloads": -1,
+                "filename": "gardener-2.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "85531b45db93268c8f23506b05d8d7bb",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7,<4.0",
+                "size": 6198,
+                "upload_time": "2022-12-28T17:10:08",
+                "upload_time_iso_8601": "2022-12-28T17:10:08.499095Z",
+                "url": "https://files.pythonhosted.org/packages/96/e1/7c02dd4204b7f635ceca15f05f9f2f52c7f22084c331407fc3dc602a7749/gardener-2.0.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

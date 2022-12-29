@@ -22,7 +22,6 @@
                 "Topic :: Software Development :: Libraries",
                 "Typing :: Typed"
             ],
-            "description": "# Fast Query Parsers\n\n<!-- markdownlint-disable -->\n<img alt=\"Starlite logo\" src=\"./starlite-banner.svg\" width=\"100%\" height=\"auto\">\n<!-- markdownlint-restore -->\n\nThis library includes ultra-fast Rust based query string and urlencoded parsers. These parsers are used\nby [`Starlite`](https://github.com/starlite-api/starlite), but are developed separately - and can of course be used separately.\n\n<div align=\"center\">\n\n[![Discord](https://img.shields.io/discord/919193495116337154?color=blue&label=chat%20on%20discord&logo=discord)](https://discord.gg/X3FJqy8d2j)\n[![Matrix](https://img.shields.io/badge/%5Bm%5D%20chat%20on%20Matrix-bridged-blue)](https://matrix.to/#/#starlitespace:matrix.org)\n\n</div>\n\n## Installation\n\n```shell\npip install fast-query-parsers\n```\n\n## Usage\n\nThe library exposes two function `parse_query_string` and `parse_url_encoded_dict`.\n\n### `parse_query_string`\n\nThis function is used to parse a query string into a list of key/value tuples.\n\n```python\nfrom fast_query_parsers import parse_query_string\n\nresult = parse_query_string(b\"value=1&value=2&type=dollar&country=US\", \"&\")\n# [(\"value\", \"1\"), (\"value\", \"2\"), (\"type\", \"dollar\"), (\"country\", \"US\")]\n```\n\nThe first argument to this function is a byte string that includes the query string to be parsed, the second argument is\nthe separator used.\n\n#### Benchmarks\n\nQuery string parsing is more than x5 times faster than the standard library:\n\n```text\nstdlib parse_qsl parsing query string: Mean +- std dev: 2.86 us +- 0.03 us\n.....................\nparse_query_string parsing query string: Mean +- std dev: 916 ns +- 13 ns\n.....................\nstdlib parse_qsl parsing urlencoded query string: Mean +- std dev: 8.30 us +- 0.10 us\n.....................\nparse_query_string urlencoded query string: Mean +- std dev: 1.50 us +- 0.03 us\n```\n\n### `parse_url_encoded_dict`\n\nThis function is used to parse a url-encoded form data dictionary and parse it into the python equivalent of JSON types.\n\n```python\nfrom urllib.parse import urlencode\n\nfrom fast_query_parsers import parse_url_encoded_dict\n\nresult = parse_url_encoded_dict(\n    urlencode(\n        [\n            (\"value\", \"10\"),\n            (\"value\", \"12\"),\n            (\"veggies\", '[\"tomato\", \"potato\", \"aubergine\"]'),\n            (\"nested\", '{\"some_key\": \"some_value\"}'),\n            (\"calories\", \"122.53\"),\n            (\"healthy\", \"true\"),\n            (\"polluting\", \"false\"),\n            (\"json\", \"null\"),\n        ]\n    ).encode()\n)\n\n# result == {\n#     \"value\": [10, 12],\n#     \"veggies\": [\"tomato\", \"potato\", \"aubergine\"],\n#     \"nested\": {\"some_key\": \"some_value\"},\n#     \"calories\": 122.53,\n#     \"healthy\": True,\n#     \"polluting\": False,\n#     \"json\": None,\n# }\n```\n\nThis function handles type conversions correctly - unlike the standard library function `parse_qs`. Additionally, it\ndoes not nest all values inside lists.\n\n#### Benchmarks\n\nUrl Encoded parsing is more than x2 times faster than the standard library, without accounting for parsing of values:\n\n```text\nstdlib parse_qs parsing url-encoded values into dict: Mean +- std dev: 8.99 us +- 0.09 us\n.....................\nparse_url_encoded_dict parse url-encoded values into dict: Mean +- std dev: 3.77 us +- 0.08 us\n```\n\nTo actually mimick the parsing done by `parse_url_encoded_dict` we will need a utility along these lines:\n\n```python\nfrom collections import defaultdict\nfrom contextlib import suppress\nfrom json import loads, JSONDecodeError\nfrom typing import Any, DefaultDict, Dict, List\nfrom urllib.parse import parse_qsl\n\n\ndef parse_url_encoded_form_data(encoded_data: bytes) -> Dict[str, Any]:\n    \"\"\"Parse an url encoded form data into dict of parsed values\"\"\"\n    decoded_dict: DefaultDict[str, List[Any]] = defaultdict(list)\n    for k, v in parse_qsl(encoded_data.decode(), keep_blank_values=True):\n        with suppress(JSONDecodeError):\n            v = loads(v) if isinstance(v, str) else v\n        decoded_dict[k].append(v)\n    return {k: v if len(v) > 1 else v[0] for k, v in decoded_dict.items()}\n```\n\nWith the above, the benchmarks looks like so:\n\n```text\npython parse_url_encoded_form_data parsing url-encoded values into dict: Mean +- std dev: 19.7 us +- 0.1 us\n.....................\nparse_url_encoded_dict parsing url-encoded values into dict: Mean +- std dev: 3.69 us +- 0.03 us\n```\n\n## Contributing\n\nAll contributions are of course welcome!\n\n### Repository Setup\n\n1. Run `cargo install` to setup the rust dependencies and `poetry install` to setup the python dependencies.\n2. Install the pre-commit hooks with `pre-commit install` (requires [pre-commit](https://pre-commit.com/)).\n\n### Building\n\nRun `poetry run maturin develop --release --strip` to install a release wheel (without debugging info). This wheel can be\nused in tests and benchmarks.\n\n### Benchmarking\n\nThere are basic benchmarks using pyperf in place. To run these execute `poetry run python benchrmarks.py`.\n\n",
             "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
             "docs_url": null,
             "download_url": "",
@@ -51,7 +50,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16210194,
+        "last_serial": 16238891,
         "urls": [
             {
                 "comment_text": "",
@@ -370,6 +369,383 @@
                 "upload_time": "2022-12-25T16:50:36",
                 "upload_time_iso_8601": "2022-12-25T16:50:36.337474Z",
                 "url": "https://files.pythonhosted.org/packages/08/1f/d77ab975033af0d3a1bc7714f524f03d86e707ab3ce24a55e61db2eb2ed7/fast_query_parsers-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.0": {
+        "info": {
+            "author": "Na'aman Hirschfeld <nhirschfeld@gmail.com>",
+            "author_email": "Na'aman Hirschfeld <nhirschfeld@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Environment :: Web Environment",
+                "License :: OSI Approved :: MIT License",
+                "Natural Language :: English",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Programming Language :: Python :: Implementation :: CPython",
+                "Programming Language :: Rust",
+                "Topic :: Internet :: WWW/HTTP",
+                "Topic :: Software Development",
+                "Topic :: Software Development :: Libraries",
+                "Typing :: Typed"
+            ],
+            "description": "# Fast Query Parsers\n\n<!-- markdownlint-disable -->\n<img alt=\"Starlite logo\" src=\"./starlite-banner.svg\" width=\"100%\" height=\"auto\">\n<!-- markdownlint-restore -->\n\nThis library includes ultra-fast Rust based query string and urlencoded parsers. These parsers are used\nby [`Starlite`](https://github.com/starlite-api/starlite), but are developed separately - and can of course be used separately.\n\n<div align=\"center\">\n\n[![Discord](https://img.shields.io/discord/919193495116337154?color=blue&label=chat%20on%20discord&logo=discord)](https://discord.gg/X3FJqy8d2j)\n[![Matrix](https://img.shields.io/badge/%5Bm%5D%20chat%20on%20Matrix-bridged-blue)](https://matrix.to/#/#starlitespace:matrix.org)\n\n</div>\n\n## Installation\n\n```shell\npip install fast-query-parsers\n```\n\n## Usage\n\nThe library exposes two function `parse_query_string` and `parse_url_encoded_dict`.\n\n### `parse_query_string`\n\nThis function is used to parse a query string into a list of key/value tuples.\n\n```python\nfrom fast_query_parsers import parse_query_string\n\nresult = parse_query_string(b\"value=1&value=2&type=dollar&country=US\", \"&\")\n# [(\"value\", \"1\"), (\"value\", \"2\"), (\"type\", \"dollar\"), (\"country\", \"US\")]\n```\n\nThe first argument to this function is a byte string that includes the query string to be parsed, the second argument is\nthe separator used.\n\n#### Benchmarks\n\nQuery string parsing is more than x5 times faster than the standard library:\n\n```text\nstdlib parse_qsl parsing query string: Mean +- std dev: 2.86 us +- 0.03 us\n.....................\nparse_query_string parsing query string: Mean +- std dev: 916 ns +- 13 ns\n.....................\nstdlib parse_qsl parsing urlencoded query string: Mean +- std dev: 8.30 us +- 0.10 us\n.....................\nparse_query_string urlencoded query string: Mean +- std dev: 1.50 us +- 0.03 us\n```\n\n### `parse_url_encoded_dict`\n\nThis function is used to parse a url-encoded form data dictionary and parse it into the python equivalent of JSON types.\n\n```python\nfrom urllib.parse import urlencode\n\nfrom fast_query_parsers import parse_url_encoded_dict\n\nresult = parse_url_encoded_dict(\n    urlencode(\n        [\n            (\"value\", \"10\"),\n            (\"value\", \"12\"),\n            (\"veggies\", '[\"tomato\", \"potato\", \"aubergine\"]'),\n            (\"nested\", '{\"some_key\": \"some_value\"}'),\n            (\"calories\", \"122.53\"),\n            (\"healthy\", \"true\"),\n            (\"polluting\", \"false\"),\n            (\"json\", \"null\"),\n        ]\n    ).encode()\n)\n\n# result == {\n#     \"value\": [10, 12],\n#     \"veggies\": [\"tomato\", \"potato\", \"aubergine\"],\n#     \"nested\": {\"some_key\": \"some_value\"},\n#     \"calories\": 122.53,\n#     \"healthy\": True,\n#     \"polluting\": False,\n#     \"json\": None,\n# }\n```\n\nThis function handles type conversions correctly - unlike the standard library function `parse_qs`. Additionally, it\ndoes not nest all values inside lists.\n\n#### Benchmarks\n\nUrl Encoded parsing is more than x2 times faster than the standard library, without accounting for parsing of values:\n\n```text\nstdlib parse_qs parsing url-encoded values into dict: Mean +- std dev: 8.99 us +- 0.09 us\n.....................\nparse_url_encoded_dict parse url-encoded values into dict: Mean +- std dev: 3.77 us +- 0.08 us\n```\n\nTo actually mimick the parsing done by `parse_url_encoded_dict` we will need a utility along these lines:\n\n```python\nfrom collections import defaultdict\nfrom contextlib import suppress\nfrom json import loads, JSONDecodeError\nfrom typing import Any, DefaultDict, Dict, List\nfrom urllib.parse import parse_qsl\n\n\ndef parse_url_encoded_form_data(encoded_data: bytes) -> Dict[str, Any]:\n    \"\"\"Parse an url encoded form data into dict of parsed values\"\"\"\n    decoded_dict: DefaultDict[str, List[Any]] = defaultdict(list)\n    for k, v in parse_qsl(encoded_data.decode(), keep_blank_values=True):\n        with suppress(JSONDecodeError):\n            v = loads(v) if isinstance(v, str) else v\n        decoded_dict[k].append(v)\n    return {k: v if len(v) > 1 else v[0] for k, v in decoded_dict.items()}\n```\n\nWith the above, the benchmarks looks like so:\n\n```text\npython parse_url_encoded_form_data parsing url-encoded values into dict: Mean +- std dev: 19.7 us +- 0.1 us\n.....................\nparse_url_encoded_dict parsing url-encoded values into dict: Mean +- std dev: 3.69 us +- 0.03 us\n```\n\n## Contributing\n\nAll contributions are of course welcome!\n\n### Repository Setup\n\n1. Run `cargo install` to setup the rust dependencies and `poetry install` to setup the python dependencies.\n2. Install the pre-commit hooks with `pre-commit install` (requires [pre-commit](https://pre-commit.com/)).\n\n### Building\n\nRun `poetry run maturin develop --release --strip` to install a release wheel (without debugging info). This wheel can be\nused in tests and benchmarks.\n\n### Benchmarking\n\nThere are basic benchmarks using pyperf in place. To run these execute `poetry run python benchrmarks.py`.\n\n",
+            "description_content_type": "text/markdown; charset=UTF-8; variant=GFM",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "fast-query-parsers",
+            "package_url": "https://pypi.org/project/fast-query-parsers/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/fast-query-parsers/",
+            "project_urls": {
+                "Source Code": "https://github.com/starlite-api/fast-query-parsers"
+            },
+            "release_url": "https://pypi.org/project/fast-query-parsers/0.2.0/",
+            "requires_dist": null,
+            "requires_python": ">=3.8",
+            "summary": "Ultra-fast query string and url-encoded form-data parsers",
+            "version": "0.2.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16238891,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d89013a91982d25764f039d04da8e6ef",
+                    "sha256": "4f7219e1dc7480307a32fae000470c2b8979849a34395d7787898da23e7d6a7e"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-macosx_10_7_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d89013a91982d25764f039d04da8e6ef",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 246601,
+                "upload_time": "2022-12-28T13:42:33",
+                "upload_time_iso_8601": "2022-12-28T13:42:33.477027Z",
+                "url": "https://files.pythonhosted.org/packages/a4/78/f3d344f94f37b04d9ab5b9b779c568130db21f8d8e3b415e668f73631961/fast_query_parsers-0.2.0-cp38-abi3-macosx_10_7_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f7da84f18c7d1dc8a9dcf99693c98c54",
+                    "sha256": "301154360a39b1dc347e9a9e0cb3578c8877f63bb96367d54e8012b81a4007b3"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "f7da84f18c7d1dc8a9dcf99693c98c54",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 487027,
+                "upload_time": "2022-12-28T13:42:35",
+                "upload_time_iso_8601": "2022-12-28T13:42:35.115072Z",
+                "url": "https://files.pythonhosted.org/packages/a3/d1/ac841c3afac7659b1da4a23e4f2064bac327c4b3b449e89da12c845d4574/fast_query_parsers-0.2.0-cp38-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e78f54ab71b805b97bab44d63353bec4",
+                    "sha256": "b1556b7ab6614525d5697e9f46bd56200de505e6423ee99df38f88163df7053d"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "e78f54ab71b805b97bab44d63353bec4",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 253250,
+                "upload_time": "2022-12-28T13:42:38",
+                "upload_time_iso_8601": "2022-12-28T13:42:38.095868Z",
+                "url": "https://files.pythonhosted.org/packages/f5/3b/1e5d57d43651466ff9ac21489462a9aa67123690cd3b8341bb722204592c/fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "de2db80cbaba5fed5ce68042e0d80bd0",
+                    "sha256": "fdec68138ed327f1b893e0a78156a8b2fcfc0753cc26ea28da53d578801ef86f"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "has_sig": false,
+                "md5_digest": "de2db80cbaba5fed5ce68042e0d80bd0",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 253526,
+                "upload_time": "2022-12-28T13:42:39",
+                "upload_time_iso_8601": "2022-12-28T13:42:39.610303Z",
+                "url": "https://files.pythonhosted.org/packages/8c/49/d5d6a2fd3c420dda48bb38de979b3d67d99f836aa59cb486106797f778e5/fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d4fbb8378b4e38456c1b5f1822c86ad9",
+                    "sha256": "9764839c444c025aaad114373e9b1e6eafd16e32321663a870811358f9d65f18"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl",
+                "has_sig": false,
+                "md5_digest": "d4fbb8378b4e38456c1b5f1822c86ad9",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 354847,
+                "upload_time": "2022-12-28T13:42:43",
+                "upload_time_iso_8601": "2022-12-28T13:42:43.031164Z",
+                "url": "https://files.pythonhosted.org/packages/a6/27/9d6af078a9adf6f6a31ad9a348bf37ead224d176d5e633a54deaa0fad221/fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b866dc17b0f3c06c1ead837b71eac390",
+                    "sha256": "03520ba888acfd8a26a1a4cfa60c499e29db5d4d2fdcd1a8f393c786ad493d13"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_ppc64.manylinux2014_ppc64.whl",
+                "has_sig": false,
+                "md5_digest": "b866dc17b0f3c06c1ead837b71eac390",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 368003,
+                "upload_time": "2022-12-28T13:42:41",
+                "upload_time_iso_8601": "2022-12-28T13:42:41.406759Z",
+                "url": "https://files.pythonhosted.org/packages/16/fa/d4c57c6db42875fe1148544fec386abcf4bb9532f857611334e4c8ae87b3/fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_ppc64.manylinux2014_ppc64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ee91f147e57ed92a17dd9a9e5fa437f2",
+                    "sha256": "e9d86c9e09f1eebb6fa161792f6565b8b4821211ef58f054f3183c210ac01a21"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_s390x.manylinux2014_s390x.whl",
+                "has_sig": false,
+                "md5_digest": "ee91f147e57ed92a17dd9a9e5fa437f2",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 348500,
+                "upload_time": "2022-12-28T13:42:44",
+                "upload_time_iso_8601": "2022-12-28T13:42:44.999467Z",
+                "url": "https://files.pythonhosted.org/packages/0e/38/30e7dd1f5799b20c7ca46f37710ba7974ce708dae8b84142f57ad74f83a8/fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_s390x.manylinux2014_s390x.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "02982863fdef3dadd63bd9ceaea5dcc7",
+                    "sha256": "3ffaf0cde56652c2b40ec9292b4abd79c2a76a0f095ffb22dbead6129f47209e"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "02982863fdef3dadd63bd9ceaea5dcc7",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 268575,
+                "upload_time": "2022-12-28T13:42:46",
+                "upload_time_iso_8601": "2022-12-28T13:42:46.664447Z",
+                "url": "https://files.pythonhosted.org/packages/18/d7/fecfbe46bf247162eb3a347d8369204e393aeb62732be8cb7dd259cf930f/fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5de7467e4f18d1d4bc8a613732f25939",
+                    "sha256": "862705292b003d3c1f0d0219be874b586e71a3e9bc462ad24493c7de3d7ca53b"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_5_i686.manylinux1_i686.whl",
+                "has_sig": false,
+                "md5_digest": "5de7467e4f18d1d4bc8a613732f25939",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 294547,
+                "upload_time": "2022-12-28T13:42:48",
+                "upload_time_iso_8601": "2022-12-28T13:42:48.009060Z",
+                "url": "https://files.pythonhosted.org/packages/f9/43/67cc5168d5b8da4aa876eabdefc48c80517b9068f4e2b8ee26ef01f9b191/fast_query_parsers-0.2.0-cp38-abi3-manylinux_2_5_i686.manylinux1_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f302bbfe755d79f95ea3e604c4659f27",
+                    "sha256": "51335ffed2d835e5f679f8f01c593e8477b21a6e6bc90a0caa9e1eb66016e533"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-musllinux_1_2_aarch64.whl",
+                "has_sig": false,
+                "md5_digest": "f302bbfe755d79f95ea3e604c4659f27",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 434201,
+                "upload_time": "2022-12-28T13:42:49",
+                "upload_time_iso_8601": "2022-12-28T13:42:49.411580Z",
+                "url": "https://files.pythonhosted.org/packages/f5/d6/ae27fa05bf86a53f2a39f3928b79012919ba7c618caf5d60d903fc75e121/fast_query_parsers-0.2.0-cp38-abi3-musllinux_1_2_aarch64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f4af2c30b0c1000ca0b139e583383153",
+                    "sha256": "8e55c12af6235d04cd1ed0ddfbcf959bd1265b0bf6a8fa5b1481f47feb44bed7"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-musllinux_1_2_armv7l.whl",
+                "has_sig": false,
+                "md5_digest": "f4af2c30b0c1000ca0b139e583383153",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 517268,
+                "upload_time": "2022-12-28T13:42:51",
+                "upload_time_iso_8601": "2022-12-28T13:42:51.281441Z",
+                "url": "https://files.pythonhosted.org/packages/ca/2c/56813eb14688f53e69526d4ddd4c46175008453eebb488da38440aceb273/fast_query_parsers-0.2.0-cp38-abi3-musllinux_1_2_armv7l.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "99041be8c56a456ba17da923e34e0820",
+                    "sha256": "325f267013388b902f9d0a95a84a128c3aeb2f1b252494e7f516dfd433c7e5a8"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-musllinux_1_2_i686.whl",
+                "has_sig": false,
+                "md5_digest": "99041be8c56a456ba17da923e34e0820",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 464624,
+                "upload_time": "2022-12-28T13:42:53",
+                "upload_time_iso_8601": "2022-12-28T13:42:53.129311Z",
+                "url": "https://files.pythonhosted.org/packages/d8/b2/d274629075a8f95f771612f81e39c5eb2db38a9f4b27e3ecea67c4d8de42/fast_query_parsers-0.2.0-cp38-abi3-musllinux_1_2_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e357ce8fb766640314f0a38fed31e501",
+                    "sha256": "2916e7fe50b91c9f0576af7c6b06677e6634a7017967fe3d2e9030a86a650afa"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-musllinux_1_2_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "e357ce8fb766640314f0a38fed31e501",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 440157,
+                "upload_time": "2022-12-28T13:42:54",
+                "upload_time_iso_8601": "2022-12-28T13:42:54.814075Z",
+                "url": "https://files.pythonhosted.org/packages/68/fd/a46800f9b0db266eacf8c6ff8e3823395186ff697557c23ad2041a2f38a1/fast_query_parsers-0.2.0-cp38-abi3-musllinux_1_2_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "53b9b545c84adc916de287153d66df09",
+                    "sha256": "a5d262709e2f08a5f953070160eabe7ca3c909985026b00ee3c7d45d0bf9b9d6"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-win32.whl",
+                "has_sig": false,
+                "md5_digest": "53b9b545c84adc916de287153d66df09",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 189963,
+                "upload_time": "2022-12-28T13:42:56",
+                "upload_time_iso_8601": "2022-12-28T13:42:56.269486Z",
+                "url": "https://files.pythonhosted.org/packages/7a/ba/05c48fe4ae0b76a624ce6f10c09d55151e9689d185eb2e898f0b2b9ce3d4/fast_query_parsers-0.2.0-cp38-abi3-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8234f03855a80a0795bf083896ee1c2f",
+                    "sha256": "1a0d8b3435a6ab51ac8eb3a96eab8fc715b09e7e196ec74af48ac4b126f3d4bc"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0-cp38-abi3-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "8234f03855a80a0795bf083896ee1c2f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.8",
+                "size": 193386,
+                "upload_time": "2022-12-28T13:42:57",
+                "upload_time_iso_8601": "2022-12-28T13:42:57.645814Z",
+                "url": "https://files.pythonhosted.org/packages/14/0c/6364f08f77134d5e081b431431c7b42bd43eae4d0092405b01e8f220946e/fast_query_parsers-0.2.0-cp38-abi3-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1349f8775585d284af4e70faf530af86",
+                    "sha256": "3a0105dc3f5c39befe89aaeb5ac0e71e02f9854f75fd09b4b13775085be44ab5"
+                },
+                "downloads": -1,
+                "filename": "fast_query_parsers-0.2.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "1349f8775585d284af4e70faf530af86",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 22928,
+                "upload_time": "2022-12-28T13:42:59",
+                "upload_time_iso_8601": "2022-12-28T13:42:59.181458Z",
+                "url": "https://files.pythonhosted.org/packages/3c/1b/d48e1b4fe574238f77d015f77ab30f3201c2446712ea41ca0a4240e93bae/fast_query_parsers-0.2.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
