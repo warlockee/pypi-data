@@ -44,7 +44,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16209286,
+        "last_serial": 16247783,
         "urls": [
             {
                 "comment_text": "",
@@ -134,7 +134,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16209286,
+        "last_serial": 16247783,
         "urls": [
             {
                 "comment_text": "",
@@ -229,7 +229,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16209286,
+        "last_serial": 16247783,
         "urls": [
             {
                 "comment_text": "",
@@ -325,7 +325,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16209286,
+        "last_serial": 16247783,
         "urls": [
             {
                 "comment_text": "",
@@ -421,7 +421,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16209286,
+        "last_serial": 16247783,
         "urls": [
             {
                 "comment_text": "",
@@ -472,7 +472,6 @@
             "author_email": "Chanhyuk Jung <urw7rs@stu.kmu.ac.kr>",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# Diffusion Models Made Easy\n\nDiffusion Models Made Easy(`dmme`) is a collection of easy to understand diffusion model implementations in Pytorch.\n\n# Getting Started\n\nDocumentation is available at https://diffusion-models-made-easy.readthedocs.io/en/latest/\n\n## Installation\n\nInstall from pip\n\n```bash\npip install dmme\n```\n\ninstalling `dmme` in edit mode requires `pip>=22.3`, update pip by running `pip install -U pip`\n\nInstall for customization or development\n\n```bash\npip install -e \".[dev]\"\n```\n\nInstall dependencies for testing\n\n```bash\npip install dmme[tests]\n```\n\nInstall dependencies for docs\n\n```bash\npip install dmme[docs]\n```\n\n## Train Diffusion Models\n\nTrain DDPM Using `LightningCLI` and `wandb` logger with mixed precision\n\n```bash\ndmme.trainer fit --config configs/ddpm/cifar10.yaml\n```\n\nTrain DDPM from python using pytorch-lightning\n\n```python\nfrom pytorch_lightning import Trainer\n\nfrom pytorch_lightning.loggers import WandbLogger\n\nfrom dmme.ddpm import LitDDPM, UNet\nfrom dmme.data import CIFAR10\n\nfrom dmme.callbacks import GenerateImage\n\n\ndef main():\n    trainer = Trainer(\n        logger=WandbLogger(project=\"CIFAR10_Image_Generation\", name=\"DDPM\"),\n        callbacks=GenerateImage((3, 32, 32), timesteps=1000),\n        gradient_clip_val=1.0,\n        auto_select_gpus=True,\n        accelerator=\"gpu\",\n        precision=16,\n        max_steps=800_000,\n    )\n\n    ddpm = LitDDPM(\n        UNet(in_channels=3),\n        lr=2e-4,\n        warmup=5000,\n        imgsize=(3, 32, 32),\n        timesteps=1000,\n        decay=0.9999,\n    )\n    cifar10 = CIFAR10()\n\n    trainer.fit(ddpm, cifar10)\n\n\nif __name__ == \"__main__\":\n    main()\n```\n\nor use the `DDPMSampler` class to train using pytorch\n\nnote: does not include gradient clipping, logging and checkpointing\n\n```python\nfrom tqdm import tqdm\n\nimport torch\nfrom torch.optim import Adam\nimport torch.nn.functional as F\n\nfrom dmme.data import CIFAR10\n\nfrom dmme.ddpm import DDPM, UNet\nfrom dmme.lr_scheduler import WarmupLR\n\nfrom dmme.common import gaussian_like, uniform_int\n\n\ndef train(timesteps=1000, lr=2e-4, clip_val=1.0, warmup=5000, max_steps=800_000):\n    device = torch.device(\"cuda\") if torch.cuda.is_available() else \"cpu\"\n\n    model = UNet()\n    model = model.to(device)\n\n    ddpm = DDPM(timesteps=timesteps)\n    ddpm = ddpm.to(device)\n\n    cifar10 = CIFAR10()\n    cifar10.prepare_data()\n    cifar10.setup(\"fit\")\n\n    train_dataloader = cifar10.train_dataloader()\n\n    optimizer = Adam(model.parameters(), lr=lr)\n    lr_scheduler = WarmupLR(optimizer, warmup=warmup)\n\n    steps = 0\n    while steps < max_steps:\n        prog_bar = tqdm(train_dataloader)\n        for x_0, _ in prog_bar:\n            x_0 = x_0.to(device)\n\n            batch_size: int = x_0.size(0)\n            t = uniform_int(0, timesteps, batch_size, device=x_0.device)\n\n            noise = gaussian_like(x_0)\n\n            with torch.autocast(\"cuda\" if device != \"cpu\" else \"cpu\"):\n                x_t = ddpm.forward_process(x_0, t, noise)\n\n                noise_estimate = model(x_t, t)\n\n                loss = F.mse_loss(noise, noise_estimate)\n\n            optimizer.zero_grad()\n            loss.backward()\n\n            torch.nn.utils.clip_grad_norm_(model.parameters(), clip_val)\n\n            optimizer.step()\n            lr_scheduler.step()\n\n            steps += 1\n\n            prog_bar.set_postfix({\"loss\": loss, \"steps\": steps})\n\n            if steps == max_steps:\n                break\n\n\nif __name__ == \"__main__\":\n    train()\n```\n\n## Supported Diffusion Models\n- [DDPM](https://arxiv.org/abs/2006.11239)\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -518,7 +517,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16209286,
+        "last_serial": 16247783,
         "urls": [
             {
                 "comment_text": "",
@@ -557,6 +556,103 @@
                 "upload_time": "2022-12-25T12:27:01",
                 "upload_time_iso_8601": "2022-12-25T12:27:01.881705Z",
                 "url": "https://files.pythonhosted.org/packages/1b/a3/51d8763bf961a8664889d6e4404bc0107c31c92427229703651d9d3c1f29/dmme-0.3.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.1": {
+        "info": {
+            "author": "",
+            "author_email": "Chanhyuk Jung <urw7rs@stu.kmu.ac.kr>",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "# Diffusion Models Made Easy\n\nDiffusion Models Made Easy(`dmme`) is a collection of easy to understand diffusion model implementations in Pytorch.\n\n# Getting Started\n\nDocumentation is available at https://diffusion-models-made-easy.readthedocs.io/en/latest/\n\n## Installation\n\nInstall from pip\n\n```bash\npip install dmme\n```\n\ninstalling `dmme` in edit mode requires `pip>=22.3`, update pip by running `pip install -U pip`\n\nInstall for customization or development\n\n```bash\npip install -e \".[dev]\"\n```\n\nInstall dependencies for testing\n\n```bash\npip install dmme[tests]\n```\n\nInstall dependencies for docs\n\n```bash\npip install dmme[docs]\n```\n\n## Train Diffusion Models\n\nTrain DDPM Using `LightningCLI` and `wandb` logger with mixed precision\n\n```bash\ndmme.trainer fit --config configs/ddpm/cifar10.yaml\n```\n\nTrain DDPM from python using pytorch-lightning\n\n```python\nfrom pytorch_lightning import Trainer\n\nfrom pytorch_lightning.loggers import WandbLogger\n\nfrom dmme.ddpm import LitDDPM, UNet\nfrom dmme.data import CIFAR10\n\nfrom dmme.callbacks import GenerateImage\n\n\ndef main():\n    trainer = Trainer(\n        logger=WandbLogger(project=\"CIFAR10_Image_Generation\", name=\"DDPM\"),\n        callbacks=GenerateImage((3, 32, 32), timesteps=1000),\n        gradient_clip_val=1.0,\n        auto_select_gpus=True,\n        accelerator=\"gpu\",\n        precision=16,\n        max_steps=800_000,\n    )\n\n    ddpm = LitDDPM(\n        UNet(in_channels=3),\n        lr=2e-4,\n        warmup=5000,\n        imgsize=(3, 32, 32),\n        timesteps=1000,\n        decay=0.9999,\n    )\n    cifar10 = CIFAR10()\n\n    trainer.fit(ddpm, cifar10)\n\n\nif __name__ == \"__main__\":\n    main()\n```\n\nor use the `DDPMSampler` class to train using pytorch\n\nnote: does not include gradient clipping, logging and checkpointing\n\n```python\nfrom tqdm import tqdm\n\nimport torch\nfrom torch.optim import Adam\nimport torch.nn.functional as F\n\nfrom dmme.data import CIFAR10\n\nfrom dmme.ddpm import DDPM, UNet\nfrom dmme.lr_scheduler import WarmupLR\n\nfrom dmme.common import gaussian_like, uniform_int\n\n\ndef train(timesteps=1000, lr=2e-4, clip_val=1.0, warmup=5000, max_steps=800_000):\n    device = torch.device(\"cuda\") if torch.cuda.is_available() else \"cpu\"\n\n    model = UNet()\n    model = model.to(device)\n\n    ddpm = DDPM(timesteps=timesteps)\n    ddpm = ddpm.to(device)\n\n    cifar10 = CIFAR10()\n    cifar10.prepare_data()\n    cifar10.setup(\"fit\")\n\n    train_dataloader = cifar10.train_dataloader()\n\n    optimizer = Adam(model.parameters(), lr=lr)\n    lr_scheduler = WarmupLR(optimizer, warmup=warmup)\n\n    steps = 0\n    while steps < max_steps:\n        prog_bar = tqdm(train_dataloader)\n        for x_0, _ in prog_bar:\n            x_0 = x_0.to(device)\n\n            batch_size: int = x_0.size(0)\n            t = uniform_int(0, timesteps, batch_size, device=x_0.device)\n\n            noise = gaussian_like(x_0)\n\n            with torch.autocast(\"cuda\" if device != \"cpu\" else \"cpu\"):\n                x_t = ddpm.forward_process(x_0, t, noise)\n\n                noise_estimate = model(x_t, t)\n\n                loss = F.mse_loss(noise, noise_estimate)\n\n            optimizer.zero_grad()\n            loss.backward()\n\n            torch.nn.utils.clip_grad_norm_(model.parameters(), clip_val)\n\n            optimizer.step()\n            lr_scheduler.step()\n\n            steps += 1\n\n            prog_bar.set_postfix({\"loss\": loss, \"steps\": steps})\n\n            if steps == max_steps:\n                break\n\n\nif __name__ == \"__main__\":\n    train()\n```\n\n## Supported Diffusion Models\n- [DDPM](https://arxiv.org/abs/2006.11239)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT License  Copyright (c) [year] [fullname]  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. ",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "dmme",
+            "package_url": "https://pypi.org/project/dmme/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/dmme/",
+            "project_urls": {
+                "Homepage": "https://github.com/urw7rs/diffusion-models-made-easy"
+            },
+            "release_url": "https://pypi.org/project/dmme/0.3.1/",
+            "requires_dist": [
+                "torch",
+                "torchvision",
+                "einops",
+                "pytorch-lightning (>=1.8)",
+                "jsonargparse[signatures] (>=4.12.0)",
+                "torchmetrics[image]",
+                "wandb",
+                "black ; extra == 'dev'",
+                "flake8 ; extra == 'dev'",
+                "sphinx-autobuild ; extra == 'dev'",
+                "bumpver ; extra == 'dev'",
+                "sphinx ; extra == 'docs'",
+                "myst-parser ; extra == 'docs'",
+                "furo ; extra == 'docs'",
+                "sphinxcontrib-katex ; extra == 'docs'",
+                "pytest ; extra == 'tests'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Diffusion Models Made Easy",
+            "version": "0.3.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16247783,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a403d676abb6ac939a00cbc34fadc823",
+                    "sha256": "c2e0468fb160340aa45bc4c3cc2d4994ada58df6dd377c0591a1617299e647db"
+                },
+                "downloads": -1,
+                "filename": "dmme-0.3.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "a403d676abb6ac939a00cbc34fadc823",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 21173,
+                "upload_time": "2022-12-29T10:57:28",
+                "upload_time_iso_8601": "2022-12-29T10:57:28.158643Z",
+                "url": "https://files.pythonhosted.org/packages/3e/c6/8ae44cbe565af243b8875c77970c58af5633f4b88b2f081ed9decf99f0df/dmme-0.3.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "745b686c1ae32db839e79ffdce2ca49d",
+                    "sha256": "13925b9c2d42a21d72e182b3baa6342e1a976aefba213b7888213eaecf1de566"
+                },
+                "downloads": -1,
+                "filename": "dmme-0.3.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "745b686c1ae32db839e79ffdce2ca49d",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 17727,
+                "upload_time": "2022-12-29T10:57:29",
+                "upload_time_iso_8601": "2022-12-29T10:57:29.429012Z",
+                "url": "https://files.pythonhosted.org/packages/3c/5c/c2161a5985140039f29d8e49498984e0453c7dae695b29205b13bb176a5a/dmme-0.3.1.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
