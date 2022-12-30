@@ -47,7 +47,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16012655,
+        "last_serial": 16257087,
         "urls": [
             {
                 "comment_text": "",
@@ -140,7 +140,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16012655,
+        "last_serial": 16257087,
         "urls": [
             {
                 "comment_text": "",
@@ -233,7 +233,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16012655,
+        "last_serial": 16257087,
         "urls": [
             {
                 "comment_text": "",
@@ -327,7 +327,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16012655,
+        "last_serial": 16257087,
         "urls": [
             {
                 "comment_text": "",
@@ -421,7 +421,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16012655,
+        "last_serial": 16257087,
         "urls": [
             {
                 "comment_text": "",
@@ -515,7 +515,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16012655,
+        "last_serial": 16257087,
         "urls": [
             {
                 "comment_text": "",
@@ -609,7 +609,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16012655,
+        "last_serial": 16257087,
         "urls": [
             {
                 "comment_text": "",
@@ -703,7 +703,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16012655,
+        "last_serial": 16257087,
         "urls": [
             {
                 "comment_text": "",
@@ -767,7 +767,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Software Development :: Code Generators"
             ],
-            "description": "# autojinja\n\n**autojinja** is a Python3 module that allows generating code inside any file using [Jinja templates](https://github.com/pallets/jinja) in between comments. It aims to assist development workflows by using simple Python3 scripts that perform content generation of neighboring files, which enables generating code next to traditionally hand-made code efficiently.\n\nIt includes :\n- Content generation in any file that accepts comments\n- Ability to maintain hand-made code inside generated code\n- Simple integration in build pipelines and existing codebases\n\n**autojinja** can be seen as a _preprocessor_ for most file formats, and works great with any codebase as it automates writing code manually. It shines out even more when working with metadata files (such as XML or JSON files) that centralize information which later needs to be generated across various scattered files in the codebase.\n\n## Installation\n\n```shell\n$ pip install autojinja\n```\n\n## Usage\n\n```shell\n$ autojinja script1.py script2.py\n```\n```shell\n$ autojinja -a .\n```\n\n## Content generation\n\nContent generation consists in generating parts of an existing file thanks to dedicated sections that delimit where the generation takes place. This technique is made possible for all files accepting comments, and allows defining [Jinja templates](https://github.com/pallets/jinja) directly in such files without breaking them.\n\nFor example, let's suppose we have a C++ file we want to generate inside. To do this, we need to write our Jinja template between `[[[` and `]]]` markers, followed by an `[[[end]]]` marker :\n\n```cpp\n// main.cpp\n#include <iostream>\n\nint main() {\n  std::cout << \"Hello world !\" << std::endl;\n  // [[[ std::cout << \"{{ value }}\" << std::endl; ]]]  // Jinja template\n  // [[[ end ]]]                                       // Code will be generated in between\n  return 0;\n}\n```\n\nThe template can then be generated with a Python3 script that provides the `value` variable :\n\n```python\n# main.py\nfrom autojinja import CogTemplate\n\ntemplate = CogTemplate.from_file(\"main.cpp\")\ntemplate.context(value = \"Python here !\").render_file()\n```\n\nCalling the script will modify our C++ file as such :\n\n```cpp\n// main.cpp\n#include <iostream>\n\nint main() {\n  std::cout << \"Hello world !\" << std::endl;\n  // [[[ std::cout << \"{{ value }}\" << std::endl; ]]]  // Jinja template\n  std::cout << \"Python here !\" << std::endl;\n  // [[[ end ]]]                                       // Code will be generated in between\n  return 0;\n}\n```\n\nThis technique is greatly inspired by [Cog](https://github.com/nedbat/cog), but adapted to work with Jinja templating engine. When performing generation again, the content inside the markers is entirely replaced by the new generation.\n\n## Hand-made modifications\n\nModification by hand of generated code is made possible by using special sections that are preserved across new generations. To do this, we need to name a section between `<<[` and `]>>` markers, followed by an `<<[end]>>` marker :\n\n```cpp\n// main.cpp\n#include <iostream>\n\n// [[[\n// int main() {\n//\n//   std::cout << \"{{ value }}\" << std::endl;\n//   // <<[ impl ]>>  // Manually editable section named 'impl'\n//   return 0;\n//   // <<[ end ]>>   // End of section\n//\n// }\n// ]]]\nint main() {\n\n  std::cout << \"Python here !\" << std::endl;\n  // <<[ impl ]>>  // Manually editable section named 'impl'\n  std::cout << \"Modified by hand\" << std::endl;\n  return 1;\n  // <<[ end ]>>   // End of section\n\n}\n// [[[ end ]]]\n```\n\nWhen a new generation occurs, all previous sections are retrieved from the destination file and then reinserted into the new generation, inside each corresponding section with same name.\n\nAll previous sections of a destination file must be reinserted when performing a new generation, otherwise it will be considered as code loss and generation will be aborted. Human intervention is required to deal with such scenarios.\n\n## Integration in build pipelines\n\n**autojinja** generation mechanism can be integrated as a build step by listing all Python3 scripts that perform generation :\n\n```shell\n$ autojinja script1.py dir/script2.py ...\n```\n\n**autojinja** also provides discover mechanisms to find and execute the concerned Python3 scripts in listed directories :\n\n- `-r -f` recursively executes all Python3 scripts named `__jinja__.py`\n\n    ```shell\n    $ autojinja -r -f .\n    ```\n\n- `-r -t` recursively executes all Python3 scripts whose first line contains `autojinja` keyword (can be for instance `import autojinja` or `from autojinja import *`)\n\n    ```shell\n    $ autojinja -r -t .\n    ```\n\n- `-a` equivalent to `-r -f -t`\n\n    ```shell\n    $ autojinja -a .\n    ```\n\nCentralized metadata files (such as XML or JSON files) can easily be accessed inside Python3 scripts using environment variables and environment files :\n\n```shell\n$ autojinja -a . -e FILE1=/tmp/file1.xml -e file.env\n```\n\n## Links\n- [Documentation](https://github.com/ldflo/autojinja/blob/main/docs/doc_autojinja.md)\n- [Examples](https://github.com/ldflo/autojinja/blob/main/examples)\n- [PyPI](https://pypi.org/project/autojinja)\n- [Jinja2](https://github.com/pallets/jinja)\n- [Cog](https://github.com/nedbat/cog)\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -798,7 +797,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16012655,
+        "last_serial": 16257087,
         "urls": [
             {
                 "comment_text": "",
@@ -837,6 +836,101 @@
                 "upload_time": "2022-12-06T21:17:32",
                 "upload_time_iso_8601": "2022-12-06T21:17:32.790821Z",
                 "url": "https://files.pythonhosted.org/packages/11/a7/0a5de77dddc03858aacf45fbbe7ef6bd350dbf845585c54a2c9c47e67a08/autojinja-1.7.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.8.0": {
+        "info": {
+            "author": "Florian Popek",
+            "author_email": "florian.popek@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Code Generators"
+            ],
+            "description": "# autojinja\n\n**autojinja** is a Python3 module that allows generating code inside any file using [Jinja templates](https://github.com/pallets/jinja) in between comments. It aims to assist development workflows by using simple Python3 scripts that perform content generation of neighboring files, which enables generating code next to traditionally hand-made code efficiently.\n\nIt includes :\n- Content generation in any file that accepts comments\n- Ability to maintain hand-made code inside generated code\n- Simple integration in build pipelines and existing codebases\n\n**autojinja** can be seen as a _preprocessor_ for most file formats, and works great with any codebase as it automates writing code manually. It shines out even more when working with metadata files (such as XML or JSON files) that centralize information which later needs to be generated across various scattered files in the codebase.\n\n## Installation\n\n```shell\n$ pip install autojinja\n```\n\n## Usage\n\n```shell\n$ autojinja script1.py script2.py\n```\n```shell\n$ autojinja -a .\n```\n\n## Content generation\n\nContent generation consists in generating parts of an existing file thanks to dedicated sections that delimit where the generation takes place. This technique is made possible for all files accepting comments, and allows defining [Jinja templates](https://github.com/pallets/jinja) directly in such files without breaking them.\n\nFor example, let's suppose we have a C++ file we want to generate inside. To do this, we need to write our Jinja template between `[[[` and `]]]` markers, followed by an `[[[end]]]` marker :\n\n```cpp\n// main.cpp\n#include <iostream>\n\nint main() {\n  std::cout << \"Hello world !\" << std::endl;\n  // [[[ std::cout << \"{{ value }}\" << std::endl; ]]]  // Jinja template\n  // [[[ end ]]]                                       // Code will be generated in between\n  return 0;\n}\n```\n\nThe template can then be generated with a Python3 script that provides the `value` variable :\n\n```python\n# main.py\nfrom autojinja import CogTemplate\n\ntemplate = CogTemplate.from_file(\"main.cpp\")\ntemplate.context(value = \"Python here !\").render_file()\n```\n\nCalling the script will modify our C++ file as such :\n\n```cpp\n// main.cpp\n#include <iostream>\n\nint main() {\n  std::cout << \"Hello world !\" << std::endl;\n  // [[[ std::cout << \"{{ value }}\" << std::endl; ]]]  // Jinja template\n  std::cout << \"Python here !\" << std::endl;\n  // [[[ end ]]]                                       // Code will be generated in between\n  return 0;\n}\n```\n\nThis technique is greatly inspired by [Cog](https://github.com/nedbat/cog), but adapted to work with Jinja templating engine. When performing generation again, the content inside the markers is entirely replaced by the new generation.\n\n## Hand-made modifications\n\nModification by hand of generated code is made possible by using special sections that are preserved across new generations. To do this, we need to name a section between `<<[` and `]>>` markers, followed by an `<<[end]>>` marker :\n\n```cpp\n// main.cpp\n#include <iostream>\n\n// [[[\n// int main() {\n//\n//   std::cout << \"{{ value }}\" << std::endl;\n//   // <<[ impl ]>>  // Manually editable section named 'impl'\n//   return 0;\n//   // <<[ end ]>>   // End of section\n//\n// }\n// ]]]\nint main() {\n\n  std::cout << \"Python here !\" << std::endl;\n  // <<[ impl ]>>  // Manually editable section named 'impl'\n  std::cout << \"Modified by hand\" << std::endl;\n  return 1;\n  // <<[ end ]>>   // End of section\n\n}\n// [[[ end ]]]\n```\n\nWhen a new generation occurs, all previous sections are retrieved from the destination file and then reinserted into the new generation, inside each corresponding section with same name.\n\nAll previous sections of a destination file must be reinserted when performing a new generation, otherwise it will be considered as code loss and generation will be aborted. Human intervention is required to deal with such scenarios.\n\n## Integration in build pipelines\n\n**autojinja** generation mechanism can be integrated as a build step by listing all Python3 scripts that perform generation :\n\n```shell\n$ autojinja script1.py dir/script2.py ...\n```\n\n**autojinja** also provides discover mechanisms to find and execute the concerned Python3 scripts in listed directories :\n\n- `-r -f` recursively executes all Python3 scripts named `__jinja__.py`\n\n    ```shell\n    $ autojinja -r -f .\n    ```\n\n- `-r -t` recursively executes all Python3 scripts whose first line contains `autojinja` keyword (can be for instance `import autojinja` or `from autojinja import *`)\n\n    ```shell\n    $ autojinja -r -t .\n    ```\n\n- `-a` equivalent to `-r -f -t`\n\n    ```shell\n    $ autojinja -a .\n    ```\n\nCentralized metadata files (such as XML or JSON files) can easily be accessed inside Python3 scripts using environment variables and environment files :\n\n```shell\n$ autojinja -a . -e FILE1=/tmp/file1.xml -e file.env\n```\n\n## Links\n- [Documentation](https://github.com/ldflo/autojinja/blob/main/docs/doc_autojinja.md)\n- [Examples](https://github.com/ldflo/autojinja/blob/main/examples)\n- [PyPI](https://pypi.org/project/autojinja)\n- [Jinja2](https://github.com/pallets/jinja)\n- [Cog](https://github.com/nedbat/cog)\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/ldflo/autojinja",
+            "keywords": "",
+            "license": "BSD",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "autojinja",
+            "package_url": "https://pypi.org/project/autojinja/",
+            "platform": "OS Independent",
+            "project_url": "https://pypi.org/project/autojinja/",
+            "project_urls": {
+                "Homepage": "https://github.com/ldflo/autojinja"
+            },
+            "release_url": "https://pypi.org/project/autojinja/1.8.0/",
+            "requires_dist": [
+                "jinja2"
+            ],
+            "requires_python": "",
+            "summary": "Content generation with Jinja templates in between comments",
+            "version": "1.8.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16257087,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "21bc4eb501ad6bf1bc7ce61a12f1f41a",
+                    "sha256": "d804533ddbadc5629af0cefb7c74fa7daa06f150d466bf09cd4b02b428c85ba1"
+                },
+                "downloads": -1,
+                "filename": "autojinja-1.8.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "21bc4eb501ad6bf1bc7ce61a12f1f41a",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 22742,
+                "upload_time": "2022-12-30T11:01:49",
+                "upload_time_iso_8601": "2022-12-30T11:01:49.274680Z",
+                "url": "https://files.pythonhosted.org/packages/3a/c8/bdf4ab261dfdc086abd9ed9158caaeb9692c9e9c2b68a0b15a5307756c4c/autojinja-1.8.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7de6b291b112802056cf81f3745bcaa6",
+                    "sha256": "c01668555440006f98aea2cc442a0cc7e1f91bce44808a3e1dcbf76dd40882d1"
+                },
+                "downloads": -1,
+                "filename": "autojinja-1.8.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7de6b291b112802056cf81f3745bcaa6",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 22539,
+                "upload_time": "2022-12-30T11:01:50",
+                "upload_time_iso_8601": "2022-12-30T11:01:50.996490Z",
+                "url": "https://files.pythonhosted.org/packages/5b/03/7ff92d5c07e80bb1f2efec31fe3968ddc1bce3b9170d45db53e6efc8af08/autojinja-1.8.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
