@@ -39,7 +39,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16221391,
+        "last_serial": 16252357,
         "urls": [
             {
                 "comment_text": "",
@@ -76,7 +76,6 @@
                 "Programming Language :: Python :: 3 :: Only",
                 "Topic :: Multimedia :: Sound/Audio :: Conversion"
             ],
-            "description": "pymp3 - Read and write MP3 files\n===============================================================\n\n# Introduction\n\nThe **pymp3** module provides a decoding/encoding interface to the MP3 audio format.\nThis library uses [libmp3lame](https://lame.sourceforge.io/) (lame) and [libmad](https://www.underbit.com/products/mad/) under the hood.\nBinary distribution packages for Windows and *nix systems are available.\n\n# Installation\n\nUsing pip\n\n    pip install pymp3\n\nInstall from source code:\n\n    git clone <this repo>\n    cd pymp3\n    pip install .\n\n# Usage\n\n## mp3.Decoder object (MP3-to-PCM convertor)\n\n**mp3.Decoder** object provides an interface to MP3-to-PCM decoding capabilities. \nIt uses a well-known [libmad](https://www.underbit.com/products/mad/) under the hood. \n\nExample of usage (convert *.mp3 file to *.wav):\n\n```python\n\nimport mp3\nfrom wave import Wave_write\n\nwith open('input.mp3', 'rb') as read_file, open('output.wav', 'wb') as write_file:\n\n    decoder = mp3.Decoder(read_file)\n\n    sample_rate = decoder.get_sample_rate()\n    nchannels = decoder.get_channels()\n\n    wav_file = Wave_write(write_file)\n    wav_file.setnchannels(nchannels)\n    wav_file.setsampwidth(2)\n    wav_file.setframerate(sample_rate)\n\n    while True:\n        pcm_data = decoder.read(4000)\n\n        if not pcm_data:\n            break\n        else:\n            wav_file.writeframes(pcm_data)\n\n```\n\n\n## mp3.Encoder object (PCM-to-MP3 convertor)\n\n**mp3.Encoder** object provides an interface to PCM-to-MP3 encoding capabilities.\nIt uses a well-known [libmp3lame](https://lame.sourceforge.io/) under the hood. \n\nExample of usage (convert *.wav file to *.mp3):\n\n```python\n\nimport mp3\nfrom wave import Wave_read\n\nwith open('input.wav', 'rb') as read_file, open('output.mp3', 'wb') as write_file:\n\n    wav_file = Wave_read(read_file)\n\n    sample_size = wav_file.getsampwidth()\n    sample_rate = wav_file.getframerate()\n    nchannels = wav_file.getnchannels()\n\n    if sample_size != 2:\n        raise ValueError(\"Only PCM 16-bit sample size is supported (input audio: %s)\" % sample_size)\n\n    encoder = mp3.Encoder(write_file)\n    encoder.set_bit_rate(64)\n    encoder.set_sample_rate(frame_rate)\n    encoder.set_channels(nchannels)\n    encoder.set_quality(5)   # 2-highest, 7-fastest\n    encoder.set_mod(mp3.MODE_STEREO if nchannels == 2 else mp3.MODE_SINGLE_CHANNEL)\n\n    while True:\n        pcm_data = wav_file.readframes(8000)\n        if pcm_data:\n            encoder.write(pcm_data)\n        else:\n            encoder.flush()\n            break\n\n```\n\n# Interface\n\n## Constants\n\nMPEG Layer version as returned by `Decoder.get_layer()`:\n\n- `mp3.LAYER_I`\n- `mp3.LAYER_II`\n- `mp3.LAYER_III`\n\nMPEG mode as returned by `Decoder.get_mode()` or supplied to `Encoder.set_mode()`\n\n- `mp3.MODE_SINGLE_CHANNEL`: a mono (single channel)\n- `mp3.MODE_DUAL_CHANNEL`: dual channel mode. Caution! A dual channel mode is not supported by LAME encoder, use a stereo or joint stereo instead.\n- `mp3.MODE_STEREO`: a stereo mode (recommended for high bitrates)\n- `mp3.MODE_JOINT_STEREO`: a joint stereo mode (recommended for low bitrates)\n\n## mp3.Encoder (PCM-to-MP3 convertor)\n\nConstructor:\n\n- `mp3.Encoder(fp)`: Creates an encoder object. `fp` is a file-like object that has `write()` method to write binary data.\n\nClass methods:\n\n- `set_channels(nchannels: int)`: Set the number of channels (1 for mono, 2 for stereo)\n- `set_quality(quality: int)`: Set the encoder quality, 2 is highest; 7 is fastest (default is 5)\n- `set_bit_rate(bitrate: int)`: Set the constant bit rate (in kbps)\n- `set_sample_rate(sample_rate: int)`: Set the input sample rate in Hz\n- `set_mode(mode: int)`: Set the MPEG mode (one of `mp3.MODE_STEREO`,  `mp3.MODE_JOINT_STEREO`, `mp3.MODE_SINGLE_CHANNEL`). Note, a dual channel mode is not supported by LAME!\n- `write(data: bytes)`: Encode a block of PCM data (signed 16-bit interleaved) and write to a file.\n- `flush()`: Flush the last block of MP3 data to a file.\n\n\n**Important!**\n\nBefore closing the file, call `flush()` method to write the last block of MP3 data to a file.\n\n\n## mp3.Decoder (MP3-to-PCM convertor)\n\nConstructor:\n\n- `mp3.Decoder(fp)`: Creates a decoder object. `fp` is a file-like object that has `read()` method to read binary data.\n\nClass methods:\n\n- `is_valid() -> bool`: Returns TRUE if at least one valid MPEG frame was found in a file\n- `read(nbytes = None: int) -> bytes`: Read mp3 file, decodes into PCM format (16-bit signed interleaved) and returns the requested number of bytes. If `nbytes` is not provided, then up to 256MB will be read from file\n- `get_channels() -> int`: Get the number of channels (1 for mono, 2 for stereo)\n- `get_bit_rate() -> int`: Get the bit rate (in kbps)\n- `get_sample_rate() -> int`: Get the sample rate in Hz\n- `get_mode() -> int`: Get the MPEG mode (one of `mp3.MODE_STEREO`,  `mp3.MODE_JOINT_STEREO`, `mp3.MODE_SINGLE_CHANNEL` or `mp3.MODE_DUAL_CHANNEL`)\n- `get_layer() -> int`: Get the MPEG layer (one of `mp3.LAYER_I`,  `mp3.Layer_II`, `mp3.Layer_III`)\n\n\n# Building a binary package\n\nPrerequisites:\n\n- [Recommended] Create python virtual environment with `python -v venv venv` and activate it with `source venv/bin/activate`\n- Install the packages required for development with `pip install -r requirements-dev.txt`\n\nTo build a binary package for your platform (*.whl), run:\n\n    pip wheel . --verbose\n\nA result of this command will be `mp3*.whl` file in the current directory.\n\nOptional `--verbose` parameter allows you to review the build process.\n\n## To install the built WHL file:\n\n    pip install pymp3*.whl\n\n## To build and install the package in a development mode:\n\n    pip install -e . --verbose\n\nThis command will build `*.so` file (or `*.dll` on Windows) instead of *.whl.\n\nOptional `--verbose` parameter allows you to review the build process.\n\n# Unit testing\n\nTo run unit tests, use the following command (assuming the `pymp3` module is installed in current python environment):\n\n    pytest tests\n\n# Troubleshooting build failures (C code)\n\nThe library is built with CMake, which is automatically called when setuptools is building the package.\n\nYou can call CMake directly to see the reported error messages:\n\n    cmake -S . -B build\n    cmake --build build\n\nIf you have multiple python interpreters available on the system, then add `-DPython3_EXECUTABLE=<path-to-python-exe>` to hint CMake to use\nthe proper version. Otherwise, CMake will choose a default python interpreter.\n\nThis command will build `pymp3.so` (or `pymp3.pyd`) file in the respective build directory\n(on Windows, it will be `./build/Release` or `./build/Debug`, on Linux, it will be `./build`).\n\nOn Windows, by default, Visual Studio builds a Debug configuration. \nAdd `--config=Release` to build command to choose Release configuration:\n\n    cmake --build build --config=Release\n\nBy default, this project will download lame and mad libraries from github and compile them in-place.\nIf you want to use the system-installed lame/mad, then pass the following parameters to cmake command:\n\n    -DPYMP3_USE_SYSTEM_LIBMAD=ON -DPYMP3_USE_SYSTEM_LAME\n\nTODO:\n\n  - Allow user to define PYMP3_USE_SYSTEM_LIBMAD/LAME via environment variables, read them in setup.py and pass to cmake\n  - Make it compile on Mac OSX\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -105,7 +104,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16221391,
+        "last_serial": 16252357,
         "urls": [
             {
                 "comment_text": "",
@@ -1024,6 +1023,972 @@
                 "upload_time": "2022-12-27T05:34:29",
                 "upload_time_iso_8601": "2022-12-27T05:34:29.869443Z",
                 "url": "https://files.pythonhosted.org/packages/bf/2f/752f57952889f8feb3dc101ea6a5003dda4f65671af8f06d472202aa6014/pymp3-0.1.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.9": {
+        "info": {
+            "author": "Gennadiy Bezkorovayniy",
+            "author_email": "gb@miarec.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: Python :: 3 :: Only",
+                "Topic :: Multimedia :: Sound/Audio :: Conversion"
+            ],
+            "description": "pymp3 - Read and write MP3 files\n===============================================================\n\n# Introduction\n\nThe **pymp3** module provides a decoding/encoding interface to the MP3 audio format.\nThis library uses [libmp3lame](https://lame.sourceforge.io/) (lame) and [libmad](https://www.underbit.com/products/mad/) under the hood.\nBinary distribution packages for Windows and *nix systems are available.\n\n# Installation\n\nUsing pip\n\n    pip install pymp3\n\nInstall from source code:\n\n    git clone <this repo>\n    cd pymp3\n    pip install .\n\n# Usage\n\n## mp3.Decoder object (MP3-to-PCM convertor)\n\n**mp3.Decoder** object provides an interface to MP3-to-PCM decoding capabilities. \nIt uses a well-known [libmad](https://www.underbit.com/products/mad/) under the hood. \n\nExample of usage (convert *.mp3 file to *.wav):\n\n```python\n\nimport mp3\nfrom wave import Wave_write\n\nwith open('input.mp3', 'rb') as read_file, open('output.wav', 'wb') as write_file:\n\n    decoder = mp3.Decoder(read_file)\n\n    sample_rate = decoder.get_sample_rate()\n    nchannels = decoder.get_channels()\n\n    wav_file = Wave_write(write_file)\n    wav_file.setnchannels(nchannels)\n    wav_file.setsampwidth(2)\n    wav_file.setframerate(sample_rate)\n\n    while True:\n        pcm_data = decoder.read(4000)\n\n        if not pcm_data:\n            break\n        else:\n            wav_file.writeframes(pcm_data)\n\n```\n\n\n## mp3.Encoder object (PCM-to-MP3 convertor)\n\n**mp3.Encoder** object provides an interface to PCM-to-MP3 encoding capabilities.\nIt uses a well-known [libmp3lame](https://lame.sourceforge.io/) under the hood. \n\nExample of usage (convert *.wav file to *.mp3):\n\n```python\n\nimport mp3\nfrom wave import Wave_read\n\nwith open('input.wav', 'rb') as read_file, open('output.mp3', 'wb') as write_file:\n\n    wav_file = Wave_read(read_file)\n\n    sample_size = wav_file.getsampwidth()\n    sample_rate = wav_file.getframerate()\n    nchannels = wav_file.getnchannels()\n\n    if sample_size != 2:\n        raise ValueError(\"Only PCM 16-bit sample size is supported (input audio: %s)\" % sample_size)\n\n    encoder = mp3.Encoder(write_file)\n    encoder.set_bit_rate(64)\n    encoder.set_sample_rate(frame_rate)\n    encoder.set_channels(nchannels)\n    encoder.set_quality(5)   # 2-highest, 7-fastest\n    encoder.set_mod(mp3.MODE_STEREO if nchannels == 2 else mp3.MODE_SINGLE_CHANNEL)\n\n    while True:\n        pcm_data = wav_file.readframes(8000)\n        if pcm_data:\n            encoder.write(pcm_data)\n        else:\n            encoder.flush()\n            break\n\n```\n\n# Interface\n\n## Constants\n\nMPEG Layer version as returned by `Decoder.get_layer()`:\n\n- `mp3.LAYER_I`\n- `mp3.LAYER_II`\n- `mp3.LAYER_III`\n\nMPEG mode as returned by `Decoder.get_mode()` or supplied to `Encoder.set_mode()`\n\n- `mp3.MODE_SINGLE_CHANNEL`: a mono (single channel)\n- `mp3.MODE_DUAL_CHANNEL`: dual channel mode. Caution! A dual channel mode is not supported by LAME encoder, use a stereo or joint stereo instead.\n- `mp3.MODE_STEREO`: a stereo mode (recommended for high bitrates)\n- `mp3.MODE_JOINT_STEREO`: a joint stereo mode (recommended for low bitrates)\n\n## mp3.Encoder (PCM-to-MP3 convertor)\n\nConstructor:\n\n- `mp3.Encoder(fp)`: Creates an encoder object. `fp` is a file-like object that has `write()` method to write binary data.\n\nClass methods:\n\n- `set_channels(nchannels: int)`: Set the number of channels (1 for mono, 2 for stereo)\n- `set_quality(quality: int)`: Set the encoder quality, 2 is highest; 7 is fastest (default is 5)\n- `set_bit_rate(bitrate: int)`: Set the constant bit rate (in kbps)\n- `set_sample_rate(sample_rate: int)`: Set the input sample rate in Hz\n- `set_mode(mode: int)`: Set the MPEG mode (one of `mp3.MODE_STEREO`,  `mp3.MODE_JOINT_STEREO`, `mp3.MODE_SINGLE_CHANNEL`). Note, a dual channel mode is not supported by LAME!\n- `write(data: bytes)`: Encode a block of PCM data (signed 16-bit interleaved) and write to a file.\n- `flush()`: Flush the last block of MP3 data to a file.\n\n\n**Important!**\n\nBefore closing the file, call `flush()` method to write the last block of MP3 data to a file.\n\n\n## mp3.Decoder (MP3-to-PCM convertor)\n\nConstructor:\n\n- `mp3.Decoder(fp)`: Creates a decoder object. `fp` is a file-like object that has `read()` method to read binary data.\n\nClass methods:\n\n- `is_valid() -> bool`: Returns TRUE if at least one valid MPEG frame was found in a file\n- `read(nbytes = None: int) -> bytes`: Read mp3 file, decodes into PCM format (16-bit signed interleaved) and returns the requested number of bytes. If `nbytes` is not provided, then up to 256MB will be read from file\n- `get_channels() -> int`: Get the number of channels (1 for mono, 2 for stereo)\n- `get_bit_rate() -> int`: Get the bit rate (in kbps)\n- `get_sample_rate() -> int`: Get the sample rate in Hz\n- `get_mode() -> int`: Get the MPEG mode (one of `mp3.MODE_STEREO`,  `mp3.MODE_JOINT_STEREO`, `mp3.MODE_SINGLE_CHANNEL` or `mp3.MODE_DUAL_CHANNEL`)\n- `get_layer() -> int`: Get the MPEG layer (one of `mp3.LAYER_I`,  `mp3.Layer_II`, `mp3.Layer_III`)\n\n\n# Building a binary package\n\nPrerequisites:\n\n- [Recommended] Create python virtual environment with `python -v venv venv` and activate it with `source venv/bin/activate`\n- Install the packages required for development with `pip install -r requirements-dev.txt`\n\nTo build a binary package for your platform (*.whl), run:\n\n    pip wheel . --verbose\n\nA result of this command will be `mp3*.whl` file in the current directory.\n\nOptional `--verbose` parameter allows you to review the build process.\n\n## To install the built WHL file:\n\n    pip install pymp3*.whl\n\n## To build and install the package in a development mode:\n\n    pip install -e . --verbose\n\nThis command will build `*.so` file (or `*.dll` on Windows) instead of *.whl.\n\nOptional `--verbose` parameter allows you to review the build process.\n\n# Unit testing\n\nTo run unit tests, use the following command (assuming the `pymp3` module is installed in current python environment):\n\n    pytest tests\n\n# Troubleshooting build failures (C code)\n\nThe library is built with CMake, which is automatically called when setuptools is building the package.\n\nYou can call CMake directly to see the reported error messages:\n\n    cmake -S . -B build\n    cmake --build build\n\nIf you have multiple python interpreters available on the system, then add `-DPython3_EXECUTABLE=<path-to-python-exe>` to hint CMake to use\nthe proper version. Otherwise, CMake will choose a default python interpreter.\n\nThis command will build `pymp3.so` (or `pymp3.pyd`) file in the respective build directory\n(on Windows, it will be `./build/Release` or `./build/Debug`, on Linux, it will be `./build`).\n\nOn Windows, by default, Visual Studio builds a Debug configuration. \nAdd `--config=Release` to build command to choose Release configuration:\n\n    cmake --build build --config=Release\n\nBy default, this project will download lame and mad libraries from github and compile them in-place.\nIf you want to use the system-installed lame/mad, then pass the following parameters to cmake command:\n\n    -DPYMP3_USE_SYSTEM_LIBMAD=ON -DPYMP3_USE_SYSTEM_LAME\n\nTODO:\n\n  - Allow user to define PYMP3_USE_SYSTEM_LIBMAD/LAME via environment variables, read them in setup.py and pass to cmake\n  - Make it compile on Mac OSX\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/miarec/pymp3",
+            "keywords": "",
+            "license": "GPL",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pymp3",
+            "package_url": "https://pypi.org/project/pymp3/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pymp3/",
+            "project_urls": {
+                "Homepage": "https://github.com/miarec/pymp3"
+            },
+            "release_url": "https://pypi.org/project/pymp3/0.1.9/",
+            "requires_dist": null,
+            "requires_python": ">=3.6",
+            "summary": "Read and write MP3 files.",
+            "version": "0.1.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252357,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3e8f9e700cd9d87e09365abd9e9ffc4b",
+                    "sha256": "be470981ba9688d93ae7503bc604172b418fd292a977e637cf596beaab2e4e8f"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "3e8f9e700cd9d87e09365abd9e9ffc4b",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.6",
+                "size": 231825,
+                "upload_time": "2022-12-29T22:07:54",
+                "upload_time_iso_8601": "2022-12-29T22:07:54.102292Z",
+                "url": "https://files.pythonhosted.org/packages/e4/88/982d562ad23ee2d6391ef6a4b92c2f5f6df6b418efbda7cb1dcbd98fd8a6/pymp3-0.1.9-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "16b19f03c24d945fdbb980c0b6ea6cd8",
+                    "sha256": "24ebe4359a74a15fabddb6cac5a562bdea9c4ee5c07d50987b81baf5c019e936"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "16b19f03c24d945fdbb980c0b6ea6cd8",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.6",
+                "size": 236552,
+                "upload_time": "2022-12-29T22:07:55",
+                "upload_time_iso_8601": "2022-12-29T22:07:55.427889Z",
+                "url": "https://files.pythonhosted.org/packages/52/9b/9ae43daf2c42a1a1874f22b44bd647ebaf7411bd560e1379b2d025fe8f01/pymp3-0.1.9-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a017190b6442a7127439f373fd26500a",
+                    "sha256": "e72cbea6c76adbe421175c2480e551be8f0de3b49064f5d1e5e12953ac8deb97"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp310-cp310-musllinux_1_1_i686.whl",
+                "has_sig": false,
+                "md5_digest": "a017190b6442a7127439f373fd26500a",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.6",
+                "size": 216657,
+                "upload_time": "2022-12-29T22:07:56",
+                "upload_time_iso_8601": "2022-12-29T22:07:56.814523Z",
+                "url": "https://files.pythonhosted.org/packages/80/7d/48e321159cced8392acbd6313370c9b23bbadb300379b869c26232d7e392/pymp3-0.1.9-cp310-cp310-musllinux_1_1_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a9671821710c18471041862a815f3ea8",
+                    "sha256": "7c13c27b9c1f8e18a22e7c9acba49affd60af4daff9592bd0c0a240e8ef496cf"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp310-cp310-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "a9671821710c18471041862a815f3ea8",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.6",
+                "size": 234990,
+                "upload_time": "2022-12-29T22:07:57",
+                "upload_time_iso_8601": "2022-12-29T22:07:57.945414Z",
+                "url": "https://files.pythonhosted.org/packages/05/5b/a97acc0c149a9721dfed27a92be2726c6e8dae34e298efe0fc69422dd9cf/pymp3-0.1.9-cp310-cp310-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7161af00f48eacbb055723f17bd46ac5",
+                    "sha256": "548dc0e1cb6f3a801d42eb9e13dd22d8df68d0957ada9050d35c6c1005534828"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp310-cp310-win32.whl",
+                "has_sig": false,
+                "md5_digest": "7161af00f48eacbb055723f17bd46ac5",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.6",
+                "size": 149386,
+                "upload_time": "2022-12-29T22:07:59",
+                "upload_time_iso_8601": "2022-12-29T22:07:59.248361Z",
+                "url": "https://files.pythonhosted.org/packages/e7/4f/3b3d134e9ef0bd38052d0dc713e65b42382230cd2d21b845c5e5a3e60134/pymp3-0.1.9-cp310-cp310-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b9a9e3f23fe285a0db1f51836e6427f0",
+                    "sha256": "da6d17301b5cc522bd577ceb012333ea251d539991e0ab5afbb5ec045da24d7b"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp310-cp310-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "b9a9e3f23fe285a0db1f51836e6427f0",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": ">=3.6",
+                "size": 172085,
+                "upload_time": "2022-12-29T22:08:00",
+                "upload_time_iso_8601": "2022-12-29T22:08:00.387472Z",
+                "url": "https://files.pythonhosted.org/packages/f3/fd/1b96e7da21734f8a90469d60a0cca901224facaf597e373ee0c8c405c178/pymp3-0.1.9-cp310-cp310-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "dc78894f2819760219eff73b2530fda2",
+                    "sha256": "ddbd6daa9df10affed83f41cde657d502b8bde7e6868cf4e8677adf7fa184124"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "dc78894f2819760219eff73b2530fda2",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.6",
+                "size": 231825,
+                "upload_time": "2022-12-29T22:08:01",
+                "upload_time_iso_8601": "2022-12-29T22:08:01.759468Z",
+                "url": "https://files.pythonhosted.org/packages/45/aa/bd1d0d4f31f48611d37c377d74749e9b90a06a83fa8544e957a8723999f8/pymp3-0.1.9-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "246f289d553f0200f31baf1ee36a0ff3",
+                    "sha256": "d296960ac268adcd6f459efa97f6fed7535e62982040fad754dfd21492e5b5f4"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "246f289d553f0200f31baf1ee36a0ff3",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.6",
+                "size": 236550,
+                "upload_time": "2022-12-29T22:08:03",
+                "upload_time_iso_8601": "2022-12-29T22:08:03.114714Z",
+                "url": "https://files.pythonhosted.org/packages/4e/7a/9586df0f2977d1d91f496d60ff0fcb91f4d4703b30445bfe94e0f9c9612f/pymp3-0.1.9-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "61aca38654d1925fd2530d25f280aaae",
+                    "sha256": "22f217abc0320b55fd03ab869a351964b313b0bb1c8ad499865c03f34e254b14"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp311-cp311-musllinux_1_1_i686.whl",
+                "has_sig": false,
+                "md5_digest": "61aca38654d1925fd2530d25f280aaae",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.6",
+                "size": 216659,
+                "upload_time": "2022-12-29T22:08:04",
+                "upload_time_iso_8601": "2022-12-29T22:08:04.249429Z",
+                "url": "https://files.pythonhosted.org/packages/c4/52/a58ebf5494205a899c2fa50730e8bd3ac1550e0b4789dd585327e5b5cf40/pymp3-0.1.9-cp311-cp311-musllinux_1_1_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "93f00250b1880cec3f35e422f6edb508",
+                    "sha256": "5f12bcfd8a82441d8d7239f9ca51120d1ff9e01301b7dbe997e250efded5a51b"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp311-cp311-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "93f00250b1880cec3f35e422f6edb508",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.6",
+                "size": 234995,
+                "upload_time": "2022-12-29T22:08:05",
+                "upload_time_iso_8601": "2022-12-29T22:08:05.483693Z",
+                "url": "https://files.pythonhosted.org/packages/1c/70/4e63e6a0d8838b486b39e550f8afdc2d89efcfc6d5e15e0ea89ee2d6747b/pymp3-0.1.9-cp311-cp311-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "edb6e34477a7d7cbc019f376e2fb81d7",
+                    "sha256": "b77e80437fe279ed15dbcefb6e698e0277a450c3d2aaa3bd70d0b5a9cabefa99"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp311-cp311-win32.whl",
+                "has_sig": false,
+                "md5_digest": "edb6e34477a7d7cbc019f376e2fb81d7",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.6",
+                "size": 149388,
+                "upload_time": "2022-12-29T22:08:06",
+                "upload_time_iso_8601": "2022-12-29T22:08:06.702362Z",
+                "url": "https://files.pythonhosted.org/packages/a0/2a/686ad57a3beb2cc2dab590b9cfcd64a689da2b8dc57ca53c25e0d89d6275/pymp3-0.1.9-cp311-cp311-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ea9fc2a3280b85a0093783d22ff36121",
+                    "sha256": "803589eae099c90709a6e8e8ea10694e80043186cdbc0d36cf00aad73d2226f4"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp311-cp311-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "ea9fc2a3280b85a0093783d22ff36121",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp311",
+                "requires_python": ">=3.6",
+                "size": 172084,
+                "upload_time": "2022-12-29T22:08:07",
+                "upload_time_iso_8601": "2022-12-29T22:08:07.863197Z",
+                "url": "https://files.pythonhosted.org/packages/0c/70/8393ef515cc8df1c894eff3a669befdaa9f5f8e2953d1d24e291732a7f91/pymp3-0.1.9-cp311-cp311-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "1db355575bcd95405fe9448895c98747",
+                    "sha256": "2af62211a8baf43ea39d2e576fbd691f71361160ecbcff9e46edc6f72f2f081e"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "1db355575bcd95405fe9448895c98747",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": ">=3.6",
+                "size": 231800,
+                "upload_time": "2022-12-29T22:08:09",
+                "upload_time_iso_8601": "2022-12-29T22:08:09.283072Z",
+                "url": "https://files.pythonhosted.org/packages/63/07/70348657604fb0a6855671605afbbd00c0d83522b4f0f675eebca341de29/pymp3-0.1.9-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6c61f2ef2d2b82c466c0d6c22526e3e5",
+                    "sha256": "c209f005e6e3c95a42ce12a795e4d1c0de05428d8b7fdcd9b43b381cf12b3cea"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp36-cp36m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "6c61f2ef2d2b82c466c0d6c22526e3e5",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": ">=3.6",
+                "size": 236578,
+                "upload_time": "2022-12-29T22:08:10",
+                "upload_time_iso_8601": "2022-12-29T22:08:10.661588Z",
+                "url": "https://files.pythonhosted.org/packages/04/e3/b91f136f5c6ea2f89d314b8a40d1012a5e793f5d25e56a0979b7bef6f03d/pymp3-0.1.9-cp36-cp36m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7c302581654271aa854998901219ad99",
+                    "sha256": "7926743b958162f821946ddf7d6e0184603d9f91d418574d507d9f9354665c8b"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp36-cp36m-musllinux_1_1_i686.whl",
+                "has_sig": false,
+                "md5_digest": "7c302581654271aa854998901219ad99",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": ">=3.6",
+                "size": 216621,
+                "upload_time": "2022-12-29T22:08:12",
+                "upload_time_iso_8601": "2022-12-29T22:08:12.034018Z",
+                "url": "https://files.pythonhosted.org/packages/2c/67/0aa671355361451552e5399589ec0b14fc050a94d1ab7960de042c936150/pymp3-0.1.9-cp36-cp36m-musllinux_1_1_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8cdd6abf464ab0d1f202ab0531f747d6",
+                    "sha256": "77c0c0e348f036c2a97cb3b244e0bc3b4783da7eb1477e9fd57753448c84cbef"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp36-cp36m-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "8cdd6abf464ab0d1f202ab0531f747d6",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": ">=3.6",
+                "size": 234982,
+                "upload_time": "2022-12-29T22:08:13",
+                "upload_time_iso_8601": "2022-12-29T22:08:13.233224Z",
+                "url": "https://files.pythonhosted.org/packages/f6/f4/4478580f3ebdb09a0753a08b45d0df3477e9b8a52111327bcb7850b75973/pymp3-0.1.9-cp36-cp36m-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b4ee056e0e082d356b0c5bd1ca26769f",
+                    "sha256": "95af8078c89bf220a02986597c1913743189e301dddbaaa5f30bd22720d66e6c"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp36-cp36m-win32.whl",
+                "has_sig": false,
+                "md5_digest": "b4ee056e0e082d356b0c5bd1ca26769f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": ">=3.6",
+                "size": 149324,
+                "upload_time": "2022-12-29T22:08:14",
+                "upload_time_iso_8601": "2022-12-29T22:08:14.425103Z",
+                "url": "https://files.pythonhosted.org/packages/45/b5/fb2557da3296f1c25d5d8bbe94f9b9d1ec66089dfefb30f5c47cd2defdb0/pymp3-0.1.9-cp36-cp36m-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7e96c9ee85693a988dce503abb261ec3",
+                    "sha256": "469473066154aaa9045ebaf8986b405bb869bfe05ca46b286258e51c386b2b4a"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp36-cp36m-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "7e96c9ee85693a988dce503abb261ec3",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp36",
+                "requires_python": ">=3.6",
+                "size": 172129,
+                "upload_time": "2022-12-29T22:08:15",
+                "upload_time_iso_8601": "2022-12-29T22:08:15.702545Z",
+                "url": "https://files.pythonhosted.org/packages/c6/0f/f769a61530c47d7942e63f6ae012b66286a551cb898e81af3b81c475c6c0/pymp3-0.1.9-cp36-cp36m-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7c744db5ff1f1504a78006c7b816e30e",
+                    "sha256": "30eec6b8c02a2f399e53265be57ee10c46820afc377a6d5811c6c3f858fd0818"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "7c744db5ff1f1504a78006c7b816e30e",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.6",
+                "size": 231789,
+                "upload_time": "2022-12-29T22:08:16",
+                "upload_time_iso_8601": "2022-12-29T22:08:16.840443Z",
+                "url": "https://files.pythonhosted.org/packages/fb/38/6669fa55c1ff6bda29d368e5c4d205e40575afb9bca5a0af5ed08245880d/pymp3-0.1.9-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a000646e4d6c49f43898a41e7c2759d6",
+                    "sha256": "2afd0f368a5598352b1ab9c2e59e81960fea300aadbd6d5da59d1412f6288fed"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "a000646e4d6c49f43898a41e7c2759d6",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.6",
+                "size": 236562,
+                "upload_time": "2022-12-29T22:08:17",
+                "upload_time_iso_8601": "2022-12-29T22:08:17.982458Z",
+                "url": "https://files.pythonhosted.org/packages/6c/fc/485001de4eeae10f6aae89245748926d0d29f6abbe333fc2f73182c24f89/pymp3-0.1.9-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3bd3d21014d2ea05be7234a293dfa809",
+                    "sha256": "703e1de0e599e853f51de8378bfd28e03fc4032301caa849467b24c0b5c1b4c6"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp37-cp37m-musllinux_1_1_i686.whl",
+                "has_sig": false,
+                "md5_digest": "3bd3d21014d2ea05be7234a293dfa809",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.6",
+                "size": 216607,
+                "upload_time": "2022-12-29T22:08:19",
+                "upload_time_iso_8601": "2022-12-29T22:08:19.145028Z",
+                "url": "https://files.pythonhosted.org/packages/83/40/97e9e882068acdb515220b9fa39d3c0a5e1129e076a032613061840b6c3a/pymp3-0.1.9-cp37-cp37m-musllinux_1_1_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d4b00a2ccbf997fb43117877723061c0",
+                    "sha256": "397f289b8ab9bf152d21dba791485bcd92e3a799bb2e2d4994ba1f95ae6b75e6"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp37-cp37m-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "d4b00a2ccbf997fb43117877723061c0",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.6",
+                "size": 234967,
+                "upload_time": "2022-12-29T22:08:20",
+                "upload_time_iso_8601": "2022-12-29T22:08:20.542705Z",
+                "url": "https://files.pythonhosted.org/packages/7d/04/08212bbf751e1b385a80915416744cef754899fd8aa5469f0d464bd5e765/pymp3-0.1.9-cp37-cp37m-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "22d56fcb4cd0cf8f6cd8088002996ea2",
+                    "sha256": "94010fac06f01f0b2c64a5127eedc4b06172e3d24ac35312b8709e1f17955ba1"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp37-cp37m-win32.whl",
+                "has_sig": false,
+                "md5_digest": "22d56fcb4cd0cf8f6cd8088002996ea2",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.6",
+                "size": 149346,
+                "upload_time": "2022-12-29T22:08:21",
+                "upload_time_iso_8601": "2022-12-29T22:08:21.678321Z",
+                "url": "https://files.pythonhosted.org/packages/98/9a/2ef22d249a4f4d01b74463cdbb5b81ffbeb7585bad5cf52281c620e7fb9e/pymp3-0.1.9-cp37-cp37m-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "19b48d7cbe473c773af1d2b6bf694229",
+                    "sha256": "dd411fa59f00101ccf78650d35dd4a71c18704a5e6dfa0325f019492b705cc9d"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp37-cp37m-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "19b48d7cbe473c773af1d2b6bf694229",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp37",
+                "requires_python": ">=3.6",
+                "size": 172148,
+                "upload_time": "2022-12-29T22:08:22",
+                "upload_time_iso_8601": "2022-12-29T22:08:22.856125Z",
+                "url": "https://files.pythonhosted.org/packages/93/c2/fda06dd27af9770a82a5ef9a5a6b14768659fef060bb32d9c82335c14669/pymp3-0.1.9-cp37-cp37m-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "11273c844029a46aadcab99482b04441",
+                    "sha256": "fded6219be629f41b3dda6648dc3b19b2b1bcabc5b2e28291892b619cba98fd0"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "11273c844029a46aadcab99482b04441",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.6",
+                "size": 231828,
+                "upload_time": "2022-12-29T22:08:23",
+                "upload_time_iso_8601": "2022-12-29T22:08:23.926157Z",
+                "url": "https://files.pythonhosted.org/packages/a4/2f/7caa16141413ec1b242c13e59a340d4cf632e475ae2eb7e2fbe48c784630/pymp3-0.1.9-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "77de22accd93b9a51321b87c4575ccc8",
+                    "sha256": "a5253911c24d2cea87867e5e6c8e98fa95e711dbfa826c42b9dab7124f06486a"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "77de22accd93b9a51321b87c4575ccc8",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.6",
+                "size": 236551,
+                "upload_time": "2022-12-29T22:08:25",
+                "upload_time_iso_8601": "2022-12-29T22:08:25.168850Z",
+                "url": "https://files.pythonhosted.org/packages/a4/9f/f8e4d26eec51b70ed8bd0123c03ac39af8d9a57eb655c83acf1e2604ea4e/pymp3-0.1.9-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "76fdc7ad504f4d4c0ca5d03faf872d82",
+                    "sha256": "57c8dd29cca283a3a049001938becb29b349208f2684b5304e5d943bf00d317c"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp38-cp38-musllinux_1_1_i686.whl",
+                "has_sig": false,
+                "md5_digest": "76fdc7ad504f4d4c0ca5d03faf872d82",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.6",
+                "size": 216654,
+                "upload_time": "2022-12-29T22:08:26",
+                "upload_time_iso_8601": "2022-12-29T22:08:26.266063Z",
+                "url": "https://files.pythonhosted.org/packages/7b/4c/df54bbbbc175e403fa3cab4354f4f2d206ca564705e5828b72cd9fcb6b1c/pymp3-0.1.9-cp38-cp38-musllinux_1_1_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "038df8aa334a1703815904dd5338477f",
+                    "sha256": "39a9c2cc828f818857b140a4fe15eaf09d183bac3636e91dd727e2b83532a6b4"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp38-cp38-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "038df8aa334a1703815904dd5338477f",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.6",
+                "size": 234993,
+                "upload_time": "2022-12-29T22:08:27",
+                "upload_time_iso_8601": "2022-12-29T22:08:27.692719Z",
+                "url": "https://files.pythonhosted.org/packages/8e/88/afcfc5df6c6798a1a70f198d38f962930cc985883af825d60536623bb81a/pymp3-0.1.9-cp38-cp38-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "2069bfe6388d81037b86d203b674267c",
+                    "sha256": "e74944fe30f48ca0249a32f78a2e98cf5c641f8aad4d923a06d8800a1bf48b11"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp38-cp38-win32.whl",
+                "has_sig": false,
+                "md5_digest": "2069bfe6388d81037b86d203b674267c",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.6",
+                "size": 149381,
+                "upload_time": "2022-12-29T22:08:28",
+                "upload_time_iso_8601": "2022-12-29T22:08:28.852802Z",
+                "url": "https://files.pythonhosted.org/packages/de/1a/6467077b53390ac0226ed4434c140fe506c05ab3e10cc2a4e4b98049e84e/pymp3-0.1.9-cp38-cp38-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "291e751d70fbe0391ab482125dbb6a54",
+                    "sha256": "3920ff97815a601296e8405c11e168d78271b7d2cf867ce16dddecebc1c151b1"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp38-cp38-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "291e751d70fbe0391ab482125dbb6a54",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": ">=3.6",
+                "size": 172095,
+                "upload_time": "2022-12-29T22:08:30",
+                "upload_time_iso_8601": "2022-12-29T22:08:30.158979Z",
+                "url": "https://files.pythonhosted.org/packages/c0/1e/7725c7e8b75c4f098c660439bdc9f53b11f8bf1c39958cc437653409a6c3/pymp3-0.1.9-cp38-cp38-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "eacad2b17176a87b607f8ebc6495eecb",
+                    "sha256": "5f720c588d2f2353e21dc8ebae19ace39a799a15a9819e2270f46159764f0c20"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "eacad2b17176a87b607f8ebc6495eecb",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.6",
+                "size": 231827,
+                "upload_time": "2022-12-29T22:08:31",
+                "upload_time_iso_8601": "2022-12-29T22:08:31.341238Z",
+                "url": "https://files.pythonhosted.org/packages/7a/96/a71cad3c2d4737cf00b1772d2736c19dd5d1fcdb5c2c1a856636390152ca/pymp3-0.1.9-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b835401c245b76e6ef954937afc3fa9b",
+                    "sha256": "b4e6085223bbb19455a52da0ce98133aee5375041af9c028008a7269bcf05130"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "b835401c245b76e6ef954937afc3fa9b",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.6",
+                "size": 236549,
+                "upload_time": "2022-12-29T22:08:32",
+                "upload_time_iso_8601": "2022-12-29T22:08:32.528549Z",
+                "url": "https://files.pythonhosted.org/packages/de/cf/3fec9cba2253d238de8fb29c6522e9a0fef39bb8a594e91569051f5083bb/pymp3-0.1.9-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4f4ebf985907f8c5a47a91b50fd4b5be",
+                    "sha256": "7b36dc08030fb39aeeaf279a51ae38b860fe0ea1242dd06be09e2eaae1b52ebd"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp39-cp39-musllinux_1_1_i686.whl",
+                "has_sig": false,
+                "md5_digest": "4f4ebf985907f8c5a47a91b50fd4b5be",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.6",
+                "size": 216655,
+                "upload_time": "2022-12-29T22:08:33",
+                "upload_time_iso_8601": "2022-12-29T22:08:33.920269Z",
+                "url": "https://files.pythonhosted.org/packages/cd/6d/3c3dd04f63bb43e03d37f7f68e257360d4b8f3fbbdbfd7e155f2d54bb1d2/pymp3-0.1.9-cp39-cp39-musllinux_1_1_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a215115b6563a0193abb8407056213a7",
+                    "sha256": "81560fddef0336a517162d6058d2d740549b191e9fd2fb0734cad60cb73d9c5e"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp39-cp39-musllinux_1_1_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "a215115b6563a0193abb8407056213a7",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.6",
+                "size": 234993,
+                "upload_time": "2022-12-29T22:08:35",
+                "upload_time_iso_8601": "2022-12-29T22:08:35.444236Z",
+                "url": "https://files.pythonhosted.org/packages/1e/ca/786007c5c6a77d33fd4cc44c59105218379fd32f608d29d657a490a27306/pymp3-0.1.9-cp39-cp39-musllinux_1_1_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "b859d37b8b6669c24e86457c5ab91395",
+                    "sha256": "f07219ac62e60e27e67913a39a7d70ff66bdf492b5d59445236719e279db8b6b"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp39-cp39-win32.whl",
+                "has_sig": false,
+                "md5_digest": "b859d37b8b6669c24e86457c5ab91395",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.6",
+                "size": 149396,
+                "upload_time": "2022-12-29T22:08:36",
+                "upload_time_iso_8601": "2022-12-29T22:08:36.583197Z",
+                "url": "https://files.pythonhosted.org/packages/c4/23/965de4a6531eb7c082308fe6c6baaf7c19411fa777e06efcffe8005ed5ac/pymp3-0.1.9-cp39-cp39-win32.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8763258f2f9b72d676343c9b917f7c50",
+                    "sha256": "cf6efd9f9dc0308cdf14e4c7f5642d97658ba6872ce897dc7744459a0ba294d5"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-cp39-cp39-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "8763258f2f9b72d676343c9b917f7c50",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp39",
+                "requires_python": ">=3.6",
+                "size": 172099,
+                "upload_time": "2022-12-29T22:08:37",
+                "upload_time_iso_8601": "2022-12-29T22:08:37.664589Z",
+                "url": "https://files.pythonhosted.org/packages/98/e1/23bb3e2a6b9dea6d6af771ed9ec39ee33703ffbf03eb908b31bf6b6310b2/pymp3-0.1.9-cp39-cp39-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "04e787e54416545e7b59f51c70746b6a",
+                    "sha256": "a91d32cbc8f523736929adc6d5347e654540ad89763939ffbff9d38391409b27"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "04e787e54416545e7b59f51c70746b6a",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp37",
+                "requires_python": ">=3.6",
+                "size": 231909,
+                "upload_time": "2022-12-29T22:08:38",
+                "upload_time_iso_8601": "2022-12-29T22:08:38.886458Z",
+                "url": "https://files.pythonhosted.org/packages/98/1b/b4c9c90e1aa337596b32bcca911ff6193e5daf74301925f4a94ca477b865/pymp3-0.1.9-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "97c562456f07da1f3511050931bb499e",
+                    "sha256": "589302dc214007ef27db05d4e50a5ca3db0375be95ef7ad2d59618100dd811fc"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-pp37-pypy37_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "97c562456f07da1f3511050931bb499e",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp37",
+                "requires_python": ">=3.6",
+                "size": 236619,
+                "upload_time": "2022-12-29T22:08:40",
+                "upload_time_iso_8601": "2022-12-29T22:08:40.065002Z",
+                "url": "https://files.pythonhosted.org/packages/b3/fb/8c0389c9f327a58a055cc15d59525c667778f18e8431bcdc8da9c66eb42e/pymp3-0.1.9-pp37-pypy37_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f531bc56ad8e1ea250fdcc61572829ff",
+                    "sha256": "b4f70385ad0ef89bcd28ff776ef970b67b27560e8213ba968917319c3b8d6d64"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-pp37-pypy37_pp73-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "f531bc56ad8e1ea250fdcc61572829ff",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp37",
+                "requires_python": ">=3.6",
+                "size": 172183,
+                "upload_time": "2022-12-29T22:08:41",
+                "upload_time_iso_8601": "2022-12-29T22:08:41.259418Z",
+                "url": "https://files.pythonhosted.org/packages/03/c9/57d0b92d442c2735633dd8d80ce7fb2e658e60b3aa61d751a2d24f88932c/pymp3-0.1.9-pp37-pypy37_pp73-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "07e4190da542292d359d98772ebf67be",
+                    "sha256": "c1b9cc15efebb97bb6e15c57abd9da0ab8fdf4b9feeb9a869b2eb4a9b71ef880"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "07e4190da542292d359d98772ebf67be",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp38",
+                "requires_python": ">=3.6",
+                "size": 231913,
+                "upload_time": "2022-12-29T22:08:42",
+                "upload_time_iso_8601": "2022-12-29T22:08:42.677782Z",
+                "url": "https://files.pythonhosted.org/packages/54/10/6a420a4ea2cbd52eb7dc4f0643640e65d9edb9b12bd19743b06f9819fa1f/pymp3-0.1.9-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8b4a98eb6a594e07364b2a095e0ad9a4",
+                    "sha256": "7ce7b4aa898f7d9fc384c07865123a15ba2d91239ff1f8dd4beef44517c6299b"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-pp38-pypy38_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "8b4a98eb6a594e07364b2a095e0ad9a4",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp38",
+                "requires_python": ">=3.6",
+                "size": 236619,
+                "upload_time": "2022-12-29T22:08:43",
+                "upload_time_iso_8601": "2022-12-29T22:08:43.800958Z",
+                "url": "https://files.pythonhosted.org/packages/a3/52/0987387b6c444b353acfbf8bd99b98f097a931eee15ec00d81df84105a37/pymp3-0.1.9-pp38-pypy38_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "51f6db52f04b78a36836bb9253745bf6",
+                    "sha256": "87a3720d9d4301df27a2f1aa9ce76fb4ef5028bb1ad6051bbb48f838a949dc30"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-pp38-pypy38_pp73-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "51f6db52f04b78a36836bb9253745bf6",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp38",
+                "requires_python": ">=3.6",
+                "size": 172192,
+                "upload_time": "2022-12-29T22:08:45",
+                "upload_time_iso_8601": "2022-12-29T22:08:45.505664Z",
+                "url": "https://files.pythonhosted.org/packages/96/31/33c2da3dce01564e576f98f8de48fa52bb5beb1636da343b13366198c2f0/pymp3-0.1.9-pp38-pypy38_pp73-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "523a48295f6d77cfb87a52e6e5b145f0",
+                    "sha256": "9c979cc036e5794a4c5e56929345b5cef221c47c47648376c73d01a49d325557"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "has_sig": false,
+                "md5_digest": "523a48295f6d77cfb87a52e6e5b145f0",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp39",
+                "requires_python": ">=3.6",
+                "size": 231917,
+                "upload_time": "2022-12-29T22:08:46",
+                "upload_time_iso_8601": "2022-12-29T22:08:46.992588Z",
+                "url": "https://files.pythonhosted.org/packages/da/70/e6de7583e7d281a1a6e13c1ed951b63b4a35b994abb816e0bf26f7b23c7c/pymp3-0.1.9-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fe513e4aff47a877280f9e07df7b2520",
+                    "sha256": "39c6052a3040ea1abbe11484b8e02ec438f4d62fe5ec775641f2ffaf8d151084"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-pp39-pypy39_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "has_sig": false,
+                "md5_digest": "fe513e4aff47a877280f9e07df7b2520",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp39",
+                "requires_python": ">=3.6",
+                "size": 236618,
+                "upload_time": "2022-12-29T22:08:48",
+                "upload_time_iso_8601": "2022-12-29T22:08:48.044949Z",
+                "url": "https://files.pythonhosted.org/packages/0d/b0/77bea0dfa1eb5a9da6ba193282043e52a85f571bb576c9c1414801406b85/pymp3-0.1.9-pp39-pypy39_pp73-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d86d60270ea4b71a2b62866c36d4e2be",
+                    "sha256": "634c28fe9e7dfe509fd0785076f8b683ffb5bf6fa80539813673082fe476d31d"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9-pp39-pypy39_pp73-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "d86d60270ea4b71a2b62866c36d4e2be",
+                "packagetype": "bdist_wheel",
+                "python_version": "pp39",
+                "requires_python": ">=3.6",
+                "size": 172194,
+                "upload_time": "2022-12-29T22:08:49",
+                "upload_time_iso_8601": "2022-12-29T22:08:49.257359Z",
+                "url": "https://files.pythonhosted.org/packages/15/62/ee5ebcd52a2ad392e9995d6bb1876e3e851d7101850f47c2c96e1c2cb168/pymp3-0.1.9-pp39-pypy39_pp73-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5ada14e8c07714d3dcbecfc9252deab9",
+                    "sha256": "61d1ec15b14dfc4239c0d8b2ca7b7d5607900deeec33c0349975458d3a15562a"
+                },
+                "downloads": -1,
+                "filename": "pymp3-0.1.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "5ada14e8c07714d3dcbecfc9252deab9",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 25530,
+                "upload_time": "2022-12-29T22:08:50",
+                "upload_time_iso_8601": "2022-12-29T22:08:50.354894Z",
+                "url": "https://files.pythonhosted.org/packages/35/4a/cc176157109b7566016c1965a0d0abd05a2b17d63a7e4714023b279eb551/pymp3-0.1.9.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

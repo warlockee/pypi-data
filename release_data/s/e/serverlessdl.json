@@ -36,7 +36,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16199511,
+        "last_serial": 16252882,
         "urls": [
             {
                 "comment_text": "",
@@ -87,7 +87,6 @@
             "author_email": "nwang@futurewei.com",
             "bugtrack_url": null,
             "classifiers": [],
-            "description": "# KubeML\n\nKubeML provides wrappers and tools that allow the interaction with user code written in PyTorch\nwith the distributed training and serving functionality offered by KubeML\n\n## Installing\n\nInstall and update using pip\n\n```text\npip install kubeml\n```\n\n## Usage\n\nThe main functionality offered is in the shape of Models and Datasets. A KubeDataset is a convenience wrapper over a\ntorch dataset which, like when using torch, users extend with their own functionality to adapt to their data. A simple\nexample of how to create a dataset to train with KubeML is seen below.\n\n### The Dataset class\n\n```python\nfrom kubeml import KubeDataset\nfrom torchvision import transforms\n\nclass MnistDataset(KubeDataset):\n\n    def __init__(self):\n        super().__init__(\"mnist\")\n        self.transf = transforms.Compose([\n            transforms.ToTensor(),\n            transforms.Normalize((0.1307,), (0.3081,))\n        ])\n\n    def __getitem__(self, index):\n        x = self.data[index]\n        y = self.labels[index]\n\n        return self.transf(x), y.astype('int64')\n\n    def __len__(self):\n        return len(self.data)\n```\n\nThe user only needs to provide to the constructor the name of the dataset as was uploaded to the KubeML storage, \nthe dataset will take care of fetching only the corresponding minibatches of data so that the network can be trained\nwith a model parallel approach.\n\nAs with a normal torch dataset, the user must implement the `__getitem__` and `__len__` methods to iterate over the dataset.\nThe dataset exposes two member variables:\n1. `data` Holds the features used as input to the network\n2. `labels` Holds the output labels\n\nBoth are saved as numpy arrays.\n\n### The Model class\n\nThe other main component is the model class. This abstract class abstracts the complexity of distributing the training\namong multiple workers, nodes and GPUs. The constructor only takes a torch model and the dataset as a parameter. The user only needs\nto implement the abstract methods of the class, `train`, `infer`, `validate` `init` and `configure_optimizers` with the behavior they\nwant from the network.\n\nThe Kubenet exposes the `batch_size` and `lr` arguments which the user can change when starting the train job\n\n\n```python\nfrom kubeml import KubeModel\nimport torch\nimport torch.nn as nn\nimport numpy as np\n\nclass KubeLeNet(KubeModel):\n\n    def __init__(self, network, dataset):\n        super().__init__(network, dataset, gpu=True)\n    \n    @abstractmethod\n    def configure_optimizers(self) -> torch.optim.Optimizer:\n        pass\n\n    # Train trains the model for an epoch and returns the loss\n    @abstractmethod\n    def train(self, x, y, batch_index) -> float:\n        pass\n    \n    # Validate validates the model on the test data and returns a tuple\n    # of (accuracy, loss)\n    @abstractmethod\n    def validate(self, x, y, batch_index) -> Tuple[float, float]:\n        pass\n    \n    # Infer receives the data points or images as a list and returns \n    # the predictions of the network\n    @abstractmethod\n    def infer(self, data: List[Any]) -> Union[torch.Tensor, np.ndarray, List[float]]:\n        pass\n    \n    # Init initializes the model in a particular way\n    @abstractmethod\n    def init(self, model: nn.Module):\n       pass\n\n```\n\nAn example implementation of the `init` and `train` functions can be done as follows\n\n```python\n    # Train trains the model for an epoch and returns the loss\n     def train(self, x, y, batch_index) -> float:\n        # define the device for training and load the data\n        loss_fn = nn.CrossEntropyLoss()\n        total_loss = 0\n    \n        self.optimizer.zero_grad()\n        output = self(x)\n    \n        # compute loss and backprop\n        # logging.debug(f'Shape of the output is {output.shape}, y is {y.shape}')\n        loss = loss_fn(output, y)\n        loss.backward()\n    \n        # step with the optimizer\n        self.optimizer.step()\n        total_loss += loss.item()\n    \n        if batch_index % 10 == 0:\n            logging.info(f\"Index {batch_index}, error: {loss.item()}\")\n    \n        return total_loss\n    \n    # Intialize the network as a pytorch model\n    def init(self, model):\n        def init_weights(m: nn.Module):\n            if isinstance(m, nn.Conv2d):\n                nn.init.xavier_uniform_(m.weight)\n                nn.init.constant_(m.bias, 0.01)\n            if isinstance(m, nn.Linear):\n                nn.init.xavier_uniform_(m.weight)\n                nn.init.constant_(m.bias, 0.01)\n    \n        model.apply(init_weights)\n```\n\n## Writing the training function\n\nAt the moment of creating a serverless function which will serve as a worker for the model training process, the \nsteps are simple, simply write the code initializing the network in the `main` method of the function, and call\n`start` on the KubeML model.\n\n```python\ndef main():\n    # Create the PyTorch Model\n    lenet = LeNet()\n    dataset = MnistDataset()\n    kubenet = KubeLeNet(lenet, dataset)\n    return kubenet.start()\n```\n\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -119,7 +118,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16199511,
+        "last_serial": 16252882,
         "urls": [
             {
                 "comment_text": "",
@@ -158,6 +157,827 @@
                 "upload_time": "2022-12-23T18:23:28",
                 "upload_time_iso_8601": "2022-12-23T18:23:28.416289Z",
                 "url": "https://files.pythonhosted.org/packages/42/5c/0162b125a661b0385c6240db48824666543f385138ca8c623408c32ebcae/serverlessdl-0.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3": {
+        "info": {
+            "author": "Ning Wang originally from Diego Albo Mart\u00ednez: diego.albo.martinez@gmail.com",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.3/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252882,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f149fde9f76db4cd8141144dbb88f6bf",
+                    "sha256": "d1618799f523d950c82dee4c81aff4a5c6d689144d13fb996a8e1bccadede3b5"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f149fde9f76db4cd8141144dbb88f6bf",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 13784,
+                "upload_time": "2022-12-29T15:28:01",
+                "upload_time_iso_8601": "2022-12-29T15:28:01.484319Z",
+                "url": "https://files.pythonhosted.org/packages/a7/05/5927d89ff9d8f89e0fe96e6014b88a7a6da5d5a3318a0e55e027be7e636a/serverlessdl-0.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ed66b1ea641262355b1eb938b3c82585",
+                    "sha256": "4e7ffbebcaed94bce295cad50932e8a2e238b0eef88f3e4dabf27c578e7147c2"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ed66b1ea641262355b1eb938b3c82585",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 13792,
+                "upload_time": "2022-12-29T15:28:03",
+                "upload_time_iso_8601": "2022-12-29T15:28:03.236044Z",
+                "url": "https://files.pythonhosted.org/packages/15/4f/070095131b5d2de2325cd6ebfd059118a8e42df01186730e35c258717063/serverlessdl-0.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4": {
+        "info": {
+            "author": "Ning Wang originally from Diego Albo Mart\u00ednez: diego.albo.martinez@gmail.com",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.4/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252882,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "450062f731f81aec3be9176b17fe903b",
+                    "sha256": "c1cb69945f6b2b5dc82eaf1c58a01e670b69ba78c670de16862ceba2ef8d76da"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "450062f731f81aec3be9176b17fe903b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 13498,
+                "upload_time": "2022-12-29T18:19:20",
+                "upload_time_iso_8601": "2022-12-29T18:19:20.099472Z",
+                "url": "https://files.pythonhosted.org/packages/9e/df/1a48c487730c25f315e3e00346afab9408e452db838161a54e84adc75e40/serverlessdl-0.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cdd33faef30bbef7b802461181d0706e",
+                    "sha256": "4deba42a40d0f4171dd6a8f551e2fd5b3da343d3a2dacdc82ab5ed418d8b2e89"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "cdd33faef30bbef7b802461181d0706e",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 13480,
+                "upload_time": "2022-12-29T18:19:21",
+                "upload_time_iso_8601": "2022-12-29T18:19:21.967088Z",
+                "url": "https://files.pythonhosted.org/packages/d6/b9/f0854612612b2ffc66502057f397ed8fc41178fb04a556e2e336a9f0873a/serverlessdl-0.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.1": {
+        "info": {
+            "author": "Ning Wang originally from Diego Albo Mart\u00ednez: diego.albo.martinez@gmail.com",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.4.1/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.4.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252882,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "f78d48b07fdbf19d3b8401ee70668e8c",
+                    "sha256": "8ce8cc88e7f4da6345a9ebdddf5eca8ec40928973d11b653e1f7f2b32052408b"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "f78d48b07fdbf19d3b8401ee70668e8c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 13523,
+                "upload_time": "2022-12-29T18:49:18",
+                "upload_time_iso_8601": "2022-12-29T18:49:18.279341Z",
+                "url": "https://files.pythonhosted.org/packages/8e/a4/745102ebcbbc03206a3236536b4e5cb490e499dfbedc3ac4eaa6211adc32/serverlessdl-0.4.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "dedc6c1c80356da014c038052025b834",
+                    "sha256": "2ca79c33e90b40d761c88a9ecc04b3e40bbe1e7d1dbe6db97962db6a86febfb9"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "dedc6c1c80356da014c038052025b834",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 13519,
+                "upload_time": "2022-12-29T18:50:00",
+                "upload_time_iso_8601": "2022-12-29T18:50:00.730927Z",
+                "url": "https://files.pythonhosted.org/packages/b9/f8/9445ad63828c07bf547eca6d3584de8df65de03e15d22a14fa90c91b998f/serverlessdl-0.4.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.2": {
+        "info": {
+            "author": "Ning Wang originally from Diego Albo Mart\u00ednez: diego.albo.martinez@gmail.com",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.4.2/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.4.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252882,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d0e3784891c4e34a5060e4e7c56097ce",
+                    "sha256": "1ee470dc90740c72245db817998f659964a0b444c9ae9d4e3eb5b1390cc21e03"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "d0e3784891c4e34a5060e4e7c56097ce",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 13537,
+                "upload_time": "2022-12-29T21:12:29",
+                "upload_time_iso_8601": "2022-12-29T21:12:29.565349Z",
+                "url": "https://files.pythonhosted.org/packages/23/ac/3c7249acb5fb1190a2182b4ac50318bf4aef3e47772bb9fa9c0710b4dc4e/serverlessdl-0.4.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6f76ce967a70295b4c3436e42bdfaf27",
+                    "sha256": "d2e8f13f5efd56c5ac3e120d7782ad44d1e79d7a18dbe0e0676756c881b0919d"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "6f76ce967a70295b4c3436e42bdfaf27",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 13525,
+                "upload_time": "2022-12-29T21:12:31",
+                "upload_time_iso_8601": "2022-12-29T21:12:31.345532Z",
+                "url": "https://files.pythonhosted.org/packages/3c/14/8df5936223972614f873089b8b8e02aece865ed6639543db6d4be66b1e47/serverlessdl-0.4.2.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.3": {
+        "info": {
+            "author": "Ning Wang originally from Diego Albo Mart\u00ednez: diego.albo.martinez@gmail.com",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.4.3/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.4.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252882,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7893fc84a13e6106898fec1228f44ce5",
+                    "sha256": "c628ad37b41c9a63559541c86598f305dbc72e5fce05779c15ca4c7c01ce7717"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "7893fc84a13e6106898fec1228f44ce5",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 13678,
+                "upload_time": "2022-12-29T21:39:54",
+                "upload_time_iso_8601": "2022-12-29T21:39:54.138800Z",
+                "url": "https://files.pythonhosted.org/packages/bb/ea/576a94cc76628a8cebce19c112b75c3b34fbd8d288469a5aae198bf953f8/serverlessdl-0.4.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "16cf78316288365f233038864f6279b1",
+                    "sha256": "53cf26b61608d9b3018aa453e064d8622f5287a189e7033ee910b8449165ba11"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "16cf78316288365f233038864f6279b1",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 13653,
+                "upload_time": "2022-12-29T21:39:55",
+                "upload_time_iso_8601": "2022-12-29T21:39:55.611678Z",
+                "url": "https://files.pythonhosted.org/packages/6f/1a/b3f2cce7f4bf8dae1770c12e785bafb1416e6cdba37533724039df8bcaab/serverlessdl-0.4.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.4": {
+        "info": {
+            "author": "Ning Wang originally from Diego Albo Mart\u00ednez: diego.albo.martinez@gmail.com",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.4.4/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.4.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252882,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5cc14977c01a40cabf2640b248abd20b",
+                    "sha256": "dcb691ef07a58dd3e609d014a1039e626c0201ddac3091172b66cb65cfa2f214"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "5cc14977c01a40cabf2640b248abd20b",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 11854,
+                "upload_time": "2022-12-29T22:11:03",
+                "upload_time_iso_8601": "2022-12-29T22:11:03.786463Z",
+                "url": "https://files.pythonhosted.org/packages/21/55/630a7ba24f11ee0fe74cfe3bafe6abb8ddc4bd6011b17f810d60c32d23d4/serverlessdl-0.4.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3e558e6567f9eeb133241c3a1f92b92d",
+                    "sha256": "a6e3015ab9edf2ac682477654ee82eeea05a16aa5d7fc63d6a4daadbf42e7938"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "3e558e6567f9eeb133241c3a1f92b92d",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 10517,
+                "upload_time": "2022-12-29T22:11:05",
+                "upload_time_iso_8601": "2022-12-29T22:11:05.491756Z",
+                "url": "https://files.pythonhosted.org/packages/d2/59/85fe11a0f1a808d83a9929625dc252937d7b9cb637cb7c1afda2aeec9af5/serverlessdl-0.4.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.5": {
+        "info": {
+            "author": "Ning Wang modified from Kubeml",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.4.5/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.4.5",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252882,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3e60cb55ef0787d7d77bc31da88901ab",
+                    "sha256": "6cb37891a287f64453c3b4846cce53eaa091c828783f0e4ab887992e4d086e5a"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.5-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "3e60cb55ef0787d7d77bc31da88901ab",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 11818,
+                "upload_time": "2022-12-29T22:24:42",
+                "upload_time_iso_8601": "2022-12-29T22:24:42.826759Z",
+                "url": "https://files.pythonhosted.org/packages/3b/e3/2ab56ae155cce122c9f6e2b94d24f6b9b2b211ef4445ad15c89885116cad/serverlessdl-0.4.5-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "709f612efb312ff4da626fe65c1e563d",
+                    "sha256": "c7e4b78b9d5d4d78fad29490a264e4cd5017d374cc30c9a6b2ea903482e6f1e7"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.5.tar.gz",
+                "has_sig": false,
+                "md5_digest": "709f612efb312ff4da626fe65c1e563d",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 10456,
+                "upload_time": "2022-12-29T22:24:44",
+                "upload_time_iso_8601": "2022-12-29T22:24:44.701561Z",
+                "url": "https://files.pythonhosted.org/packages/30/1e/6d327f47d0277e71571e2e6379270d934d15536df12c81aa86bf71fe8ff5/serverlessdl-0.4.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.7": {
+        "info": {
+            "author": "Ning Wang modified from Kubeml",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.4.7/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.4.7",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252882,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6a590e6a3d3f4c6ed6addad289648074",
+                    "sha256": "0e77aec46a9780a07b93f7bc15a13faaaee4a271a88162402f43afaa7eacb9ff"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.7-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "6a590e6a3d3f4c6ed6addad289648074",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 11817,
+                "upload_time": "2022-12-29T22:52:27",
+                "upload_time_iso_8601": "2022-12-29T22:52:27.315667Z",
+                "url": "https://files.pythonhosted.org/packages/77/5f/3b809b612b1b2ec98694fcec7a4f396f0044aff04a756cf071f016a7cbc8/serverlessdl-0.4.7-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "d4cc4cc3a7bb296f0e4e4e4b463949a2",
+                    "sha256": "2548414e72225ec214deed4bb86deadc18c9f9ec53c0d1addfadebe05c7ad058"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.7.tar.gz",
+                "has_sig": false,
+                "md5_digest": "d4cc4cc3a7bb296f0e4e4e4b463949a2",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 10442,
+                "upload_time": "2022-12-29T22:52:28",
+                "upload_time_iso_8601": "2022-12-29T22:52:28.827019Z",
+                "url": "https://files.pythonhosted.org/packages/f5/4f/81f531a447d17e5c8cf9cf934a888f2be0f81a7cd48e25a95b2c1c091e01/serverlessdl-0.4.7.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.8": {
+        "info": {
+            "author": "Ning Wang modified from Kubeml",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.4.8/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.4.8",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252882,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "5a374ce1921cb46982015f5e862db3f8",
+                    "sha256": "ac19cec921d575e71119d94b173333bbf401db11831760914d705f018a75b399"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.8-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "5a374ce1921cb46982015f5e862db3f8",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 11811,
+                "upload_time": "2022-12-29T23:28:36",
+                "upload_time_iso_8601": "2022-12-29T23:28:36.514141Z",
+                "url": "https://files.pythonhosted.org/packages/2f/f8/2aa67c166b8a6ba87b4bb18cd878f58baf672ef4949d99c2e1fe7cdc10f1/serverlessdl-0.4.8-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "fa240e75ce3b2dc1409439f14ddb2836",
+                    "sha256": "f9deb45ec7963e2874cdbe83f0ca965db330133d6b769f964b184ef12a407fea"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.8.tar.gz",
+                "has_sig": false,
+                "md5_digest": "fa240e75ce3b2dc1409439f14ddb2836",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 10443,
+                "upload_time": "2022-12-29T23:28:37",
+                "upload_time_iso_8601": "2022-12-29T23:28:37.882908Z",
+                "url": "https://files.pythonhosted.org/packages/5a/65/8b686a2c149d9240521eb602b6b7f9fb13f9fe830a6d52d67f51e998a0bb/serverlessdl-0.4.8.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.4.9": {
+        "info": {
+            "author": "Ning Wang modified from Kubeml",
+            "author_email": "nwang@futurewei.com",
+            "bugtrack_url": null,
+            "classifiers": [],
+            "description": "### main updates\nremove model saving at the very beginnaing\n\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "serverlessdl",
+            "package_url": "https://pypi.org/project/serverlessdl/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/serverlessdl/",
+            "project_urls": null,
+            "release_url": "https://pypi.org/project/serverlessdl/0.4.9/",
+            "requires_dist": [
+                "torch (>=1.7)",
+                "redisai (>=1.0.1)",
+                "pymongo (>=3.11.1)",
+                "flask (>=1.1.2)"
+            ],
+            "requires_python": "",
+            "summary": "Python tools for training Neural Networks in a serverless setup",
+            "version": "0.4.9",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16252882,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a6451f836383c87ebeb598019ff02782",
+                    "sha256": "457f2dda66cf56960dad94562bb21683da80f7883e8455daee491abc102170b6"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.9-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "a6451f836383c87ebeb598019ff02782",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": null,
+                "size": 11823,
+                "upload_time": "2022-12-30T00:06:05",
+                "upload_time_iso_8601": "2022-12-30T00:06:05.952679Z",
+                "url": "https://files.pythonhosted.org/packages/ce/1b/159e89946d755dd648318ebf0b3b747300a9046c2f618585ca813504e930/serverlessdl-0.4.9-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "728503b449bfc57ad34341ac640992ed",
+                    "sha256": "99096229a4d46abe16f17b816eea8e5f74b6b30e551d72cde8f5d581ffc7fa5b"
+                },
+                "downloads": -1,
+                "filename": "serverlessdl-0.4.9.tar.gz",
+                "has_sig": false,
+                "md5_digest": "728503b449bfc57ad34341ac640992ed",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 10452,
+                "upload_time": "2022-12-30T00:06:07",
+                "upload_time_iso_8601": "2022-12-30T00:06:07.804356Z",
+                "url": "https://files.pythonhosted.org/packages/06/5b/0ba479aaf937ffc9e2163b4264db2705ba821b2713107f8cdfdd8eb4bd64/serverlessdl-0.4.9.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

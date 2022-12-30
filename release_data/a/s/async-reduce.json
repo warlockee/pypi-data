@@ -50,7 +50,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -146,7 +146,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -242,7 +242,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -339,7 +339,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -436,7 +436,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -534,7 +534,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -632,7 +632,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -731,7 +731,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -830,7 +830,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -929,7 +929,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -1029,7 +1029,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -1126,7 +1126,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -1185,7 +1185,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "[![Python versions](https://img.shields.io/badge/python-3.7%2C%203.8%2C%203.9%2C%203.10-green.svg)]()\n[![PyPI version](https://badge.fury.io/py/async-reduce.svg)](https://pypi.org/project/async-reduce/)\n\n\nAbout Async-Reduce\n==================\n\n``async_reduce(coroutine)`` allows aggregate all *similar simultaneous*\nready to run `coroutine`s and reduce to running **only one** `coroutine`.\nOther aggregated `coroutine`s will get result from single `coroutine`.\n\nIt can boost application performance in highly competitive execution of the\nsimilar asynchronous operations and reduce load for inner systems.\n\n\nQuick example\n-------------\n\n```python\nfrom async_reduce import async_reduce\n\n\nasync def fetch_user_data(user_id: int) -> dict:\n    \"\"\"\" Get user data from inner service \"\"\"\n    url = 'http://inner-service/user/{}'.format(user_id)\n\n    return await http.get(url, timeout=10).json()\n\n\n@web_server.router('/users/(\\d+)')\nasync def handler_user_detail(request, user_id: int):\n    \"\"\" Handler for get detail information about user \"\"\"\n\n    # all simultaneous requests of fetching user data for `user_id` will\n    # reduced to single request\n    user_data = await async_reduce(\n        fetch_user_data(user_id)\n    )\n\n    # sometimes ``async_reduce`` cannot detect similar coroutines and\n    # you should provide special argument `ident` for manually determination\n    user_statistics = await async_reduce(\n        DataBase.query('user_statistics').where(id=user_id).fetch_one(),\n        ident='db_user_statistics:{}'.format(user_id)\n    )\n\n    return Response(...)\n```\n\nIn that example without using ``async_reduce`` if client performs **N**\nsimultaneous requests like `GET http://web_server/users/42` *web_server*\nperforms **N** requests to *inner-service* and **N** queries to *database*.\nIn total: **N** simultaneous requests emits **2 * N** requests to inner systems.\n\nWith ``async_reduce`` if client performs **N** simultaneous requests *web_server*\nperforms **one** request to *inner-service* and **one** query to *database*.\nIn total: **N** simultaneous requests emit only **2** requests to inner systems.\n\nSee other real [examples](https://github.com/sirkonst/async-reduce/tree/master/examples).\n\n\nSimilar coroutines determination\n--------------------------------\n\n``async_reduce(coroutine)`` tries to detect similar coroutines by hashing\nlocal variables bounded on call. It does not work correctly if:\n\n* one of the arguments is not hashable\n* coroutine function is a method of class with specific state (like ORM)\n* coroutine function has closure to unhashable variable\n\nYou can disable auto-determination by setting custom key to argument ``ident``.\n\n\nUse as decorator\n----------------\n\nAlso library provide special decorator ``@async_reduceable()``, example:\n\n```python\nfrom async_reduce import async_reduceable\n\n\n@async_reduceable()\nasync def fetch_user_data(user_id: int) -> dict:\n    \"\"\"\" Get user data from inner service \"\"\"\n    url = 'http://inner-servicce/user/{}'.format(user_id)\n\n    return await http.get(url, timeout=10).json()\n\n\n@web_server.router('/users/(\\d+)')\nasync def handler_user_detail(request, user_id: int):\n    \"\"\" Handler for get detail information about user \"\"\"\n    return await fetch_user_data(user_id)\n```\n\n\nHooks\n-----\n\nLibrary supports hooks. Add-on hooks:\n\n* **DebugHooks** - print about all triggered hooks\n* **StatisticsOverallHooks** - general statistics on the use of `async_reduce`\n* **StatisticsDetailHooks** - like `StatisticsOverallHooks` but detail statistics\nabout all `coroutine` processed by `async_reduce`\n\nExample:\n\n```python\nfrom async_reduce import AsyncReducer\nfrom async_reduce.hooks import DebugHooks\n\n# define custom async_reduce with hooks\nasync_reduce = AsyncReducer(hooks=DebugHooks())\n\n\nasync def handler_user_detail(request, user_id: int):\n    user_data = await async_reduce(fetch_user_data(user_id))\n```\n\nSee more detail example in [examples/example_hooks.py](https://github.com/sirkonst/async-reduce/blob/master/examples/example_hooks.py).\n\nYou can write custom hooks via inherit from [BaseHooks](https://github.com/sirkonst/async-reduce/blob/master/async_reduce/hooks/base.py).\n\n\nCaveats\n-------\n\n* If single `coroutine` raises exceptions all aggregated `coroutine`s will get\nsame exception too\n\n* If single `coroutine` is stuck all aggregated `coroutine`s will stuck too.\nLimit execution time for `coroutine` and add retries (optional) to avoid it.\n\n* Be careful when return mutable value from `coroutine` because single value\nwill shared. Prefer to use non-mutable value as coroutine return.\n\n\nDevelopment\n-----------\n\nSee [DEVELOPMENT.md](https://github.com/sirkonst/async-reduce/blob/master/DEVELOPMENT.md).\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -1224,7 +1223,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 13202555,
+        "last_serial": 16251893,
         "urls": [
             {
                 "comment_text": "",
@@ -1263,6 +1262,104 @@
                 "upload_time": "2022-03-17T08:11:55",
                 "upload_time_iso_8601": "2022-03-17T08:11:55.084141Z",
                 "url": "https://files.pythonhosted.org/packages/7b/dd/23756d9348ba6f4c6c61f78d0d459dfb643da9918d10ab8aa4763e38e3cd/async_reduce-1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.2": {
+        "info": {
+            "author": "Konstantin Enchant",
+            "author_email": "sirkonst@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "[![Python versions](https://img.shields.io/badge/python-3.7%2C%203.8%2C%203.9%2C%203.10%2C%203.11-green.svg)]()\n[![PyPI version](https://badge.fury.io/py/async-reduce.svg)](https://pypi.org/project/async-reduce/)\n\n\nAbout Async-Reduce\n==================\n\n``async_reduce(coroutine)`` allows aggregate all *similar simultaneous*\nready to run `coroutine`s and reduce to running **only one** `coroutine`.\nOther aggregated `coroutine`s will get result from single `coroutine`.\n\nIt can boost application performance in highly competitive execution of the\nsimilar asynchronous operations and reduce load for inner systems.\n\n\nQuick example\n-------------\n\n```python\nfrom async_reduce import async_reduce\n\n\nasync def fetch_user_data(user_id: int) -> dict:\n    \"\"\"\" Get user data from inner service \"\"\"\n    url = 'http://inner-service/user/{}'.format(user_id)\n\n    return await http.get(url, timeout=10).json()\n\n\n@web_server.router('/users/(\\d+)')\nasync def handler_user_detail(request, user_id: int):\n    \"\"\" Handler for get detail information about user \"\"\"\n\n    # all simultaneous requests of fetching user data for `user_id` will\n    # reduced to single request\n    user_data = await async_reduce(\n        fetch_user_data(user_id)\n    )\n\n    # sometimes ``async_reduce`` cannot detect similar coroutines and\n    # you should provide special argument `ident` for manually determination\n    user_statistics = await async_reduce(\n        DataBase.query('user_statistics').where(id=user_id).fetch_one(),\n        ident='db_user_statistics:{}'.format(user_id)\n    )\n\n    return Response(...)\n```\n\nIn that example without using ``async_reduce`` if client performs **N**\nsimultaneous requests like `GET http://web_server/users/42` *web_server*\nperforms **N** requests to *inner-service* and **N** queries to *database*.\nIn total: **N** simultaneous requests emits **2 * N** requests to inner systems.\n\nWith ``async_reduce`` if client performs **N** simultaneous requests *web_server*\nperforms **one** request to *inner-service* and **one** query to *database*.\nIn total: **N** simultaneous requests emit only **2** requests to inner systems.\n\nSee other real [examples](https://github.com/sirkonst/async-reduce/tree/master/examples).\n\n\nSimilar coroutines determination\n--------------------------------\n\n``async_reduce(coroutine)`` tries to detect similar coroutines by hashing\nlocal variables bounded on call. It does not work correctly if:\n\n* one of the arguments is not hashable\n* coroutine function is a method of class with specific state (like ORM)\n* coroutine function has closure to unhashable variable\n\nYou can disable auto-determination by setting custom key to argument ``ident``.\n\n\nUse as decorator\n----------------\n\nAlso library provide special decorator ``@async_reduceable()``, example:\n\n```python\nfrom async_reduce import async_reduceable\n\n\n@async_reduceable()\nasync def fetch_user_data(user_id: int) -> dict:\n    \"\"\"\" Get user data from inner service \"\"\"\n    url = 'http://inner-servicce/user/{}'.format(user_id)\n\n    return await http.get(url, timeout=10).json()\n\n\n@web_server.router('/users/(\\d+)')\nasync def handler_user_detail(request, user_id: int):\n    \"\"\" Handler for get detail information about user \"\"\"\n    return await fetch_user_data(user_id)\n```\n\n\nHooks\n-----\n\nLibrary supports hooks. Add-on hooks:\n\n* **DebugHooks** - print about all triggered hooks\n* **StatisticsOverallHooks** - general statistics on the use of `async_reduce`\n* **StatisticsDetailHooks** - like `StatisticsOverallHooks` but detail statistics\nabout all `coroutine` processed by `async_reduce`\n\nExample:\n\n```python\nfrom async_reduce import AsyncReducer\nfrom async_reduce.hooks import DebugHooks\n\n# define custom async_reduce with hooks\nasync_reduce = AsyncReducer(hooks=DebugHooks())\n\n\nasync def handler_user_detail(request, user_id: int):\n    user_data = await async_reduce(fetch_user_data(user_id))\n```\n\nSee more detail example in [examples/example_hooks.py](https://github.com/sirkonst/async-reduce/blob/master/examples/example_hooks.py).\n\nYou can write custom hooks via inherit from [BaseHooks](https://github.com/sirkonst/async-reduce/blob/master/async_reduce/hooks/base.py).\n\n\nCaveats\n-------\n\n* If single `coroutine` raises exceptions all aggregated `coroutine`s will get\nsame exception too\n\n* If single `coroutine` is stuck all aggregated `coroutine`s will stuck too.\nLimit execution time for `coroutine` and add retries (optional) to avoid it.\n\n* Be careful when return mutable value from `coroutine` because single value\nwill shared. Prefer to use non-mutable value as coroutine return.\n\n\nDevelopment\n-----------\n\nSee [DEVELOPMENT.md](https://github.com/sirkonst/async-reduce/blob/master/DEVELOPMENT.md).\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/sirkonst/async-reduce",
+            "keywords": "asyncio,reduce",
+            "license": "MIT",
+            "maintainer": "Konstantin Enchant",
+            "maintainer_email": "sirkonst@gmail.com",
+            "name": "async-reduce",
+            "package_url": "https://pypi.org/project/async-reduce/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/async-reduce/",
+            "project_urls": {
+                "Homepage": "https://github.com/sirkonst/async-reduce"
+            },
+            "release_url": "https://pypi.org/project/async-reduce/1.2/",
+            "requires_dist": [
+                "tox (~=4.1) ; extra == 'develop'",
+                "wheel (~=0.38) ; extra == 'develop'",
+                "twine (~=4.0) ; extra == 'develop'",
+                "pytest (~=7.2) ; extra == 'testing'",
+                "pytest-asyncio (~=0.20) ; extra == 'testing'",
+                "coverage (~=7.0) ; extra == 'testing'",
+                "pylama (~=8.4) ; extra == 'testing'",
+                "mypy (~=0.991) ; extra == 'testing'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Reducer for similar simultaneously coroutines",
+            "version": "1.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16251893,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "10820f4134fcab32a7f664d4c3230cae",
+                    "sha256": "8579f509df071a9b4428128840728b0cc5339a11b610c9ccec229cd938f890e3"
+                },
+                "downloads": -1,
+                "filename": "async_reduce-1.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "10820f4134fcab32a7f664d4c3230cae",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 12196,
+                "upload_time": "2022-12-29T21:02:48",
+                "upload_time_iso_8601": "2022-12-29T21:02:48.210885Z",
+                "url": "https://files.pythonhosted.org/packages/f8/ea/6e6be606ab7d51c7f0b2ca50db21728baf2ae7d89460e69f7fbe217807bd/async_reduce-1.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "0cb004edd757dbac111ac12463fd1b38",
+                    "sha256": "3472955a7c14601eaab7f7266e0d51f941dc1850910ace76a42c8a82f9291c5a"
+                },
+                "downloads": -1,
+                "filename": "async_reduce-1.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "0cb004edd757dbac111ac12463fd1b38",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 11114,
+                "upload_time": "2022-12-29T21:02:50",
+                "upload_time_iso_8601": "2022-12-29T21:02:50.099103Z",
+                "url": "https://files.pythonhosted.org/packages/cd/df/920978a0c85d45ee937b73a3648f120b97942c2a49b609263ab0d491e7d4/async_reduce-1.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
