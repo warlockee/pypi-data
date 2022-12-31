@@ -9,7 +9,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# Sql DB Client\n\nProvides additional functionalities to work with DBMS utilizing mainly 2 powerful packages sqlalchemy and pandas.\n\nThe main goal to replace basic SQL client software application (e.g. [DBeaver](https://en.wikipedia.org/wiki/DBeaver)).\nEspecially helpful for people who are used to work with pandas and its powerful abilities in terms of analytical research.\nDesigned mainly to use alongside with Jupyter Notebook (i.e. GUI environment but endless abilities of Python and its libraries).\n\nBasically, it is a wrapper around pd.DataFrame().to_sql function and sqlalchemy functionalities such as transaction management\nwith the following features:\n- detailed logging with query execution time collecting (also can be saved to file to keep track of your every action as long as need)\n- easy transaction management \n        \n        with sql_executor:\n            sql_executor.execute_query('CREATE VIEW temp_view AS SELECT 1 AS num')\n            temp_view = sql_executor.read_query('SELECT * FROM temp_view')\n            ...\n- query results management using SQLLite database (i.e. a file near your Python script)\n  - UUID for each query run (to easily get any executed query result; to work with one database from different scripts with no need to synchronization)\n  - query start and finish time, duration\n  - result (a pandas DataFrame for read query)\n  \n        You do not need to save your select results into csv and excel in order to look at them in the future.\n        They will be avaiable as long as you need in your own file-based database.\n  \n- (optional) pandas DataFrame enhancements in Jupyter (such as displaying DataFrame with all rows and columns and full colwidth by simply calling its one method)\n- query pre-processing (e.g. automatically adding set LIMIT value to the end of every select query in order to prevent memory overuse)\n- async query execution, you can easily run your query in background\n\n      await sql_async_planner.plan_execution('SELECT 1 AS a')\n      result = await sql_async_planner.get_result()\n- \n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -45,7 +44,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15904909,
+        "last_serial": 16260631,
         "urls": [
             {
                 "comment_text": "",
@@ -84,6 +83,97 @@
                 "upload_time": "2022-11-27T15:03:13",
                 "upload_time_iso_8601": "2022-11-27T15:03:13.855973Z",
                 "url": "https://files.pythonhosted.org/packages/0c/08/31d1b991fb5d786a264307be2aeb5322486086c30f8e9ae06d51d3a1649a/sqldbclient-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.2": {
+        "info": {
+            "author": "Yuriy Kozhev",
+            "author_email": "Yuriy Kozhev <yuriy.kozhev@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# Sql DB Client\n\nProvides additional functionalities to work with DBMS utilizing powerful Python packages such as sqlalchemy and pandas.\n\nThe main goal to provide a handy alternative to basic SQL client software applications \n(e.g. [DBeaver](https://en.wikipedia.org/wiki/DBeaver), [pgAdmin](https://www.pgadmin.org/), etc.).\n\nThis package mostly aims at SQL scripts executing since other types of database related activities\n(such as database navigation, objects structure and fields management) can done more conveniently with graphical UI.\n\nDesigned mainly to use inside Jupyter Notebook \n(i.e. some kind of GUI-like environment but with advantages of using Python and its libraries).\nEspecially helpful for people who are used to work with pandas \nsince SQL queries results will be shown and saved in pandas.DataFrame format.\n\nCurrently, there are 4 main tools one most likely to use in their scripts:\n- sql_executor module\n- sql_asyncio module\n- dialects.postgresql module\n- db_inspector module\n- handy utils\n\n## Sql Executor\n\nEither can be build from a config\n\n      from sqldbclient import SqlExecutor, SqlExecutorConf\n\n      sql_executor = SqlExecutor.builder.config(\n          SqlExecutorConf()\n              # pass arguments to sqlalchemy.create_engine function\n              .set('engine_options', 'postgresql+psycopg2://postgres:mysecretpassword@localhost:5555', echo=False)\n              # choose the name of sqlite database file with saved queries results\n              .set('history_db_name', 'sql_executor_history.db')\n              # set the maximum number of rows a SELECT query can fetch\n              .set('max_rows_read', 10_000)\n      ).get_or_create()\n\nOr created explicitly, but sqlalchemy Engine needs to created first (also you can use SqlEngineFactory for that)\n      \n      import sqlalchemy\n      from sqldbclient import SqlExecutor\n\n      sqlite_engine = sqlalchemy.create_engine('sqlite:///my_sqlite.db')\n\n      sql_executor = SqlExecutor(\n        engine=sqlite_engine, \n        max_rows_read=10_000, \n        history_db_name='sql_executor_history.db'\n      )\n\nThough it is recommended to build it from a config since \nthen SqlExecutor instance and corresponding sqlalchemy engine will be automatically cached.\nIt will ensure no leakage of resources if one try to create multiple instances.\n\n\nRoughly speaking, it is a wrapper over pd.DataFrame().read_sql method but with the following features:\n- Automatic SELECT queries preprocessing and limiting to a configured number (to help avoiding memory overuse) - via SqlQueryPreparator\n      \n      '''SELECT * from  \n          some_table'\n\n      '''select *    FROM some_table\n       LIMIT too_large_limit'''\n\n  The queries above will be transformed to the query below\n      if the limit is not specified or exceeds the configured number\n\n      '''SELECT * \n         FROM some_table\n         LIMIT {max_rows_read}'''\n\n- Easy transaction management (using context manager) - via SqlTransactionManager\n        \n        with sql_executor:\n            sql_executor.execute('INSERT INTO some_table VALUES (1, 2, 3)')\n            sql_executor.commit() #  otherwise the transaction will be automatically rolled back\n\n- Query results storing in a SQLite database \n(i.e. a file inside a directory with your scripts)  - via SqlHistoryManager\n\n  - _No need to save select results into csv and excel files in order to work with them in the future.\n        They will be available in the file-based database as long as it is needed_\n  - UUID generated for each query run\n    - to easily get any executed query result\n    - to work with one database from different scripts with no need to synchronization)\n  - For select queries, result is saved in the form of pandas.DataFrame\n  - Apart from the result, query meta information is also preserved (such as start and finish timestamps, duration)\n  \n\n## sql_asyncio \n\n**Note: will be fully documented in future releases**\n\nProvides SqlAsyncExecutor for async query execution and SqlAsyncPlanner for running queries in background.\n\n\n      from sqldbclient.sql_asyncio import SqlAsyncExecutor, SqlAsyncPlanner\n      from sqlalchemy.ext.asyncio import create_async_engine\n\n      async_engine = create_async_engine('postgresql+asyncpg://postgres:mysecretpassword@localhost:5555', pool_size=2)\n      \n      sql_async_executor = SqlAsyncExecutor(async_engine)\n      df = await sql_async_executor.execute(\"SELECT 1 AS a\")\n\n      from datetime import datetime\n      \n      sql_async_planner = SqlAsyncPlanner(async_engine)\n\n      start = datetime.now()\n      sql_async_planner.put('SELECT pg_sleep(2)')\n      sql_async_planner.put('SELECT pg_sleep(2)')\n      sql_async_planner.put('SELECT pg_sleep(2)')\n      await sql_async_planner.get()\n      await sql_async_planner.get()\n      await sql_async_planner.get()\n      print(datetime.now() - start)\n\n\n## dialects.postgresql\n\nHelps to redefine view and materialized views without dropping any dependant objects manually.\n\n**Note: will be fully documented in future releases**\n\n**Warning: 'INSTEAD OF' view triggers are not supported yet \nand will not be automatically restored during view recreation**\n\n    from sqldbclient.dialects.postgresql import SqlViewFactory, SqlViewMaterializer\n    \n    some_view = SqlViewFactory('view_name', 'view_schema', sql_executor).create()\n    some_view.definition = '-- new definition'\n    SqlViewMaterializer(some_view, sql_executor).materialize()\n\n\n## DB Inspector\n\n**Note: will be improved in future versions**\n\nProvides a wrapper around sqlalchemy.inspect function.\n\nApart from standard sqlalchemy.engine.reflection.Inspector methods, the returned object has the following ones:\n- print_columns\n\n## Handy utils\n\n- pandas.DataFrame full displaying in Jupyter Notebook: \n  - displays pandas.DataFrame with all rows and columns and full colwidth \n  - easy to use (just call a DataFrame method)\n        \n        import pandas as pd\n        from sqldbclient.utils.pandas import full_display\n        # now any pandas.DataFrame has method full_display available\n\n        big_df = pd.read_csv(...)\n        big_df.full_display(width=True)\n- SqlEngineFactory\n  - caches engines with the same parameters to prevent resources leakage\n\n        from sqldbclient import sql_engine_factory\n        \n        # pass arguments to sqlalchemy.create_engine function\n        engine = sql_engine_factory.get_or_create(*args, **kwargs)\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://example.com",
+            "keywords": "",
+            "license": "Copyright (c) 2022 Yuriy Kozhev  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "sqldbclient",
+            "package_url": "https://pypi.org/project/sqldbclient/",
+            "platform": "any",
+            "project_url": "https://pypi.org/project/sqldbclient/",
+            "project_urls": {
+                "Homepage": "https://example.org"
+            },
+            "release_url": "https://pypi.org/project/sqldbclient/0.0.2/",
+            "requires_dist": [
+                "pandas",
+                "sqlalchemy",
+                "sqlparse",
+                "jupyter ; extra == 'jupyter'",
+                "notebook ; extra == 'jupyter'",
+                "ipykernel ; extra == 'jupyter'"
+            ],
+            "requires_python": ">=3.6",
+            "summary": "A SQL client software package, mainly for use in Jupyter Notebook environment",
+            "version": "0.0.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16260631,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9c9d3a703184239d407c838fffc1692d",
+                    "sha256": "b41ccbaa667c9c9361a2fac0177d8b2e32587a670d517854dcd804acbc7f8ed3"
+                },
+                "downloads": -1,
+                "filename": "sqldbclient-0.0.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "9c9d3a703184239d407c838fffc1692d",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 31633,
+                "upload_time": "2022-12-30T19:21:46",
+                "upload_time_iso_8601": "2022-12-30T19:21:46.162982Z",
+                "url": "https://files.pythonhosted.org/packages/11/c3/02290596a9a1e11b398181e9b6f4acf9fac46f743163a766cda8fd25a7ff/sqldbclient-0.0.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cfefd91cb71519e5366d96e1702df9be",
+                    "sha256": "ce3d1b55a511072022d8571ce33ba16ace77b10407a8bf41552020ad6e7244de"
+                },
+                "downloads": -1,
+                "filename": "sqldbclient-0.0.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "cfefd91cb71519e5366d96e1702df9be",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.6",
+                "size": 22186,
+                "upload_time": "2022-12-30T19:21:48",
+                "upload_time_iso_8601": "2022-12-30T19:21:48.706114Z",
+                "url": "https://files.pythonhosted.org/packages/35/c4/12d3d5200329a5cc59ed9e08c51bc8f70d2030e1660fa5567e4254d6f9cb/sqldbclient-0.0.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

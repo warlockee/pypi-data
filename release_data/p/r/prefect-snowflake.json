@@ -61,7 +61,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16177754,
+        "last_serial": 16260658,
         "urls": [
             {
                 "comment_text": "",
@@ -168,7 +168,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16177754,
+        "last_serial": 16260658,
         "urls": [
             {
                 "comment_text": "",
@@ -275,7 +275,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16177754,
+        "last_serial": 16260658,
         "urls": [
             {
                 "comment_text": "",
@@ -382,7 +382,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16177754,
+        "last_serial": 16260658,
         "urls": [
             {
                 "comment_text": "",
@@ -489,7 +489,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16177754,
+        "last_serial": 16260658,
         "urls": [
             {
                 "comment_text": "",
@@ -596,7 +596,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16177754,
+        "last_serial": 16260658,
         "urls": [
             {
                 "comment_text": "",
@@ -703,7 +703,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16177754,
+        "last_serial": 16260658,
         "urls": [
             {
                 "comment_text": "",
@@ -765,7 +765,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Topic :: Software Development :: Libraries"
             ],
-            "description": "# prefect-snowflake\n\n<p align=\"center\">\n    <a href=\"https://pypi.python.org/pypi/prefect-snowflake/\" alt=\"PyPI version\">\n        <img alt=\"PyPI\" src=\"https://img.shields.io/pypi/v/prefect-snowflake?color=0052FF&labelColor=090422\"></a>\n    <a href=\"https://github.com/PrefectHQ/prefect-snowflake/\" alt=\"Stars\">\n        <img src=\"https://img.shields.io/github/stars/PrefectHQ/prefect-snowflake?color=0052FF&labelColor=090422\" /></a>\n    <a href=\"https://pepy.tech/badge/prefect-snowflake/\" alt=\"Downloads\">\n        <img src=\"https://img.shields.io/pypi/dm/prefect-snowflake?color=0052FF&labelColor=090422\" /></a>\n    <a href=\"https://github.com/PrefectHQ/prefect-snowflake/pulse\" alt=\"Activity\">\n        <img src=\"https://img.shields.io/github/commit-activity/m/PrefectHQ/prefect-snowflake?color=0052FF&labelColor=090422\" /></a>\n    <br>\n    <a href=\"https://prefect-snowflake-community.slack.com\" alt=\"Slack\">\n        <img src=\"https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack\" /></a>\n    <a href=\"https://discourse.prefect-snowflake.io/\" alt=\"Discourse\">\n        <img src=\"https://img.shields.io/badge/discourse-browse_forum-red.svg?color=0052FF&labelColor=090422&logo=discourse\" /></a>\n</p>\n\n## Welcome!\n\nPrefect integrations for interacting with prefect-snowflake.\n\n## Getting Started\n\n### Python setup\n\nRequires an installation of Python 3.7+.\n\nWe recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.\n\nThese tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://orion-docs.prefect.io/).\n\n### Installation\n\nInstall `prefect-snowflake` with `pip`:\n\n```bash\npip install prefect-snowflake\n```\n\nThen, register to [view the block](https://orion-docs.prefect.io/ui/blocks/) on Prefect Cloud:\n\n```bash\nprefect block register -m prefect_snowflake.credentials\n```\n\nNote, to use the `load` method on Blocks, you must already have a block document [saved through code](https://orion-docs.prefect.io/concepts/blocks/#saving-blocks) or [saved through the UI](https://orion-docs.prefect.io/ui/blocks/).\n\n### Query from table\n\n```python\nfrom prefect import flow\nfrom prefect_snowflake.credentials import SnowflakeCredentials\nfrom prefect_snowflake.database import SnowflakeConnector, snowflake_query\n\n\n@flow\ndef snowflake_query_flow():\n    snowflake_credentials = SnowflakeCredentials(\n        account=\"account\",\n        user=\"user\",\n        password=\"password\",\n    )\n    snowflake_connector = SnowflakeConnector(\n        database=\"database\",\n        warehouse=\"warehouse\",\n        schema=\"schema\",\n        credentials=snowflake_credentials\n    )\n    result = snowflake_query(\n        \"SELECT * FROM table WHERE id=%{id_param}s LIMIT 8;\",\n        snowflake_connector,\n        params={\"id_param\": 1}\n    )\n    return result\n\nsnowflake_query_flow()\n```\n\n### Write pandas to table using block attributes\n\n```python\nimport pandas as pd\nfrom prefect import flow\nfrom prefect_snowflake.credentials import SnowflakeCredentials\nfrom prefect_snowflake.database import SnowflakeConnector, snowflake_query\nfrom snowflake.connector.pandas_tools import write_pandas\n\n@flow\ndef snowflake_write_pandas_flow():\n    snowflake_connector = SnowflakeConnector.load(\"my-block\")\n    with snowflake_connector.get_connection() as conn:\n        table_name = \"TABLE_NAME\"\n        ddl = \"NAME STRING, NUMBER INT\"\n        statement = f'CREATE TABLE IF NOT EXISTS {table_name} ({ddl})'\n        with conn.cursor() as cur:\n            cur.execute(statement)\n\n        # case sensitivity matters here!\n        df = pd.DataFrame([('Marvin', 42), ('Ford', 88)], columns=['NAME', 'NUMBER'])\n        success, num_chunks, num_rows, _ = write_pandas(\n            conn=conn,\n            df=df,\n            table_name=table_name,\n            database=snowflake_connector.database,\n            schema=snowflake_connector.schema_  # note the \"_\" suffix\n        )\n```\n\n### Execute `get` and `put` statements\n\nTo execute `get` and `put` statements, use `snowflake_query_sync`.\n\n```python\nfrom prefect import flow\nfrom prefect_snowflake.database import SnowflakeConnector, snowflake_query_sync\n\n@flow\ndef snowflake_put_file_to_snowflake_stage():\n    snowflake_connector = SnowflakeConnector.load(\"my-block\")\n    \n    snowflake_query_sync(\n        f\"put file:///myfolder/myfile @mystage/mystagepath\",\n        snowflake_connector=snowflake_connector\n    )\n            \n```\n\n## Resources\n\nIf you encounter any bugs while using `prefect-snowflake`, feel free to open an issue in the [prefect-snowflake](https://github.com/PrefectHQ/prefect-snowflake) repository.\n\nIf you have any questions or issues while using `prefect-snowflake`, you can find help in either the [Prefect Discourse forum](https://discourse.prefect.io/) or the [Prefect Slack community](https://prefect.io/slack).\n\nFeel free to \u2b50\ufe0f or watch [`prefect-snowflake`](https://github.com/PrefectHQ/prefect-snowflake) for updates too!\n\n## Development\n\nIf you'd like to install a version of `prefect-snowflake` for development, clone the repository and perform an editable install with `pip`:\n\n```bash\ngit clone https://github.com/PrefectHQ/prefect-snowflake.git\n\ncd prefect-snowflake/\n\npip install -e \".[dev]\"\n\n# Install linting pre-commit hooks\npre-commit install\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -811,7 +810,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16177754,
+        "last_serial": 16260658,
         "urls": [
             {
                 "comment_text": "",
@@ -850,6 +849,115 @@
                 "upload_time": "2022-12-21T21:51:55",
                 "upload_time_iso_8601": "2022-12-21T21:51:55.949324Z",
                 "url": "https://files.pythonhosted.org/packages/9b/5b/31af97606ed7d5f50bdd471ec271ec17bfb8bf9f5ee6a2fd7abebdc90413/prefect-snowflake-0.2.3.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.4": {
+        "info": {
+            "author": "Prefect Technologies, Inc.",
+            "author_email": "help@prefect.io",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Intended Audience :: Developers",
+                "Intended Audience :: System Administrators",
+                "License :: OSI Approved :: Apache Software License",
+                "Natural Language :: English",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Libraries"
+            ],
+            "description": "# prefect-snowflake\n\n<p align=\"center\">\n    <a href=\"https://pypi.python.org/pypi/prefect-snowflake/\" alt=\"PyPI version\">\n        <img alt=\"PyPI\" src=\"https://img.shields.io/pypi/v/prefect-snowflake?color=0052FF&labelColor=090422\"></a>\n    <a href=\"https://github.com/PrefectHQ/prefect-snowflake/\" alt=\"Stars\">\n        <img src=\"https://img.shields.io/github/stars/PrefectHQ/prefect-snowflake?color=0052FF&labelColor=090422\" /></a>\n    <a href=\"https://pepy.tech/badge/prefect-snowflake/\" alt=\"Downloads\">\n        <img src=\"https://img.shields.io/pypi/dm/prefect-snowflake?color=0052FF&labelColor=090422\" /></a>\n    <a href=\"https://github.com/PrefectHQ/prefect-snowflake/pulse\" alt=\"Activity\">\n        <img src=\"https://img.shields.io/github/commit-activity/m/PrefectHQ/prefect-snowflake?color=0052FF&labelColor=090422\" /></a>\n    <br>\n    <a href=\"https://prefect-community.slack.com\" alt=\"Slack\">\n        <img src=\"https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack\" /></a>\n    <a href=\"https://discourse.prefect.io/\" alt=\"Discourse\">\n        <img src=\"https://img.shields.io/badge/discourse-browse_forum-red.svg?color=0052FF&labelColor=090422&logo=discourse\" /></a>\n</p>\n\n## Welcome!\n\nPrefect integrations for interacting with prefect-snowflake.\n\n## Getting Started\n\n### Python setup\n\nRequires an installation of Python 3.7+.\n\nWe recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.\n\nThese tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://orion-docs.prefect.io/).\n\n### Installation\n\nInstall `prefect-snowflake` with `pip`:\n\n```bash\npip install prefect-snowflake\n```\n\nA list of available blocks in `prefect-snowflake` and their setup instructions can be found [here](https://PrefectHQ.github.io/prefect-snowflake/#blocks-catalog).\n\n### Query from table\n\n```python\nfrom prefect import flow\nfrom prefect_snowflake.credentials import SnowflakeCredentials\nfrom prefect_snowflake.database import SnowflakeConnector, snowflake_query\n\n\n@flow\ndef snowflake_query_flow():\n    snowflake_credentials = SnowflakeCredentials(\n        account=\"account\",\n        user=\"user\",\n        password=\"password\",\n    )\n    snowflake_connector = SnowflakeConnector(\n        database=\"database\",\n        warehouse=\"warehouse\",\n        schema=\"schema\",\n        credentials=snowflake_credentials\n    )\n    result = snowflake_query(\n        \"SELECT * FROM table WHERE id=%{id_param}s LIMIT 8;\",\n        snowflake_connector,\n        params={\"id_param\": 1}\n    )\n    return result\n\nsnowflake_query_flow()\n```\n\n### Write pandas to table using block attributes\n\n```python\nimport pandas as pd\nfrom prefect import flow\nfrom prefect_snowflake.credentials import SnowflakeCredentials\nfrom prefect_snowflake.database import SnowflakeConnector, snowflake_query\nfrom snowflake.connector.pandas_tools import write_pandas\n\n@flow\ndef snowflake_write_pandas_flow():\n    snowflake_connector = SnowflakeConnector.load(\"my-block\")\n    with snowflake_connector.get_connection() as conn:\n        table_name = \"TABLE_NAME\"\n        ddl = \"NAME STRING, NUMBER INT\"\n        statement = f'CREATE TABLE IF NOT EXISTS {table_name} ({ddl})'\n        with conn.cursor() as cur:\n            cur.execute(statement)\n\n        # case sensitivity matters here!\n        df = pd.DataFrame([('Marvin', 42), ('Ford', 88)], columns=['NAME', 'NUMBER'])\n        success, num_chunks, num_rows, _ = write_pandas(\n            conn=conn,\n            df=df,\n            table_name=table_name,\n            database=snowflake_connector.database,\n            schema=snowflake_connector.schema_  # note the \"_\" suffix\n        )\n```\n\n### Execute `get` and `put` statements\n\nTo execute `get` and `put` statements, use `snowflake_query_sync`.\n\n```python\nfrom prefect import flow\nfrom prefect_snowflake.database import SnowflakeConnector, snowflake_query_sync\n\n@flow\ndef snowflake_put_file_to_snowflake_stage():\n    snowflake_connector = SnowflakeConnector.load(\"my-block\")\n    \n    snowflake_query_sync(\n        f\"put file:///myfolder/myfile @mystage/mystagepath\",\n        snowflake_connector=snowflake_connector\n    )\n            \n```\n\n### Use `with_options` to customize options on any existing task or flow:\n\n```python\nfrom prefect import flow\nfrom prefect_snowflake.database import SnowflakeConnector, snowflake_query_sync\n\ncustom_snowflake_query_sync = snowflake_query_sync.with_options(\n    name=\"My custom task name\",\n    retries=2,\n    retry_delay_seconds=10,\n)\n\n@flow\ndef example_with_options_flow():\nsnowflake_connector = SnowflakeConnector.load(\"my-block\")\n\ncustom_snowflake_query_sync(\n    f\"put file:///myfolder/myfile @mystage/mystagepath\",\n    snowflake_connector=snowflake_connector\n)\n\nexample_with_options_flow()\n```\n \nFor more tips on how to use tasks and flows in a Collection, check out [Using Collections](https://orion-docs.prefect.io/collections/usage/)!\n\n## Resources\n\nIf you encounter any bugs while using `prefect-snowflake`, feel free to open an issue in the [prefect-snowflake](https://github.com/PrefectHQ/prefect-snowflake) repository.\n\nIf you have any questions or issues while using `prefect-snowflake`, you can find help in either the [Prefect Discourse forum](https://discourse.prefect.io/) or the [Prefect Slack community](https://prefect.io/slack).\n\nFeel free to star or watch [`prefect-snowflake`](https://github.com/PrefectHQ/prefect-snowflake) for updates too!\n\n## Contribute\n\nIf you'd like to help contribute to fix an issue or add a feature to `prefect-snowflake`, please [propose changes through a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).\n\n### Contribution Steps:\n1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)\n2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)\n3. Install the repository and its dependencies:\n```\npip install -e \".[dev]\"\n```\n4. Make desired changes.\n5. Add tests.\n6. Insert an entry to [CHANGELOG.md](https://github.com/PrefectHQ/prefect-snowflake/blob/main/CHANGELOG.md)\n7. Install `pre-commit` to perform quality checks prior to commit:\n```\npre-commit install\n```\n8. `git commit`, `git push`, and create a pull request.\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/PrefectHQ/prefect-snowflake",
+            "keywords": "prefect",
+            "license": "Apache License 2.0",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "prefect-snowflake",
+            "package_url": "https://pypi.org/project/prefect-snowflake/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/prefect-snowflake/",
+            "project_urls": {
+                "Homepage": "https://github.com/PrefectHQ/prefect-snowflake"
+            },
+            "release_url": "https://pypi.org/project/prefect-snowflake/0.2.4/",
+            "requires_dist": [
+                "prefect (>=2.7.0)",
+                "snowflake-connector-python (>=2.7.6)",
+                "pytest ; extra == 'dev'",
+                "black ; extra == 'dev'",
+                "flake8 ; extra == 'dev'",
+                "mypy ; extra == 'dev'",
+                "mkdocs ; extra == 'dev'",
+                "mkdocs-material ; extra == 'dev'",
+                "mkdocstrings-python-legacy ; extra == 'dev'",
+                "isort ; extra == 'dev'",
+                "pre-commit ; extra == 'dev'",
+                "pytest-asyncio ; extra == 'dev'",
+                "mkdocs-gen-files ; extra == 'dev'",
+                "interrogate ; extra == 'dev'",
+                "coverage ; extra == 'dev'",
+                "pillow ; extra == 'dev'",
+                "mock ; (python_version < \"3.8\") and extra == 'dev'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Prefect integrations for interacting with Snowflake.",
+            "version": "0.2.4",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16260658,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "de03576a919a82c27f0d9755e961506a",
+                    "sha256": "65a4467387c1fe7d0115d47a5de9a9cba22eab844bf0bacfb57135df78429d6f"
+                },
+                "downloads": -1,
+                "filename": "prefect_snowflake-0.2.4-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "de03576a919a82c27f0d9755e961506a",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 17589,
+                "upload_time": "2022-12-30T19:24:31",
+                "upload_time_iso_8601": "2022-12-30T19:24:31.763637Z",
+                "url": "https://files.pythonhosted.org/packages/a9/c4/4c10e4d14fe2b5e1ad61acb4028d0e035dba2c8e7037fe17ff09d2bfa152/prefect_snowflake-0.2.4-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7599c69570596a38ae68ef46ad1ac2cd",
+                    "sha256": "e41ccaf3b4f541eb8e9142e2435eb7fe2558065cf9746ba08e4e886b8878489b"
+                },
+                "downloads": -1,
+                "filename": "prefect-snowflake-0.2.4.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7599c69570596a38ae68ef46ad1ac2cd",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 35347,
+                "upload_time": "2022-12-30T19:24:33",
+                "upload_time_iso_8601": "2022-12-30T19:24:33.401906Z",
+                "url": "https://files.pythonhosted.org/packages/91/95/c21de6a5d698fc25ef3a6ee99cbdbb7f9632c92e52310a23322214e01914/prefect-snowflake-0.2.4.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
