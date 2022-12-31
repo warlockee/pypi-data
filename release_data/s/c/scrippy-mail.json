@@ -1,0 +1,106 @@
+{
+    "1.1.70": {
+        "info": {
+            "author": "Michael Costa, Florent Chevalier",
+            "author_email": "michael.costa@mcos.nc, florent.chevalier@gouv.nc",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "Intended Audience :: System Administrators",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Topic :: Software Development :: Libraries :: Application Frameworks"
+            ],
+            "description": "![Build Status](https://drone.mcos.nc/api/badges/scrippy/scrippy-mail/status.svg) ![License](https://img.shields.io/static/v1?label=license&color=orange&message=MIT) ![Language](https://img.shields.io/static/v1?label=language&color=informational&message=Python)\n\n![Scrippy, mon ami le scrangourou](./scrippy-mail.png \"Scrippy, mon ami le scrangourou\")\n\n# `scrippy_mail`\n\nClient _Git_ pour le cadriciel [`Scrippy`](https://codeberg.org/scrippy).\n\n## Pr\u00e9requis\n\n### Modules Python\n\n#### Liste des modules n\u00e9cessaires\n\n- Aucun\n\n## Installation\n\n### Manuelle\n\n```bash\ngit clone https://codeberg.org/scrippy/scrippy-mail.git\ncd scrippy-mail.git\nsudo python3 -m pip install -r requirements.txt\nmake install\n```\n\n### Avec `pip`\n\n```bash\npip install scrippy-mail\n```\n\n### Utilisation\n\n### `scrippy_mail`\n\nLe module `scrippy_mail.mail`  propose une interface simplifi\u00e9e permettant l'envoi de courriels via l'objet `Mailer`.\n\nCe module propose \u00e9galement une interface \u00e0 `SpamAssassin` via l'objet `SpamAssassinClient` et une interface `POP3` via l'objet `PopClient`.\n\nCes deux derni\u00e8res interfaces ne sont pas encore document\u00e9es et n'impl\u00e9mente pas l'int\u00e9gralit\u00e9 des protocoles qu'elles sont cens\u00e9es supporter. Cependant elles sont utilis\u00e9es en production pour des besoins limit\u00e9s.\n\nLe code source des modules `scrippy_mail.mail.popclient` et `scrippy_mail.mail.spamassassin` et les commentaires qu'il contient reste la meilleure source de documentation. [`Use the Source, Luke`](https://en.wiktionary.org/wiki/UTSL).\n\nLes param\u00e8tres suivants sont optionnels \u00e0 l'instanciation d'un objet `scrippy_mail.mail.Mailer`:\n- `host`: Le nom du serveur de mails \u00e0 utiliser (d\u00e9faut: localhost)\n- `port`: Le num\u00e9ro du port sur lequel contacter le serveur de mails (d\u00e9faut: 25)\n- `user`: Le nom d'utilisateur avec lequel s'authentifier sur le serveur de mails\n- `password`: Le mot de passe avec lequel s'authentifier sur le serveur de mails\n- `starttls`: Un bool\u00e9en indiquant s'il faut utiliser STARTTLS (d\u00e9faut: False)\n- `timeout`: Un entier indiquant le d\u00e9lai maximum en secondes pour r\u00e9ussir une connexion (d\u00e9faut: 60)\n\n#### Envoi de mail\n\nLa m\u00e9thode `Mailer.send()` permettant l'envoi du message accepte les 4 arguments obligatoires suivants:\n- `subject`: Une cha\u00eene de caract\u00e8re utilis\u00e9e comme sujet du courriel\n- `body`: Une cha\u00eene de caract\u00e8re utilis\u00e9e comme corps du courriel\n- `to_addrs`: Un *tuple* contenant la liste des adresses de courriels de destination\n- `from_addr`: L'adresse de courriel de l'exp\u00e9diteur\n\nSi l'argument `to_addrs` n'est pas un *tuple*, il sera converti comme tel. Typiquement si le courriel n'a qu'un seul destinataire, passer la seule adresse de courriel de ce destinataire comme une cha\u00eene de caract\u00e8res sera suffisant.\n\nSi le courriel doit \u00eatre exp\u00e9di\u00e9 \u00e0 plusieurs destinataires, les adresses de destination devront \u00eatre fournies sous formes de *tuple*.\n\nChaque adresse de courriel doit \u00eatre une adresse de courriel r\u00e9pondant \u00e0 la [RFC 5322](https://tools.ietf.org/html/rfc5322.html).\n\nLa m\u00e9thode `Mailer.send()` renvoie `True` en cas de succ\u00e8s et `False` en cas d'\u00e9chec de l'envoi du courriel.\n\n```python\nfrom scrippy_mail import mail\n\nmail_host = \"smtp.flying.circus\"\nmail_port = \"465\"\nmail_tls = True\nmail_from = \"luigi.vercotti@flying.circus\"\nmail_to = \"harry.fink@flying.circus\"\nmail_subject = \"Rapport d'erreur\"\nmail_body = \"\"\"Bonjour Harry Fink\n\nVous recevez cet e-mail car vous faites partie des administrateurs fonctionnels de l'application Dead Parrot.\n\nL'ex\u00e9cution du script s'est termin\u00e9 avec l'erreur suivante:\n- It's not pinin\u2019! It's passed on! This parrot is no more!\n\n--\nCordialement.\nLuiggi Vercotti\n\"\"\"\n\nmailer = mail.Mailer(host=mail_host, port=mail_port, starttls=mail_tls)\nto_addrs = (mail_to,)\n\nif mailer.send(subject, body, to_addrs, mail_from):\n  logging.info(\"Courriel envoy\u00e9 avec succ\u00e8s\")\n```\n\n#### R\u00e9cup\u00e9ration de mails (POP3)\n\nLe client `PopClient` permet d'interroger un serveur _POP3_. Ce client tr\u00e8s basique ne g\u00e8re pas les connexions chiffr\u00e9es _TLS_.\n\n```python\nimport email\nfrom scrippy_mail import mail\n\nmail_host = \"smtp.flying.circus\"\nmail_port = \"110\"\nmail_account = \"luigi.vercotti@flying.circus\"\nmail_password = \"D3ADP4ARR0T\"\n\nclient = mail.PopClient(host=mail_host, port=mail_port, timeout=5)\nclient.connect()\nclient.authenticate(mail_account, mail_password)\n# R\u00e9cup\u00e8re le nombre de mails disponibles\n# client.stat() renvoie la donn\u00e9e brute, il appartient au d\u00e9veloppeur\n# De la traiter pour pouvoir l'exploiter.\nnum_mails = client.stat()\n# R\u00e9cup\u00e8re le dernier mails\nmail_content = client.retr(1)\n# R\u00e9cup\u00e9ration du contenu (Body)\nmail_content = email.message_from_bytes(mail_content).get_payload()\nmail_content = mail_content.replace(\"=\\r\\n\", \"\")\nmail_content = mail_content.replace(\"\\r\\n.\\r\\n\", \"\\n\")\nmail_content = \"\\n\".join(mail_content.split(\"\\r\\n\"))\n# Supprime le dernier mail\nclient.dele(1)\nclient.bye()\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://codeberg.org/scrippy/scrippy-mail",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "scrippy-mail",
+            "package_url": "https://pypi.org/project/scrippy-mail/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/scrippy-mail/",
+            "project_urls": {
+                "Homepage": "https://codeberg.org/scrippy/scrippy-mail"
+            },
+            "release_url": "https://pypi.org/project/scrippy-mail/1.1.70/",
+            "requires_dist": [
+                "twine ; extra == 'dev'",
+                "wheel (>=0.37.0) ; extra == 'dev'",
+                "flake8 (>=4.0.1) ; extra == 'dev'",
+                "flake8-breakpoint (>=1.1.0) ; extra == 'dev'",
+                "flake8-builtins (>=1.5.3) ; extra == 'dev'",
+                "flake8-print (>=4.0.0) ; extra == 'dev'",
+                "flake8-return (>=1.1.3) ; extra == 'dev'",
+                "pep8-naming (>=0.8.2) ; extra == 'dev'",
+                "pytest (>=6.2.2) ; extra == 'dev'",
+                "pytest-cov (>=3.0.0) ; extra == 'dev'",
+                "bump2version (>=1.0.1) ; extra == 'dev'",
+                "setuptools (>=60.9.2) ; extra == 'dev'",
+                "pypirc-chappers (>=1.0.8) ; extra == 'dev'",
+                "pylint (>=2.12.2) ; extra == 'dev'"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "\"Client SMTP, POP3 et SpamAssassin pour le cadriciel Scrippy\"",
+            "version": "1.1.70",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16264714,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "18d4f244d399a52dde582e6b48300ed7",
+                    "sha256": "2ddf0835c894e639b258b533db303f93c8f79259c2ec7d5c05c46dc38d884d92"
+                },
+                "downloads": -1,
+                "filename": "scrippy_mail-1.1.70-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "18d4f244d399a52dde582e6b48300ed7",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 10365,
+                "upload_time": "2022-12-31T05:04:51",
+                "upload_time_iso_8601": "2022-12-31T05:04:51.852568Z",
+                "url": "https://files.pythonhosted.org/packages/61/9a/7a4a44fb0ba946cbbc6ef46fc0b5b8b800c319744d8bf18a72290ddc6da3/scrippy_mail-1.1.70-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "9d68101cb9fac64d1fff24693b4febc7",
+                    "sha256": "9944769b6f5202e0ae5f4446143db7ff3c908775089899b2eb52772af6bc0ddf"
+                },
+                "downloads": -1,
+                "filename": "scrippy-mail-1.1.70.tar.gz",
+                "has_sig": false,
+                "md5_digest": "9d68101cb9fac64d1fff24693b4febc7",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 10774,
+                "upload_time": "2022-12-31T05:04:53",
+                "upload_time_iso_8601": "2022-12-31T05:04:53.257944Z",
+                "url": "https://files.pythonhosted.org/packages/f8/b4/d49c5f11915c6c11e86652a3de20aa8b462b1c878aeb2bb761d0d2377e8d/scrippy-mail-1.1.70.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

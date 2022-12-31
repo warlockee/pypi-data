@@ -37,7 +37,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16252276,
+        "last_serial": 16264621,
         "urls": [
             {
                 "comment_text": "",
@@ -120,7 +120,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16252276,
+        "last_serial": 16264621,
         "urls": [
             {
                 "comment_text": "",
@@ -203,7 +203,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16252276,
+        "last_serial": 16264621,
         "urls": [
             {
                 "comment_text": "",
@@ -273,7 +273,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16252276,
+        "last_serial": 16264621,
         "urls": [
             {
                 "comment_text": "",
@@ -328,7 +328,6 @@
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "![Build Status](https://github.com/duong-jason/mpitree/workflows/Unit%20Tests/badge.svg)\n![Build Status](https://github.com/duong-jason/mpitree/workflows/Lint/badge.svg)\n[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)\n[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/PyCQA/pylint)\n\n\n# mpitree\n\nA Parallel Decision Tree Implementation using MPI *(Message Passing Interface)*.\n\n## How it Works\n\n<p align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/duong-jason/mpitree/main/images/psplit.png\" alt=\"Example of process splits\"/>\n</p>\n\nFor every *interior* decision tree node created, a variable number of processes collectively participate in calculating the best feature to split in addition to the *divide and conquer* strategy. During the *divide* phase, processes in a *communicator* are split approximately evenly across all levels of the split feature. Let $n$ be the number of processes and $p$ be the number of levels, then each distribution, $m$, contains at least $\\lfloor n/p \\rfloor$ processes and at most one distribution contains $\\lceil n/p \\rceil$ processes where $n\\nmid p$. During the *conquer* phrase, processes in a distribution independently participate among themselves at their respective levels. In detail, each process is assigned in the cyclic distribution or round-robin fashion such that their $comm = (\\lfloor ranks/m\\rfloor)\\mod p$ and $rank = comm_{size}/rank$.\n\nIn the above diagram, the root node consists of eight total processes, $p_0, p_1, ..., p_7$, with three distinct feature levels, $l_0, l_1, l_2$. Group $1$ consists of processes and ranks, $\\{(0,0), (1,1), (6,2), (7,3)\\}$ respectively, Group $2$ consists of processes and ranks, $\\{(2,0), (3,1)\\}$ respectively and Group $3$ consists of processes and ranks, $\\{(4,0), (5,1)\\}$ respectively.\n\nEach routine waits for their respective processes from their original *communicator* to finish executing. The completion of a routine results in a sub-tree on a particular path from the root, and the local communicator is de-allocated. The algorithm terminates when all sub-trees are recursively gathered to the root process.\n\nPlease note all processes only perform a split during the *divide* phase in a given communicator at an *interior node*. Therefore, a leaf node may consist of more than one process, as the purity measurement at a node is independent of the number of processes.\n\n## Installation\n\nUsing [Github](https://github.com/duong-jason/mpitree)\n```bash\ngit clone https://github.com/duong-jason/mpitree.git\ncd mpitree\n```\n\nUsing [pip](https://pypi.org/project/mpitree/)\n```bash\npip install mpitree\n```\n\n## Example\n\n```python\nfrom mpi4py import MPI\nfrom sklearn.datasets import load_iris\nfrom sklearn.model_selection import train_test_split\n\nfrom mpitree.parallel_decision_tree import (\n    ParallelDecisionTreeClassifier,\n    world_comm,\n    world_rank,\n)\n\nif __name__ == \"__main__\":\n    iris = load_iris(as_frame=True)\n\n    X_train, X_test, y_train, y_test = train_test_split(\n        iris.data, iris.target, test_size=0.20, random_state=42\n    )\n\n    world_comm.Barrier()\n    start_time = MPI.Wtime()\n\n    pdt = ParallelDecisionTreeClassifier(criterion={'max_depth': 3})\n    pdt.fit(X_train, y_train)\n\n    score = pdt.score(X_test, y_test)\n\n    end_time = MPI.Wtime()\n    if not world_rank:\n        print(pdt)\n        print(f\"Accuracy: {score:.2%}\")\n        print(f\"Parallel Execution Time: {end_time - start_time:.3f}s\")\n```\n\n### Executing `main.py` with 5 processes\n\n```\n$ mpiexec -n 5 python3 main.py\n\npetal length (cm) (< 2.45)\n        0\n        petal length (cm) (< 4.75)\n                petal width (cm) (< 1.65)\n                        1\n                        2\n                petal width (cm) (< 1.75)\n                        2\n                        2\nAccuracy: 96.67%\nParallel Execution Time: 1.895s\n```\n\n### Decision Boundaries varying values for the `max_depth` hyperparameter\n\nOverfitting becomes apparent as the tree gets deeper because predictions are based on smaller and smaller partitions of the feature space. In a sense, the model is biasing towards *singleton* nodes; and therefore, may cause mispredictions in the precense of noisy data.\n\nPre-post pruning techniques mitigates the likelihood of a decision tree overfitting. The figures shown below various decision boundaries for different values of the `max_depth` hyperparameter. In addition, we show how *outliers* and *noise* may constitute mispredictions.\n\nThe iris dataset provided by *scikit-learn* provides a base analysis for our decision tree implementation. The former figure demonstrates how noisy instances may negatively impact the performance of the decision tree model while for the latter figure, the decision boundary does not shift with the outlier for the *iris setosa* class.\n\n![depth_all_1](https://raw.githubusercontent.com/duong-jason/mpitree/main/images/dt_all_1.png)\n\n![depth_all_2](https://raw.githubusercontent.com/duong-jason/mpitree/main/images/dt_all_2.png)\n\n## Unit Tests\n\n```\npython3 -m pytest\n```\n\n## Contributing\n\nPull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.\n\nPlease make sure to update tests as appropriate.\n\n## Licence\n\n[MIT](https://github.com/duong-jason/mpitree/blob/main/LICENSE)\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -364,7 +363,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16252276,
+        "last_serial": 16264621,
         "urls": [
             {
                 "comment_text": "",
@@ -403,6 +402,97 @@
                 "upload_time": "2022-12-29T22:02:30",
                 "upload_time_iso_8601": "2022-12-29T22:02:30.429633Z",
                 "url": "https://files.pythonhosted.org/packages/4e/d0/bc25069907252d6b3b21b91d60e5d81dcd406f1b997d84b437ca37c59445/mpitree-0.0.5.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.0.6": {
+        "info": {
+            "author": "Jason Duong",
+            "author_email": "my.toe.ben@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# mpitree\n\n![Build Status](https://github.com/duong-jason/mpitree/workflows/Unit%20Tests/badge.svg)\n![Build Status](https://github.com/duong-jason/mpitree/workflows/Lint/badge.svg)\n[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)\n[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/PyCQA/pylint)\n\nA Parallel Decision Tree Implementation using MPI *(Message Passing Interface)*.\n\n<p align=\"center\">\n  <img src=\"https://raw.githubusercontent.com/duong-jason/mpitree/main/images/psplit.png\" alt=\"Example of process splits\"/>\n</p>\n\nFor every *interior* decision tree node created, a variable number of processes collectively participate in calculating the best feature to split in addition to the *divide and conquer* strategy. During the *divide* phase, processes in a *communicator* are split approximately evenly across all levels of the split feature. Let $n$ be the number of processes and $p$ be the number of levels, then each distribution, $m$, contains at least $\\lfloor n/p \\rfloor$ processes and at most one distribution contains $\\lceil n/p \\rceil$ processes where $n\\nmid p$. During the *conquer* phrase, processes in a distribution independently participate among themselves at their respective levels. In detail, each process is assigned in the cyclic distribution or round-robin fashion such that their $comm = (\\lfloor ranks/m\\rfloor)\\mod p$ and $rank = comm_{size}/rank$.\n\nIn the above diagram, the root node consists of eight total processes, $p_0, p_1, ..., p_7$, with three distinct feature levels, $l_0, l_1, l_2$. Group $1$ consists of processes and ranks, $(0,0), (1,1), (6,2), (7,3)$ respectively, Group $2$ consists of processes and ranks, $(2,0), (3,1)$ respectively and Group $3$ consists of processes and ranks, $(4,0), (5,1)$ respectively.\n\nEach routine waits for their respective processes from their original *communicator* to finish executing. The completion of a routine results in a sub-tree on a particular path from the root, and the local communicator is de-allocated. The algorithm terminates when all sub-trees are recursively gathered to the root process.\n\nPlease note all processes only perform a split during the *divide* phase in a given communicator at an *interior node*. Therefore, a leaf node may consist of more than one process, as the purity measurement at a node is independent of the number of processes.\n\n## Requirements\n\n- [mpi4py](https://pypi.org/project/mpi4py/) >= 3.1.4\n- [numpy](https://pypi.org/project/pandas/) >= 1.24.1\n- [pandas](https://pypi.org/project/numpy/) >= 1.5.2\n- [matplotlib](https://pypi.org/project/matplotlib/) >= 3.6.2\n\n## Usage\n\nUsing [Github](https://github.com/duong-jason/mpitree)\n\n```bash\ngit clone https://github.com/duong-jason/mpitree.git\ncd mpitree\n```\n\nUsing the package manager [pip](https://pypi.org/project/mpitree/)\n\n```bash\npip install mpitree\n```\n\n## Example\n\n```python\nfrom mpi4py import MPI\nfrom sklearn.datasets import load_iris\nfrom sklearn.model_selection import train_test_split\n\nfrom mpitree.parallel_decision_tree import (\n    ParallelDecisionTreeClassifier,\n    world_comm,\n    world_rank,\n)\n\nif __name__ == \"__main__\":\n    iris = load_iris(as_frame=True)\n\n    X_train, X_test, y_train, y_test = train_test_split(\n        iris.data, iris.target, test_size=0.20, random_state=42\n    )\n\n    world_comm.Barrier()\n    start_time = MPI.Wtime()\n\n    pdt = ParallelDecisionTreeClassifier(criterion={'max_depth': 3})\n    pdt.fit(X_train, y_train)\n\n    score = pdt.score(X_test, y_test)\n\n    end_time = MPI.Wtime()\n    if not world_rank:\n        print(pdt)\n        print(f\"Accuracy: {score:.2%}\")\n        print(f\"Parallel Execution Time: {end_time - start_time:.3f}s\")\n```\n\n### Executing `main.py` with $5$ processes\n\n```bash\n$ mpiexec -n 5 python3 main.py\n\npetal length (cm) (< 2.45)\n        0\n        petal length (cm) (< 4.75)\n                petal width (cm) (< 1.65)\n                        1\n                        2\n                petal width (cm) (< 1.75)\n                        2\n                        2\nAccuracy: 96.67%\nParallel Execution Time: 1.895s\n```\n\n### Decision Boundaries varying values for the `max_depth` hyperparameter\n\nOverfitting becomes apparent as the tree gets deeper because predictions are based on smaller and smaller partitions of the feature space. In a sense, the model is biasing towards *singleton* nodes; and therefore, may cause mispredictions in the precense of noisy data.\n\nPre-post pruning techniques mitigates the likelihood of an overfitted decision tree. The figures shown below depict various decision boundaries for different values of the `max_depth` hyperparameter. In addition, we show how *outliers* and *noise* may constitute mispredictions.\n\nThe iris dataset provided by *scikit-learn* provides a base analysis for our decision tree implementation. The former figure demonstrates how noisy instances may negatively impact the performance of the decision tree model while in the latter figure, the decision boundary does not shift with the outlier for the *iris setosa* class.\n\nDecision Tree with Noise   | Decision Tree with Outlier\n:-------------------------:|:-------------------------:\n![dt_noise](https://raw.githubusercontent.com/duong-jason/mpitree/main/images/psplit-0.png) | ![dt_outlier](https://raw.githubusercontent.com/duong-jason/mpitree/main/images/psplit-1.png)\n\n## Unit Tests\n\n```bash\npython3 -m pytest\n```\n\n## Contributing\n\nPull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.\n\nPlease make sure to update tests as appropriate.\n\n## Licence\n\n[MIT](https://github.com/duong-jason/mpitree/blob/main/LICENSE)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/duong-jason/mpitree",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "mpitree",
+            "package_url": "https://pypi.org/project/mpitree/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/mpitree/",
+            "project_urls": {
+                "Homepage": "https://github.com/duong-jason/mpitree"
+            },
+            "release_url": "https://pypi.org/project/mpitree/0.0.6/",
+            "requires_dist": [
+                "graphviz",
+                "matplotlib",
+                "mpi4py",
+                "pandas",
+                "scikit-learn",
+                "pytest ; extra == 'testing'"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "A Parallel Decision Tree Implementation using MPI",
+            "version": "0.0.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16264621,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a52cfe661a527184fcd4ccae9a32ef46",
+                    "sha256": "de9979ffeb284b23c81d29200d9c64e7e5972f348823c71f14a055fc7f1a0e3c"
+                },
+                "downloads": -1,
+                "filename": "mpitree-0.0.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "a52cfe661a527184fcd4ccae9a32ef46",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 11457,
+                "upload_time": "2022-12-31T04:56:02",
+                "upload_time_iso_8601": "2022-12-31T04:56:02.169004Z",
+                "url": "https://files.pythonhosted.org/packages/13/d0/ca4cb13126553838a36a18f61b8cb237f5d7c66f7843be78753b4aec654b/mpitree-0.0.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ff9c5aecb221dd4c8c384c70c2d9bf45",
+                    "sha256": "030e5b8c1b6c16637b174682b27d1d34a780e2cccc415171aacd1bc1f991d379"
+                },
+                "downloads": -1,
+                "filename": "mpitree-0.0.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ff9c5aecb221dd4c8c384c70c2d9bf45",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 12126,
+                "upload_time": "2022-12-31T04:56:05",
+                "upload_time_iso_8601": "2022-12-31T04:56:05.967233Z",
+                "url": "https://files.pythonhosted.org/packages/6a/b6/69e4765ce03c49db1b10d130fbd67467ff36be6a92e50c1b1d01e0322ce2/mpitree-0.0.6.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
