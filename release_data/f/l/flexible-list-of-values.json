@@ -37,7 +37,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16002981,
+        "last_serial": 16269881,
         "urls": [
             {
                 "comment_text": "",
@@ -103,7 +103,6 @@
                 "Programming Language :: Python :: 3.11",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "# flexible-list-of-values\nFlexible and Extensible Lists of Values (LOV) for Django\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -133,7 +132,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16002981,
+        "last_serial": 16269881,
         "urls": [
             {
                 "comment_text": "",
@@ -172,6 +171,102 @@
                 "upload_time": "2022-12-06T02:33:15",
                 "upload_time_iso_8601": "2022-12-06T02:33:15.875487Z",
                 "url": "https://files.pythonhosted.org/packages/ad/83/611f1eece9f2e150e5180ae5988a69f47a6fac5a45103fd545ae6d39ec02/flexible_list_of_values-0.1.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.3": {
+        "info": {
+            "author": "Jack Linke",
+            "author_email": "jack@watervize.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Environment :: Web Environment",
+                "Framework :: Django",
+                "Framework :: Django :: 3.2",
+                "Framework :: Django :: 4",
+                "Framework :: Django :: 4.0",
+                "Framework :: Django :: 4.1",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "\n# flexible-list-of-values\n\nFlexible and Extensible Lists of Values (LOV) for Django\n\n> When adding customizability to a SaaS app, there are a variety of approaches and tools:\n> \n> - [Dynamic models](https://baserow.io/blog/how-baserow-lets-users-generate-django-models) and dynamic model fields\n> - [Entity-Attribute-Value (EAV)](https://en.wikipedia.org/wiki/Entity%E2%80%93attribute%E2%80%93value_model)\n> - Adding [JSONField](https://docs.djangoproject.com/en/4.1/ref/models/fields/#jsonfield) to a model\n>\n> But these approaches can be a bit *too* flexible. Sometimes we want to provide guardrails for our tenants.\n>\n> *flexible-list-of-values* provides you a way to give your SaaS app's tenants customization options in its User-facing forms, but also lets you provide them with defaults - either mandatory or optional - to prevent each tenant having to \"recreate the wheel\".\n\n*Note: The terms \"entity\" and \"tenant\" are used interchangeably in this document to refer to a model within your project that has associated Users, and which has \"ownership\" over the LOV value options provided to its Users*\n\n## Most basic example of flexible-list-of-values setup\n\n```python\nclass Tenant(models.Model):\n    \"\"\"\n    An existing model within your project in the `entities` app to which we are attaching the list of values.\n    This is just an example model. Your approach may be different.\n    \"\"\"\n\n# ---\nfrom flexible_list_of_values import AbstractLOVValue, AbstractLOVSelection\n\nclass ConcreteLOVValue(AbstractLOVValue):\n    \"\"\"\n    Most basic concrete implementation with no default options provided.\n    \"\"\"\n\n    lov_entity_model = Tenant  # The model to which we attach these selections\n\n\nclass ConcreteLOVSelection(AbstractLOVSelection):\n    \"\"\"\n    Most basic concrete implementation.\n    \"\"\"\n\n    lov_value_model = ConcreteLOVValue\n    lov_entity_model = Tenant  # The model to which we attach these selections\n```\n\nNow `Tenant` model instances have a relationship with `ConcreteLOVValue` and `ConcreteLOVSelection`.\n\n---\n\n## Example implementation\n\nImagine your project provides a contact form that your tenants' visitors use to receive information requests from their potential customers. Now you want to add a \"subject\" field to this form.\n\nYou could hard-code some subject value choices using CharField and choices, or if your tenants wanted the field to be customizable you could use JSONField or other methods.\n\nThis package provides an in-between option. You can specify some default options that are required, provide some default options that your tenants can either use or discard, and allow additional custom value options specific to the tenant.\n\n![Descriptive Diagram](https://raw.githubusercontent.com/jacklinke/flexible-list-of-values/main/docs/media/FlexibleLOVDescription.png)\n\nModels:\n\n```python\nfrom flexible_list_of_values import AbstractLOVValue, AbstractLOVSelection\n\n\nclass Tenant(models.Model):\n    \"\"\"\n    An existing model within your project in the `entities` app to which we are attaching the list of values.\n    Assumes these models exist in the \"entities\" app, so this model is \"entities.Tenant\".\n    This is just an example model. Your approach may be different.\n    \"\"\"\n\nclass TenantSubjectLOVValue(AbstractLOVValue):\n    \"\"\"\n    Concrete implementation of AbstractLOVValue with Subject options that a Tenant can select from.\n    \"\"\"\n\n    lov_entity_model = \"entities.Tenant\"  # Use appname.ModelName\n    lov_selections_model = \"entities.TenantSubjectLOVSelection\"\n\n    # Default MANDATORY and OPTIONAL values\n    lov_defaults = {\n        \"Requesting General Information\": {\"value_type\": LOVValueType.MANDATORY},\n        \"Hours of Operation\": {},  # Defaults to MANDATORY\n        \"Demo Request\": {\"value_type\": LOVValueType.OPTIONAL},\n        \"Complaint\": {\"value_type\": LOVValueType.OPTIONAL},\n    }\n\n    class Meta:\n        verbose_name = \"Subject Value\"\n        verbose_name_plural = \"Subject Values\"\n\n\nclass TenantSubjectLOVSelection(AbstractLOVSelection):\n    \"\"\"\n    Concrete implementation of AbstractLOVSelection with actual selections of Subjects for each Tenant\n    \"\"\"\n\n    lov_value_model = \"entities.TenantSubjectLOVValue\"  # Use appname.ModelName\n    lov_entity_model = \"entities.Tenant\"\n\n    class Meta:\n        verbose_name = \"Subject Selection\"\n        verbose_name_plural = \"Subject Selections\"\n```\n\nFor the example above, in a Contact form for Users of TenantA or TenantB ...\n\n- The `subject` ModelChoiceField will always include Subject choices for \"Requesting General Information\" and \"Hours of Operation\".\n- Both tenants can choose whether their Users will have the \"Demo Request\" and \"Complaint\" choices.\n- And both tenants can create custom tenant-specific value options for their Users to choose from.\n\n## Working with LOV Values\n\nView the available Values for this Tenant:\n\n```python\ntenant = Tenant.objects.first()\nvalues_for_tenant = TenantSubjectLOVValue.objects.for_entity(tenant)\n```\n\nView the selected Values for this Tenant:\n\n```python\ntenant = Tenant.objects.first()\nvalues_for_tenant = TenantSubjectLOVValue.objects.for_entity(tenant)\n```\n\nCreate new custom Values for this Tenant:\n\n```python\ntenant = Tenant.objects.first()\nTenantSubjectLOVValue.objects.create_for_entity(tenant, \"New Value for this Tenant\")\n```\n\nDelete Values for this Tenant (only deletes custom values owned by this tenant)\n\n```python\ntenant = Tenant.objects.first()\nvalues = TenantSubjectLOVValue.objects.for_entity(entity=tenant).filter(name__icontains=\"Something\")\nfor value in values:\n    value.delete()\n```\n\n\n## Letting tenants select LOV value choices for their users\n\nTenants can select from among the Values available for this Tenant or create new Values\n\n```python\nfrom django.forms.widgets import HiddenInput\nfrom flexible_list_of_values import LOVValueType\n\n\nclass TenantValueCreateForm(forms.ModelForm):\n    \"\"\"\n    Form to let a tenant add a new custom LOV Value.\n    \"\"\"\n    class Meta:\n        model = TenantSubjectLOVValue\n        fields = [\"name\", \"lov_entity\", \"value_type\"]\n\n    def __init__(self, *args, **kwargs):\n        self.lov_entity = kwargs.pop(\"lov_entity\", None)\n        if not self.lov_entity:\n            raise NoEntityProvidedFromViewError(\"No lov_entity model class was provided to the form from the view\")\n        super().__init__(*args, **kwargs)\n        \n        # Set the value_type field value to CUSTOM and use a HiddenInput widget\n        self.fields['value_type'].widget = HiddenInput()\n        self.fields['value_type'].initial = LOVValueType.CUSTOM\n        \n        # Set the lov_entity field value to the entity instance provided from the view\n        #   and use a HiddenInput widget\n        self.fields['lov_entity'].widget = HiddenInput()\n        self.fields['lov_entity'].initial = self.lov_entity\n\n\nclass value_create_view(request):\n    # However you specify the current entity/tenant for the User submitting this form.\n    # This is only an example.\n    tenant = request.user.tenant\n\n    # Here we provide the User's entity, which the form will use\n    form = TenantValueCreateForm(request.POST or None, lov_entity=tenant)\n    ...\n\n\nclass TenantValueSelectionForm(forms.ModelForm):\n    \"\"\"\n    Form to let a tenant select which LOV Values its users can choose from.\n    \"\"\"\n    class Meta:\n        model = TenantSubjectLOVSelection\n        fields = [\"lov_entity\", \"lov_values\"]\n\n    def __init__(self, *args, **kwargs):\n        self.lov_entity = kwargs.pop(\"lov_entity\", None)\n        super().__init__(*args, **kwargs)\n\n        self.fields[\"subject\"].queryset = ConcreteLOVSelection.objects.values_for_entity(self.lov_entity)\n\n\nclass selection_view(request):\n    # However you specify the current entity/tenant for the User submitting this form.\n    # This is only an example.\n    tenant = request.user.tenant\n\n    # Here we provide the entity \n    form = SelectionForm(request.POST or None, lov_entity=entity)\n    ...\n```\n\n## Working with a tenant's LOV Selections\n\nTenant's Users make a choice from among the selected Values for this Tenant each time they fill out a Contact form.\n\n```python\nclass Contact(models.Model):\n    subject = models.ForeignKey(TenantSubjectLOVSelection, on_delete=models.SET_NULL, null=True, blank=True)\n\n    body = models.TextField()\n\n\nclass ContactForm(forms.Form):\n    forms.ModelChoiceField(queryset=None)\n    \n    class Meta:\n        model = Contact\n        fields = \"__all__\"\n\n    def __init__(self, *args, **kwargs):\n        self.lov_entity = kwargs.pop(\"lov_entity\", None)\n        if not self.lov_entity:\n            raise NoEntityProvidedFromViewError(\"No lov_entity model class was provided to the form from the view\")\n        super().__init__(*args, **kwargs)\n\n        self.fields[\"subject\"].queryset = ConcreteLOVSelection.objects.selections_for_entity(entity=self.lov_entity)\n\n\nclass contact_view(request):\n    # However you specify the current entity/tenant for the User submitting this form.\n    # This is only an example.\n    tenant = request.user.tenant\n\n    # Here we provide the entity \n    form = ContactForm(request.POST or None, lov_entity=entity)\n    ...\n```\n\nHere, Users for TenantA who are filling out a Contact form will see all required values, the optional values that TenantA has selected, and any custom values TenantA has created. TenantB's users will see all required values, the optional values that TenantB has selected, and any custom values TenantB has created.\n\n## API\n\n### Model: AbstractLOVValue\n\n#### Fields\n\n- **id**: default id\n- **name** (CharField): The name or title of the value to be used.\n- **lov_entity** (FK): the owning entity for this value. If this is a default value, this field will be null.\n- **lov_associated_entities** (M2M): all entities this value is associated with. (The reverse relationship on the entity model is all values selected for the entity)\n- **value_type** (CharField): Any of\n    - LOVValueType.MANDATORY\n    - LOVValueType.OPTIONAL\n    - LOVValueType.CUSTOM\n- **deleted** (DateTimeField): The datetime this value was deleted, or null if it is not deleted.\n\n\n#### Model attributes\n\n<dl>\n  <dt>lov_defaults</dt>\n  <dd>\n    A dictionary of default mandatory and optional values from which an entity can select. See usage examples above.<br>\n    <em>Default</em>: <code>{}</code>\n  </dd>\n\n  <dt>lov_entity_model</dt>\n  <dd>\n    Specifies the model class for the 'entity' in your project which can customize its Users' LOVs. Specify the string representation of the model class (e.g.: <code>\"entities.Entity\"</code>).<br>\n    <em>* Required</em>\n  </dd>\n\n  <dt>lov_entity_on_delete</dt>\n  <dd>\n    What should happen when the related entity instance is deleted.<br>\n    <em>Default</em>: <code>models.CASCADE</code>\n  </dd>\n\n  <dt>lov_entity_model_related_name</dt>\n  <dd>\n    <code>related_name</code> for the related entity instance.<br>\n    <em>Default</em>: <code>\"%(app_label)s_%(class)s_related\"</code>\n  </dd>\n\n  <dt>lov_entity_model_related_query_name</dt>\n  <dd>\n    <code>related_query_name</code> for the related entity instance.<br>\n    <em>Default</em>: <code>\"%(app_label)s_%(class)ss\"</code>\n  </dd>\n\n  <dt>lov_selections_model</dt>\n  <dd>\n    Specifies the model class of the through-model between an Entity and a Value. Each instance of this through-model is an option that the tenant's users can choose from. Must be a concrete subclass of AbstractLOVSelection. Specify the string representation of the model class (e.g.: <code>\"entities.TenantSubjectLOVSelection\"</code>).<br>\n    <em>* Required</em>\n  </dd>\n\n  <dt>lov_associated_entities_related_name</dt>\n  <dd>\n    <code>related_name</code> for the M2M to the entity instance.<br>\n    <em>Default</em>: <code>\"%(app_label)s_%(class)s_selections\"</code>\n  </dd>\n\n  <dt>lov_associated_entities_related_query_name</dt>\n  <dd>\n    <code>related_query_name</code> for the M2M to the entity instance.<br>\n    <em>Default</em>: <code>\"%(app_label)s_%(class)ss_selected\"</code>\n  </dd>\n</dl>\n\n#### Manager and QuerySet Methods\n\n<dl>\n  <dt>for_entity(entity)</dt>\n  <dd>\n    Returns QuerySet of all available values for a given entity, including:<br>\n    <ul>\n        <li>all required default values</li>\n        <li>all non-required default values</li>\n        <li>all entity-specific values for this entity</li>\n    </ul>\n  </dd>\n\n  <dt>create_for_entity(entity, name: str)</dt>\n  <dd>\n    Creates a new selectable Value for the provided entity.\n  </dd>\n\n  <dt>create_mandatory(name: str)</dt>\n  <dd>\n    Creates a new Value (selected for all entities).\n  </dd>\n\n  <dt>create_optional(name: str)</dt>\n  <dd>\n    Creates a new selectable optional Value (selectable by all entities).\n  </dd>\n</dl>\n\n\n### Model: AbstractLOVSelection\n\nThis is a through-model from an concrete LOVValue model instance to an entity model instance representing the value selections an entity has made.\n\n#### Fields\n\n- **id**: default id\n- **lov_entity** (FK): the entity this selection is associated with.\n- **lov_value** (FK): the value this selection is associated with.\n\n#### Model attributes\n\n<dl>\n  <dt>lov_entity_model</dt>\n  <dd>\n    Specifies the model class for the 'entity' in your project which can customize its Users' LOVs. Specify the string representation of the model class (e.g.: <code>\"entities.Entity\"</code>).<br>\n    <em>* Required</em>\n  </dd>\n\n  <dt>lov_entity_on_delete</dt>\n  <dd>\n    What should happen when the related entity instance is deleted.<br>\n    <em>Default</em>: <code>models.CASCADE</code>\n  </dd>\n\n  <dt>lov_entity_model_related_name</dt>\n  <dd>\n    <code>related_name</code> for the related entity instance.<br>\n    <em>Default</em>: <code>\"%(app_label)s_%(class)s_related\"</code>\n  </dd>\n\n  <dt>lov_entity_model_related_query_name</dt>\n  <dd>\n    <code>related_query_name</code> for the related entity instance.<br>\n    <em>Default</em>: <code>\"%(app_label)s_%(class)ss\"</code>\n  </dd>\n\n\n  <dt>lov_value_model</dt>\n  <dd>\n    Specifies the model class for the concrete (not abstract!) subclass of AbstractLOVValue. Specify the string representation of the model class (e.g.: <code>\"contacts.TenantSubjectLOVSelection\"</code>).<br>\n    <em>* Required</em>\n  </dd>\n\n  <dt>lov_value_model_related_name</dt>\n  <dd>\n    <code>related_name</code> for the related concrete subclassed AbstractLOVValue instance.<br>\n    <em>Default</em>: <code>\"%(app_label)s_%(class)s_related\"</code>\n  </dd>\n\n  <dt>lov_value_model_related_query_name</dt>\n  <dd>\n    <code>related_query_name</code> for the related concrete subclassed AbstractLOVValue instance.<br>\n    <em>Default</em>: <code>\"%(app_label)s_%(class)ss\"</code>\n  </dd>\n</dl>\n\n#### Manager and QuerySet Methods\n\n<dl>\n  <dt>values_for_entity(entity)</dt>\n  <dd>\n    Returns QuerySet of all <em>available</em> values for a given entity, including:<br>\n    <ul>\n        <li>all required default values</li>\n        <li>all non-required default values</li>\n        <li>all entity-specific values for this entity</li>\n    </ul>\n  </dd>\n  \n  <dt>selections_for_entity(entity)</dt>\n  <dd>\n    Returns QuerySet of all <em>selected</em> values for a given entity, including:<br>\n    <ul>\n        <li>all required default values</li>\n        <li>all selected non-required default values</li>\n        <li>all selected entity-specific values for this entity</li>\n    </ul>\n  </dd>\n</dl>\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/jacklinke/flexible-list-of-values",
+            "keywords": "django",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "flexible-list-of-values",
+            "package_url": "https://pypi.org/project/flexible-list-of-values/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/flexible-list-of-values/",
+            "project_urls": {
+                "Homepage": "https://github.com/jacklinke/flexible-list-of-values",
+                "Repository": "https://github.com/jacklinke/flexible-list-of-values"
+            },
+            "release_url": "https://pypi.org/project/flexible-list-of-values/0.1.3/",
+            "requires_dist": null,
+            "requires_python": ">=3.9,<4.0",
+            "summary": "Flexible Lists of Values (LOV) for Django",
+            "version": "0.1.3",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16269881,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a285e896b3d1c40c313210cd858673d6",
+                    "sha256": "a7b64e1bb5231ffd0fe9dd1ae3d055baae901b31d41093140e0ae8e03c6b28f2"
+                },
+                "downloads": -1,
+                "filename": "flexible_list_of_values-0.1.3-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "a285e896b3d1c40c313210cd858673d6",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.9,<4.0",
+                "size": 12637,
+                "upload_time": "2023-01-01T02:01:12",
+                "upload_time_iso_8601": "2023-01-01T02:01:12.094256Z",
+                "url": "https://files.pythonhosted.org/packages/4a/3c/6ec75385c8fdae24e8ba63933166a281ca3ca564acee054a046ad1e0d96e/flexible_list_of_values-0.1.3-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "020e287bde5a8eac33e579918846371b",
+                    "sha256": "1865c4014002e64b99384944626836a861a58827bcc7640a0eee3abb71bff971"
+                },
+                "downloads": -1,
+                "filename": "flexible_list_of_values-0.1.3.tar.gz",
+                "has_sig": false,
+                "md5_digest": "020e287bde5a8eac33e579918846371b",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.9,<4.0",
+                "size": 14435,
+                "upload_time": "2023-01-01T02:01:13",
+                "upload_time_iso_8601": "2023-01-01T02:01:13.374711Z",
+                "url": "https://files.pythonhosted.org/packages/30/6b/9ff73723776a21d206fc00277a5036d0b70a766c2d35d454f168a1c4a0a5/flexible_list_of_values-0.1.3.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

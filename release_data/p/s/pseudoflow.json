@@ -33,7 +33,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7511765,
+        "last_serial": 16269731,
         "urls": [
             {
                 "comment_text": "",
@@ -115,7 +115,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7511765,
+        "last_serial": 16269731,
         "urls": [
             {
                 "comment_text": "",
@@ -197,7 +197,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7511765,
+        "last_serial": 16269731,
         "urls": [
             {
                 "comment_text": "",
@@ -259,7 +259,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7511765,
+        "last_serial": 16269731,
         "urls": [
             {
                 "comment_text": "",
@@ -321,7 +321,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7511765,
+        "last_serial": 16269731,
         "urls": [
             {
                 "comment_text": "",
@@ -403,7 +403,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7511765,
+        "last_serial": 16269731,
         "urls": [
             {
                 "comment_text": "",
@@ -485,7 +485,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7511765,
+        "last_serial": 16269731,
         "urls": [
             {
                 "comment_text": "",
@@ -519,7 +519,6 @@
                 "Development Status :: 3 - Alpha",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# Hochbaum's Pseudoflow (HPF) Algorithm for (Linear) Fully Parametric Minimum Cut\nThis package provides a parametric implementation of pseudoflow for minimum cut on directed graphs. In the parametric minimum cut problem, the capacity of source-adjacent arcs is monotone non-decreasing in the parameter `lambda` whereas the capacity of sink-adjacent arcs is monotone non-increasing in `lambda`. This solver requires that the capacities of source and sink adjacent arcs are linear in `lambda`: `capacity = constant + multiplier * lambda`.\n\nThis fully parametric solver finds the optimal minimum cut for all `lambda` values in a given range. The solution for all lambda values is represented with `O(n)` intervals for the parameter lambda. In each interval, the optimal minimum cut remains the same.\n\nA simple parametric minimum cut solver that provides the optimal minimum cut for a given list of arc capacities is available [here](https://riot.ieor.berkeley.edu/Applications/Pseudoflow/parametric.html), and a non-parametric maximum flow version of pseudoflow is available [here](https://riot.ieor.berkeley.edu/Applications/Pseudoflow/maxflow.html).\n\nThe package provides interfaces for Python, C, and Matlab.\n\nThis implementation uses a variant of the fully parametric HPF algorithm as described in:\n>    DS Hochbaum (2008), The Pseudoflow algorithm: A new algorithm for the maximum flow problem. Operations Research, 58(4):992-1009.\n\nThis implementation does not use *free runs* nor does it use warm starts with informatiom from previous runs (see pg.15). This implementation should therefore **not be used** for comparison with the fully parametric HPF algorithm.\n\nThe package provides an option to round capacities that are negative for certain lambda values to zero. This option should **only** be used when each node has a source adjacent arc with capacity `max(0, a * lambda + b)` and a corresponding sink adjacent arc with capacity `max(0, -a * lambda - b)`. Otherwise, the intersection of the cut capacities is wrongly identified.\n\n\n## Instructions for Python\n\nInstall the package with `pip`:\n\n```bash\n    pip install pseudoflow\n```\n\n#### Example\n```python\nimport networkx as nx\nimport pseudoflow\n\nG = nx.DiGraph()\nG.add_edge(0, 1, const=1, mult=5)\nG.add_edge(1, 2, const=9, mult=-3)\n\n\nsource = 0\nsink = 2\nlambda_range = [0., 2.]\n\nbreakpoints, cuts, info = pseudoflow.hpf(\n    G,  # Networkx directed graph.\n    source,  # Node id of the source node.\n    sink,  # Node id of the sink node.\n    const_cap=\"const\",  # Edge attribute with the constant capacity.\n    mult_cap=\"mult\",  # Edge attribute with the lambda multiplier.\n    lambdaRange=lambda_range,  # (lower, upper) bounds for the lambda parameter.\n    roundNegativeCapacity=False  # True if negative arc capacities should be rounded to zero.\n)\n\n# breakpoints: list of upper bounds for the lambda intervals.\n# cuts: A dictionary with for each node a list indicating whether\n#       the node is in the source set of the minimum cut.\nprint(breakpoints)  # Output: [1., 2.]\nprint(cuts)  # Output: {0: [1, 1], 1: [0, 1], 2: [0, 0]}\n```\n\n## Instructions for C\nNavigate to directory `src/pseudoflow/c`, and compile the `hpf` executable with `make`.\n\nTo execute the solver, use:\n```bash\nhpf input-file.txt output-file.txt\n```\n\nThe input file should contain the graph structure and is assumed to have the following format:\n```\n    c <comment lines>\n    p <# nodes> <# arcs> <lower bound> <upper bound> <round if negative>\n    n <source node> s\n    n <sink node> t\n    a <from-node> <to-node> <constant capacity> <lambda multiplier>\n```\nwhere the `a` line is repeated for each arc. The file should satisfy the following conditions:\n- Nodes are labeled `0 .. <# nodes> - 1`.\n- `<lambda multiplier>` is non-negative if `<from-node> == <source node>` and `<to-node> != <sink-node>`.\n- `<lambda multiplier>` is non-positive if `<from-node> != <source node>` and `<to-node> == <sink-node>`.\n- `<lambda multiplier>` is zero if `<from-node> != <source node>` and `<to-node> != <sink-node>`.\n- `<round if negative>` takes value 1 if the any negative capacity arc should be rounded to 0, and value 0 otherwise.\n\nThe solver will generate the following output file:\n```\nt <time (in sec) read data> <time (in sec) initialize> <time (in sec) solve>\ns <# arc scans> <# mergers> <# pushes> <# relabels > <# gap >\np <number of lambda intervals = k>\nl <lambda upperbound interval 1> ... <lambda upperbound interval k>\nn <node-id> <sourceset indicator interval 1 > .. <indicator interval k>\n```\nThe `n` line appears for each node. `<sourceset indicator interval 1 >` indicates whether the node is in the source set of the minimum cut for the first lambda interval.\n\nSee `src/pseudoflow/c/example` for an example.\n\n## Instructions for Matlab\n\nCopy the content of `src/pseudoflow/matlab` to your current directory.\n\nFrom within Matlab, compile the mex extension with:\n```matlab\n    mex hpfMatlab.c\n```\n\nThe solver is accessible via the `hpf` function with the following signature:\n```matlab\n    [cuts, lambdas, stats, times]  = hpf(arcmatrix, num_nodes, source, sink lambda_range, rounding);\n```\n\n#### Inputs:\n* **arcmatrix**: Each row of the matrix has the following structure: `[from_node, to_node, constant capacity, lambda multiplier]`\n* **num_nodes**: Number of nodes in the graph\n* **source_node**: The numeric label of the source node\n* **sink_node**: The numeric label of the sink node\n* **lambda_range**: [lower bound, upper bound] for the lambda parameter.\n* **rounding**: Set to 1 if negative arc capacities should be rounded to zero, and 0 otherwise.\n\n#### Outputs:\n* **cuts**: n x k matrix where `A(i,j)` is 1 if node `i` is in the source set for lambda interval `j`, and 0 otherwise.\n* **lambdas**: 1 x k matrix where `L(j)` is the upper bound of the lambda interval `j`.",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -548,7 +547,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 7511765,
+        "last_serial": 16269731,
         "urls": [
             {
                 "comment_text": "",
@@ -587,6 +586,89 @@
                 "upload_time": "2020-06-19T04:05:19",
                 "upload_time_iso_8601": "2020-06-19T04:05:19.347498Z",
                 "url": "https://files.pythonhosted.org/packages/14/bc/566470dbfceed92f88632d33744ca890a9c09a180bedc4af7104d0cf3c03/pseudoflow-2020.6.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "2022.12.0": {
+        "info": {
+            "author": "Quico Spaen",
+            "author_email": "qspaen@berkeley.edu",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# Hochbaum's Pseudoflow (HPF) Algorithm for (Linear) Fully Parametric Minimum Cut\r\nThis package provides a parametric implementation of pseudoflow for minimum cut on directed graphs. In the parametric minimum cut problem, the capacity of source-adjacent arcs is monotone non-decreasing in the parameter `lambda` whereas the capacity of sink-adjacent arcs is monotone non-increasing in `lambda`. This solver requires that the capacities of source and sink adjacent arcs are linear in `lambda`: `capacity = constant + multiplier * lambda`.\r\n\r\nThis fully parametric solver finds the optimal minimum cut for all `lambda` values in a given range. The solution for all lambda values is represented with `O(n)` intervals for the parameter lambda. In each interval, the optimal minimum cut remains the same.\r\n\r\nA simple parametric minimum cut solver that provides the optimal minimum cut for a given list of arc capacities is available [here](https://riot.ieor.berkeley.edu/Applications/Pseudoflow/parametric.html), and a non-parametric maximum flow version of pseudoflow is available [here](https://riot.ieor.berkeley.edu/Applications/Pseudoflow/maxflow.html).\r\n\r\nThe package provides interfaces for Python, C, and Matlab.\r\n\r\nThis implementation uses a variant of the fully parametric HPF algorithm as described in:\r\n>    DS Hochbaum (2008), The Pseudoflow algorithm: A new algorithm for the maximum flow problem. Operations Research, 58(4):992-1009.\r\n\r\nThis implementation does not use *free runs* nor does it use warm starts with informatiom from previous runs (see pg.15). This implementation should therefore **not be used** for comparison with the fully parametric HPF algorithm.\r\n\r\nThe package provides an option to round capacities that are negative for certain lambda values to zero. This option should **only** be used when each node has a source adjacent arc with capacity `max(0, a * lambda + b)` and a corresponding sink adjacent arc with capacity `max(0, -a * lambda - b)`. Otherwise, the intersection of the cut capacities is wrongly identified.\r\n\r\n\r\n## Instructions for Python\r\n\r\nInstall the package with `pip`:\r\n\r\n```bash\r\n    pip install pseudoflow\r\n```\r\n\r\n#### Example\r\n```python\r\nimport networkx as nx  # igraph is also supported\r\nimport pseudoflow\r\n\r\nG = nx.DiGraph()\r\nG.add_edge(0, 1, const=1, mult=5)\r\nG.add_edge(1, 2, const=9, mult=-3)\r\n\r\n\r\nsource = 0\r\nsink = 2\r\nlambda_range = [0., 2.]\r\n\r\nbreakpoints, cuts, info = pseudoflow.hpf(\r\n    G,  # Networkx or igraph directed graph.\r\n    source,  # Node id of the source node.\r\n    sink,  # Node id of the sink node.\r\n    const_cap=\"const\",  # Edge attribute with the constant capacity.\r\n    mult_cap=\"mult\",  # Edge attribute with the lambda multiplier.\r\n    lambdaRange=lambda_range,  # (lower, upper) bounds for the lambda parameter.\r\n    roundNegativeCapacity=False  # True if negative arc capacities should be rounded to zero.\r\n)\r\n\r\n# breakpoints: list of upper bounds for the lambda intervals.\r\n# cuts: A dictionary with for each node a list indicating whether\r\n#       the node is in the source set of the minimum cut.\r\nprint(breakpoints)  # Output: [1., 2.]\r\nprint(cuts)  # Output: {0: [1, 1], 1: [0, 1], 2: [0, 0]}\r\n```\r\n\r\n## Instructions for C\r\nNavigate to directory `src/pseudoflow/c`, and compile the `hpf` executable with `make`.\r\n\r\nTo execute the solver, use:\r\n```bash\r\nhpf input-file.txt output-file.txt\r\n```\r\n\r\nThe input file should contain the graph structure and is assumed to have the following format:\r\n```\r\n    c <comment lines>\r\n    p <# nodes> <# arcs> <lower bound> <upper bound> <round if negative>\r\n    n <source node> s\r\n    n <sink node> t\r\n    a <from-node> <to-node> <constant capacity> <lambda multiplier>\r\n```\r\nwhere the `a` line is repeated for each arc. The file should satisfy the following conditions:\r\n- Nodes are labeled `0 .. <# nodes> - 1`.\r\n- `<lambda multiplier>` is non-negative if `<from-node> == <source node>` and `<to-node> != <sink-node>`.\r\n- `<lambda multiplier>` is non-positive if `<from-node> != <source node>` and `<to-node> == <sink-node>`.\r\n- `<lambda multiplier>` is zero if `<from-node> != <source node>` and `<to-node> != <sink-node>`.\r\n- `<round if negative>` takes value 1 if the any negative capacity arc should be rounded to 0, and value 0 otherwise.\r\n\r\nThe solver will generate the following output file:\r\n```\r\nt <time (in sec) read data> <time (in sec) initialize> <time (in sec) solve>\r\ns <# arc scans> <# mergers> <# pushes> <# relabels > <# gap >\r\np <number of lambda intervals = k>\r\nl <lambda upperbound interval 1> ... <lambda upperbound interval k>\r\nn <node-id> <sourceset indicator interval 1 > .. <indicator interval k>\r\n```\r\nThe `n` line appears for each node. `<sourceset indicator interval 1 >` indicates whether the node is in the source set of the minimum cut for the first lambda interval.\r\n\r\nSee `src/pseudoflow/c/example` for an example.\r\n\r\n## Instructions for Matlab\r\n\r\nCopy the content of `src/pseudoflow/matlab` to your current directory.\r\n\r\nFrom within Matlab, compile the mex extension with:\r\n```matlab\r\n    mex hpfMatlab.c\r\n```\r\n\r\nThe solver is accessible via the `hpf` function with the following signature:\r\n```matlab\r\n    [cuts, lambdas, stats, times]  = hpf(arcmatrix, num_nodes, source, sink lambda_range, rounding);\r\n```\r\n\r\n#### Inputs:\r\n* **arcmatrix**: Each row of the matrix has the following structure: `[from_node, to_node, constant capacity, lambda multiplier]`\r\n* **num_nodes**: Number of nodes in the graph\r\n* **source_node**: The numeric label of the source node\r\n* **sink_node**: The numeric label of the sink node\r\n* **lambda_range**: [lower bound, upper bound] for the lambda parameter.\r\n* **rounding**: Set to 1 if negative arc capacities should be rounded to zero, and 0 otherwise.\r\n\r\n#### Outputs:\r\n* **cuts**: n x k matrix where `A(i,j)` is 1 if node `i` is in the source set for lambda interval `j`, and 0 otherwise.\r\n* **lambdas**: 1 x k matrix where `L(j)` is the upper bound of the lambda interval `j`.\r\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/quic0/pseudoflow",
+            "keywords": "minimum cut,network flow,parametric",
+            "license": "Non-commercial license. Not an open-source license.",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pseudoflow",
+            "package_url": "https://pypi.org/project/pseudoflow/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pseudoflow/",
+            "project_urls": {
+                "Homepage": "https://github.com/quic0/pseudoflow"
+            },
+            "release_url": "https://pypi.org/project/pseudoflow/2022.12.0/",
+            "requires_dist": null,
+            "requires_python": "",
+            "summary": "Pseudoflow algorithm for the parametric minimum cut problem.",
+            "version": "2022.12.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16269731,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "4cb9bc096e3ab9e535407de9f7a9ae03",
+                    "sha256": "a4a3c684a0d158af15d5c8244cd5aee04d1c6d0204a088449d8649ca63e76fbc"
+                },
+                "downloads": -1,
+                "filename": "pseudoflow-2022.12.0-cp38-cp38-win_amd64.whl",
+                "has_sig": false,
+                "md5_digest": "4cb9bc096e3ab9e535407de9f7a9ae03",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp38",
+                "requires_python": null,
+                "size": 20002,
+                "upload_time": "2023-01-01T01:18:34",
+                "upload_time_iso_8601": "2023-01-01T01:18:34.325860Z",
+                "url": "https://files.pythonhosted.org/packages/c3/41/58cf145137ecd083088eee309316e7b5c75524545d601010775dbe7d209c/pseudoflow-2022.12.0-cp38-cp38-win_amd64.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "8e0f86461b5b4df6e19d86f86e794dd0",
+                    "sha256": "83751d670b57d6e45f108a8546899d7c58fe1605137876e37e56c5d7cfb2ed47"
+                },
+                "downloads": -1,
+                "filename": "pseudoflow-2022.12.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "8e0f86461b5b4df6e19d86f86e794dd0",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 86735,
+                "upload_time": "2023-01-01T01:18:36",
+                "upload_time_iso_8601": "2023-01-01T01:18:36.335334Z",
+                "url": "https://files.pythonhosted.org/packages/7f/73/3026ba04192286d1caa9415d669ece7fe77469f3fe4ef245a9fbaa8b1101/pseudoflow-2022.12.0.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

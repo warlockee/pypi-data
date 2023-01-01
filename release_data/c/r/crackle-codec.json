@@ -1,0 +1,97 @@
+{
+    "0.0.1.dev211": {
+        "info": {
+            "author": "William Silversmith",
+            "author_email": "ws9@princeton.edu",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: BSD License",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering"
+            ],
+            "description": "# Crackle: Next gen. 3D segmentation compression codec.\n\n```bash\ncrackle data.npy # creates data.ckl\ncrackle -d data.ckl # recovers data.npy\n```\n\n```python\nimport crackle\nimport numpy\n\nlabels = np.load(\"example.npy\") # a 2D or 3D dense segmentation\n\nbinary = crackle.compress(labels)\nlabels = crackle.decompress(binary)\n\n# get unique labels without decompressing\nuniq = crackle.labels(binary) \n\n# Remap labels without decompressing. Could\n# be useful for e.g. proofreading.\nremapped = crackle.remap(\n  binary, { 1: 2, 2: 3, ... },\n  preserve_missing_labels=True\n)\n\n# for working with files\n# if .gz is appended to the filename, the file will be\n# automatically gzipped (or ungzipped)\ncrackle.save(labels, \"example.ckl.gz\")\nlabels = crackle.load(\"example.ckl.gz\")\n\narr = crackle.CrackleArray(binary)\nres = arr[:10,:10,:10] # array slicing (efficient z ranges)\n20 in arr # highly efficient search\n```\n\n*This repository is currently experimental.*\n\nCrackle is a new codec inspired by Compresso \\[1\\] for creating highly compressed 3D dense segmentation images. Compresso innovated by separating labels from boundary structures. There were conceptually four (but really five) elements in the format: header, labels, bit packed and RLE encoded binary image boundaries, and indeterminate boundary locations. \n\nCrackle improves upon Compresso by replacing the bit-packed boundary map with a \"crack code\" and also uses 3D information to reduce redundancy in labels using \"pins\". Like Compresso, Crackle uses a two pass compression strategy where the output of crackle may be further comrpessed with a bitstream compressor like gzip, bzip2, zstd, or lzma.\n\nBased on benchmarks, it seems likely that the output of Crackle will be in the ballpark of 20\\% to 50\\% the size of Compresso. The second stage compressed Crackle file will likely be about 60\\% to 85\\% the size of the equivalent Compresso file.\n\n## Boundary Structure: Crack Code\n\nOur different approach is partially inspired by the work of Zingaretti et al. \\[2\\]. We represent the boundary not by border voxels, but by a \"crack code\" that represents the edges between voxels. This code can be thought of as directions to draw edges on a graph where the vertices are where the corners of four pixels touch and the edges are the cracks in between them. \n\nSince this regular graph is 4-connected, each \"move\" in a cardinal direction can be described using two bits. To represent special symbols such as \"branch\" and \"terminate\", an impossible set of instructions on an undirected graph such as \"left-right\" or \"up-down\" can be used (occupying 4 bits). In order to avoid creating palendromic sequences such as (3, 0, 3) meaning (down, branch) but can be read (terminate, down), we can use the left-right impossible directions to rewrite it as (3, 2, 1).\n\nWhile the image is 3D, we treat the image in layers because working in 3D introduces a large increase in geometric complexity (a cube has 6 faces, 12 edges, and 8 corners while a square has 4 edges and 4 corners). This increase in complexity would inflate the size of the crack code and make the implementation more difficult.\n\n## Label Map: Method of Pins\n\nEach 2D CCL region must has a label assigned. Due to the 2D nature of the crack code, we cannot use 3D CCL. However, for example, a solid cube of height 100 would need 100 labels to represent the same color on every slice as in Compresso.\n\nIt is still possible to reduce the amount of redundant information even without 3D CCL. For each label, we find a set of vertical line segments (\"pins\") that fully cover the label's 2D CCL regions. Sharp readers may note that this is the NP-hard set cover problem.\n\nOnce a reasonably small or minimal set of pins are found, they can be encoded in two forms:\n\nCondensed Form: `[label][num_pins][pin_1][pin_2]...[pin_N]`\nFixed Width Form: `[label][pin_1][label][pin_2]...[label][pin_N]`\nPin Format: `[linear index of pin top][number of voxels to bottom]`\n\nFixed width example with label 1 with a pin between (1,1,1) and (1,1,5) on a 10x10x10 image: `[1][111][4]`\n\nAn alternative formulation `[label][idx1][idx2]` was shown in an experiment on `connectomics.npy.cpso` to compress slightly worse than Compresso labels. However, this alternative formulation theoretically allows arbitrary pin orientations and so might be useful for reducing the overall number of pins.\n\nThe condensed format is a bit smaller than the fixed width format, but the fixed width format enables rapid searches if the set of pins are sorted by either the label (enables fast `label in file`) or the likely more useful sorting by top index to filter candidate pins when performing random access to a z-slice.\n\n## References\n\n1. Matejek, B., Haehn, D., Lekschas, F., Mitzenmacher, M., Pfister, H., 2017. Compresso: Efficient Compression of Segmentation Data for Connectomics, in: Descoteaux, M., Maier-Hein, L., Franz, A., Jannin, P., Collins, D.L., Duchesne, S. (Eds.), Medical Image Computing and Computer Assisted Intervention \u2212 MICCAI 2017, Lecture Notes in Computer Science. Springer International Publishing, Cham, pp. 781\u2013788. https://doi.org/10.1007/978-3-319-66182-7_89\n\n2. Zingaretti, P., Gasparroni, M., Vecci, L., 1998. Fast chain coding of region boundaries. IEEE Transactions on Pattern Analysis and Machine Intelligence 20, 407\u2013415. https://doi.org/10.1109/34.677272\n\n3. Freeman, H., 1974. Computer Processing of Line-Drawing Images. ACM Comput. Surv. 6, 57\u201397. https://doi.org/10.1145/356625.356627\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/seung-lab/crackle",
+            "keywords": "",
+            "license": "License :: OSI Approved :: BSD License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "crackle-codec",
+            "package_url": "https://pypi.org/project/crackle-codec/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/crackle-codec/",
+            "project_urls": {
+                "Homepage": "https://github.com/seung-lab/crackle"
+            },
+            "release_url": "https://pypi.org/project/crackle-codec/0.0.1.dev211/",
+            "requires_dist": [
+                "numpy",
+                "fastremap",
+                "pybind11"
+            ],
+            "requires_python": "",
+            "summary": "Crackle 3D dense segmentation compression codec.",
+            "version": "0.0.1.dev211",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16270817,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "cc5efa9221c11519ad74f967af6ebba0",
+                    "sha256": "edfe593645adb34dfe020a428cd69bb54a2e354ae8c257cb06bfc7fb08519aa8"
+                },
+                "downloads": -1,
+                "filename": "crackle_codec-0.0.1.dev211-cp310-cp310-macosx_10_9_universal2.whl",
+                "has_sig": false,
+                "md5_digest": "cc5efa9221c11519ad74f967af6ebba0",
+                "packagetype": "bdist_wheel",
+                "python_version": "cp310",
+                "requires_python": null,
+                "size": 939455,
+                "upload_time": "2023-01-01T08:04:24",
+                "upload_time_iso_8601": "2023-01-01T08:04:24.959097Z",
+                "url": "https://files.pythonhosted.org/packages/67/d6/38c6cb1d5abe400cfbd86eca26cf9cf2642af800e3bfd51df40b7da27c42/crackle_codec-0.0.1.dev211-cp310-cp310-macosx_10_9_universal2.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "7ff28569062545b7979c5b9c0c9336ab",
+                    "sha256": "31bd442b96a9149bcb5bab786b8eb0ec0caaa3e6b0f092c08255c46239864109"
+                },
+                "downloads": -1,
+                "filename": "crackle-codec-0.0.1.dev211.tar.gz",
+                "has_sig": false,
+                "md5_digest": "7ff28569062545b7979c5b9c0c9336ab",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 56985,
+                "upload_time": "2023-01-01T08:04:26",
+                "upload_time_iso_8601": "2023-01-01T08:04:26.662758Z",
+                "url": "https://files.pythonhosted.org/packages/3b/ed/856624f7cc42b4b6a21ceaada5f54ebb588a732254a493d4c354a0964261/crackle-codec-0.0.1.dev211.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

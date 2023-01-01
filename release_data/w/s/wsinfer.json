@@ -65,7 +65,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16206573,
+        "last_serial": 16269850,
         "urls": [
             {
                 "comment_text": "",
@@ -133,7 +133,6 @@
                 "Topic :: Scientific/Engineering :: Image Recognition",
                 "Topic :: Scientific/Engineering :: Medical Science Apps."
             ],
-            "description": "# Patch classification pipelines for computational pathology\n\nOriginal H&E                        |  Heatmap of Tumor Probability\n:----------------------------------:|:-----------------------------------:\n![](sample-images/brca-tissue.png)  | ![](sample-images/brca-heatmap.png)\n\n\ud83d\udd25 \ud83d\ude80 Blazingly fast pipeline to run patch-based classification models on whole slide images.\n\n![Continuous Integration](https://github.com/kaczmarj/patch-classification-pipeline/actions/workflows/ci.yml/badge.svg)\n\n# Table of contents\n\n- [Available models](#available-models)\n- [Installation](#installation)\n  * [Pip](#pip)\n  * [Containers](#containers)\n    + [Containers for different classification tasks](#containers-for-different-classification-tasks)\n  * [Developers](#developers)\n- [Examples](#examples)\n  * [Setup directories and data](#setup-directories-and-data)\n  * [On \"bare metal\" (not inside a container)](#on-bare-metal-not-inside-a-container)\n  * [Run in an Apptainer container (formerly Singularity)](#run-in-an-apptainer-container-formerly-singularity)\n  * [Run in a Docker container](#run-in-a-docker-container)\n  * [Output](#output)\n  * [Convert to GeoJSON (for QuPath and other viewers)](#convert-to-geojson-for-qupath-and-other-viewers)\n  * [Convert to Stony Brook QuIP format](#convert-to-stony-brook-quip-format)\n\n# Available models\n\n| Classification task                     | Output classes                                           | Model           | Weights name | Reference                                                    |\n|-----------------------------------------|----------------------------------------------------------|-----------------|--------------|--------------------------------------------------------------|\n| Breast adenocarcinoma detection         | no-tumor, tumor                                          | inceptionv4     | TCGA-BRCA-v1 | [ref](https://doi.org/10.1016%2Fj.ajpath.2020.03.012)        |\n| Breast adenocarcinoma detection         | no-tumor, tumor                                          | resnet34        | TCGA-BRCA-v1 | [ref](https://doi.org/10.1016%2Fj.ajpath.2020.03.012)        |\n| Breast adenocarcinoma detection         | no-tumor, tumor                                          | vgg16_modified  | TCGA-BRCA-v1 | [ref](https://doi.org/10.1016%2Fj.ajpath.2020.03.012)        |\n| Lung adenocarcinoma detection           | lepidic, benign, acinar, micropapillary, mucinous, solid | resnet34        | TCGA-LUAD-v1 | [ref](https://github.com/SBU-BMI/quip_lung_cancer_detection) |\n| Pancreatic adenocarcinoma detection     | tumor-positive                                           | resnet34_preact | TCGA-PAAD-v1 | [ref](https://doi.org/10.1007/978-3-030-32239-7_60)          |\n| Prostate adenocarcinoma detection       | grade3, grade4+5, benign                                 | resnet34        | TCGA-PRAD-v1 | [ref](https://github.com/SBU-BMI/quip_prad_cancer_detection) |\n| Tumor-infiltrating lymphocyte detection | til-negative, til-positive                                             | inceptionv4     | TCGA-TILs-v1 | [ref](https://doi.org/10.3389/fonc.2021.806603)              |\n\n# Installation\n\n## Pip\n\nPip install this package from GitHub. First install `torch` and `torchvision`\n(please see [the PyTorch documentation](https://pytorch.org/get-started/locally/)).\nWe do not install these dependencies automatically because their installation can vary based\non a user's system. Then use the command below to install this package.\n\n```\npython -m pip install --find-links https://girder.github.io/large_image_wheels wsinfer\n```\n\nTo use the _bleed edge_, use\n\n```\npython -m pip install \\\n    --find-links https://girder.github.io/large_image_wheels \\\n    git+https://github.com/kaczmarj/patch-classification-pipeline.git\n```\n\n## Containers\n\nUse the Docker / Singularity / Apptainer image, which includes all of the dependencies and scripts.\nSee [DockerHub](https://hub.docker.com/r/kaczmarj/patch-classification-pipeline/tags) for\nthe available tags.\n\n- Apptainer / Singularity\n\n    Replace apptainer with singularity if you do not have apptainer\n\n    ```\n    apptainer pull docker://kaczmarj/patch-classification-pipeline\n    ```\n\n- Docker\n\n    ```\n    docker pull kaczmarj/patch-classification-pipeline\n    ```\n\n### Containers for different classification tasks\n\nWe distribute containers that include weights for different tasks, and these containers\nhave a simplified command-line interface of `command SLIDE_DIR OUTPUT_DIR`.\nSee [DockerHub](https://hub.docker.com/r/kaczmarj/patch-classification-pipeline/tags) for\nthe available tags. The Dockerfiles are in [`dockerfiles/`](/dockerfiles/) Here is an example:\n\n```\napptainer pull docker://kaczmarj/patch-classification-pipeline:v0.2.0-paad-resnet34\nCUDA_VISIBLE_DEVICES=0 apptainer run --nv --bind $(pwd) patch-classification-pipeline_v0.2.0-paad-resnet34.sif \\\n    --wsi-dir slides/ --results-dir results/\n```\n\n## Developers\n\nClone this GitHub repository and install the package (in editable mode with the `dev` extras).\n\n```\ngit clone https://github.com/kaczmarj/patch-classification-pipeline.git\ncd patch-classification-pipeline\npython -m pip install --editable .[dev] --find-links https://girder.github.io/large_image_wheels\n```\n\n# Examples\n\nHere we demonstrate running this pipeline on a sample image. Before going through this,\nplease install the package (see [Installation](#installation)).\n\n## Setup directories and data\n\nWe make a new directory to store this example, including data and results. Enter the\nfollowing commands into a terminal. This will download a sample whole slide image\n(170 MB). For this example, we only use one whole slide image, but you can apply this\npipeline to an arbitrary number of whole slide images &mdash; simply put them all in the\nsame directory.\n\n```\nmkdir -p example-wsi-inference\ncd example-wsi-inference\nmkdir -p sample-images\ncd sample-images\nwget -nc https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs\ncd ..\n```\n\n## List available models and weights\n\nWe use \"model\" as in architecture (like \"resnet50\"), and \"weights\" are the pretrained\nparameters that are loaded into the model for a particular task (like \"TCGA-BRCA-v1\"\nfor breast cancer tumor detection). Use the following command to list all available\nmodels and weights.\n\n```\nwsinfer list\n```\n\n\n## On \"bare metal\" (not inside a container)\n\nRun the pipeline (without a container). This will apply the pipeline to all of the\nimages in `sample-images/` (only 1 in this example) and will write results to\n`results/`. We set `CUDA_VISIBLE_DEVICES=0` to use the first GPU listed in\n`nvidia-smi`. If you do not have a GPU, model inference can take about 20 minutes.\n\n```\nCUDA_VISIBLE_DEVICES=0 wsinfer run \\\n    --wsi-dir sample-images/ \\\n    --results-dir results/ \\\n    --model resnet34 \\\n    --weights TCGA-BRCA-v1 \\\n    --num-workers 8\n```\n\n## Run in an Apptainer container (formerly Singularity)\n\nI use the commands `apptainer` here, but if you don't have `apptainer`, you can\nreplace that with `singularity`. The command line interfaces are the same (as of August 26, 2022).\n\n```\napptainer pull docker://kaczmarj/patch-classification-pipeline\n```\n\nRun the pipeline in Apptainer.\n\n```\nCUDA_VISIBLE_DEVICES=0 apptainer run \\\n    --nv \\\n    --bind $(pwd) \\\n    --pwd $(pwd) \\\n    patch-classification-pipeline_latest.sif run \\\n        --wsi-dir sample-images/ \\\n        --results-dir results/ \\\n        --model resnet34 \\\n        --weights TCGA-BRCA-v1 \\\n        --num-workers 8\n```\n\n## Run in a Docker container\n\nFirst, pull the Docker image.\n\n```\ndocker pull kaczmarj/patch-classification-pipeline\n```\n\nThis requires Docker `>=19.03` and the program `nvidia-container-runtime-hook`. Please see the\n[Docker documentation](https://docs.docker.com/config/containers/resource_constraints/#gpu)\nfor more information. If you do not have a GPU installed, you can use CPU by removing\n`--gpus all` from the command below.\n\nWe use `--user $(id -u):$(id -g)` to run the container as a non-root user (as ourself).\nThis way, the output files are owned by us. Without specifying this option, the output\nfiles would be owned by the root user.\n\nWhen mounting data, keep in mind that the workdir in the Docker container is `/work`\n(one can override this with `--workdir`). Relative paths must be relative to the workdir.\n\nNote: using `--num_workers > 0` will require a `--shm-size > 256mb`. If the shm size is\ntoo low, a \"bus error\" will be thrown.\n\n```\ndocker run --rm -it \\\n    --shm-size 512m \\\n    --gpus all \\\n    --env CUDA_VISIBLE_DEVICES=0 \\\n    --user $(id -u):$(id -g) \\\n    --mount type=bind,source=$(pwd),target=/work/ \\\n    kaczmarj/patch-classification-pipeline run \\\n        --wsi-dir sample-images/ \\\n        --results-dir results/ \\\n        --model resnet34 \\\n        --weights TCGA-BRCA-v1 \\\n        --num-workers 2\n```\n\n## Output\n\nThis will create the following directory structure\n\n```\nresults/\n\u251c\u2500\u2500 masks\n\u251c\u2500\u2500 model-outputs\n\u251c\u2500\u2500 patches\n\u2514\u2500\u2500 stitches\n```\n\n- masks contains PNGs of tissue masks\n- model-outputs contains CSVs of model outputs\n- patches contains HDF5 files of patch coordinates\n- stitches contains PNGs with patches stitched together\n\nThe output also contains a file `results/run_metadata.json` containing metadata about the run.\n\n## Convert to GeoJSON (for QuPath and other viewers)\n\nGeoJSON is a standardized format to represent geometry. The results of model inference\nare a type of geometric data structure. Popular whole slide image viewers like QuPath\nare able to load labels in GeoJSON format.\n\n```bash\nwsirun togeojson results/ geojson-results\n```\n\n## Convert to Stony Brook QuIP format\n\nThe Stony Brook QuIP format uses a combination of JSON and plain text files. Provide\na unique `--execution-id` that identifies this run. An example could be `tcga-brca-resnet34-tumor`.\nAlso provide a `--study-id`, which could be `TCGA-BRCA`. The option `--make-color-text` will\ncreate the `color-*` files that contain color information for each patch in the input slides.\nThis option is disabled by default because it adds significant processing time.\n\n```bash\nwsirun tosbu \\\n    --wsi-dir slides/ \\\n    --execution-id UNIQUE_ID_HERE \\\n    --study-id TCGA-BRCA \\\n    --make-color-text \\\n    --num-processes 16 \\\n    results/ \\\n    results/model-outputs-sbubmi/\n```\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -179,7 +178,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16206573,
+        "last_serial": 16269850,
         "urls": [
             {
                 "comment_text": "",
@@ -218,6 +217,126 @@
                 "upload_time": "2022-12-24T20:23:09",
                 "upload_time_iso_8601": "2022-12-24T20:23:09.198764Z",
                 "url": "https://files.pythonhosted.org/packages/a5/c3/da6b27a7566d430b9ca1a9124606b6d220648239fbc5b217940fd89cf3a6/wsinfer-0.3.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.3.2": {
+        "info": {
+            "author": "Jakub Kaczmarzyk",
+            "author_email": "jakub.kaczmarzyk@stonybrookmedicine.edu",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 4 - Beta",
+                "Environment :: Console",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Healthcare Industry",
+                "Intended Audience :: Science/Research",
+                "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Scientific/Engineering :: Artificial Intelligence",
+                "Topic :: Scientific/Engineering :: Image Recognition",
+                "Topic :: Scientific/Engineering :: Medical Science Apps."
+            ],
+            "description": "# WSINfer: deep learning inference on whole slide images\n\nOriginal H&E                        |  Heatmap of Tumor Probability\n:----------------------------------:|:-----------------------------------:\n![](sample-images/brca-tissue.png)  | ![](sample-images/brca-heatmap.png)\n\n\ud83d\udd25 \ud83d\ude80 Blazingly fast pipeline to run patch-based classification models on whole slide images.\n\n[![Continuous Integration](https://github.com/kaczmarj/patch-classification-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/kaczmarj/wsinfer/actions/workflows/ci.yml)\n[![Documentation Status](https://readthedocs.org/projects/wsinfer/badge/?version=latest)](https://wsinfer.readthedocs.io/en/latest/?badge=latest)\n[![Version on PyPI](https://img.shields.io/pypi/v/wsinfer.svg)](https://pypi.org/project/wsinfer/)\n[![Supported Python versions](https://img.shields.io/pypi/pyversions/wsinfer)](https://pypi.org/project/wsinfer/)\n\n# Table of contents\n\n- [Available models](#available-models)\n- [Installation](#installation)\n  * [Pip](#pip)\n  * [Containers](#containers)\n    + [Containers for different classification tasks](#containers-for-different-classification-tasks)\n  * [Developers](#developers)\n- [Examples](#examples)\n  * [Setup directories and data](#setup-directories-and-data)\n  * [On \"bare metal\" (not inside a container)](#on-bare-metal-not-inside-a-container)\n  * [Run in an Apptainer container (formerly Singularity)](#run-in-an-apptainer-container-formerly-singularity)\n  * [Run in a Docker container](#run-in-a-docker-container)\n  * [Output](#output)\n  * [Convert to GeoJSON (for QuPath and other viewers)](#convert-to-geojson-for-qupath-and-other-viewers)\n  * [Convert to Stony Brook QuIP format](#convert-to-stony-brook-quip-format)\n  * [Add your own model](#add-your-own-model)\n\n# Available models\n\n| Classification task                     | Output classes                                           | Model           | Weights name | Reference                                                    |\n|-----------------------------------------|----------------------------------------------------------|-----------------|--------------|--------------------------------------------------------------|\n| Breast adenocarcinoma detection         | no-tumor, tumor                                          | inceptionv4     | TCGA-BRCA-v1 | [ref](https://doi.org/10.1016%2Fj.ajpath.2020.03.012)        |\n| Breast adenocarcinoma detection         | no-tumor, tumor                                          | resnet34        | TCGA-BRCA-v1 | [ref](https://doi.org/10.1016%2Fj.ajpath.2020.03.012)        |\n| Breast adenocarcinoma detection         | no-tumor, tumor                                          | vgg16mod  | TCGA-BRCA-v1 | [ref](https://doi.org/10.1016%2Fj.ajpath.2020.03.012)        |\n| Lung adenocarcinoma detection           | lepidic, benign, acinar, micropapillary, mucinous, solid | resnet34        | TCGA-LUAD-v1 | [ref](https://github.com/SBU-BMI/quip_lung_cancer_detection) |\n| Pancreatic adenocarcinoma detection     | tumor-positive                                           | preactresnet34 | TCGA-PAAD-v1 | [ref](https://doi.org/10.1007/978-3-030-32239-7_60)          |\n| Prostate adenocarcinoma detection       | grade3, grade4+5, benign                                 | resnet34        | TCGA-PRAD-v1 | [ref](https://github.com/SBU-BMI/quip_prad_cancer_detection) |\n| Tumor-infiltrating lymphocyte detection | til-negative, til-positive                                             | inceptionv4nobn     | TCGA-TILs-v1 | [ref](https://doi.org/10.3389/fonc.2021.806603)              |\n\n# Installation\n\n## Pip\n\nPip install this package from GitHub. First install `torch` and `torchvision`\n(please see [the PyTorch documentation](https://pytorch.org/get-started/locally/)).\nWe do not install these dependencies automatically because their installation can vary based\non a user's system. Then use the command below to install this package.\n\n```\npython -m pip install --find-links https://girder.github.io/large_image_wheels wsinfer\n```\n\nTo use the _bleed edge_, use\n\n```\npython -m pip install \\\n    --find-links https://girder.github.io/large_image_wheels \\\n    git+https://github.com/kaczmarj/patch-classification-pipeline.git\n```\n\n## Containers\n\nUse the Docker / Singularity / Apptainer image, which includes all of the dependencies and scripts.\nSee [DockerHub](https://hub.docker.com/r/kaczmarj/patch-classification-pipeline/tags) for\nthe available tags.\n\n- Apptainer / Singularity\n\n    Replace apptainer with singularity if you do not have apptainer\n\n    ```\n    apptainer pull docker://kaczmarj/patch-classification-pipeline\n    ```\n\n- Docker\n\n    ```\n    docker pull kaczmarj/patch-classification-pipeline\n    ```\n\n### Containers for different classification tasks\n\nWe distribute containers that include weights for different tasks, and these containers\nhave a simplified command-line interface of `command SLIDE_DIR OUTPUT_DIR`.\nSee [DockerHub](https://hub.docker.com/r/kaczmarj/patch-classification-pipeline/tags) for\nthe available tags. The Dockerfiles are in [`dockerfiles/`](/dockerfiles/) Here is an example:\n\n```\napptainer pull docker://kaczmarj/patch-classification-pipeline:v0.2.0-paad-resnet34\nCUDA_VISIBLE_DEVICES=0 apptainer run --nv --bind $(pwd) patch-classification-pipeline_v0.2.0-paad-resnet34.sif \\\n    --wsi-dir slides/ --results-dir results/\n```\n\n## Developers\n\nClone this GitHub repository and install the package (in editable mode with the `dev` extras).\n\n```\ngit clone https://github.com/kaczmarj/patch-classification-pipeline.git\ncd patch-classification-pipeline\npython -m pip install --editable .[dev] --find-links https://girder.github.io/large_image_wheels\n```\n\n# Examples\n\nHere we demonstrate running this pipeline on a sample image. Before going through this,\nplease install the package (see [Installation](#installation)).\n\n## Setup directories and data\n\nWe make a new directory to store this example, including data and results. Enter the\nfollowing commands into a terminal. This will download a sample whole slide image\n(170 MB). For this example, we only use one whole slide image, but you can apply this\npipeline to an arbitrary number of whole slide images &mdash; simply put them all in the\nsame directory.\n\n```\nmkdir -p example-wsi-inference\ncd example-wsi-inference\nmkdir -p sample-images\ncd sample-images\nwget -nc https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1.svs\ncd ..\n```\n\n## List available models and weights\n\nWe use \"model\" as in architecture (like \"resnet50\"), and \"weights\" are the pretrained\nparameters that are loaded into the model for a particular task (like \"TCGA-BRCA-v1\"\nfor breast cancer tumor detection). Use the following command to list all available\nmodels and weights.\n\n```\nwsinfer list\n```\n\n\n## On \"bare metal\" (not inside a container)\n\nRun the pipeline (without a container). This will apply the pipeline to all of the\nimages in `sample-images/` (only 1 in this example) and will write results to\n`results/`. We set `CUDA_VISIBLE_DEVICES=0` to use the first GPU listed in\n`nvidia-smi`. If you do not have a GPU, model inference can take about 20 minutes.\n\n```\nCUDA_VISIBLE_DEVICES=0 wsinfer run \\\n    --wsi-dir sample-images/ \\\n    --results-dir results/ \\\n    --model resnet34 \\\n    --weights TCGA-BRCA-v1 \\\n    --num-workers 8\n```\n\n## Run in an Apptainer container (formerly Singularity)\n\nI use the commands `apptainer` here, but if you don't have `apptainer`, you can\nreplace that with `singularity`. The command line interfaces are the same (as of August 26, 2022).\n\n```\napptainer pull docker://kaczmarj/patch-classification-pipeline\n```\n\nRun the pipeline in Apptainer.\n\n```\nCUDA_VISIBLE_DEVICES=0 apptainer run \\\n    --nv \\\n    --bind $(pwd) \\\n    --pwd $(pwd) \\\n    patch-classification-pipeline_latest.sif run \\\n        --wsi-dir sample-images/ \\\n        --results-dir results/ \\\n        --model resnet34 \\\n        --weights TCGA-BRCA-v1 \\\n        --num-workers 8\n```\n\n## Run in a Docker container\n\nFirst, pull the Docker image.\n\n```\ndocker pull kaczmarj/patch-classification-pipeline\n```\n\nThis requires Docker `>=19.03` and the program `nvidia-container-runtime-hook`. Please see the\n[Docker documentation](https://docs.docker.com/config/containers/resource_constraints/#gpu)\nfor more information. If you do not have a GPU installed, you can use CPU by removing\n`--gpus all` from the command below.\n\nWe use `--user $(id -u):$(id -g)` to run the container as a non-root user (as ourself).\nThis way, the output files are owned by us. Without specifying this option, the output\nfiles would be owned by the root user.\n\nWhen mounting data, keep in mind that the workdir in the Docker container is `/work`\n(one can override this with `--workdir`). Relative paths must be relative to the workdir.\n\nNote: using `--num_workers > 0` will require a `--shm-size > 256mb`. If the shm size is\ntoo low, a \"bus error\" will be thrown.\n\n```\ndocker run --rm -it \\\n    --shm-size 512m \\\n    --gpus all \\\n    --env CUDA_VISIBLE_DEVICES=0 \\\n    --user $(id -u):$(id -g) \\\n    --mount type=bind,source=$(pwd),target=/work/ \\\n    kaczmarj/patch-classification-pipeline run \\\n        --wsi-dir sample-images/ \\\n        --results-dir results/ \\\n        --model resnet34 \\\n        --weights TCGA-BRCA-v1 \\\n        --num-workers 2\n```\n\n## Output\n\nThis will create the following directory structure\n\n```\nresults/\n\u251c\u2500\u2500 masks\n\u251c\u2500\u2500 model-outputs\n\u251c\u2500\u2500 patches\n\u2514\u2500\u2500 stitches\n```\n\n- masks contains PNGs of tissue masks\n- model-outputs contains CSVs of model outputs\n- patches contains HDF5 files of patch coordinates\n- stitches contains PNGs with patches stitched together\n\nThe output also contains a file `results/run_metadata.json` containing metadata about the run.\n\n## Convert to GeoJSON (for QuPath and other viewers)\n\nGeoJSON is a standardized format to represent geometry. The results of model inference\nare a type of geometric data structure. Popular whole slide image viewers like QuPath\nare able to load labels in GeoJSON format.\n\n```bash\nwsirun togeojson results/ geojson-results\n```\n\n## Convert to Stony Brook QuIP format\n\nThe Stony Brook QuIP format uses a combination of JSON and plain text files. Provide\na unique `--execution-id` that identifies this run. An example could be `tcga-brca-resnet34-tumor`.\nAlso provide a `--study-id`, which could be `TCGA-BRCA`. The option `--make-color-text` will\ncreate the `color-*` files that contain color information for each patch in the input slides.\nThis option is disabled by default because it adds significant processing time.\n\n```bash\nwsirun tosbu \\\n    --wsi-dir slides/ \\\n    --execution-id UNIQUE_ID_HERE \\\n    --study-id TCGA-BRCA \\\n    --make-color-text \\\n    --num-processes 16 \\\n    results/ \\\n    results/model-outputs-sbubmi/\n```\n\n## Add your own model\n\nDefine a new model with a YAML configuration file. Please see the example below for\nan overview of the specification.\n\n```yaml\n# The version of the spec. At this time, only \"1.0\" is valid. (str)\nversion: \"1.0\"\n# Models are referenced by the pair of (architecture, weights), so this pair must be unique.\n# The name of the architecture. We use timm to supply hundreds or network architectures,\n# so the name can be one of those models. If the architecture is not provided in timm,\n# then one can add an architecture themselves, but the code will have to be modified. (str)\narchitecture: resnet34\n# A unique name for the weights for this architecture. (str)\nname: TCGA-BRCA-v1\n# Where to get the model weights. Either a URL or path to a file.\n# If using a URL, set the url_file_name (the name of the file when it is downloaded).\n# url: https://stonybrookmedicine.box.com/shared/static/dv5bxk6d15uhmcegs9lz6q70yrmwx96p.pt\n# url_file_name: resnet34-brca-20190613-01eaf604.pt\n# If not using a url, then 'file' must be supplied. Use an absolute or relative path. If\n# using a relative path, the path is relative to the location of the yaml file.\nfile: path-to-weights.pt\n# Size of patches from the slides. (int)\npatch_size_pixels: 350\n# The microns per pixel of the patches. (float)\nspacing_um_px: 0.25\n# Number of output classes from the model. (int)\nnum_classes: 2\n# Names of the model outputs. The order matters. class_names[0] is the name of the first\n# class of the model output.\nclass_names:  # (list of strings)\n  - notumor\n  - tumor\ntransform:\n  # Size of images immediately prior to inputting to the model. (int)\n  resize_size: 224\n  # Mean and standard deviation for RGB values. (list of three floats)\n  mean: [0.7238, 0.5716, 0.6779]\n  std: [0.1120, 0.1459, 0.1089]\n```\n\nOnce you save the configuration file, you can use it with `wsinfer run`:\n\n```bash\nwsinfer run --wsi-dir path/to/slides --results-dir path/to/results --config config.yaml\n```\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/kaczmarj/patch-classification-pipeline",
+            "keywords": "",
+            "license": "GNU General Public License v3 (GPLv3)",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "wsinfer",
+            "package_url": "https://pypi.org/project/wsinfer/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/wsinfer/",
+            "project_urls": {
+                "Homepage": "https://github.com/kaczmarj/patch-classification-pipeline"
+            },
+            "release_url": "https://pypi.org/project/wsinfer/0.3.2/",
+            "requires_dist": [
+                "click (<9,>=8.0)",
+                "h5py",
+                "large-image[openslide,tiff] (>=1.8.0)",
+                "numpy",
+                "opencv-python-headless (>=4.0.0)",
+                "pandas",
+                "pillow",
+                "pyyaml",
+                "timm",
+                "tqdm",
+                "black ; extra == 'dev'",
+                "flake8 ; extra == 'dev'",
+                "imagecodecs ; extra == 'dev'",
+                "mypy ; extra == 'dev'",
+                "pytest ; extra == 'dev'",
+                "tifffile ; extra == 'dev'",
+                "types-Pillow ; extra == 'dev'",
+                "types-PyYAML ; extra == 'dev'",
+                "types-tqdm ; extra == 'dev'",
+                "pydata-sphinx-theme ; extra == 'docs'",
+                "sphinx ; extra == 'docs'",
+                "sphinx-autoapi ; extra == 'docs'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Run patch-based classification on pathology whole slide images.",
+            "version": "0.3.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16269850,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "6334e98a431b30d61e16914f5fbacf38",
+                    "sha256": "1d181137383deceede7fb253c8943738427ebb135c6d7bf3c13e1f6d7649f7e5"
+                },
+                "downloads": -1,
+                "filename": "wsinfer-0.3.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "6334e98a431b30d61e16914f5fbacf38",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 73640,
+                "upload_time": "2023-01-01T01:45:48",
+                "upload_time_iso_8601": "2023-01-01T01:45:48.092644Z",
+                "url": "https://files.pythonhosted.org/packages/b2/9d/95cb5cfbfe9ea281be763b1c40aab89bc4ae90a33d498f63609e69d79baa/wsinfer-0.3.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "e1cbf4085c56b0f1f3d2d1488ed585f5",
+                    "sha256": "5eccd7a99f33ed115cfdfadd3b55ce7dbb7f769be6bd57929594d2ef16b4b5ac"
+                },
+                "downloads": -1,
+                "filename": "wsinfer-0.3.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "e1cbf4085c56b0f1f3d2d1488ed585f5",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 81259,
+                "upload_time": "2023-01-01T01:45:50",
+                "upload_time_iso_8601": "2023-01-01T01:45:50.059325Z",
+                "url": "https://files.pythonhosted.org/packages/d1/5e/1473c74fd48f6dc977c9e99f8ff6b993f8835492744974674b7ff107c932/wsinfer-0.3.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

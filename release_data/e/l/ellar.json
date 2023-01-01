@@ -86,7 +86,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15688443,
+        "last_serial": 16271224,
         "urls": [
             {
                 "comment_text": null,
@@ -218,7 +218,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15688443,
+        "last_serial": 16271224,
         "urls": [
             {
                 "comment_text": null,
@@ -350,7 +350,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15688443,
+        "last_serial": 16271224,
         "urls": [
             {
                 "comment_text": null,
@@ -488,7 +488,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15688443,
+        "last_serial": 16271224,
         "urls": [
             {
                 "comment_text": null,
@@ -628,7 +628,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15688443,
+        "last_serial": 16271224,
         "urls": [
             {
                 "comment_text": null,
@@ -773,7 +773,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15688443,
+        "last_serial": 16271224,
         "urls": [
             {
                 "comment_text": null,
@@ -918,7 +918,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15688443,
+        "last_serial": 16271224,
         "urls": [
             {
                 "comment_text": null,
@@ -991,7 +991,6 @@
                 "Topic :: Software Development :: Libraries :: Python Modules",
                 "Typing :: Typed"
             ],
-            "description": "<p align=\"center\">\n  <a href=\"#\" target=\"blank\"><img src=\"docs/img/EllarLogoIconOnly.png\" width=\"200\" alt=\"Ellar Logo\" /></a>\n</p>\n\n<p align=\"center\"> Ellar - Python ASGI web framework for building fast, efficient and scalable RESTAPIs and server-side application. </p>\n\n![Test](https://github.com/eadwinCode/ellar/actions/workflows/test_full.yml/badge.svg)\n![Coverage](https://img.shields.io/codecov/c/github/eadwinCode/ellar)\n[![PyPI version](https://badge.fury.io/py/ellar.svg)](https://badge.fury.io/py/ellar)\n[![PyPI version](https://img.shields.io/pypi/v/ellar.svg)](https://pypi.python.org/pypi/ellar)\n[![PyPI version](https://img.shields.io/pypi/pyversions/ellar.svg)](https://pypi.python.org/pypi/ellar)\n\n## Features\n- Pydantic integration\n- Dependency Injection (DI)\n- Templating with Jinja2\n- OpenAPI Documentation (Swagger and ReDoc)\n- Controller (MVC)\n- Guards (Authentications, roles and permissions)\n- Modularization (eg: flask blueprint)\n- Websocket support\n- Session and Cookie support\n- CORS, GZip, Static Files, Streaming responses\n- Test client built on `requests`\n- In-process background tasks.\n- Startup and shutdown events.\n- Application Events\n- Compatible with `asyncio` and `trio` backends.\n\n## Requirements\n- Python >= 3.6\n- Starlette\n- Pydantic\n- Injector\n\n## Installation\n### Poetry Installation\nFor [Poetry](https://python-poetry.org/) usages\n```shell\npoetry add ellar\n```\n\n### Pip Installation\nFor normal pip installation\n```shell\npip install ellar\n```\n\n## Create a project\nTo create an ellar project, you need to have a `pyproject.toml` available on your root directory.\nThis is necessary for ellar to store some `metadata` about your project. \n\n### Step 1\nFor Pip Users, you need to create `pyproject.toml` file\n```shell\ntouch pyproject.toml\n```\nIf you are using `Poetry`, you are ready to go\n\n### Step 2\nRun the ellar create project cli command,\n```shell\nellar create-project carsite\n```\n\n## Run your project\nEllar runs [UVICORN - ASGI Server](https://www.uvicorn.org/) under the hood.\n```shell\nellar runserver --reload\n```\n`--reload` is to watch for file changes\n\nNow go to [http://127.0.0.1:8000](http://127.0.0.1:8000)\n![Swagger UI](docs/img/ellar_framework.png)\n\n\n## Create a project module\nA project module is a project app defining a group of controllers or services including templates and static files.\nSo, now we have a project created, lets add an app to the project.\n```shell\nellar create-module car\n```\n\n## Add Schema\nIn `car/schema.py`, lets add some serializer for car input and output data\n```python\nfrom ellar.serializer import Serializer\n\nclass CarSerializer(Serializer):\n    name: str\n    model: str\n    brand: str\n\n\nclass RetrieveCarSerializer(CarSerializer):\n    pk: str\n```\n\n## Add Services\nIn `car/services.py`, lets create a dummy repository `CarDummyDB` to manage our car data.\n```python\nimport typing as t\nimport uuid\nfrom ellar.di import injectable, singleton_scope\n\n\n@injectable(scope=singleton_scope)\nclass CarDummyDB:\n    class CarDummyDBItem:\n        pk: str\n\n        def __init__(self, **data: t.Dict) -> None:\n            self.__dict__ = data\n\n        def __eq__(self, other):\n            if isinstance(other, CarDummyDB.CarDummyDBItem):\n                return self.pk == other.pk\n            return self.pk == str(other)\n\n    def __init__(self) -> None:\n        self._data: t.List[CarDummyDB.CarDummyDBItem] = []\n\n    def add_car(self, data: t.Dict) -> str:\n        pk = uuid.uuid4()\n        _data = dict(data)\n        _data.update(pk=str(pk))\n        item = self.CarDummyDBItem(**_data)\n        self._data.append(item)\n        return item.pk\n\n    def list(self) -> t.List[\"CarDummyDB.CarDummyDBItem\"]:\n        return self._data\n\n    def update(self, car_id: str, data: t.Dict) -> t.Optional[\"CarDummyDB.CarDummyDBItem\"]:\n        idx = self._data.index(car_id)\n        if idx >= 0:\n            _data = dict(data)\n            _data.update(pk=str(car_id))\n            self._data[idx] = self.CarDummyDBItem(**_data)\n            return self._data[idx]\n\n    def get(self, car_id: str) -> t.Optional[\"CarDummyDB.CarDummyDBItem\"]:\n        idx = self._data.index(car_id)\n        if idx >= 0:\n            return self._data[idx]\n\n    def remove(self, car_id: str) -> t.Optional[\"CarDummyDB.CarDummyDBItem\"]:\n        idx = self._data.index(car_id)\n        if idx >= 0:\n            return self._data.pop(idx)\n```\n## Add Controller\nIn `car/controllers.py`, lets create `CarController`\n\n```python\nimport typing as t\nfrom ellar.common import Controller, delete, get, put, post\nfrom ellar.core import ControllerBase\nfrom ellar.exceptions import NotFound\nfrom .schemas import CarSerializer, RetrieveCarSerializer\nfrom .services import CarDummyDB\n\n\n@Controller\nclass CarController(ControllerBase):\n    def __init__(self, db: CarDummyDB) -> None:\n        self.car_db = db\n\n    @post(\"/create\", response={200: str})\n    async def create_cat(self, payload: CarSerializer):\n        pk = self.car_db.add_car(payload.dict())\n        return pk\n\n    @put(\"/{car_id:str}\", response={200: RetrieveCarSerializer})\n    async def update_cat(self, car_id: str, payload: CarSerializer):\n        car = self.car_db.update(car_id, payload.dict())\n        if not car:\n            raise NotFound(\"Item not found\")\n        return car\n\n    @get(\"/{car_id:str}\", response={200: RetrieveCarSerializer})\n    async def get_car_by_id(self, car_id: str):\n        car = self.car_db.get(car_id)\n        if not car:\n            raise NotFound('Item not found.')\n        return car\n\n    @delete(\"/{car_id:str}\", response={204: dict})\n    async def deleted_cat(self, car_id: str):\n        car = self.car_db.remove(car_id)\n        if not car:\n            raise NotFound('Item not found.')\n        return 204, {}\n\n    @get(\"/\", response={200: t.List[RetrieveCarSerializer]})\n    async def list(self):\n        return self.car_db.list()\n\n```\n## Register Service and Controller\nIn `car/module.py`, lets register `CarController` and `CarDummyDB`\n\n```python\nfrom ellar.common import Module\nfrom ellar.core import ModuleBase\nfrom ellar.di import Container\n\nfrom .controllers import CarController\nfrom .services import CarDummyDB\n\n\n@Module(\n    controllers=[CarController],\n    providers=[CarDummyDB],\n    routers=[],\n)\nclass CarModule(ModuleBase):\n    def register_providers(self, container: Container) -> None:\n        # for more complicated provider registrations\n        # container.register_instance(...)\n        pass\n```\n\n## Registering Module\nEllar is not aware of `CarModule` yet, so we need to add it to the `modules` list of `ApplicationModule` at the `carsite/root_module.py`.\n```python\nfrom ellar.common import Module, exception_handler\nfrom ellar.core import ModuleBase\nfrom ellar.core.connection import Request\nfrom ellar.core.response import JSONResponse, Response\n\nfrom ellar.samples.modules import HomeModule\nfrom .apps.car.module import CarModule\n\n\n@Module(modules=[HomeModule, CarModule])\nclass ApplicationModule(ModuleBase):\n    @exception_handler(404)\n    def exception_404_handler(cls, request: Request, exc: Exception) -> Response:\n        return JSONResponse(dict(detail=\"Resource not found.\"))\n\n```\n## Enabling OpenAPI Docs\nTo start up openapi, we need to go back to project folder in the `server.py`\nthen add the following below.\n```python\nimport os\n\nfrom ellar.constants import ELLAR_CONFIG_MODULE\nfrom ellar.core.factory import AppFactory\nfrom ellar.openapi import OpenAPIDocumentModule, OpenAPIDocumentBuilder\nfrom .root_module import ApplicationModule\n\napplication = AppFactory.create_from_app_module(\n    ApplicationModule,\n    config_module=os.environ.get(\n        ELLAR_CONFIG_MODULE, \"carsite.config:DevelopmentConfig\"\n    ),\n)\n\ndocument_builder = OpenAPIDocumentBuilder()\ndocument_builder.set_title('CarSite API') \\\n    .set_version('1.0.0') \\\n    .set_contact(name='Eadwin', url='https://www.yahoo.com', email='eadwin@gmail.com') \\\n    .set_license('MIT Licence', url='https://www.google.com')\n\ndocument = document_builder.build_document(application)\nmodule = application.install_module(OpenAPIDocumentModule, document=document)\nmodule.setup_swagger_doc()\n```\n\nNow we can test our API at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs#/)\nPlease ensure your server is running\n![Swagger UI](docs/img/car_api.png)\n\n## Status\nProject is still in development\n- Documentation - (in progress)\n- Database Plugin with [Encode/ORM](https://github.com/encode/orm)\n- Caching \n- API Throttling\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": null,
@@ -1060,7 +1059,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15688443,
+        "last_serial": 16271224,
         "urls": [
             {
                 "comment_text": null,
@@ -1099,6 +1098,149 @@
                 "upload_time": "2022-11-07T18:07:21",
                 "upload_time_iso_8601": "2022-11-07T18:07:21.751306Z",
                 "url": "https://files.pythonhosted.org/packages/53/9a/1dff6a952f9c78cd597bb4c09985dc58a56757742d17559318ab979b17f2/ellar-0.2.4.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.6": {
+        "info": {
+            "author": null,
+            "author_email": "Ezeudoh Tochukwu <tochukwu.ezeudoh@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Environment :: Web Environment",
+                "Framework :: AsyncIO",
+                "Intended Audience :: Developers",
+                "Intended Audience :: Information Technology",
+                "Intended Audience :: System Administrators",
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Internet",
+                "Topic :: Internet :: WWW/HTTP",
+                "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+                "Topic :: Software Development",
+                "Topic :: Software Development :: Libraries",
+                "Topic :: Software Development :: Libraries :: Application Frameworks",
+                "Topic :: Software Development :: Libraries :: Python Modules",
+                "Typing :: Typed"
+            ],
+            "description": "<p align=\"center\">\n  <a href=\"#\" target=\"blank\"><img src=\"docs/img/EllarLogoIconOnly.png\" width=\"200\" alt=\"Ellar Logo\" /></a>\n</p>\n\n<p align=\"center\"> Ellar - Python ASGI web framework for building fast, efficient and scalable RESTAPIs and server-side application. </p>\n\n![Test](https://github.com/eadwinCode/ellar/actions/workflows/test_full.yml/badge.svg)\n![Coverage](https://img.shields.io/codecov/c/github/eadwinCode/ellar)\n[![PyPI version](https://badge.fury.io/py/ellar.svg)](https://badge.fury.io/py/ellar)\n[![PyPI version](https://img.shields.io/pypi/v/ellar.svg)](https://pypi.python.org/pypi/ellar)\n[![PyPI version](https://img.shields.io/pypi/pyversions/ellar.svg)](https://pypi.python.org/pypi/ellar)\n\n## Features Summary\n- `Pydantic integration`\n- `Dependency Injection (DI)`\n- `Templating with Jinja2`\n- `OpenAPI Documentation (Swagger and ReDoc)`\n- `Controller (MVC)`\n- `Guards (authentications, roles and permissions)`\n- `Modularization (eg: flask blueprint)`\n- `Websocket support`\n- `Session and Cookie support`\n- `CORS, GZip, Static Files, Streaming responses`\n\n## Dependency Summary\n- `Python >= 3.7`\n- `Starlette`\n- `Pydantic`\n- `Injector`\n\n## Installation\n### Poetry Installation\nFor [Poetry](https://python-poetry.org/) usages\n```shell\npoetry add ellar[standard]\n```\n\n### Pip Installation\nFor normal pip installation\n```shell\npip install ellar[standard]\n```\n### NB:\nSome shells may treat square braces (`[` and `]`) as special characters. If that's the case here, then use a quote around the characters to prevent unexpected shell expansion.\n```shell\npip install \"ellar[standard]\"\n```\n\n### Py36 Support\nFor python3.6 users, \n```shell\npip install ellar==0.2.2\n```\n\n## Create a project\nTo create an ellar project, you need to have a `pyproject.toml` available on your root directory.\nThis is necessary for ellar to store some `metadata` about your project. \n\n### Create a project\nFor Pip Users, you need to create `pyproject.toml` file\n```shell\nellar new carsite\n```\nIf you are using `Poetry`, at your project root directory with `pyproject.toml`,\nrun the ellar create project cli command,\n```shell\nellar create-project carsite\n```\n\n## Run your project\nEllar runs [UVICORN - ASGI Server](https://www.uvicorn.org/) under the hood.\n```shell\nellar runserver --reload\n```\n`--reload` is to watch for file changes\n\nNow go to [http://127.0.0.1:8000](http://127.0.0.1:8000)\n![Swagger UI](docs/img/ellar_framework.png)\n\nFor more info on Ellar CLI, click [here](https://github.com/eadwinCode/ellar-cli)\n\n## Create a project module\nA project module is a project app defining a group of controllers or services including templates and static files.\nSo, now we have a project created, lets add an app to the project.\n```shell\nellar create-module car\n```\n\n## Add Schema\nIn `car/schema.py`, lets add some serializer for car input and output data\n```python\nfrom ellar.serializer import Serializer\n\nclass CarSerializer(Serializer):\n    name: str\n    model: str\n    brand: str\n\n\nclass RetrieveCarSerializer(CarSerializer):\n    pk: str\n```\n\n## Add Services\nIn `car/services.py`, lets create a dummy repository `CarDummyDB` to manage our car data.\n```python\nimport typing as t\nimport uuid\nfrom ellar.di import injectable, singleton_scope\n\n\n@injectable(scope=singleton_scope)\nclass CarDummyDB:\n    class CarDummyDBItem:\n        pk: str\n\n        def __init__(self, **data: t.Dict) -> None:\n            self.__dict__ = data\n\n        def __eq__(self, other):\n            if isinstance(other, CarDummyDB.CarDummyDBItem):\n                return self.pk == other.pk\n            return self.pk == str(other)\n\n    def __init__(self) -> None:\n        self._data: t.List[CarDummyDB.CarDummyDBItem] = []\n\n    def add_car(self, data: t.Dict) -> str:\n        pk = uuid.uuid4()\n        _data = dict(data)\n        _data.update(pk=str(pk))\n        item = self.CarDummyDBItem(**_data)\n        self._data.append(item)\n        return item.pk\n\n    def list(self) -> t.List[\"CarDummyDB.CarDummyDBItem\"]:\n        return self._data\n\n    def update(self, car_id: str, data: t.Dict) -> t.Optional[\"CarDummyDB.CarDummyDBItem\"]:\n        idx = self._data.index(car_id)\n        if idx >= 0:\n            _data = dict(data)\n            _data.update(pk=str(car_id))\n            self._data[idx] = self.CarDummyDBItem(**_data)\n            return self._data[idx]\n\n    def get(self, car_id: str) -> t.Optional[\"CarDummyDB.CarDummyDBItem\"]:\n        idx = self._data.index(car_id)\n        if idx >= 0:\n            return self._data[idx]\n\n    def remove(self, car_id: str) -> t.Optional[\"CarDummyDB.CarDummyDBItem\"]:\n        idx = self._data.index(car_id)\n        if idx >= 0:\n            return self._data.pop(idx)\n```\n## Add Controller\nIn `car/controllers.py`, lets create `CarController`\n\n```python\nimport typing as t\nfrom ellar.common import Controller, delete, get, put, post\nfrom ellar.core import ControllerBase\nfrom ellar.exceptions import NotFound\nfrom .schemas import CarSerializer, RetrieveCarSerializer\nfrom .services import CarDummyDB\n\n\n@Controller\nclass CarController(ControllerBase):\n    def __init__(self, db: CarDummyDB) -> None:\n        self.car_db = db\n\n    @post(\"/create\", response={200: str})\n    async def create_cat(self, payload: CarSerializer):\n        pk = self.car_db.add_car(payload.dict())\n        return pk\n\n    @put(\"/{car_id:str}\", response={200: RetrieveCarSerializer})\n    async def update_cat(self, car_id: str, payload: CarSerializer):\n        car = self.car_db.update(car_id, payload.dict())\n        if not car:\n            raise NotFound(\"Item not found\")\n        return car\n\n    @get(\"/{car_id:str}\", response={200: RetrieveCarSerializer})\n    async def get_car_by_id(self, car_id: str):\n        car = self.car_db.get(car_id)\n        if not car:\n            raise NotFound('Item not found.')\n        return car\n\n    @delete(\"/{car_id:str}\", response={204: dict})\n    async def deleted_cat(self, car_id: str):\n        car = self.car_db.remove(car_id)\n        if not car:\n            raise NotFound('Item not found.')\n        return 204, {}\n\n    @get(\"/\", response={200: t.List[RetrieveCarSerializer]})\n    async def list(self):\n        return self.car_db.list()\n\n```\n## Register Service and Controller\nIn `car/module.py`, lets register `CarController` and `CarDummyDB`\n\n```python\nfrom ellar.common import Module\nfrom ellar.core import ModuleBase\nfrom ellar.di import Container\n\nfrom .controllers import CarController\nfrom .services import CarDummyDB\n\n\n@Module(\n    controllers=[CarController],\n    providers=[CarDummyDB],\n    routers=[],\n)\nclass CarModule(ModuleBase):\n    def register_providers(self, container: Container) -> None:\n        # for more complicated provider registrations\n        # container.register_instance(...)\n        pass\n```\n\n## Registering Module\nEllar is not aware of `CarModule` yet, so we need to add it to the `modules` list of `ApplicationModule` at the `carsite/root_module.py`.\n```python\nfrom ellar.common import Module, exception_handler\nfrom ellar.core import ModuleBase\nfrom ellar.core.connection import Request\nfrom ellar.core.response import JSONResponse, Response\n\nfrom ellar.samples.modules import HomeModule\nfrom .apps.car.module import CarModule\n\n\n@Module(modules=[HomeModule, CarModule])\nclass ApplicationModule(ModuleBase):\n    @exception_handler(404)\n    def exception_404_handler(cls, request: Request, exc: Exception) -> Response:\n        return JSONResponse(dict(detail=\"Resource not found.\"))\n\n```\n## Enabling OpenAPI Docs\nTo start up openapi, we need to go back to project folder in the `server.py`\nthen add the following below.\n```python\nimport os\n\nfrom ellar.constants import ELLAR_CONFIG_MODULE\nfrom ellar.core.factory import AppFactory\nfrom ellar.openapi import OpenAPIDocumentModule, OpenAPIDocumentBuilder\nfrom .root_module import ApplicationModule\n\napplication = AppFactory.create_from_app_module(\n    ApplicationModule,\n    config_module=os.environ.get(\n        ELLAR_CONFIG_MODULE, \"carsite.config:DevelopmentConfig\"\n    ),\n)\n\ndocument_builder = OpenAPIDocumentBuilder()\ndocument_builder.set_title('CarSite API') \\\n    .set_version('1.0.0') \\\n    .set_contact(name='Eadwin', url='https://www.yahoo.com', email='eadwin@gmail.com') \\\n    .set_license('MIT Licence', url='https://www.google.com')\n\ndocument = document_builder.build_document(application)\nmodule = application.install_module(OpenAPIDocumentModule, document=document)\nmodule.setup_swagger_doc()\n```\n\nNow we can test our API at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs#/)\nPlease ensure your server is running\n![Swagger UI](docs/img/car_api.png)\n\n## Status\nProject is still in development\n- Documentation - (in progress)\n- Database Plugin with [Encode/ORM](https://github.com/encode/orm)\n- Caching \n- API Throttling\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": null,
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": null,
+            "keywords": null,
+            "license": null,
+            "maintainer": null,
+            "maintainer_email": null,
+            "name": "ellar",
+            "package_url": "https://pypi.org/project/ellar/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/ellar/",
+            "project_urls": {
+                "Documentation": "https://github.com/eadwinCode/ellar",
+                "Homepage": "https://eadwincode.github.io/ellar/",
+                "Source": "https://github.com/eadwinCode/ellar"
+            },
+            "release_url": "https://pypi.org/project/ellar/0.2.6/",
+            "requires_dist": [
+                "injector == 0.20.1",
+                "starlette == 0.21.0",
+                "pydantic >=1.6.2,!=1.7,!=1.7.1,!=1.7.2,!=1.7.3,!=1.8,!=1.8.1,<2.0.0",
+                "jinja2",
+                "typer >=0.6.1,<0.7.0",
+                "httpx >= 0.22.0",
+                "python-multipart >=0.0.5,<0.0.6 ; extra == \"all\"",
+                "itsdangerous >=1.1.0,<3.0.0 ; extra == \"all\"",
+                "pyyaml >=5.3.1,<7.0.0 ; extra == \"all\"",
+                "ujson >=4.0.1,!=4.0.2,!=4.1.0,!=4.2.0,!=4.3.0,!=5.0.0,!=5.1.0,<6.0.0 ; extra == \"all\"",
+                "orjson >=3.2.1,<4.0.0 ; extra == \"all\"",
+                "email_validator >=1.1.1,<2.0.0 ; extra == \"all\"",
+                "pre-commit ; extra == \"dev\"",
+                "mkdocs >=1.1.2,<2.0.0 ; extra == \"doc\"",
+                "mkdocs-material >=7.1.9,<9.0.0 ; extra == \"doc\"",
+                "mdx-include >=1.4.1,<2.0.0 ; extra == \"doc\"",
+                "mkdocs-markdownextradata-plugin >=0.1.7,<0.3.0 ; extra == \"doc\"",
+                "markdown-include ; extra == \"doc\"",
+                "mkdocstrings ; extra == \"doc\"",
+                "ellar-cli >=0.0.2,<5.0.0 ; extra == \"standard\"",
+                "pytest >=6.2.4,<8.0.0 ; extra == \"test\"",
+                "pytest-cov >=2.12.0,<5.0.0 ; extra == \"test\"",
+                "mypy ==0.971 ; extra == \"test\"",
+                "flake8 >=3.8.3,<4.0.0 ; extra == \"test\"",
+                "black ==22.8.0 ; extra == \"test\"",
+                "isort >=5.0.6,<6.0.0 ; extra == \"test\"",
+                "pytest-asyncio ; extra == \"test\"",
+                "databases[sqlite] >= 0.3.2 ; extra == \"test\"",
+                "orjson >= 3.2.1 ; extra == \"test\"",
+                "ujson >= 4.0.1 ; extra == \"test\"",
+                "python-multipart >= 0.0.5 ; extra == \"test\"",
+                "anyio[trio] >= 3.2.1 ; extra == \"test\"",
+                "autoflake ; extra == \"test\"",
+                "email_validator >=1.1.1 ; extra == \"test\"",
+                "types-ujson ==0.1.1 ; extra == \"test\"",
+                "types-orjson ==3.6.2 ; extra == \"test\"",
+                "types-dataclasses ==0.1.7 ; extra == \"test\""
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Ellar - Python ASGI web framework for building fast, efficient and scalable RESTAPIs and server-side application.",
+            "version": "0.2.6",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16271224,
+        "urls": [
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "3b9907e3bd06cc73bc235c295e2cfc61",
+                    "sha256": "c9844788f8e1e90422fb423be2c18278b57923df20d9cd6e2a918e5529780f93"
+                },
+                "downloads": -1,
+                "filename": "ellar-0.2.6-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "3b9907e3bd06cc73bc235c295e2cfc61",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 224775,
+                "upload_time": "2023-01-01T10:07:35",
+                "upload_time_iso_8601": "2023-01-01T10:07:35.918533Z",
+                "url": "https://files.pythonhosted.org/packages/d1/1d/c8807ffb8742895745a46107f2f46d1daa73d03c21ab2d6cb5be0fc119c7/ellar-0.2.6-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": null,
+                "digests": {
+                    "md5": "b1836eed8a9afbd778efff2ee3b102f6",
+                    "sha256": "52396497addbd69814ef18fe54654a5a58342ec21d3e4e6a71fad08d21ab0ff4"
+                },
+                "downloads": -1,
+                "filename": "ellar-0.2.6.tar.gz",
+                "has_sig": false,
+                "md5_digest": "b1836eed8a9afbd778efff2ee3b102f6",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 4142264,
+                "upload_time": "2023-01-01T10:07:38",
+                "upload_time_iso_8601": "2023-01-01T10:07:38.344318Z",
+                "url": "https://files.pythonhosted.org/packages/2a/0a/8d9ddccbe915b2fddaaf5b167d4a7379a28c85eb6d450865d2c3f59d5454/ellar-0.2.6.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
