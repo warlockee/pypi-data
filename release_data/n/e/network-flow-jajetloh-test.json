@@ -1,0 +1,87 @@
+{
+    "0.0.1": {
+        "info": {
+            "author": "",
+            "author_email": "Ja-Jet Loh <jajet.codes@gmail.com>",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# 1. Overview\n\nThis package can be used for solving for flow values through edges of a (directed) network/graph, given known values for a subset of edges. The solving facility also detects inconsistencies within the given known values, and can also solve for certain flows/edges if not enough knowns are given to determine all values.\n\ne.g.\n![image](network_flow/images/img_01.png)\nsolves to\n![image](network_flow/images/img_02.png)\n\n\n# 2. Fully Solving a Network\n\nGiven a simple flow network with some known values on some edges, Network Flow Solver calculates the remaining flows in the network.\n\nGiven the below network as inputs\n\n```py\nfrom network_flow_solver import Edge\n\nedges = [Edge('A','B'), Edge('B','C'), Edge('B','D'), Edge('C','E'), Edge('D','F'), Edge('D','G'), Edge('E','G'), Edge('F','H'), Edge('G','H'), Edge('H','I')]\n\nknowns_list = [(Edge('B','C'), 7), (Edge('D','G'), 2), (Edge('F','H'), 1)]\n```\n\n![image](network_flow/images/img_01.png)\n\nThe solver finds the flows for all remaining edges\n\n```py\nfrom network_flow_solver import solve_network\nsolution = solve_network(edges, knowns_list)\n\n# solution = {\n#     Edge('A','B'): 10,\n#     Edge('B','C'): 7,\n#     Edge('B','D'): 3,\n#     Edge('C','E'): 7,\n#     Edge('D','F'): 1,\n#     Edge('D','G'): 2,\n#     Edge('E','G'): 7,\n#     Edge('F','H'): 1,\n#     Edge('G','H'): 9,\n#     Edge('H','I'): 10,\n# }\n```\n\n![image](network_flow/images/img_02.png)\n\n**Note**\n\nIn this example, we know that 3 known variables are required to provide a full solution, because the number of known variables is the total number of edges (10), minus the number of total number of nodes (9: A to I), add the number of source/sink nodes (2: A and I).\n\nThis calculation provides the number of required known variables for any network. If the number of knowns given exceeds this, the network is guaranteed to be *overconstrained*, and a solution will not be given.\n\nAnd even if the total number of knowns is equal or less than required, they may overconstrain sub-sections of the network.\n\nSee *'Overconstraining the Network'* for more information.\n\n# 3. Partially Solving a Network\n\nEven if not enough knowns are given to fully solve the network, the solver will try to solve for as many knowns as it can.\n\n```py\nfrom network_flow_solver import Edge\n\nedges = [Edge('A','B'), Edge('B','C'), Edge('B','D'), Edge('C','E'), Edge('D','F'), Edge('D','G'), Edge('E','G'), Edge('F','H'), Edge('G','H'), Edge('H','I')]\n\nknowns_list = [(Edge('D','G'), 2), (Edge('F','H'), 1)]\n```\n![image](network_flow/images/img_03.png)\n```py\nfrom network_flow_solver import solve_network\nsolution = solve_network(edges, knowns_list)\n\n# solution = {\n#     Edge('B','D'): 3,\n#     Edge('D','F'): 1,\n#     Edge('D','G'): 2,\n#     Edge('F','H'): 1,\n# }\n```\n![image](network_flow/images/img_04.png)\n\n# 4. Overconstraining the Network\n\nThe solving facility of this package expects known variables to not overconstrain the system - for example the set of known values in this next network.\n\n```py\nfrom network_flow_solver import Edge\n\nedges = [Edge('A','B'), Edge('B','C'), Edge('B','D'), Edge('C','E'), Edge('D','F'), Edge('D','G'), Edge('E','G'), Edge('F','H'), Edge('G','H'), Edge('H','I')]\n\nknowns_list = [(Edge('B','C'), 7), (Edge('D','G'), 2), (Edge('F','H'), 1), (Edge('H','I'), 10)]\n```\n![image](network_flow/images/img_05.png)\n```py\nfrom network_flow_solver import solve_network\nsolution = solve_network(edges, knowns_list)\n\n# RedundancyError: Values for 4 edges were given as known, exceeding the (3 == 10 - 9 + 2) total degrees of freedom. Please remove knowns until they are equal or fewer than this.\n```\n\nThe given knowns must also not overconstrain the network in other ways. For example with the next set of knowns, 'DF' can be calculated both using 'BD=DG+DF' and 'DF=FH'.\n```py\nfrom network_flow_solver import Edge\n\nedges = [Edge('A','B'), Edge('B','C'), Edge('B','D'), Edge('C','E'), Edge('D','F'), Edge('D','G'), Edge('E','G'), Edge('F','H'), Edge('G','H'), Edge('H','I')]\n\nknowns_list = [(Edge('B','D'), 3), (Edge('D','G'), 2), (Edge('F','H'), 1)]\n```\n![image](network_flow/images/img_06.png)\n```py\nfrom network_flow_solver import solve_network\nsolution = solve_network(edges, knowns_list)\n\n# RedundancyError: The value of Edge(source='F', sink='H') is given as a known value, but can also be calculated from known values [Edge(source='B', sink='D'), Edge(source='D', sink='G'), Edge(source='F', sink='H')]. Please remove one of these edges from the list of knowns to stop overconstraining the system.\n```\n\n# 5. Known Issues for Partial Solving / Auxiliary Equations\n\nThe solving algorithm is simple and works well when fully solving a network, but can run into issues when solving a network partially, for certain given knowns, such as the following:\n\n```py\nfrom network_flow_solver import Edge\n\nedges = [Edge('A','B'), Edge('B','C'), Edge('B','D'), Edge('C','E'), Edge('D','F'), Edge('D','G'), Edge('E','G'), Edge('F','H'), Edge('G','H'), Edge('H','I')]\n\nknowns_list = [(Edge('B','D'), 3), (Edge('D','G'), 2), (Edge('F','H'), 1)]\n```\n![image](network_flow/images/img_07.png)\n\nAttempting to solve this normally yields the following result\n\n```py\nfrom network_flow_solver import solve_network\nsolution = solve_network(edges, knowns_list)\n\n# solution = {\n#     Edge('A','B'): 10,\n#     Edge('B','C'): 7,\n#     Edge('B','D'): 3,\n#     Edge('C','E'): 7,\n#     Edge('E','G'): 7,\n# }\n```\n\n![image](network_flow/images/img_08.png)\n\nSome edges are correctly solved for - however, with 'BC' and 'BD' given, we also know that the value of 'HI' should be 10. This is because we assume flow is conserved, so AB must equal HI. We can explicitly specify this equality as an *auxiliary equation*, and network is correctly solved.\n\n```py\nfrom network_flow_solver import solve_network, AuxiliaryEquation\n\naux_eqns = [AuxiliaryEquation([Edge('A','B')], [Edge('H','I')])]\nsolution = solve_network(edges, knowns_list, aux_eqns)\n\n# solution = {\n#     Edge('A','B'): 10,\n#     Edge('B','C'): 7,\n#     Edge('B','D'): 3,\n#     Edge('C','E'): 7,\n#     Edge('E','G'): 7,\n#     Edge('H','I'): 10,\n# }\n```\n![image](network_flow/images/img_09.png)\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "",
+            "keywords": "",
+            "license": "",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "network-flow-jajetloh-test",
+            "package_url": "https://pypi.org/project/network-flow-jajetloh-test/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/network-flow-jajetloh-test/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/jajetloh/network_flow/issues",
+                "Homepage": "https://github.com/jajetloh/network_flow"
+            },
+            "release_url": "https://pypi.org/project/network-flow-jajetloh-test/0.0.1/",
+            "requires_dist": null,
+            "requires_python": ">=3.7",
+            "summary": "A small example package",
+            "version": "0.0.1",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16278467,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "019b631b59fcb132bd7b53ca3abed527",
+                    "sha256": "fdff29a799009947a1546d35214cf808b9f76c0237424332d0d521685c7413ad"
+                },
+                "downloads": -1,
+                "filename": "network_flow_jajetloh_test-0.0.1-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "019b631b59fcb132bd7b53ca3abed527",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 6953,
+                "upload_time": "2023-01-02T12:06:09",
+                "upload_time_iso_8601": "2023-01-02T12:06:09.420377Z",
+                "url": "https://files.pythonhosted.org/packages/8a/22/9c6bc0b30f4314d923bd0a05bba1600da1f2165f3d971ac257d02a2829b1/network_flow_jajetloh_test-0.0.1-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "a78ac379221d1c06aedad1b6a5ea44cd",
+                    "sha256": "31d1b1779e21ea89002e59162181418c10906a42153f644935e234a2bffd042d"
+                },
+                "downloads": -1,
+                "filename": "network_flow_jajetloh_test-0.0.1.tar.gz",
+                "has_sig": false,
+                "md5_digest": "a78ac379221d1c06aedad1b6a5ea44cd",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 953754,
+                "upload_time": "2023-01-02T12:06:13",
+                "upload_time_iso_8601": "2023-01-02T12:06:13.350699Z",
+                "url": "https://files.pythonhosted.org/packages/30/f7/70ee9c0d820579df2212673d489f9cf5cf2a1a94b9ece09b6cd843f4c0a1/network_flow_jajetloh_test-0.0.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}

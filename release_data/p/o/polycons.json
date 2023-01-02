@@ -51,7 +51,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16174134,
+        "last_serial": 16276981,
         "urls": [
             {
                 "comment_text": "",
@@ -148,7 +148,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16174134,
+        "last_serial": 16276981,
         "urls": [
             {
                 "comment_text": "",
@@ -245,7 +245,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16174134,
+        "last_serial": 16276981,
         "urls": [
             {
                 "comment_text": "",
@@ -342,7 +342,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16174134,
+        "last_serial": 16276981,
         "urls": [
             {
                 "comment_text": "",
@@ -439,7 +439,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16174134,
+        "last_serial": 16276981,
         "urls": [
             {
                 "comment_text": "",
@@ -536,7 +536,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16174134,
+        "last_serial": 16276981,
         "urls": [
             {
                 "comment_text": "",
@@ -633,7 +633,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16174134,
+        "last_serial": 16276981,
         "urls": [
             {
                 "comment_text": "",
@@ -696,7 +696,6 @@
                 "Programming Language :: Python :: 3.9",
                 "Typing :: Typed"
             ],
-            "description": "# Polycons\n\nA framework for building polymorphic [constructs](https://github.com/aws/constructs).\nThink of polycons like dependency injection for constructs.\n\npolycons can be used with any CDK framework, including [AWS CDK](https://github.com/aws/aws-cdk), [cdktf](https://github.com/hashicorp/terraform-cdk), and [cdk8s](https://github.com/cdk8s-team/cdk8s).\n\n## \ud83d\ude80 Getting started\n\nPolycons can be used just like ordinary constructs:\n\n```python\nimport { Dog } from \"@acme/shared-polycons\";\nimport { Construct } from \"constructs\";\n\nclass Pets extends Construct {\n  constructor(scope: Construct, id: string) {\n    super(scope, id);\n\n    // this is a polycon!\n    new Dog(this, \"Dog\", { treats: 5 });\n\n    // like ordinary constructs, polycons can have methods, properties, etc.\n    dog.giveBone();\n  }\n}\n```\n\nThis `Pets` construct contains a `Dog` from a library of polycons.\nThe dog could have multiple implementations -- a `Labrador`, a `Terrier`, or your own implementation.\n\nTo use polycons in an application, you need to register a factory that specifies how to turn polycons into concrete constructs.\nIn the example below, a `PetFactory` is used, which has been defined to resolve each `Dog` in the construct tree into a `Labrador`.\nBy registering it to the root `App` construct, each `Dog` in the construct tree will be created as a `Labrador`.\n\n```python\nimport { App } from \"<cdk-framework>\";\nimport { PetFactory } from \"@acme/shared-polycons\";\nimport { Polycons } from \"polycons\";\n\nconst app = new App();\nPolycons.register(app, new PetFactory());\nnew Pets(app, \"MyPets\");\n```\n\nCheck out the usage guide for more details about how to create your own polycons and polycon factories.\n\n## \ud83d\udcd6 Documentation\n\nClick [here](./API.md) to visit the polycons API reference.\n\n### \ud83c\udfed Polycon factories\n\nA polycon factory is a class that implements the `IPolyconFactory` interface, which has a single `resolve()` method.\nThis method accepts a `type` and a list of construct arguments, and returns a concrete construct. For example:\n\n```python\nimport { DOG_TYPE, CAT_TYPE, Labrador, Kitten } from \"@acme/shared-polycons\";\n\nclass PetFactory implements IPolyconFactory {\n  public resolve(\n    type: string,\n    scope: Construct,\n    id: string,\n    ...args: any[]\n  ): Construct {\n    switch (type) {\n      case DOG_TYPE:\n        return new Labrador(scope, id, ...args);\n      case CAT_TYPE:\n        return new Kitten(scope, id, ...args);\n      default:\n        throw new Error(`Type \"${type}\" not implemented.`);\n    }\n  }\n}\n```\n\nIn the above example, `DOG_TYPE` and `CAT_TYPE` are unique string constants associated with the respective polycons.\n\nBy customizing the `resolve()` method, it's possible to change construct IDs, override properties, or even make factories that call other factories.\n\n### \u270d\ufe0f Creating polycons\n\nYou can define a new polycon by creating a class that returns a new Polycon instance in its constructor.\nEach polycon must be associated with a unique identifying string.\n\n```python\nimport { Constructs } from \"constructs\";\nimport { Polycons } from \"polycons\";\n\nexport interface DogProps {\n  readonly name?: string;\n  readonly treats?: number;\n}\n\n// make sure your polycon has a globally unique name!\nexport const DOG_TYPE = \"@acme/shared-polycons.Dog\";\n\nexport class Dog extends Construct {\n  constructor(scope: Construct, id: string, props: DogProps) {\n    super(null as any, id); // (1)\n    return Polycons.newInstance(DOG_TYPE, scope, id, props) as Dog;\n  }\n}\n```\n\nThe `Dog` class definition serves as an empty shell, or placeholder -- only when a user calls `new Dog()`, a real construct will be returned.\n\nIn the constructor of `Dog`, a null value MUST be passed as the first argument to `super()` (1).\nThis is because actually two constructs are made by the constructor, and the first one should be thrown away (and not be added to the construct tree).\n\nConcrete implementations of a polycon can be written like ordinary constructs:\n\n```python\nexport class Labrador extends Construct {\n  public readonly name: string;\n  private readonly treats: number;\n  constructor(scope: Construct, id: string, props: DogProps) {\n    super(scope, id);\n    this.name = props.name;\n    this.treats = props.treats;\n  }\n  public toString() {\n    return `Labrador with ${this.treats} treats.`;\n  }\n}\n```\n\n### \ud83e\udd1d Sharing behavior\n\nOftentimes, you may want all polycons to share some properties or methods.\n\nYou can achieve this by defining a base class, and having the polycon extend the base class:\n\n```python\nexport interface DogProps {\n  readonly name?: string;\n  readonly treats?: number;\n}\n\nexport const DOG_TYPE = \"@acme/shared-polycons.Dog\";\n\n// This is the polycon.\nexport class Dog extends DogBase {\n  constructor(scope: Construct, id: string, props: DogProps) {\n    super(null as any, id, props); // [1]\n    return Polycons.newInstance(DOG_TYPE, scope, id, props) as Dog;\n  }\n  public toString() {\n    throw new Error(\"Method not implemented\"); // [2]\n  }\n}\n\n// This is the base class.\nexport abstract class DogBase extends Construct {\n  public readonly species = \"Canis familiaris\";\n  public readonly treats: number;\n  constructor(scope: Construct, id: string, props: DogProps) {\n    super(scope, id);\n\n    // [3]\n    if (!scope) {\n      this.treats = 0;\n      return;\n    }\n\n    this.treats = props.treats;\n  }\n  public abstract toString(): string;\n}\n```\n\nPlease take note:\n\n1. In the constructor of the polycon (`Dog`), a null value MUST be passed as the first argument to `super()`.\n2. Since the `Dog` class is just an empty shell, and does not get returned to the user, any methods required by the `abstract` base class can be left unimplemented.\n3. In the constructor of the base class (`DogBase`), the constructor should have no side effects or mutations when an empty `scope` is passed (otherwise, side effects may occur multiple times). In the example above, we set dummy values when the scope is empty (`this.treats = 0;`) and return early.\n\nWhen a polycon has a base class, every polycon implementation should extend it instead of extending `Construct`:\n\n```python\nexport class Labrador extends DogBase {\n  public readonly name: string;\n  constructor(scope: Construct, id: string, props: DogProps) {\n    super(scope, id, props);\n    this.name = props.name;\n  }\n  public toString() {\n    return `Labrador with ${this.treats} treats.`;\n  }\n}\n```\n\n## \u270b Contributing\n\nWe welcome community contributions and pull requests. See [CONTRIBUTING.md](./CONTRIBUTING.md) for information on how to set up a development environment and submit code on GitHub.\n\n## \u2696\ufe0f License\n\nThis library is licensed under the Apache-2.0 license.\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -731,7 +730,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16174134,
+        "last_serial": 16276981,
         "urls": [
             {
                 "comment_text": "",
@@ -770,6 +769,104 @@
                 "upload_time": "2022-12-21T14:15:14",
                 "upload_time_iso_8601": "2022-12-21T14:15:14.627999Z",
                 "url": "https://files.pythonhosted.org/packages/a3/45/d79c9673f5b6647e971ded2d130e32cdfc3f413cb487ad834b3327694366/polycons-0.1.7.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.1.8": {
+        "info": {
+            "author": "Monada, Inc.<ping@monada.co>",
+            "author_email": "",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved",
+                "Operating System :: OS Independent",
+                "Programming Language :: JavaScript",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Typing :: Typed"
+            ],
+            "description": "# Polycons\n\nA framework for building polymorphic [constructs](https://github.com/aws/constructs).\nThink of polycons like dependency injection for constructs.\n\npolycons can be used with any CDK framework, including [AWS CDK](https://github.com/aws/aws-cdk), [cdktf](https://github.com/hashicorp/terraform-cdk), and [cdk8s](https://github.com/cdk8s-team/cdk8s).\n\n## \ud83d\ude80 Getting started\n\nPolycons can be used just like ordinary constructs:\n\n```python\nimport { Dog } from \"@acme/shared-polycons\";\nimport { Construct } from \"constructs\";\n\nclass Pets extends Construct {\n  constructor(scope: Construct, id: string) {\n    super(scope, id);\n\n    // this is a polycon!\n    new Dog(this, \"Dog\", { treats: 5 });\n\n    // like ordinary constructs, polycons can have methods, properties, etc.\n    dog.giveBone();\n  }\n}\n```\n\nThis `Pets` construct contains a `Dog` from a library of polycons.\nThe dog could have multiple implementations -- a `Labrador`, a `Terrier`, or your own implementation.\n\nTo use polycons in an application, you need to register a factory that specifies how to turn polycons into concrete constructs.\nIn the example below, a `PetFactory` is used, which has been defined to resolve each `Dog` in the construct tree into a `Labrador`.\nBy registering it to the root `App` construct, each `Dog` in the construct tree will be created as a `Labrador`.\n\n```python\nimport { App } from \"<cdk-framework>\";\nimport { PetFactory } from \"@acme/shared-polycons\";\nimport { Polycons } from \"polycons\";\n\nconst app = new App();\nPolycons.register(app, new PetFactory());\nnew Pets(app, \"MyPets\");\n```\n\nCheck out the usage guide for more details about how to create your own polycons and polycon factories.\n\n## \ud83d\udcd6 Documentation\n\nClick [here](./API.md) to visit the polycons API reference.\n\n### \ud83c\udfed Polycon factories\n\nA polycon factory is a class that implements the `IPolyconFactory` interface, which has a single `resolve()` method.\nThis method accepts a `type` and a list of construct arguments, and returns a concrete construct. For example:\n\n```python\nimport { DOG_TYPE, CAT_TYPE, Labrador, Kitten } from \"@acme/shared-polycons\";\n\nclass PetFactory implements IPolyconFactory {\n  public resolve(\n    type: string,\n    scope: Construct,\n    id: string,\n    ...args: any[]\n  ): Construct {\n    switch (type) {\n      case DOG_TYPE:\n        return new Labrador(scope, id, ...args);\n      case CAT_TYPE:\n        return new Kitten(scope, id, ...args);\n      default:\n        throw new Error(`Type \"${type}\" not implemented.`);\n    }\n  }\n}\n```\n\nIn the above example, `DOG_TYPE` and `CAT_TYPE` are unique string constants associated with the respective polycons.\n\nBy customizing the `resolve()` method, it's possible to change construct IDs, override properties, or even make factories that call other factories.\n\n### \u270d\ufe0f Creating polycons\n\nYou can define a new polycon by creating a class that returns a new Polycon instance in its constructor.\nEach polycon must be associated with a unique identifying string.\n\n```python\nimport { Constructs } from \"constructs\";\nimport { Polycons } from \"polycons\";\n\nexport interface DogProps {\n  readonly name?: string;\n  readonly treats?: number;\n}\n\n// make sure your polycon has a globally unique name!\nexport const DOG_TYPE = \"@acme/shared-polycons.Dog\";\n\nexport class Dog extends Construct {\n  constructor(scope: Construct, id: string, props: DogProps) {\n    super(null as any, id); // (1)\n    return Polycons.newInstance(DOG_TYPE, scope, id, props) as Dog;\n  }\n}\n```\n\nThe `Dog` class definition serves as an empty shell, or placeholder -- only when a user calls `new Dog()`, a real construct will be returned.\n\nIn the constructor of `Dog`, a null value MUST be passed as the first argument to `super()` (1).\nThis is because actually two constructs are made by the constructor, and the first one should be thrown away (and not be added to the construct tree).\n\nConcrete implementations of a polycon can be written like ordinary constructs:\n\n```python\nexport class Labrador extends Construct {\n  public readonly name: string;\n  private readonly treats: number;\n  constructor(scope: Construct, id: string, props: DogProps) {\n    super(scope, id);\n    this.name = props.name;\n    this.treats = props.treats;\n  }\n  public toString() {\n    return `Labrador with ${this.treats} treats.`;\n  }\n}\n```\n\n### \ud83e\udd1d Sharing behavior\n\nOftentimes, you may want all polycons to share some properties or methods.\n\nYou can achieve this by defining a base class, and having the polycon extend the base class:\n\n```python\nexport interface DogProps {\n  readonly name?: string;\n  readonly treats?: number;\n}\n\nexport const DOG_TYPE = \"@acme/shared-polycons.Dog\";\n\n// This is the polycon.\nexport class Dog extends DogBase {\n  constructor(scope: Construct, id: string, props: DogProps) {\n    super(null as any, id, props); // [1]\n    return Polycons.newInstance(DOG_TYPE, scope, id, props) as Dog;\n  }\n  public toString() {\n    throw new Error(\"Method not implemented\"); // [2]\n  }\n}\n\n// This is the base class.\nexport abstract class DogBase extends Construct {\n  public readonly species = \"Canis familiaris\";\n  public readonly treats: number;\n  constructor(scope: Construct, id: string, props: DogProps) {\n    super(scope, id);\n\n    // [3]\n    if (!scope) {\n      this.treats = 0;\n      return;\n    }\n\n    this.treats = props.treats;\n  }\n  public abstract toString(): string;\n}\n```\n\nPlease take note:\n\n1. In the constructor of the polycon (`Dog`), a null value MUST be passed as the first argument to `super()`.\n2. Since the `Dog` class is just an empty shell, and does not get returned to the user, any methods required by the `abstract` base class can be left unimplemented.\n3. In the constructor of the base class (`DogBase`), the constructor should have no side effects or mutations when an empty `scope` is passed (otherwise, side effects may occur multiple times). In the example above, we set dummy values when the scope is empty (`this.treats = 0;`) and return early.\n\nWhen a polycon has a base class, every polycon implementation should extend it instead of extending `Construct`:\n\n```python\nexport class Labrador extends DogBase {\n  public readonly name: string;\n  constructor(scope: Construct, id: string, props: DogProps) {\n    super(scope, id, props);\n    this.name = props.name;\n  }\n  public toString() {\n    return `Labrador with ${this.treats} treats.`;\n  }\n}\n```\n\n## \u270b Contributing\n\nWe welcome community contributions and pull requests. See [CONTRIBUTING.md](./CONTRIBUTING.md) for information on how to set up a development environment and submit code on GitHub.\n\n## \u2696\ufe0f License\n\nThis library is licensed under the Apache-2.0 license.\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/winglang/polycons",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "polycons",
+            "package_url": "https://pypi.org/project/polycons/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/polycons/",
+            "project_urls": {
+                "Homepage": "https://github.com/winglang/polycons",
+                "Source": "https://github.com/winglang/polycons"
+            },
+            "release_url": "https://pypi.org/project/polycons/0.1.8/",
+            "requires_dist": [
+                "constructs (<11.0.0,>=10.0.25)",
+                "jsii (<2.0.0,>=1.72.0)",
+                "publication (>=0.0.3)",
+                "typeguard (~=2.13.3)"
+            ],
+            "requires_python": "~=3.7",
+            "summary": "polycons",
+            "version": "0.1.8",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16276981,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "680bba99d58182f444706f31d5c15cfe",
+                    "sha256": "1373d38a4b804dd9893143d20e7f6a4daf292f5f7d4378d235d285c6d1f39f60"
+                },
+                "downloads": -1,
+                "filename": "polycons-0.1.8-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "680bba99d58182f444706f31d5c15cfe",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": "~=3.7",
+                "size": 23041,
+                "upload_time": "2023-01-02T07:00:49",
+                "upload_time_iso_8601": "2023-01-02T07:00:49.908449Z",
+                "url": "https://files.pythonhosted.org/packages/1d/99/9ed989eeffdac3585e3cc833dc63ae330d853cd03f0bb652a41a22bce407/polycons-0.1.8-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "37a88ed2705d689aeaeb5550098ea892",
+                    "sha256": "30d73d2b544bd7686152f449477ae465797ee75fce530b2af33edbee5dc83279"
+                },
+                "downloads": -1,
+                "filename": "polycons-0.1.8.tar.gz",
+                "has_sig": false,
+                "md5_digest": "37a88ed2705d689aeaeb5550098ea892",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": "~=3.7",
+                "size": 24511,
+                "upload_time": "2023-01-02T07:00:51",
+                "upload_time_iso_8601": "2023-01-02T07:00:51.588700Z",
+                "url": "https://files.pythonhosted.org/packages/93/3f/133d2993797e327cbf9514a6afebc8696ebe13f67ea439856716f3134b6f/polycons-0.1.8.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }

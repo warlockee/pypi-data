@@ -58,7 +58,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16240955,
+        "last_serial": 16276251,
         "urls": [
             {
                 "comment_text": "",
@@ -163,7 +163,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16240955,
+        "last_serial": 16276251,
         "urls": [
             {
                 "comment_text": "",
@@ -268,7 +268,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16240955,
+        "last_serial": 16276251,
         "urls": [
             {
                 "comment_text": "",
@@ -374,7 +374,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16240955,
+        "last_serial": 16276251,
         "urls": [
             {
                 "comment_text": "",
@@ -440,7 +440,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": ".. image:: https://readthedocs.org/projects/pynamodb_mate/badge/?version=latest\n    :target: https://pynamodb_mate.readthedocs.io/\n    :alt: Documentation Status\n\n.. image:: https://img.shields.io/pypi/v/pynamodb_mate.svg\n    :target: https://pypi.python.org/pypi/pynamodb_mate\n\n.. image:: https://img.shields.io/pypi/l/pynamodb_mate.svg\n    :target: https://pypi.python.org/pypi/pynamodb_mate\n\n.. image:: https://img.shields.io/pypi/pyversions/pynamodb_mate.svg\n    :target: https://pypi.python.org/pypi/pynamodb_mate\n\n.. image:: https://img.shields.io/badge/STAR_Me_on_GitHub!--None.svg?style=social\n    :target: https://github.com/MacHu-GWU/pynamodb_mate-project\n\n------\n\n.. image:: https://img.shields.io/badge/Link-Document-blue.svg\n      :target: https://pynamodb_mate.readthedocs.io/\n\n.. image:: https://img.shields.io/badge/Link-API-blue.svg\n      :target: https://pynamodb_mate.readthedocs.io/py-modindex.html\n\n.. image:: https://img.shields.io/badge/Link-Source_Code-blue.svg\n      :target: https://pynamodb_mate.readthedocs.io/py-modindex.html\n\n.. image:: https://img.shields.io/badge/Link-Install-blue.svg\n      :target: `install`_\n\n.. image:: https://img.shields.io/badge/Link-GitHub-blue.svg\n      :target: https://github.com/MacHu-GWU/pynamodb_mate-project\n\n.. image:: https://img.shields.io/badge/Link-Submit_Issue-blue.svg\n      :target: https://github.com/MacHu-GWU/pynamodb_mate-project/issues\n\n.. image:: https://img.shields.io/badge/Link-Request_Feature-blue.svg\n      :target: https://github.com/MacHu-GWU/pynamodb_mate-project/issues\n\n.. image:: https://img.shields.io/badge/Link-Download-blue.svg\n      :target: https://pypi.org/pypi/pynamodb_mate#files\n\n\nWelcome to ``pynamodb_mate`` Documentation\n==============================================================================\n- `Full Documentation is Here <https://pynamodb_mate.readthedocs.io/>`_\n\n.. contents::\n    :class: this-will-duplicate-information-and-it-is-still-useful-here\n    :depth: 1\n    :local:\n\n\nOverview\n------------------------------------------------------------------------------\n``pynamodb_mate`` provides advanced best practice using DynamoDB in python. Built on top of `pynamodb <https://pynamodb.readthedocs.io/en/latest/>`_ python library. It maintain the compatibility to major version of ``pynamodb`` library. For example ``pynamodb_mate>=5.0.0,<6.0.0`` is compatible to ``pynamodb>=5.0.0,<6.0.0``.\n\n\nFeature1. Store Large Object in Dynamodb\n------------------------------------------------------------------------------\nDynamoDB is a very good choice for **Pay-as-you-go**, **high-concurrent** key value database. Sometimes, you want to store large binary object as a Dynamodb item attribute. For example, a web crawler app wants to store crawled html source to avoid re-visit the same url. But Dynamodb has a limitation that one item can not be larger than 256KB. How could you solve the problem?\n\nA easy solution is to store large binary object in s3, and only store the s3 uri in Dynamodb. ``pynamodb_mate`` library provides this feature on top of ``pynamodb`` project (A DynamoDB ORM layer in Python).\n\n**1. Define your Data Model**\n\n.. code-block:: python\n\n    import pynamodb_mate\n    import botocore.session\n\n    # Declare the data Model\n\n    # create s3 client, will be used to store big binary / text data in S3\n    boto_ses = botocore.session.get_session()\n    s3_client = boto_ses.create_client(\"s3\")\n\n    class UrlModel(pynamodb_mate.Model):\n        class Meta:\n            table_name = \"urls\"\n            region = \"us-east-1\"\n            # use Pay as you go model for testing\n            billing_mode = pynamodb_mate.PAY_PER_REQUEST_BILLING_MODE\n\n        url = pynamodb_mate.UnicodeAttribute(hash_key=True)\n\n        html = pynamodb_mate.S3BackedBigTextAttribute()\n        html.bucket_name = \"my-bucket\"  # s3 bucket name\n        html.s3_client = s3_client  # s3 client object\n\n        content = pynamodb_mate.S3BackedBigBinaryAttribute()\n        content.bucket_name = \"my-bucket\"\n        content.s3_client = s3_client\n\n    # create dynamodb table if not exists, quick skip if already exists\n    UrlModel.create_table(wait=True)\n\n**2. Write / Read / Update / Delete**\n\n.. code-block:: python\n\n    url = \"https://pynamodb-mate.readthedocs.io/en/latest/\"\n    html = \"<html>Hello World!</html>\\n\" * 1000\n    content = (\"this is a dummy image!\\n\" * 1000).encode(\"utf-8\")\n\n    # create item\n    url = UrlModel(url=url, html=html, content=content)\n\n    # write item to dynamodb table\n    url.save()\n\n    # get the item\n    url = UrlModel.get(url)\n    assert url.html == html\n    assert url.content == content\n\n    # update the item\n    url.update(\n        actions=[\n            UrlModel.html.set(\"<html>Hello Dynamodb</html>\"),\n            UrlModel.content.set(\"this is a real image!\".encode(\"utf-8\")),\n        ]\n    )\n    url.refresh() # get the up-to-date data\n    print(url.html) # should give you new data\n    print(url.content) # should give you new data\n\n    # delete item from dynamodb, DON'T DELETE S3 OBJECT\n    url.delete()\n\n**3. How it Works**\n\nIn this example, you can pass the raw html to ``url = UrlModel(html=\"<html>big HTML ...</html>\", ...)`` attribute. When writing this item to Dynamodb, it automatically use the sha256 fingerprint of the data in S3 key naming convention, stores the S3 uri to the ``html`` field, and store the html content to S3 object. In other words, same data will be stored at the same S3 location to avoid duplicate traffic. However, it won't delete the S3 object because there might be another item are using the same S3 object.\n\n\nFeature2. Client Side Encryption\n------------------------------------------------------------------------------\nDynamodb support encryption at the rest (Server Side Encryption) and use SSL to encryption the transit data (Encrypt at the fly) by default. But you need to spend additional work to enable \"Client Side Encryption\". ``pynamodb_mate`` made it deadly easy.\n\n**1. Define attribute to use Client Side Encryption (AES)**\n\n.. code-block:: python\n\n    import pynamodb_mate\n\n    ENCRYPTION_KEY = \"my-password\"\n\n    class ArchiveModel(pynamodb_mate.Model):\n        class Meta:\n            table_name = f\"archive\"\n            region = \"us-east-1\"\n            billing_mode = pynamodb_mate.PAY_PER_REQUEST_BILLING_MODE\n\n        aid = pynamodb_mate.UnicodeAttribute(hash_key=True)\n\n        secret_message = pynamodb_mate.EncryptUnicodeAttribute()\n        # the per field level encryption key\n        secret_message.encryption_key = ENCRYPTION_KEY\n        # if True, same input -> same output\n        # so you can still use this field for query\n        # ``filter_conditions=(ArchiveModel.secret_message == \"my message\")``\n        secret_message.determinative = True\n\n        secret_binary = pynamodb_mate.EncryptBinaryAttribute()\n        secret_binary.encryption_key = ENCRYPTION_KEY\n        # if True, same input -> random output, but will return same output\n        # but you lose the capability of query on this field\n        secret_binary.determinative = False\n\n        secret_integer = pynamodb_mate.EncryptedNumberAttribute()\n        secret_integer.encryption_key = ENCRYPTION_KEY\n        secret_integer.determinative = True\n\n        secret_float = pynamodb_mate.EncryptedNumberAttribute()\n        secret_float.encryption_key = ENCRYPTION_KEY\n        secret_float.determinative = False\n\n        secret_data = pynamodb_mate.EncryptedJsonAttribute()\n        secret_data.encryption_key = ENCRYPTION_KEY\n        secret_data.determinative = False\n\n    # create dynamodb table if not exists, quick skip if already exists\n    ArchiveModel.create_table(wait=True)\n\n**2. Write / Read the Item**\n\n.. code-block:: python\n\n    msg = \"attack at 2PM tomorrow!\"\n    binary = \"a secret image\".encode(\"utf-8\")\n    data = {\"Alice\": 1, \"Bob\": 2, \"Cathy\": 3}\n\n    model = ArchiveModel(\n        aid=\"aid-001\",\n        secret_message=msg,\n        secret_binary=binary,\n        secret_integer=1234,\n        secret_float=3.14,\n        secret_data=data,\n    )\n    model.save()\n\n    model = ArchiveModel.get(\"aid-001\")\n    assert model.secret_message == msg\n    assert model.secret_binary == binary\n    assert model.secret_integer == 1234\n    assert model.secret_float == pytest.approx(3.14)\n    assert model.secret_data == data\n\n**3. How it works**\n\nInternally it always use binary for data serialization / deserialization. It convert the original data to binary, encrypt it with the key, and store it to DynamoDB. It read the data from DynamoDB, decrypt it and convert it back to original data to user.\n\nFor field that you still want to be able to query on it, you use ``determinative = True``. And it uses AES ECB. It is approved that not secure for middle man attack. But you can still use it with DynamoDB because DynamoDB api use SSL to encrypt it in transit. For ``determinative = False``, it uses AES CTR.\n\n\nFeature3. Compressed Attribute\n------------------------------------------------------------------------------\nSometimes you want to compress the data before store to save DB space. For example, in a E-commerce data model, an order has many items like this: ``[{\"item_name\": \"apple\", \"item_count\": 12}, {\"item_name\": \"banana\", \"item_count\": 5}]``. There are lots of repeated information such as the keys ``\"item_name\"`` and ``\"item_count\"``.\n\n**1. Define attribute to use Auto Compressed**\n\n.. code-block:: python\n\n    import pynamodb_mate\n\n    # Define the Data Model to use compressed attribute\n    class OrderModel(pynamodb_mate.Model):\n        class Meta:\n            table_name = f\"orders\"\n            region = \"us-east-1\"\n            billing_mode = pynamodb_mate.PAY_PER_REQUEST_BILLING_MODE\n\n        order_id = pynamodb_mate.UnicodeAttribute(hash_key=True)\n\n        # original value is unicode str\n        description = pynamodb_mate.CompressedUnicodeAttribute(null=True)\n\n        # original value is binary bytes\n        image = pynamodb_mate.CompressedBinaryAttribute(null=True)\n\n        # original value is any json serializable object\n        items = pynamodb_mate.CompressedJSONAttribute(null=True)\n\n    OrderModel.create_table(wait=True)\n\n**2. Write / Read the Item**\n\n.. code-block:: python\n\n    # Create an item\n    order_id = \"order_001\"\n    description = \"a fancy order!\" * 10\n    image = description.encode(\"utf-8\") # a fake binary object\n    items = [\n        {\n            \"item_id\": \"i_001\",\n            \"item_name\": \"apple\",\n            \"item_price\": 2.4,\n            \"quantity\": 8,\n        },\n        {\n            \"item_id\": \"i_002\",\n            \"item_name\": \"banana\",\n            \"item_price\": 0.53,\n            \"quantity\": 5,\n        },\n    ]\n    order = OrderModel(\n        order_id=order_id,\n        description=description,\n        image=image,\n        items=items,\n    )\n    # Save item to Dynamodb\n    order.save()\n\n    # Get the value back and verify\n    order = OrderModel.get(order_id)\n    assert order.description == description\n    assert order.image == image\n    assert order.items == items\n\n**3. How it works**\n\nInternally it always use binary for data serialization / deserialization. It convert the original data to binary, and compress it before saving to Dynamodb. It read the data from DynamoDB, decompress it and convert it back to original data to user.\n\n\nFeature4. AWS Dynamodb Console\n------------------------------------------------------------------------------\nYou can use the following methods to create a URL that can preview your table and items in your browser. This could be very helpful with logging.\n\n.. code-block:: python\n\n\n        print(Model.get_table_overview_console_url())\n        print(Model.get_table_items_console_url())\n        print(Model(the_hash_key=\"a\", the_range_key=1).item_detail_console_url)\n\n\n.. _install:\n\nInstall\n------------------------------------------------------------------------------\n``pynamodb_mate`` is released on PyPI, so all you need is:\n\n.. code-block:: console\n\n    $ pip install pynamodb_mate\n\nTo upgrade to latest version:\n\n.. code-block:: console\n\n    $ pip install --upgrade pynamodb_mate\n\nIn order to use the following feature, you need to run ``pip install pynamodb_mate[encrypt]`` first:\n\n- ``~pynamodb_mate.EncryptedNumberAttribute``\n- ``~pynamodb_mate.EncryptedUnicodeAttribute``\n- ``~pynamodb_mate.EncryptedBinaryAttribute``\n- ``~pynamodb_mate.EncryptedJsonAttribute``\n",
             "description_content_type": "",
             "docs_url": null,
             "download_url": "https://pypi.python.org/pypi/pynamodb_mate/5.3.4.1#downloads",
@@ -484,7 +483,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 16240955,
+        "last_serial": 16276251,
         "urls": [
             {
                 "comment_text": "",
@@ -523,6 +522,118 @@
                 "upload_time": "2022-12-28T19:16:01",
                 "upload_time_iso_8601": "2022-12-28T19:16:01.737215Z",
                 "url": "https://files.pythonhosted.org/packages/7e/f4/90333a8e0d5612cebede38914c404da31bacccd20ae8ea8411c159a8bd36/pynamodb_mate-5.3.4.1.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "5.3.4.2": {
+        "info": {
+            "author": "Sanhe Hu",
+            "author_email": "husanhe@gmail.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 5 - Production/Stable",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: MIT License",
+                "Natural Language :: English",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: Unix",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.6",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": ".. image:: https://readthedocs.org/projects/pynamodb_mate/badge/?version=latest\n    :target: https://pynamodb_mate.readthedocs.io/\n    :alt: Documentation Status\n\n.. image:: https://github.com/MacHu-GWU/pynamodb_mate-project/workflows/CI/badge.svg\n    :target: https://github.com/MacHu-GWU/pynamodb_mate-project/actions?query=workflow:CI\n\n.. image:: https://codecov.io/gh/MacHu-GWU/pynamodb_mate-project/branch/master/graph/badge.svg\n    :target: https://codecov.io/gh/MacHu-GWU/pynamodb_mate-project\n\n.. image:: https://img.shields.io/pypi/v/pynamodb_mate.svg\n    :target: https://pypi.python.org/pypi/pynamodb_mate\n\n.. image:: https://img.shields.io/pypi/l/pynamodb_mate.svg\n    :target: https://pypi.python.org/pypi/pynamodb_mate\n\n.. image:: https://img.shields.io/pypi/pyversions/pynamodb_mate.svg\n    :target: https://pypi.python.org/pypi/pynamodb_mate\n\n.. image:: https://img.shields.io/badge/STAR_Me_on_GitHub!--None.svg?style=social\n    :target: https://github.com/MacHu-GWU/pynamodb_mate-project\n\n------\n\n.. image:: https://img.shields.io/badge/Link-Document-blue.svg\n      :target: https://pynamodb_mate.readthedocs.io/\n\n.. image:: https://img.shields.io/badge/Link-API-blue.svg\n      :target: https://pynamodb_mate.readthedocs.io/py-modindex.html\n\n.. image:: https://img.shields.io/badge/Link-Source_Code-blue.svg\n      :target: https://pynamodb_mate.readthedocs.io/py-modindex.html\n\n.. image:: https://img.shields.io/badge/Link-Install-blue.svg\n      :target: `install`_\n\n.. image:: https://img.shields.io/badge/Link-GitHub-blue.svg\n      :target: https://github.com/MacHu-GWU/pynamodb_mate-project\n\n.. image:: https://img.shields.io/badge/Link-Submit_Issue-blue.svg\n      :target: https://github.com/MacHu-GWU/pynamodb_mate-project/issues\n\n.. image:: https://img.shields.io/badge/Link-Request_Feature-blue.svg\n      :target: https://github.com/MacHu-GWU/pynamodb_mate-project/issues\n\n.. image:: https://img.shields.io/badge/Link-Download-blue.svg\n      :target: https://pypi.org/pypi/pynamodb_mate#files\n\n\nWelcome to ``pynamodb_mate`` Documentation\n==============================================================================\n- `Full Documentation is Here <https://pynamodb_mate.readthedocs.io/>`_\n\n.. contents::\n    :class: this-will-duplicate-information-and-it-is-still-useful-here\n    :depth: 1\n    :local:\n\n\nOverview\n------------------------------------------------------------------------------\n``pynamodb_mate`` provides advanced best practice using DynamoDB in python. Built on top of `pynamodb <https://pynamodb.readthedocs.io/en/latest/>`_ python library. It maintain the compatibility to major version of ``pynamodb`` library. For example ``pynamodb_mate>=5.0.0,<6.0.0`` is compatible to ``pynamodb>=5.0.0,<6.0.0``.\n\n\nFeature 1. Store Large Object in DynamoDB\n------------------------------------------------------------------------------\nDynamoDB is a very good choice for **Pay-as-you-go**, **high-concurrent** key value database. Sometimes, you want to store large binary object as a DynamoDB item attribute. For example, a web crawler app wants to store crawled html source to avoid re-visit the same url. But DynamoDB has a limitation that one item can not be larger than 256KB. How could you solve the problem?\n\nA easy solution is to store large binary object in s3, and only store the s3 uri in DynamoDB. ``pynamodb_mate`` library provides this feature on top of ``pynamodb`` project (A DynamoDB ORM layer in Python).\n\n**1. Define your Data Model**\n\n.. code-block:: python\n\n    import pynamodb_mate\n    import botocore.session\n\n    # Declare the data Model\n\n    # create s3 client, will be used to store big binary / text data in S3\n    boto_ses = botocore.session.get_session()\n    s3_client = boto_ses.create_client(\"s3\")\n\n    class UrlModel(pynamodb_mate.Model):\n        class Meta:\n            table_name = \"urls\"\n            region = \"us-east-1\"\n            # use Pay as you go model for testing\n            billing_mode = pynamodb_mate.PAY_PER_REQUEST_BILLING_MODE\n\n        url = pynamodb_mate.UnicodeAttribute(hash_key=True)\n\n        html = pynamodb_mate.S3BackedBigTextAttribute()\n        html.bucket_name = \"my-bucket\"  # s3 bucket name\n        html.s3_client = s3_client  # s3 client object\n\n        content = pynamodb_mate.S3BackedBigBinaryAttribute()\n        content.bucket_name = \"my-bucket\"\n        content.s3_client = s3_client\n\n    # create DynamoDB table if not exists, quick skip if already exists\n    UrlModel.create_table(wait=True)\n\n**2. Write / Read / Update / Delete**\n\n.. code-block:: python\n\n    url = \"https://pynamodb-mate.readthedocs.io/en/latest/\"\n    html = \"<html>Hello World!</html>\\n\" * 1000\n    content = (\"this is a dummy image!\\n\" * 1000).encode(\"utf-8\")\n\n    # create item\n    url = UrlModel(url=url, html=html, content=content)\n\n    # write item to DynamoDB table\n    url.save()\n\n    # get the item\n    url = UrlModel.get(url)\n    assert url.html == html\n    assert url.content == content\n\n    # update the item\n    url.update(\n        actions=[\n            UrlModel.html.set(\"<html>Hello DynamoDB</html>\"),\n            UrlModel.content.set(\"this is a real image!\".encode(\"utf-8\")),\n        ]\n    )\n    url.refresh() # get the up-to-date data\n    print(url.html) # should give you new data\n    print(url.content) # should give you new data\n\n    # delete item from DynamoDB, DON'T DELETE S3 OBJECT\n    url.delete()\n\n**3. How it Works**\n\nIn this example, you can pass the raw html to ``url = UrlModel(html=\"<html>big HTML ...</html>\", ...)`` attribute. When writing this item to DynamoDB, it automatically use the sha256 fingerprint of the data in S3 key naming convention, stores the S3 uri to the ``html`` field, and store the html content to S3 object. In other words, same data will be stored at the same S3 location to avoid duplicate traffic. However, it won't delete the S3 object because there might be another item are using the same S3 object.\n\n\nFeature 2. Client Side Encryption\n------------------------------------------------------------------------------\nDynamoDB support encryption at the rest (Server Side Encryption) and use SSL to encryption the transit data (Encrypt at the fly) by default. But you need to spend additional work to enable \"Client Side Encryption\". ``pynamodb_mate`` made it deadly easy.\n\n**1. Define attribute to use Client Side Encryption (AES)**\n\n.. code-block:: python\n\n    import pynamodb_mate\n\n    ENCRYPTION_KEY = \"my-password\"\n\n    class ArchiveModel(pynamodb_mate.Model):\n        class Meta:\n            table_name = f\"archive\"\n            region = \"us-east-1\"\n            billing_mode = pynamodb_mate.PAY_PER_REQUEST_BILLING_MODE\n\n        aid = pynamodb_mate.UnicodeAttribute(hash_key=True)\n\n        secret_message = pynamodb_mate.EncryptUnicodeAttribute()\n        # the per field level encryption key\n        secret_message.encryption_key = ENCRYPTION_KEY\n        # if True, same input -> same output\n        # so you can still use this field for query\n        # ``filter_conditions=(ArchiveModel.secret_message == \"my message\")``\n        secret_message.determinative = True\n\n        secret_binary = pynamodb_mate.EncryptBinaryAttribute()\n        secret_binary.encryption_key = ENCRYPTION_KEY\n        # if True, same input -> random output, but will return same output\n        # but you lose the capability of query on this field\n        secret_binary.determinative = False\n\n        secret_integer = pynamodb_mate.EncryptedNumberAttribute()\n        secret_integer.encryption_key = ENCRYPTION_KEY\n        secret_integer.determinative = True\n\n        secret_float = pynamodb_mate.EncryptedNumberAttribute()\n        secret_float.encryption_key = ENCRYPTION_KEY\n        secret_float.determinative = False\n\n        secret_data = pynamodb_mate.EncryptedJsonAttribute()\n        secret_data.encryption_key = ENCRYPTION_KEY\n        secret_data.determinative = False\n\n    # create DynamoDB table if not exists, quick skip if already exists\n    ArchiveModel.create_table(wait=True)\n\n**2. Write / Read the Item**\n\n.. code-block:: python\n\n    msg = \"attack at 2PM tomorrow!\"\n    binary = \"a secret image\".encode(\"utf-8\")\n    data = {\"Alice\": 1, \"Bob\": 2, \"Cathy\": 3}\n\n    model = ArchiveModel(\n        aid=\"aid-001\",\n        secret_message=msg,\n        secret_binary=binary,\n        secret_integer=1234,\n        secret_float=3.14,\n        secret_data=data,\n    )\n    model.save()\n\n    model = ArchiveModel.get(\"aid-001\")\n    assert model.secret_message == msg\n    assert model.secret_binary == binary\n    assert model.secret_integer == 1234\n    assert model.secret_float == pytest.approx(3.14)\n    assert model.secret_data == data\n\n**3. How it works**\n\nInternally it always use binary for data serialization / deserialization. It convert the original data to binary, encrypt it with the key, and store it to DynamoDB. It read the data from DynamoDB, decrypt it and convert it back to original data to user.\n\nFor field that you still want to be able to query on it, you use ``determinative = True``. And it uses AES ECB. It is approved that not secure for middle man attack. But you can still use it with DynamoDB because DynamoDB api use SSL to encrypt it in transit. For ``determinative = False``, it uses AES CTR.\n\n\nFeature 3. Compressed Attribute\n------------------------------------------------------------------------------\nSometimes you want to compress the data before store to save DB space. For example, in a E-commerce data model, an order has many items like this: ``[{\"item_name\": \"apple\", \"item_count\": 12}, {\"item_name\": \"banana\", \"item_count\": 5}]``. There are lots of repeated information such as the keys ``\"item_name\"`` and ``\"item_count\"``.\n\n**1. Define attribute to use Auto Compressed**\n\n.. code-block:: python\n\n    import pynamodb_mate\n\n    # Define the Data Model to use compressed attribute\n    class OrderModel(pynamodb_mate.Model):\n        class Meta:\n            table_name = f\"orders\"\n            region = \"us-east-1\"\n            billing_mode = pynamodb_mate.PAY_PER_REQUEST_BILLING_MODE\n\n        order_id = pynamodb_mate.UnicodeAttribute(hash_key=True)\n\n        # original value is unicode str\n        description = pynamodb_mate.CompressedUnicodeAttribute(null=True)\n\n        # original value is binary bytes\n        image = pynamodb_mate.CompressedBinaryAttribute(null=True)\n\n        # original value is any json serializable object\n        items = pynamodb_mate.CompressedJSONAttribute(null=True)\n\n    OrderModel.create_table(wait=True)\n\n**2. Write / Read the Item**\n\n.. code-block:: python\n\n    # Create an item\n    order_id = \"order_001\"\n    description = \"a fancy order!\" * 10\n    image = description.encode(\"utf-8\") # a fake binary object\n    items = [\n        {\n            \"item_id\": \"i_001\",\n            \"item_name\": \"apple\",\n            \"item_price\": 2.4,\n            \"quantity\": 8,\n        },\n        {\n            \"item_id\": \"i_002\",\n            \"item_name\": \"banana\",\n            \"item_price\": 0.53,\n            \"quantity\": 5,\n        },\n    ]\n    order = OrderModel(\n        order_id=order_id,\n        description=description,\n        image=image,\n        items=items,\n    )\n    # Save item to DynamoDB\n    order.save()\n\n    # Get the value back and verify\n    order = OrderModel.get(order_id)\n    assert order.description == description\n    assert order.image == image\n    assert order.items == items\n\n**3. How it works**\n\nInternally it always use binary for data serialization / deserialization. It convert the original data to binary, and compress it before saving to DynamoDB. It read the data from DynamoDB, decompress it and convert it back to original data to user.\n\n\nFeature 4. AWS DynamoDB Console\n------------------------------------------------------------------------------\nYou can use the following methods to create a URL that can preview your table and items in your browser. This could be very helpful with logging.\n\n.. code-block:: python\n\n\n        print(Model.get_table_overview_console_url())\n        print(Model.get_table_items_console_url())\n        print(Model(the_hash_key=\"a\", the_range_key=1).item_detail_console_url)\n\n\nFeature 5. DynamoDB Patterns\n------------------------------------------------------------------------------\n``pynamodb_mate`` also provides some commonly used patterns as base ORM models. It is based on the author's working experience dealing with many customers from many kinds of industry.\n\n\n.. _install:\n\nInstall\n------------------------------------------------------------------------------\n``pynamodb_mate`` is released on PyPI, so all you need is:\n\n.. code-block:: console\n\n    $ pip install pynamodb_mate\n\nTo upgrade to latest version:\n\n.. code-block:: console\n\n    $ pip install --upgrade pynamodb_mate\n\nIn order to use the following feature, you need to run ``pip install pynamodb_mate[encrypt]`` first:\n\n- ``pynamodb_mate.EncryptedNumberAttribute``\n- ``pynamodb_mate.EncryptedUnicodeAttribute``\n- ``pynamodb_mate.EncryptedBinaryAttribute``\n- ``pynamodb_mate.EncryptedJsonAttribute``\n\n\nDisclaimer\n------------------------------------------------------------------------------\nEven though the author is a Dynamodb Subject Matter Expert in AWS, but this project is NOT an AWS official project, and it is a personal open source project for the Python community.\n\n\n",
+            "description_content_type": "",
+            "docs_url": null,
+            "download_url": "https://pypi.python.org/pypi/pynamodb_mate/5.3.4.2#downloads",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/MacHu-GWU/pynamodb_mate-project",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Sanhe Hu",
+            "maintainer_email": "husanhe@gmail.com",
+            "name": "pynamodb-mate",
+            "package_url": "https://pypi.org/project/pynamodb-mate/",
+            "platform": "Windows",
+            "project_url": "https://pypi.org/project/pynamodb-mate/",
+            "project_urls": {
+                "Download": "https://pypi.python.org/pypi/pynamodb_mate/5.3.4.2#downloads",
+                "Homepage": "https://github.com/MacHu-GWU/pynamodb_mate-project"
+            },
+            "release_url": "https://pypi.org/project/pynamodb-mate/5.3.4.2/",
+            "requires_dist": [
+                "pynamodb (<6.0.0,>=5.0.0)",
+                "cached-property (>=1.5.2) ; python_version < \"3.8\"",
+                "dataclasses (>=0.8) ; python_version == \"3.6\"",
+                "sphinx (==4.3.0) ; extra == 'docs'",
+                "sphinx-inline-tabs (==2021.8.17b10) ; extra == 'docs'",
+                "sphinx-jinja (==1.1.1) ; extra == 'docs'",
+                "sphinx-copybutton (==0.4.0) ; extra == 'docs'",
+                "rstobj (==0.0.7) ; extra == 'docs'",
+                "docfly (==1.0.2) ; extra == 'docs'",
+                "furo (==2021.8.31) ; extra == 'docs'",
+                "pycryptodome ; extra == 'docs'",
+                "pycryptodome ; extra == 'encrypt'",
+                "pytest ; extra == 'tests'",
+                "pytest-cov ; extra == 'tests'",
+                "pycryptodome ; extra == 'tests'"
+            ],
+            "requires_python": "",
+            "summary": "Provide Additional Features for pynamodb.",
+            "version": "5.3.4.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16276251,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "3a751173a7558c8ab32962fe1de3149c",
+                    "sha256": "392eceb77b587b4b30a2496402e085dcb98226cefbdfbef80a2ba619bd5659aa"
+                },
+                "downloads": -1,
+                "filename": "pynamodb_mate-5.3.4.2-py2.py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "3a751173a7558c8ab32962fe1de3149c",
+                "packagetype": "bdist_wheel",
+                "python_version": "py2.py3",
+                "requires_python": null,
+                "size": 21451,
+                "upload_time": "2023-01-02T04:13:04",
+                "upload_time_iso_8601": "2023-01-02T04:13:04.816457Z",
+                "url": "https://files.pythonhosted.org/packages/fb/a5/dee655462f661281ce0800e22f4b84d164eba54c199565081bd97916f981/pynamodb_mate-5.3.4.2-py2.py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "21a4638a993f672c0b6be2039db48763",
+                    "sha256": "fd3323a417a14cc45c654481e7badaef31bfb6e3249771f5d5650af7bbbe940d"
+                },
+                "downloads": -1,
+                "filename": "pynamodb_mate-5.3.4.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "21a4638a993f672c0b6be2039db48763",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": null,
+                "size": 24358,
+                "upload_time": "2023-01-02T04:13:06",
+                "upload_time_iso_8601": "2023-01-02T04:13:06.672745Z",
+                "url": "https://files.pythonhosted.org/packages/1a/91/ef497d6a232d0304f5f1675e4e4d71c2d6f7153707e5241699e816e64a58/pynamodb_mate-5.3.4.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
