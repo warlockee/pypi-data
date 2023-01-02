@@ -14,7 +14,6 @@
                 "Programming Language :: Python :: 3.8",
                 "Programming Language :: Python :: 3.9"
             ],
-            "description": "<div align=\"center\">\n<h1>Wandb Offline Sync Hook</h1>\n<em>A convenient way to trigger synchronizations to wandb if your compute nodes don't have internet!</em>\n<p></p>\n\n[![Documentation Status](https://readthedocs.org/projects/wandb-offline-sync-hook/badge/?version=latest)](https://wandb-offline-sync-hook.readthedocs.io/en/latest/?badge=latest)\n[![PR welcome](https://img.shields.io/badge/PR-Welcome-%23FF8300.svg)](https://git-scm.com/book/en/v2/GitHub-Contributing-to-a-Project)\n[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/klieret/wandb-offline-sync-hook/main.svg)](https://results.pre-commit.ci/latest/github/klieret/wandb-offline-sync-hook/main)\n[![.github/workflows/test.yaml](https://github.com/klieret/wandb-offline-sync-hook/actions/workflows/test.yaml/badge.svg)](https://github.com/klieret/wandb-offline-sync-hook/actions/workflows/test.yaml)\n[![link checker](https://github.com/klieret/wandb-offline-sync-hook/actions/workflows/check-links.yaml/badge.svg)](https://github.com/klieret/wandb-offline-sync-hook/actions)\n[![codecov](https://codecov.io/github/klieret/wandb-offline-sync-hook/branch/main/graph/badge.svg?token=6MQZ4LODE5)](https://codecov.io/github/klieret/wandb-offline-sync-hook)\n[![gitmoji](https://img.shields.io/badge/gitmoji-%20\ud83d\ude1c%20\ud83d\ude0d-FFDD67.svg)](https://gitmoji.dev)\n[![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)\n\n</div>\n\n## \ud83e\udd14 What is this?\n\nDo you\n\n- \u2705 Use [`wandb`/Weights & Biases](https://wandb.ai/) to record your machine learning trials?\n- \u2705 Run your ML experiments on compute nodes without internet access (for example, using a batch system)?\n- \u2705 Compute nodes and head nodes have access to a shared file system\n\nThen this package can be useful.\n\n<div align=\"center\">\n\n![](readme_assets/diagram.png)\n\n</div>\n\n### What you might have been doing so far\n\nYou probably have been using `export WANDB_MODE=\"offline\"` and then ran something like\n\n```bash\nfor d in $(ls -t -d */);do cd $d; wandb sync --sync-all; cd ..; done\n```\n\non the result directory to sync all runs from your head node (with internet access) every now and then.\nHowever, obviously this is not very satisfying as it doesn't update live.\nSure, you could throw this in a `while True` loop, but if you have a lot of trials in your directory, this will take a while and it's just not very elegant.\n\n### How does `wandb-osh` solve the problem?\n\n1. You add a hook that is called every time an epoch concludes (that is, when we want to trigger a sync).\n2. You start the `wandb-osh` script in your head node with internet access. This script will now trigger `wandb sync` upon request from one of the compute nodes.\n\n### How is this implemented?\n\nVery simple: Every time an epoch concludes, the hook gets called and creates a file in a \"communication directory\" (`~/.wandb_osh_communication`) by default. `wandb-osh` scans that directory and reads synchronization instructions from such files.\n\n## \ud83d\udce6 Installation\n\n```\npip3 install .\n```\n\nIf you want to use this package with `ray`, use\n\n```\npip3 install '.[ray]'\n```\n\n## \ud83d\udd25 Running it!\n\nTwo steps: Set up the hook, then run the script from your head node.\n\n### Step 1: Setting up the hook\n\n#### With wandb\n\nLet's adapt the [simple pytorch example](https://docs.wandb.ai/guides/integrations/pytorch) from the wandb docs (it only takes 3 lines!):\n\n```python\nimport wandb\nfrom wandb_osh.hooks import TriggerWandbSyncHook  # <-- New!\n\n\ntrigger_sync = TriggerWandbSyncHook()  # <--- New!\n\nwandb.init(config=args, mode=\"offline\")\n\nmodel = ... # set up your model\n\n# Magic\nwandb.watch(model, log_freq=100)\n\nmodel.train()\nfor batch_idx, (data, target) in enumerate(train_loader):\n    output = model(data)\n    loss = F.nll_loss(output, target)\n    loss.backward()\n    optimizer.step()\n    if batch_idx % args.log_interval == 0:\n        wandb.log({\"loss\": loss})\n        trigger_sync()  # <-- New!\n```\n\n#### With ray tune\n\nYou probably already use the `WandbLoggerCallback` callback. We simply add a second callback for `wandb-osh` (it only takes one new line!):\n\n```python\nimport os\nfrom wandb_osh.ray_hooks import TriggerWandbSyncRayHook\n\n\nos.environ[\"WANDB_MODE\"] = \"offline\"\n\ncallbacks = [\n    WandbLoggerCallback(...),  # <-- ray tune documentation tells you about this\n    TriggerWandbSyncRayHook(),  # <-- New!\n]\n\ntuner = tune.Tuner(\n    trainable,\n    tune_config=...,\n    run_config=RunConfig(\n        ...,\n        callbacks=callbacks,\n    ),\n)\n```\n\n#### With anything else\n\nSimply take the `TriggerWandbSyncHook` class and use it as a callback in your training\nloop (as in the `wandb` example above), passing the directory that `wandb` is syncing\nto as an argument.\n\n### Step 2: Running the script on the head node\n\nAfter installation, you should have a `wandb-osh` script in your `$PATH`. Simply call it like this:\n\n```\nwandb-osh\n```\n\nThe output will look something like this:\n\n```\nINFO: Starting to watch /home/kl5675/.wandb_osh_command_dir\nINFO: Syncing /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_b1f60706_4_attr_pt_thld=0.0273,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-08-42\nFind logs at: /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_b1f60706_4_attr_pt_thld=0.0273,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-08-42/wandb/debug-cli.kl5675.log\nSyncing: https://wandb.ai/gnn_tracking/gnn_tracking/runs/b1f60706 ... done.\nINFO: Finished syncing /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_b1f60706_4_attr_pt_thld=0.0273,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-08-42\nINFO: Syncing /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_92a3ef1b_1_attr_pt_thld=0.0225,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-07-49\nFind logs at: /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_92a3ef1b_1_attr_pt_thld=0.0225,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-07-49/wandb/debug-cli.kl5675.log\nSyncing: https://wandb.ai/gnn_tracking/gnn_tracking/runs/92a3ef1b ... done.\nINFO: Finished syncing /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_92a3ef1b_1_attr_pt_thld=0.0225,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-07-49\nINFO: Syncing /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_a2caa9c0_2_attr_pt_thld=0.0092,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-08-17\nFind logs at: /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_a2caa9c0_2_attr_pt_thld=0.0092,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-08-17/wandb/debug-cli.kl5675.log\nSyncing: https://wandb.ai/gnn_tracking/gnn_tracking/runs/a2caa9c0 ... done.\n```\n\n## \ud83e\uddf0 Development setup\n\n```bash\npip3 install pre-commit\npre-commit install\n```\n\n## \ud83d\udc96 Contributing\n\nYour help is greatly appreciated! Suggestions, bug reports and feature requests are best opened as [github issues](https://github.com/klieret/wandb-offline-sync-hook/issues). You are also very welcome to submit a [pull request](https://github.com/klieret/wandb-offline-sync-hook/pulls)!\n\nBug reports and pull requests are credited with the help of the [allcontributors bot](https://allcontributors.org/).\n\n<!-- ## \u2728 Contributors -->\n<!--  -->\n<!-- Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)): -->\n<!--  -->\n<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->\n<!-- prettier-ignore-start -->\n<!-- markdownlint-disable -->\n<!-- markdownlint-restore -->\n<!-- prettier-ignore-end -->\n\n<!-- ALL-CONTRIBUTORS-LIST:END -->\n<!--  -->\n<!-- This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome! -->\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -53,7 +52,7 @@
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15660792,
+        "last_serial": 16274172,
         "urls": [
             {
                 "comment_text": "",
@@ -92,6 +91,105 @@
                 "upload_time": "2022-11-04T22:54:15",
                 "upload_time_iso_8601": "2022-11-04T22:54:15.589008Z",
                 "url": "https://files.pythonhosted.org/packages/d3/97/4dbf3eda5c5655158f20c0dba52c18b2adebc4a2047fe88f246bc0c72249/wandb_osh-1.0.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "1.0.2": {
+        "info": {
+            "author": "Kilian Lieret",
+            "author_email": "kilian.lieret@posteo.de",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: MIT License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3 :: Only",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.7",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9"
+            ],
+            "description": "<div align=\"center\">\n<h1>Wandb Offline Sync Hook</h1>\n<em>A convenient way to trigger synchronizations to wandb if your compute nodes don't have internet!</em>\n<p></p>\n\n[![Documentation Status](https://readthedocs.org/projects/wandb-offline-sync-hook/badge/?version=latest)](https://wandb-offline-sync-hook.readthedocs.io/en/latest/?badge=latest)\n[![PyPI version](https://badge.fury.io/py/wandb-osh.svg)](https://pypi.org/project/wandb-osh)\n[![Python 3.7\u20123.11](https://img.shields.io/badge/python-3.7%E2%80%923.11-blue)](https://www.python.org)\n[![PR welcome](https://img.shields.io/badge/PR-Welcome-%23FF8300.svg)](https://git-scm.com/book/en/v2/GitHub-Contributing-to-a-Project)\n[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/klieret/wandb-offline-sync-hook/main.svg)](https://results.pre-commit.ci/latest/github/klieret/wandb-offline-sync-hook/main)\n[![.github/workflows/test.yaml](https://github.com/klieret/wandb-offline-sync-hook/actions/workflows/test.yaml/badge.svg)](https://github.com/klieret/wandb-offline-sync-hook/actions/workflows/test.yaml)\n[![link checker](https://github.com/klieret/wandb-offline-sync-hook/actions/workflows/check-links.yaml/badge.svg)](https://github.com/klieret/wandb-offline-sync-hook/actions)\n[![codecov](https://codecov.io/github/klieret/wandb-offline-sync-hook/branch/main/graph/badge.svg?token=6MQZ4LODE5)](https://codecov.io/github/klieret/wandb-offline-sync-hook)\n[![gitmoji](https://img.shields.io/badge/gitmoji-%20\ud83d\ude1c%20\ud83d\ude0d-FFDD67.svg)](https://gitmoji.dev)\n[![Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)\n\n</div>\n\n## \ud83e\udd14 What is this?\n\n- \u2705 You use [`wandb`/Weights & Biases](https://wandb.ai/) to record your machine learning trials?\n- \u2705 Your ML experiments run on compute nodes without internet access (for example, using a batch system)?\n- \u2705 Your compute nodes and head nodes have access to a shared file system?\n\nThen this package can be useful.\n\n<div align=\"center\">\n\n![](https://user-images.githubusercontent.com/13602468/200086359-507b8653-e999-4cb3-ac93-ba1d175d2016.png)\n\n</div>\n\n### What you might have been doing so far\n\nYou probably have been using `export WANDB_MODE=\"offline\"` and then ran something like\n\n```bash\nfor d in $(ls -t -d */);do cd $d; wandb sync --sync-all; cd ..; done\n```\n\non the result directory to sync all runs from your head node (with internet access) every now and then.\nHowever, obviously this is not very satisfying as it doesn't update live.\nSure, you could throw this in a `while True` loop, but if you have a lot of trials in your directory, this will take forever, [cause unnecessary network traffic](https://github.com/wandb/wandb/issues/2887) and it's just not very elegant.\n\n### How does `wandb-osh` solve the problem?\n\n1. You add a hook that is called every time an epoch concludes (that is, when we want to trigger a sync).\n2. You start the `wandb-osh` script in your head node with internet access. This script will now trigger `wandb sync` upon request from one of the compute nodes.\n\n### How is this implemented?\n\nVery simple: Every time an epoch concludes, the hook gets called and creates a file in a _communication directory_ (`~/.wandb_osh_communication` by default). `wandb-osh` scans the communication directory and reads synchronization instructions from such files.\n\n## \ud83d\udce6 Installation\n\n```\npip3 install wandb-osh\n```\n\nIf you want to use this package with `ray`, use\n\n```\npip3 install 'wandb-osh[ray]'\n```\n\n## \ud83d\udd25 Running it!\n\nTwo steps: Set up the hook, then run the script from your head node.\n\n### Step 1: Setting up the hook\n\n#### With wandb\n\nLet's adapt the [simple pytorch example](https://docs.wandb.ai/guides/integrations/pytorch) from the wandb docs (it only takes 3 lines!):\n\n```python\nimport wandb\nfrom wandb_osh.hooks import TriggerWandbSyncHook  # <-- New!\n\n\ntrigger_sync = TriggerWandbSyncHook()  # <--- New!\n\nwandb.init(config=args, mode=\"offline\")\n\nmodel = ... # set up your model\n\n# Magic\nwandb.watch(model, log_freq=100)\n\nmodel.train()\nfor batch_idx, (data, target) in enumerate(train_loader):\n    output = model(data)\n    loss = F.nll_loss(output, target)\n    loss.backward()\n    optimizer.step()\n    if batch_idx % args.log_interval == 0:\n        wandb.log({\"loss\": loss})\n        trigger_sync()  # <-- New!\n```\n\n#### With ray tune\n\nYou probably already use the `WandbLoggerCallback` callback. We simply add a second callback for `wandb-osh` (it only takes one new line!):\n\n```python\nimport os\nfrom wandb_osh.ray_hooks import TriggerWandbSyncRayHook\n\n\nos.environ[\"WANDB_MODE\"] = \"offline\"\n\ncallbacks = [\n    WandbLoggerCallback(...),  # <-- ray tune documentation tells you about this\n    TriggerWandbSyncRayHook(),  # <-- New!\n]\n\ntuner = tune.Tuner(\n    trainable,\n    tune_config=...,\n    run_config=RunConfig(\n        ...,\n        callbacks=callbacks,\n    ),\n)\n```\n\n#### With anything else\n\nSimply take the `TriggerWandbSyncHook` class and use it as a callback in your training\nloop (as in the `wandb` example above), passing the directory that `wandb` is syncing\nto as an argument.\n\n### Step 2: Running the script on the head node\n\nAfter installation, you should have a `wandb-osh` script in your `$PATH`. Simply call it like this:\n\n```\nwandb-osh\n```\n\nThe output will look something like this:\n\n```\nINFO: Starting to watch /home/kl5675/.wandb_osh_command_dir\nINFO: Syncing /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_b1f60706_4_attr_pt_thld=0.0273,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-08-42\nFind logs at: /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_b1f60706_4_attr_pt_thld=0.0273,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-08-42/wandb/debug-cli.kl5675.log\nSyncing: https://wandb.ai/gnn_tracking/gnn_tracking/runs/b1f60706 ... done.\nINFO: Finished syncing /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_b1f60706_4_attr_pt_thld=0.0273,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-08-42\nINFO: Syncing /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_92a3ef1b_1_attr_pt_thld=0.0225,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-07-49\nFind logs at: /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_92a3ef1b_1_attr_pt_thld=0.0225,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-07-49/wandb/debug-cli.kl5675.log\nSyncing: https://wandb.ai/gnn_tracking/gnn_tracking/runs/92a3ef1b ... done.\nINFO: Finished syncing /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_92a3ef1b_1_attr_pt_thld=0.0225,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-07-49\nINFO: Syncing /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_a2caa9c0_2_attr_pt_thld=0.0092,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-08-17\nFind logs at: /home/kl5675/ray_results/tcn-perfect-test-sync/DynamicTCNTrainable_a2caa9c0_2_attr_pt_thld=0.0092,batch_size=1,focal_alpha=0.2500,focal_gamma=2.0000,gnn_tracking_experiments_has_2022-11-03_17-08-17/wandb/debug-cli.kl5675.log\nSyncing: https://wandb.ai/gnn_tracking/gnn_tracking/runs/a2caa9c0 ... done.\n```\n\nTake a look at `wandb-osh --help` for all command line options.\nYou can also add options to the `wandb sync` call by placing them after `--`. For example\n\n```bash\nwandb-osh -- --sync-all\n```\n\n## \ud83e\uddf0 Development setup\n\n```bash\npip3 install pre-commit\npre-commit install\n```\n\n## \ud83d\udc96 Contributing\n\nYour help is greatly appreciated! Suggestions, bug reports and feature requests are best opened as [github issues][github-issues]. You are also very welcome to submit a [pull request][pulls]!\n\nBug reports and pull requests are credited with the help of the [allcontributors bot](https://allcontributors.org/).\n\n<!-- ## \u2728 Contributors -->\n<!--  -->\n<!-- Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)): -->\n<!--  -->\n<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->\n<!-- prettier-ignore-start -->\n<!-- markdownlint-disable -->\n<!-- markdownlint-restore -->\n<!-- prettier-ignore-end -->\n\n<!-- ALL-CONTRIBUTORS-LIST:END -->\n<!--  -->\n<!-- This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome! -->\n\n[github-issues]: https://github.com/klieret/wandb-offline-sync-hook/issues\n[pulls]: https://github.com/klieret/wandb-offline-sync-hook/pulls\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/klieret/wandb-offline-sync-hook",
+            "keywords": "",
+            "license": "MIT",
+            "maintainer": "Kilian Lieret",
+            "maintainer_email": "kilian.lieret@posteo.de",
+            "name": "wandb-osh",
+            "package_url": "https://pypi.org/project/wandb-osh/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/wandb-osh/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/klieret/wandb-offline-sync-hook/issues",
+                "Documentation": "https://wandb_osh.readthedocs.io/",
+                "Homepage": "https://github.com/klieret/wandb-offline-sync-hook",
+                "Source Code": "https://github.com/klieret/wandb-offline-sync-hook"
+            },
+            "release_url": "https://pypi.org/project/wandb-osh/1.0.2/",
+            "requires_dist": [
+                "colorlog",
+                "wandb",
+                "importlib-metadata (>=0.12) ; python_version < \"3.8\"",
+                "ray[tune] ; extra == 'ray'",
+                "pytest ; extra == 'testing'",
+                "pytest-coverage ; extra == 'testing'"
+            ],
+            "requires_python": ">=3.7",
+            "summary": "Trigger wandb offline syncs from a compute node without internet",
+            "version": "1.0.2",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16274172,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "473aaea6268269059458d4a37ee88c81",
+                    "sha256": "bcfa00257001ab3b6e62e928e86f8e0b8222732d277a8d092ab961017948e25b"
+                },
+                "downloads": -1,
+                "filename": "wandb_osh-1.0.2-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "473aaea6268269059458d4a37ee88c81",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.7",
+                "size": 12083,
+                "upload_time": "2023-01-01T20:38:28",
+                "upload_time_iso_8601": "2023-01-01T20:38:28.777852Z",
+                "url": "https://files.pythonhosted.org/packages/44/a6/17f7d74b99cc67e76ec24ff091cb1970b6af226716b3a7bff6686f383810/wandb_osh-1.0.2-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "md5": "ae8cb3244b3312b7ab401eea68186fb1",
+                    "sha256": "ecc438d5eb552ae0c17b97b7815e5e6e3f345f45d119f1e611b844d13d2eedf5"
+                },
+                "downloads": -1,
+                "filename": "wandb_osh-1.0.2.tar.gz",
+                "has_sig": false,
+                "md5_digest": "ae8cb3244b3312b7ab401eea68186fb1",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.7",
+                "size": 12777,
+                "upload_time": "2023-01-01T20:38:32",
+                "upload_time_iso_8601": "2023-01-01T20:38:32.135455Z",
+                "url": "https://files.pythonhosted.org/packages/3d/e8/5641cd948df95b1b5c52285764f86b4d5acab1f58deb3e829623ccf9a8c5/wandb_osh-1.0.2.tar.gz",
                 "yanked": false,
                 "yanked_reason": null
             }
