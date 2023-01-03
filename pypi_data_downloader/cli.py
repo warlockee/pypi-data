@@ -184,6 +184,10 @@ def process_package(directory, name, serial):
             version_file = package_dir / f"{lowered_name}.json"
 
             modified = version_file.exists()
+            if modified:
+                previous_data = json.loads(version_file.read_text())
+            else:
+                previous_data = {}
 
             # The "description" is gigantic and often repeated. It's also not really useful.
             # To work around this, we delete the `description` field from all release information except the latest
@@ -192,6 +196,7 @@ def process_package(directory, name, serial):
                 if idx != 0:
                     release_info["info"].pop("description", "")
 
+            releases = {**previous_data, **releases}
             json_bytes = json.dumps(releases, indent=4, sort_keys=True).encode()
             version_file.write_bytes(json_bytes)
 
