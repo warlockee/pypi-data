@@ -1,15 +1,14 @@
 {
-    "0.2.2": {
+    "0.2.8": {
         "info": {
             "author": "INTEL AIA BDF",
-            "author_email": "bdf.aidk@intel.com",
+            "author_email": "chendi.xue@intel.com",
             "bugtrack_url": null,
             "classifiers": [
                 "License :: OSI Approved :: Apache Software License",
                 "Operating System :: OS Independent",
                 "Programming Language :: Python :: 3"
             ],
-            "description": "# Smart Democratization advisor (SDA)\n\n# INTRODUCTION\nA user-guided tool to facilitate automation of built-in model democratization via parameterized models, it generates yaml files based on user choice, provided build-in intelligence through parameterized models and leverage SigOpt for HPO. SDA converts the manual model tuning and optimization to assisted autoML and autoHPO. SDA provides a list of build-in optimized models ranging from RecSys, CV, NLP, ASR and RL. \n\n# Getting Start\n## install with pip (require preinstall spark)\n```\npip install e2eAIOK\n```\n\n## examples\n\nexample 1: builtin model with default best hyper-parameter\n``` python\nfrom e2eAIOK import SDA\n\nsettings = dict()\nsettings[\"data_path\"] = \"/home/vmagent/app/dataset/criteo/\"\nsettings[\"ppn\"] = 2\nsettings[\"ccl_worker_num\"] = 4\nsettings[\"enable_sigopt\"] = True\n\nsda = SDA(model=\"dlrm\", settings=settings) # default settings\nsda.launch()\n\nhydro_model = sda.snapshot()\nhydro_model.explain()\n```\n``` console\n2022-04-26 05:27:09,901 - HYDRO.AI.SDA - INFO - ### Ready to submit current task  ###\n2022-04-26 05:27:09,902 - HYDRO.AI.SDA - INFO - Model Advisor created\n2022-04-26 05:27:09,903 - HYDRO.AI.SDA - INFO - model parameter initialized\n2022-04-26 05:27:09,903 - HYDRO.AI.SDA - INFO - start to launch training\n...\n[0] Finished training it 256/256 of epoch 0, 411.28 ms/it, loss 0.129076, accuracy 96.669 %\n[1] Finished training it 256/256 of epoch 0, 411.10 ms/it, loss 0.128426, accuracy 96.695 %\n[0] :::MLLOG {\"namespace\": \"\", \"time_ms\": 1650952435427, \"event_type\": \"INTERVAL_START\", \"key\": \"eval_start\", \"value\": null, \"metadata\": {\"file\": \"/home/vmagent/app/e2eaiok/modelzoo/dlrm/dlrm/dlrm_s_pytorch.py\", \"lineno\": 1366, \"epoch_num\": 2.0}}\n2022-04-26 05:27:14,748 - sigopt - INFO - Training completed based in sigopt suggestion, took 4.843278169631958 secs\n2022-04-26 05:27:14,749 - HYDRO.AI.SDA - INFO - training script completed\n\n===============================================\n***    Best Trained Model    ***\n===============================================\n  Model Type: dlrm\n  Model Saved Path: /home/vmagent/app/e2eaiok/result/dlrm/20220426_052421/\n  Sigopt Experiment id is None\n  === Result Metrics ===\n    accuracy: 0.8025\n===============================================\n```\n\nexample 2: create your own model\n``` python\nfrom e2eAIOK import SDA\n\n# global settings\nsettings = dict()\nsettings[\"data_path\"] = \"/home/vmagent/app/dataset/xxx/\"\nsettings[\"enable_sigopt\"] = True\n\n# model settings\nmodel_info = dict()\n# config for model\nmodel_info[\"score_metrics\"] = [(\"accuracy\", \"maximize\"), (\"training_time\", \"minimize\")]\nmodel_info[\"execute_cmd_base\"] = \"/opt/intel/oneapi/intelpython/latest/envs/pytorch_mlperf/bin/python /home/vmagent/app/e2eaiok/modelzoo/dlrm/dlrm/launch.py\"\nmodel_info[\"result_file_name\"] = \"best_auc.txt\"\n\n# config for sigopt\nmodel_info[\"experiment_name\"] = \"dlrm\"\nmodel_info[\"sigopt_config\"] = [\n    {'name':'learning_rate','bounds':{'min':5,'max':50},'type':'int'},\n    {'name':'lamb_lr','bounds':{'min':5,'max':50},'type':'int'},\n    {'name':'warmup_steps','bounds':{'min':2000,'max':4500},'type':'int'},\n    {'name':'decay_start_steps','bounds':{'min':4501,'max':9000},'type':'int'},\n    {'name':'num_decay_steps','bounds':{'min':5000,'max':15000},'type':'int'},\n    {'name':'sparse_feature_size','grid': [128,64,16],'type':'int'},\n    {'name':'mlp_top_size','bounds':{'min':0,'max':7},'type':'int'},\n    {'name':'mlp_bot_size','bounds':{'min':0,'max':3},'type':'int'}]\nmodel_info[\"observation_budget\"] = 1\n\n# register model to SDA\nsda = SDA(settings=settings) # default settings\nsda.register(model_info)\nsda.launch()\n\nhydro_model = sda.snapshot()\nhydro_model.explain()\n```\n\n## use cases\n* [DLRM](http://vsr140:8891/notebooks/builtin/dlrm/DLRM_DEMO.ipynb) - [Readme](modelzoo/dlrm/README.md) - recsys, facebook, pytorch_mlperf\n* [DIEN](http://vsr140:8892/notebooks/builtin/dien/DIEN_DEMO.ipynb) - [Readme](modelzoo/dien/README.md) - recsys, alibaba, tensorflow\n* [WnD](http://vsr140:8892/notebooks/builtin/wnd/WND_DEMO.ipynb) - [Readme](modelzoo/WnD/README.md) - recsys, google, tensorflow\n* [RNNT](http://vsr140:8890/notebooks/builtin/rnnt/RNNT_DEMO.ipynb) - [Readme](modelzoo/rnnt/README.md) - speech recognition, pytorch\n* [RESNET](http://vsr140:8892/notebooks/builtin/resnet/RESNET_DEMO.ipynb) - [Readme](modelzoo/resnet/README.md) - computer vision, tensorflow\n* [BERT](http://vsr140:8892/notebooks/builtin/bert/BERT_DEMO.ipynb) - [Readme](modelzoo/bert/README.md) - Natual Language Processing, tensorflow\n* [MiniGO](http://sr141:8888/notebooks/demo/MiniGo_DEMO.ipynb) - [Readme](modelzoo/minigo/README.md) - minimalist engine modeled after AlphaGo Zero, tensorflow\n\n## LICENSE\n* Apache 2.0\n\n## Dependency\n* python 3.*\n\n\n",
             "description_content_type": "text/markdown",
             "docs_url": null,
             "download_url": "",
@@ -20,7 +19,7 @@
             },
             "home_page": "https://github.com/intel/e2eAIOK",
             "keywords": "",
-            "license": "",
+            "license": "Apache License",
             "maintainer": "",
             "maintainer_email": "",
             "name": "e2eAIOK-sda",
@@ -31,33 +30,100 @@
                 "Bug Tracker": "https://github.com/intel/e2eAIOK/issues",
                 "Homepage": "https://github.com/intel/e2eAIOK"
             },
-            "release_url": "https://pypi.org/project/e2eAIOK-sda/0.2.2/",
+            "release_url": "https://pypi.org/project/e2eAIOK-sda/0.2.8/",
             "requires_dist": null,
             "requires_python": ">=3.6",
-            "summary": "Intel\u00ae End-to-End AI Optimization Kit - SDA",
-            "version": "0.2.2",
+            "summary": "Intel\u00ae End-to-End AI Optimization Kit",
+            "version": "0.2.8",
             "yanked": false,
             "yanked_reason": null
         },
-        "last_serial": 15909507,
+        "last_serial": 16288993,
         "urls": [
             {
                 "comment_text": "",
                 "digests": {
-                    "md5": "f40d588d3b8bb57195f67da7beeefa78",
-                    "sha256": "be035d998047572e40384f2fd4e4240a45640949e42de9dcb4009aaf68488919"
+                    "blake2b_256": "7cb09d799dbe13d975511bd60579652181012295f1dddc5dca36fca91c2cf6a7",
+                    "md5": "e232e2136c75e47a867b6374a2090853",
+                    "sha256": "926d89d912bc4cc05e28b50e508ccabacc138ad4f4e20e8a3e74f410fb045dfd"
                 },
                 "downloads": -1,
-                "filename": "e2eAIOK-sda-0.2.2.tar.gz",
+                "filename": "e2eAIOK_sda-0.2.8-py3-none-any.whl",
                 "has_sig": false,
-                "md5_digest": "f40d588d3b8bb57195f67da7beeefa78",
-                "packagetype": "sdist",
-                "python_version": "source",
+                "md5_digest": "e232e2136c75e47a867b6374a2090853",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
                 "requires_python": ">=3.6",
-                "size": 18281,
-                "upload_time": "2022-11-28T03:38:15",
-                "upload_time_iso_8601": "2022-11-28T03:38:15.228834Z",
-                "url": "https://files.pythonhosted.org/packages/d0/d3/f973096b5834496d6d8ce06ac66f0ad6b8699244f2e70176c89d161f88a2/e2eAIOK-sda-0.2.2.tar.gz",
+                "size": 83744,
+                "upload_time": "2023-01-03T11:57:18",
+                "upload_time_iso_8601": "2023-01-03T11:57:18.799679Z",
+                "url": "https://files.pythonhosted.org/packages/7c/b0/9d799dbe13d975511bd60579652181012295f1dddc5dca36fca91c2cf6a7/e2eAIOK_sda-0.2.8-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    },
+    "0.2.9b2023010311": {
+        "info": {
+            "author": "INTEL AIA BDF",
+            "author_email": "chendi.xue@intel.com",
+            "bugtrack_url": null,
+            "classifiers": [
+                "License :: OSI Approved :: Apache Software License",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python :: 3"
+            ],
+            "description": "# [Intel\u00ae End-to-End AI Optimization Kit](https://github.com/intel/e2eAIOK)\n\n# INTRODUCTION\n\n## Problem Statement\n\nModern End to End AI pipeline life cycle is quite complicate with a complex pipeline including data processing, feature engineering, model development, and model deployment & maintenance. The iterative nature for feature engineering, model testing and hyper-parameter optimization makes the process more time-consuming. This complexity creates an entry-barrier for novice and citizen data scientists who might not have such expertise or skills.  Meanwhile, people tend to develop larger and larger models to get better performance, which are quite often over-parameterized.  Those overparameterized models not only poses significant challenges on AI hardware infrastructure as they require expensive computation power for training, but also posed a challenge when try to deploy in resource constraint environment which is a common need.\n\n## Solution with Intel\u00ae End-to-End AI Optimization Kit\n\nIntel\u00ae End-to-End AI Optimization Kit is a composable toolkits for E2E AI optimization to deliver high performance lightweight networks/models efficiently on commodity HW like CPU, intending to make E2E AI pipelines faster, easier and more accessible.\n\nMaking AI Faster: It reduces E2E time on CPU to an acceptable range throughput full pipeline optimization and improved scale-up/out capability on Intel platforms with Intel optimized framework and toolkits, delivers popular lighter DL Models with close enough performance and significantly higher inference throughput.\n\nMaking AI Easier: It automates provides simplified toolkits for data processing, distributed training, and compact neural network construction, automates E2E AI pipeline with click to run workflows and can be easily plugged to third party ML solutions/platforms as an independent composable component.\n\nMaking AI more accessible:  Through built-in optimized, parameterized models generated by smart democratization advisor and domain-specific, neural architected search (NAS) based network constructure, it brings complex DL to commodity HW, everyone can easily access AI on existing CPU clusters without the need to be an expert on data engineering and data science.\n\n## This solution is intended for\n\nThis solution is intended for citizen data scientists, enterprise users, independent software vendor and partial of cloud service provider.\n\n## Papers and Blogs\n\n* [ICYMI \u2013 SigOpt Summit Recap Democratizing End-to-End Recommendation Systems](https://sigopt.com/blog/icymi-sigopt-summit-recap-democratizing-end-to-end-recommendation-systems-with-jian-zhang/)\n* [The SigOpt Intelligent Experimentation Platform](https://www.intel.com/content/www/us/en/developer/articles/technical/sigopt-intelligent-experimentation-platform.html#gs.gz2ls6)\n* [SDC2022 - Data Platform for End-to-end AI Democratization](https://storagedeveloper.org/events/sdc-2022/agenda/session/326)\n* [SIHG4SR: Side Information Heterogeneous Graph for Session Recommender](https://dl.acm.org/doi/abs/10.1145/3556702.3556852)\n\n# ARCHITECTURE\n\n## Intel\u00ae End-to-End AI Optimization Kit\n\nIntel\u00ae End-to-End AI Optimization Kit is a composable toolkits for E2E AI optimization to deliver high performance lightweight networks/models efficiently on commodity HW. It is a pipeline framework that streamlines AI optimization technologies in each stage of E2E AI pipeline, including data processing, feature engineering, training, hyper-parameter tunning, and inference. Intel\u00ae End-to-End AI Optimization Kit delivers high performance, lightweight models efficiently on commodity hardware.\n\n## The key components are\n\n* [RecDP](RecDP/README.md):  A parallel data processing and feature engineering lib on top of Spark, and extensible to other data processing tools. It provides abstraction API to hide Spark programming complexity, delivers optimized performance through adaptive query plan & strategy, supports critical feature engineering functions on Tabular dataset, and can be easily integrated to third party solutions.  \n\n* [Smart Democratization advisor (SDA)](e2eAIOK/SDA/README.md): A user-guided tool to facilitate automation of built-in model democratization via parameterized models, it generates yaml files based on user choice, provided build-in intelligence through parameterized models and leverage SigOpt for HPO. SDA converts the manual model tuning and optimization to assisted autoML and autoHPO. SDA provides a list of build-in optimized models ranging from RecSys, CV, NLP, ASR and RL.\n\n* [Neural network constructor](e2eAIOK/DeNas/README.md): A neural architecture search technology based on component to build compact neural network models for specific domains directly. It is a multi-model, hardware aware, train-free neural architecture search approach to build models for CV, NLP, ASR directly and leverage transfer learning model adaptor to deploy the models in user\u2019s production environment.\n\nFor more information, you may [read the docs](https://github.com/intel/e2eAIOK).\n![Architecture](./docs/source/aiok_workflow.png).\n\n# Getting Started\n\n## Installing\n\n``` bash\ngit clone https://github.com/intel/e2eAIOK.git\ngit submodule update --init --recursive\ncd e2eAIOK; python scripts/start_e2eaiok_docker.py --backend [tensorflow, pytorch, pytorch110, pytorch112] --dataset_path ../ --workers host1, host2, host3, host4 --proxy \"http://addr:ip\"\n```\n\n## Demos\n\n* Built-in Models\n  * [DLRM](demo/builtin/dlrm/DLRM_DEMO.ipynb) - [Readme](modelzoo/dlrm/README.md) - recsys, facebook, pytorch_mlperf\n  * [DIEN](demo/builtin/dien/DIEN_DEMO.ipynb) - [Readme](modelzoo/dien/README.md) - recsys, alibaba, tensorflow\n  * [WnD](demo/builtin/wnd/WND_DEMO.ipynb) - [Readme](modelzoo/WnD/README.md) - recsys, google, tensorflow\n  * [RNNT](demo/builtin/rnnt/RNNT_DEMO.ipynb) - [Readme](modelzoo/rnnt/README.md) - speech recognition, pytorch\n  * [RESNET](demo/builtin/resnet/RESNET_DEMO.ipynb) - [Readme](modelzoo/resnet/README.md) - computer vision, tensorflow\n  * [BERT](demo/builtin/bert/BERT_DEMO.ipynb) - [Readme](modelzoo/bert/README.md) - Natual Language Processing, tensorflow\n  * [MiniGO](demo/builtin/minigo/MiniGo_DEMO.ipynb) - [Readme](modelzoo/minigo/README.md) - minimalist engine modeled after AlphaGo Zero, tensorflow\n\n* Neural network constructor Demos\n  * [Computer Vision](demo/denas/computer_vision/DENAS_COMPUTER_VISION_DEMO.ipynb) - cnn/vit, pytorch\n  * [NLP](demo/denas/bert/DENAS_BERT_DEMO.ipynb) - bert, pytorch\n  * [Speech Recognition](demo/denas/asr/DENAS_ASR_DEMO.ipynb) - asr, pytorch\n\n## Performance\n\n![Performance](./docs/source/Performance.png \"Intel\u00ae End-to-End AI Optimization Kit Performance\").\n\n## Getting Support\n\n* [Github Issues](https://github.com/intel/e2eAIOK/issues)\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "https://github.com/intel/e2eAIOK",
+            "keywords": "",
+            "license": "Apache License",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "e2eAIOK-sda",
+            "package_url": "https://pypi.org/project/e2eAIOK-sda/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/e2eAIOK-sda/",
+            "project_urls": {
+                "Bug Tracker": "https://github.com/intel/e2eAIOK/issues",
+                "Homepage": "https://github.com/intel/e2eAIOK"
+            },
+            "release_url": "https://pypi.org/project/e2eAIOK-sda/0.2.9b2023010311/",
+            "requires_dist": null,
+            "requires_python": ">=3.6",
+            "summary": "Intel\u00ae End-to-End AI Optimization Kit",
+            "version": "0.2.9b2023010311",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16288993,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "blake2b_256": "7eeadb7f5d67fdc4330c53e043919e7bc7998dedfcf968130945ada8869b107a",
+                    "md5": "7f3e73639b6da115fe7d1319608995d5",
+                    "sha256": "a9c1e76b52f626a48bfccec9814b806baf3bc70b2d2b52ac3e931697a22875ce"
+                },
+                "downloads": -1,
+                "filename": "e2eAIOK_sda-0.2.9b2023010311-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "7f3e73639b6da115fe7d1319608995d5",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.6",
+                "size": 83889,
+                "upload_time": "2023-01-03T11:57:12",
+                "upload_time_iso_8601": "2023-01-03T11:57:12.663372Z",
+                "url": "https://files.pythonhosted.org/packages/7e/ea/db7f5d67fdc4330c53e043919e7bc7998dedfcf968130945ada8869b107a/e2eAIOK_sda-0.2.9b2023010311-py3-none-any.whl",
                 "yanked": false,
                 "yanked_reason": null
             }
