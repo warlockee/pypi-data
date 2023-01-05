@@ -1,0 +1,106 @@
+{
+    "0.1.0": {
+        "info": {
+            "author": "Plone",
+            "author_email": "test@plone.org",
+            "bugtrack_url": null,
+            "classifiers": [
+                "Development Status :: 3 - Alpha",
+                "Framework :: Plone",
+                "Framework :: Plone :: 6.0",
+                "Framework :: Pytest",
+                "Intended Audience :: Developers",
+                "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+                "Operating System :: OS Independent",
+                "Programming Language :: Python",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.10",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.8",
+                "Programming Language :: Python :: 3.9",
+                "Topic :: Software Development :: Testing"
+            ],
+            "description": "\n<h1 align=\"center\">pytest-plone</h1>\n\n<div align=\"center\">\n\n[![PyPI](https://img.shields.io/pypi/v/pytest-plone)](https://pypi.org/project/pytest-plone/)\n[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pytest-plone)](https://pypi.org/project/pytest-plone/)\n[![PyPI - Wheel](https://img.shields.io/pypi/wheel/pytest-plone)](https://pypi.org/project/pytest-plone/)\n[![PyPI - License](https://img.shields.io/pypi/l/pytest-plone)](https://pypi.org/project/pytest-plone/)\n[![PyPI - Status](https://img.shields.io/pypi/status/pytest-plone)](https://pypi.org/project/pytest-plone/)\n\n\n[![PyPI - Plone Versions](https://img.shields.io/pypi/frameworkversions/plone/pytest-plone)](https://pypi.org/project/pytest-plone/)\n\n[![Code analysis checks](https://github.com/collective/pytest-plone/actions/workflows/code-analysis.yml/badge.svg)](https://github.com/collective/pytest-plone/actions/workflows/code-analysis.yml)\n[![Tests](https://github.com/collective/pytest-plone/actions/workflows/tests.yml/badge.svg)](https://github.com/collective/pytest-plone/actions/workflows/tests.yml)\n![Code Style](https://img.shields.io/badge/Code%20Style-Black-000000)\n\n[![GitHub contributors](https://img.shields.io/github/contributors/collective/pytest-plone)](https://github.com/collective/pytest-plone)\n[![GitHub Repo stars](https://img.shields.io/github/stars/collective/pytest-plone?style=social)](https://github.com/collective/pytest-plone)\n</div>\n\n**pytest-plone** is a [pytest](https://docs.pytest.org) plugin providing fixtures and helpers to test [Plone](https://plone.org) add-ons.\n\n\nThis package is built on top of [gocept.pytestlayer](https://github.com/gocept/gocept.pytestlayer).\n\n\n## Reasoning\n\nDespite the fact Plone, and Zope, have their codebases tested with `unittest`, over the years\n`pytest` became the most popular choice for testing in Python.\n\n`pytest` is more flexible and easier to use than `unittest` and has a rich ecosystem of plugins that you can use to extend its functionality.\n## Warning\n\n**THIS PACKAGE IS NOT CONSIDERED TO BE STABLE AND FIXTURES COULD CHANGE BEFORE A FINAL RELEASE**\n\n## Usage\n\nIn your top-level `conftest.py` import your testing layers, and also import `fixtures_factory` -- which will accept a iterator of tuples containing the testing layer and a prefix to be used to generate the needed pytest fixtures.\n\n```python\nfrom Products.CMFPlone.testing import PRODUCTS_CMFPLONE_FUNCTIONAL_TESTING\nfrom Products.CMFPlone.testing import PRODUCTS_CMFPLONE_INTEGRATION_TESTING\nfrom pytest_plone import fixtures_factory\n\n\nglobals().update(\n    fixtures_factory(\n        (\n            (PRODUCTS_CMFPLONE_FUNCTIONAL_TESTING, \"functional\"),\n            (PRODUCTS_CMFPLONE_INTEGRATION_TESTING, \"integration\"),\n        )\n    )\n)\n```\n\nIn the code above, the following pytest fixtures will be available to your tests:\n\n| Fixture | Scope |\n| --- | --- |\n| functional_session | Session |\n| functional_class | Class |\n| functional | Function |\n| integration_session | Session |\n| integration_class | Class |\n| integration | Function |\n\n\n## Fixtures\n\n### portal\n\n|  |  |\n| --- | --- |\n| Description | Portal object |\n| Required Fixture | **integration** |\n| Scope | **Function** |\n\n```python\ndef test_portal_title(portal):\n    \"\"\"Test portal title.\"\"\"\n    assert portal.title == \"Plone Site\"\n\n```\n\n### http_request\n\n|  |  |\n| --- | --- |\n| Description | HTTP Request |\n| Required Fixture | **integration** |\n| Scope | **Function** |\n\n\n```python\nfrom plone import api\n\n\ndef test_myproduct_controlpanel_view(portal, http_request):\n    \"\"\"Test myproduct_controlpanel browser view is available.\"\"\"\n    view = api.content.get_view(\n        \"myproduct-controlpanel\", portal, http_request\n    )\n    assert view is not None\n\n```\n\n### installer\n\n|  |  |\n| --- | --- |\n| Description | Installer browser view. Used to install/uninstall/check for an add-on. |\n| Required Fixture | **integration** |\n| Scope | **Function** |\n\n\n```python\nimport pytest\n\n\nPACKAGE_NAME = \"myproduct\"\n\n\n@pytest.fixture\ndef uninstall(installer):\n    \"\"\"Fixture to uninstall a package.\"\"\"\n    installer.uninstall_product(PACKAGE_NAME)\n\n\ndef test_product_installed(installer):\n    \"\"\"Test if myproduct is installed.\"\"\"\n    assert installer.is_product_installed(PACKAGE_NAME) is True\n\n@pytest.mark.parametrize(\n    \"package\",\n    [\n        \"collective.casestudy\",\n        \"pytest-plone\",\n    ]\n)\ndef test_dependency_installed(installer, package):\n    \"\"\"Test if dependency is installed.\"\"\"\n    assert installer.is_product_installed(package) is True\n\n```\n\n### browser_layers\n\n|  |  |\n| --- | --- |\n| Description | List of available browser layers. Used to test if a specific browser layer is registered. |\n| Required Fixture | **integration** |\n| Scope | **Function** |\n\n```python\ndef test_browserlayer(browser_layers):\n    \"\"\"Test that IMyProductLayer is registered.\"\"\"\n    from myproduct.interfaces import IMyProductLayer\n\n\n    assert IMyProductLayer in browser_layers\n\n```\n\n### controlpanel_actions\n\n|  |  |\n| --- | --- |\n| Description | List of control panel actions ids. Used to test if a specific control panel is installed or not. |\n| Required Fixture | **integration** |\n| Scope | **Function** |\n\n```python\ndef test_configlet_install(controlpanel_actions):\n    \"\"\"Test if control panel is installed.\"\"\"\n    assert \"myproductcontrolpanel\" in controlpanel_actions\n\n```\n\n## Plugin Development\n\nYou need a working `python` environment (system, virtualenv, pyenv, etc) version 3.8 or superior.\n\nThen install the dependencies and a development instance using:\n\n```bash\nmake build\n```\n\nTo run tests for this package:\n\n```bash\nmake test\n```\n\nBy default we use the latest Plone version in the 6.x series.\n\n## License\n\nThe project is licensed under the GPLv2.\n\n\n# Changelog\n\n## 0.1.0 (2023-01-04)\n\n- Fixtures `portal`, `http_request`, `installer`, `browser_layers`, `controlpanel_actions`\n  [ericof]\n\n- Initial release\n  [ericof]\n\n\n",
+            "description_content_type": "text/markdown",
+            "docs_url": null,
+            "download_url": "",
+            "downloads": {
+                "last_day": -1,
+                "last_month": -1,
+                "last_week": -1
+            },
+            "home_page": "http://pypi.python.org/pypi/pytest-plone",
+            "keywords": "Plone Pytest Testing",
+            "license": "GPL",
+            "maintainer": "",
+            "maintainer_email": "",
+            "name": "pytest-plone",
+            "package_url": "https://pypi.org/project/pytest-plone/",
+            "platform": null,
+            "project_url": "https://pypi.org/project/pytest-plone/",
+            "project_urls": {
+                "Homepage": "http://pypi.python.org/pypi/pytest-plone"
+            },
+            "release_url": "https://pypi.org/project/pytest-plone/0.1.0/",
+            "requires_dist": [
+                "Plone",
+                "setuptools",
+                "gocept.pytestlayer",
+                "plone.app.testing",
+                "plone.app.robotframework",
+                "pytest"
+            ],
+            "requires_python": ">=3.8",
+            "summary": "Pytest plugin to test Plone addons",
+            "version": "0.1.0",
+            "yanked": false,
+            "yanked_reason": null
+        },
+        "last_serial": 16308867,
+        "urls": [
+            {
+                "comment_text": "",
+                "digests": {
+                    "blake2b_256": "2447d03b3d8a4a6eb7383e718762799ffbe345617dcfcc353f72a5fd8fe3c0a5",
+                    "md5": "b4e8bf8300012edc2210480c52f36100",
+                    "sha256": "998f5d3744c8fabfc9abba903684852713cd7f4e25159ed864826b560d4636ef"
+                },
+                "downloads": -1,
+                "filename": "pytest_plone-0.1.0-py3-none-any.whl",
+                "has_sig": false,
+                "md5_digest": "b4e8bf8300012edc2210480c52f36100",
+                "packagetype": "bdist_wheel",
+                "python_version": "py3",
+                "requires_python": ">=3.8",
+                "size": 11504,
+                "upload_time": "2023-01-04T21:41:54",
+                "upload_time_iso_8601": "2023-01-04T21:41:54.230816Z",
+                "url": "https://files.pythonhosted.org/packages/24/47/d03b3d8a4a6eb7383e718762799ffbe345617dcfcc353f72a5fd8fe3c0a5/pytest_plone-0.1.0-py3-none-any.whl",
+                "yanked": false,
+                "yanked_reason": null
+            },
+            {
+                "comment_text": "",
+                "digests": {
+                    "blake2b_256": "c50613511857f066e80d6585e7fa66a9cb3c8c1b281d2719ebb72a141fc04f2a",
+                    "md5": "fd14bfed10450d44ef7faa7b4668b1bb",
+                    "sha256": "f3eab1c436970cfebcd7fd24c6bcf78f6a4abb40ca41ae77a5eda97ccd3fb8fa"
+                },
+                "downloads": -1,
+                "filename": "pytest-plone-0.1.0.tar.gz",
+                "has_sig": false,
+                "md5_digest": "fd14bfed10450d44ef7faa7b4668b1bb",
+                "packagetype": "sdist",
+                "python_version": "source",
+                "requires_python": ">=3.8",
+                "size": 14253,
+                "upload_time": "2023-01-04T21:41:56",
+                "upload_time_iso_8601": "2023-01-04T21:41:56.027166Z",
+                "url": "https://files.pythonhosted.org/packages/c5/06/13511857f066e80d6585e7fa66a9cb3c8c1b281d2719ebb72a141fc04f2a/pytest-plone-0.1.0.tar.gz",
+                "yanked": false,
+                "yanked_reason": null
+            }
+        ],
+        "vulnerabilities": []
+    }
+}
